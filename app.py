@@ -454,6 +454,7 @@ class Appointment(db.Model):
     notif_reminder_sent  = db.Column(db.Boolean, default=False)  # recordatorio al admin 30 min antes
     notif_client_sent    = db.Column(db.Boolean, default=False)  # recordatorio al cliente día anterior
     notif_ceramic_sent   = db.Column(db.Boolean, default=False)  # seguimiento cerámico 3 meses
+    notif_reengagement_sent = db.Column(db.Boolean, default=False)  # reactivación 3 semanas sin volver
 
     operator_assignments = db.relationship(
         "AppointmentOperator", cascade="all, delete-orphan", lazy="joined"
@@ -527,6 +528,7 @@ def ensure_appointment_notif_schema():
             ("notif_reminder_sent", "BOOLEAN DEFAULT 0"),
             ("notif_client_sent",   "BOOLEAN DEFAULT 0"),
             ("notif_ceramic_sent",  "BOOLEAN DEFAULT 0"),
+            ("notif_reengagement_sent", "BOOLEAN DEFAULT 0"),
         ]:
             try:
                 db.session.execute(text(f"SELECT {col} FROM appointments LIMIT 1"))
@@ -4900,6 +4902,74 @@ def _job_ceramic_followup():
                 db.session.commit()
 
 
+# ── Job 3b: Reactivación — clientes que no han vuelto en 3 semanas ───────────
+def _job_reengagement_followup():
+    """Corre diariamente a las 11 AM (Bogotá). Detecta clientes cuya última cita
+    completada fue hace ~3 semanas y no han vuelto a agendar, y les escribe para
+    saludarlos y preguntarles si quieren agendar."""
+    with app.app_context():
+        today      = date.today()
+        # Ventana de 21 ± 3 días para no perder clientes si el job falla un día
+        target_ini = datetime.combine(today - timedelta(days=24), datetime.min.time())
+        target_fin = datetime.combine(today - timedelta(days=18), datetime.min.time())
+
+        # Última cita completada de cada teléfono
+        ultima_visita = (
+            db.session.query(
+                Appointment.phone.label("phone"),
+                db.func.max(Appointment.start_datetime).label("last_visit"),
+            )
+            .filter(
+                Appointment.status == "completed",
+                Appointment.phone.isnot(None),
+                Appointment.phone != "",
+            )
+            .group_by(Appointment.phone)
+            .subquery()
+        )
+
+        candidatas = (
+            Appointment.query
+            .join(
+                ultima_visita,
+                db.and_(
+                    Appointment.phone == ultima_visita.c.phone,
+                    Appointment.start_datetime == ultima_visita.c.last_visit,
+                ),
+            )
+            .filter(
+                Appointment.status == "completed",
+                Appointment.start_datetime >= target_ini,
+                Appointment.start_datetime <= target_fin,
+                Appointment.notif_reengagement_sent == False,
+            )
+            .all()
+        )
+
+        for appt in candidatas:
+            # Si ya tiene una cita futura agendada, no lo molestamos
+            tiene_cita_futura = Appointment.query.filter(
+                Appointment.phone == appt.phone,
+                Appointment.status == "scheduled",
+                Appointment.start_datetime > datetime.utcnow(),
+            ).first()
+            if tiene_cita_futura:
+                appt.notif_reengagement_sent = True
+                db.session.commit()
+                continue
+
+            msg = (
+                f"👋 Hola {appt.customer_name or 'cliente'}!\n\n"
+                f"Notamos que no has vuelto por *NOXA Detail* desde hace un tiempo 🚗\n\n"
+                f"¿Quieres agendar una cita para darle mantenimiento a tu vehículo? "
+                f"Contamos con toda la disponibilidad para ti ✨"
+            )
+            ok, _ = send_whatsapp(appt.phone, msg)
+            if ok:
+                appt.notif_reengagement_sent = True
+                db.session.commit()
+
+
 # ── Job 4: Seguimiento del bot de WhatsApp a leads en silencio ────────────────
 _FOLLOWUP_STAGES = [
     (timedelta(hours=24), "recuperar_intencion"),
@@ -5011,6 +5081,12 @@ _scheduler.add_job(
     _job_ceramic_followup,
     CronTrigger(hour=10, minute=0, timezone=_BOGOTA),
     id="ceramic_followup",
+    replace_existing=True,
+)
+_scheduler.add_job(
+    _job_reengagement_followup,
+    CronTrigger(hour=11, minute=0, timezone=_BOGOTA),
+    id="reengagement_followup",
     replace_existing=True,
 )
 _scheduler.add_job(
