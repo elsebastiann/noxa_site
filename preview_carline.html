@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#000000">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>Noxa Detail | Car Care</title>
+
+<link rel="icon" type="image/png" href="favicon.png">
+
+<!-- Google Fonts -->
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;600;800&display=swap" rel="stylesheet">
+
+<style>
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: 'Montserrat', sans-serif;
+}
+
+html, body {
+    margin: 0;
+    padding: 0;
+    background: #000;
+    height: 100%;
+}
+
+body {
+    background: radial-gradient(circle at top, #111 0%, #000 80%);
+    color: white;
+    min-height: 100svh;
+    overflow-x: hidden;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+}
+
+.container {
+    z-index: 2;
+    animation: fadeIn 1.5s ease forwards;
+    opacity: 0;
+}
+
+
+  .logo img {
+      width: 720px;
+      max-width: 98%;
+      height: auto;
+      filter: drop-shadow(0 0 40px rgba(212,175,55,0.8));
+      animation: logoFade 1.8s ease forwards;
+      opacity: 0;
+  }
+
+  .bio {
+      margin: -20px auto 40px auto;
+      max-width: 500px;
+      padding: 0 20px;
+      text-align: center;
+  }
+
+  .bio-title {
+      font-size: 1.6rem;
+      font-weight: 600;
+      margin-bottom: 10px;
+  }
+
+  .bio-text {
+      font-size: 0.95rem;
+      font-weight: 300;
+      color: #ccc;
+      line-height: 1.6;
+  }
+
+  @keyframes logoFade {
+      to {
+          opacity: 1;
+      }
+  }
+
+.subtitle {
+    font-weight: 300;
+    font-size: 1rem;
+    letter-spacing: 4px;
+    margin-bottom: 70px;
+    color: #aaa;
+}
+
+.socials {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    align-items: center;
+}
+
+.social-btn {
+    padding: 15px 40px;
+    border: 1.5px solid #272b35;
+    background: rgba(17, 19, 24, 0.6);
+    backdrop-filter: blur(25px);
+    -webkit-backdrop-filter: blur(25px);
+    color: #f3f5f7;
+    text-decoration: none;
+    font-weight: 600;
+    letter-spacing: 2px;
+    transition: border-color 0.3s ease, color 0.3s ease, box-shadow 0.3s ease, transform 0.3s ease;
+    position: relative;
+    z-index: 2;
+    width: 100%;
+    max-width: 320px;
+    text-align: center;
+    overflow: hidden;
+    border-radius: 8px;
+    isolation: isolate;
+}
+
+.social-btn::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: -75%;
+    width: 50%;
+    height: 100%;
+    background: linear-gradient(120deg, transparent, rgba(212,180,108,0.4), transparent);
+    transform: skewX(-20deg);
+    transition: left 0.6s ease;
+    z-index: -1;
+}
+
+.social-btn:hover::before {
+    left: 125%;
+}
+
+.social-btn:hover {
+    border-color: #d4b46c;
+    color: #d4b46c;
+    box-shadow: 0 0 24px rgba(212,180,108,0.35);
+    transform: translateY(-3px);
+}
+
+.login-link {
+    position: fixed;
+    top: 24px;
+    right: 24px;
+    z-index: 5;
+    color: #d4b46c;
+    text-decoration: none;
+    font-size: 0.78rem;
+    font-weight: 600;
+    letter-spacing: 1.5px;
+    padding: 9px 18px;
+    border: 1.5px solid rgba(212,180,108,0.4);
+    border-radius: 6px;
+    background: rgba(17,19,24,0.5);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    transition: all 0.3s ease;
+}
+
+.login-link:hover {
+    background: #d4b46c;
+    color: #0a0c0f;
+    border-color: #d4b46c;
+    box-shadow: 0 0 20px rgba(212,180,108,0.45);
+}
+
+@media (max-width: 600px) {
+    .login-link {
+        top: 16px;
+        right: 16px;
+        padding: 7px 14px;
+        font-size: 0.7rem;
+    }
+}
+
+@media (max-width: 600px) {
+    .container {
+        width: 100%;
+        padding: 0 20px;
+    }
+
+    .social-btn {
+        max-width: 100%;
+        width: 100%;
+    }
+}
+
+@keyframes fadeIn {
+    to {
+        opacity: 1;
+    }
+}
+
+.car-bg {
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none;
+    transform: translateY(-27%);
+}
+.car-bg svg {
+    width: 78vw;
+    max-width: 850px;
+    height: auto;
+}
+.car-path {
+    fill: none;
+    stroke: #d4b46c;
+    stroke-width: 1.5;
+    opacity: 0.55;
+    filter: drop-shadow(0 0 6px rgba(212,180,108,0.4));
+}
+.car-bg-glow {
+    animation: carGlow 4s ease-in-out infinite;
+}
+@keyframes carGlow {
+    0%, 100% { opacity: 0.22; }
+    50% { opacity: 0.42; }
+}
+</style>
+</head>
+
+<body>
+
+<div class="car-bg">
+  <svg class="car-bg-glow" viewBox="0 0 800 300" preserveAspectRatio="xMidYMid meet">
+    <path class="car-path" d="M70,225 Q60,225 60,210 Q60,195 80,190 L130,185 Q160,150 210,130 Q260,112 320,108 L360,108 Q410,70 480,58 Q540,48 590,62 Q615,70 618,95 L618,110 Q670,108 715,122 Q750,133 765,158 Q780,163 780,180 Q780,200 760,205 L730,205 Q725,175 695,175 Q665,175 660,205 L320,205 Q315,175 285,175 Q255,175 250,205 L110,205 Q70,205 70,225 Z" />
+    <circle class="car-path" cx="285" cy="222" r="32" />
+    <circle class="car-path" cx="695" cy="222" r="32" />
+    <line class="car-path" x1="40" y1="245" x2="790" y2="245" />
+  </svg>
+</div>
+
+<a href="https://app.noxadetail.com" class="login-link">INICIAR SESIÓN</a>
+
+<div class="container">
+    <div class="logo"><img src="logo.png" alt="Noxa Detail Logo"></div>
+    <div class="bio">
+       <div class="bio-text">
+            Detailing & Premium Car Care <br>
+            Corrección de pintura • Cerámicos • Interior profundo <br>
+            📍 Bogotá, Colombia
+        </div>
+    </div>
+
+    <div class="socials">
+        <a href="catalogo.pdf" target="_blank" class="social-btn">CATÁLOGO</a>
+        <a href="https://instagram.com/noxa.detail" target="_blank" class="social-btn">INSTAGRAM</a>
+        <a href="https://tiktok.com/@noxa.detail" target="_blank" class="social-btn">TIKTOK</a>
+        <a href="https://wa.me/573027928250" target="_blank" class="social-btn">WHATSAPP</a>
+    </div>
+</div>
+
+<script>
+// Silueta de auto — animación de trazo
+document.querySelectorAll('.car-path').forEach(function(el){
+    const len = el.getTotalLength ? el.getTotalLength() : 1000;
+    el.style.strokeDasharray = len;
+    el.style.strokeDashoffset = len;
+    el.getBoundingClientRect();
+    el.style.transition = "stroke-dashoffset 3.2s ease-in-out";
+    requestAnimationFrame(function(){
+        setTimeout(function(){
+            el.style.strokeDashoffset = 0;
+        }, 300);
+    });
+});
+</script>
+
+</body>
+</html>

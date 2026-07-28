@@ -1,0 +1,20 @@
+# macOS
+.DS_Store
+
+# Claude Code tooling (no es contenido del sitio)
+.claude/
+.agents/
+skills-lock.json
+
+# Datos sensibles / privados
+leads_pauta_noxa.xlsx
+
+# Proyecto separado con su propio repo git — no anidar aquí
+agenda-detalling/
+agenda-detalling.zip
+
+# Documentos de referencia pesados, no forman parte del sitio
+hostiger.zip
+catalogo.pdf
+Coating Ceramico.pdf
+Manual_Operativo_NOXA.pdf

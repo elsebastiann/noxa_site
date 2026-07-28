@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#050506">
+<title>Noxa Detail | Detailing & Car Care Premium</title>
+<link rel="icon" type="image/png" href="../favicon.png">
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;600;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<a href="#main" class="skip-link">Saltar al contenido</a>
+
+<aside class="sidenav">
+    <a href="#top" class="sidenav-logo">
+        <img src="../noxa%20wh%20no%20bg.png" alt="Noxa Detail">
+    </a>
+    <div class="sidenav-links-wrap">
+        <ul class="sidenav-links" id="sidenavLinks">
+            <li><a href="#top" class="active" data-section="top"><span class="nav-label">Inicio</span></a></li>
+            <li><a href="#servicios" data-section="servicios"><span class="nav-label">Servicios</span></a></li>
+            <li><a href="#nosotros" data-section="nosotros"><span class="nav-label">Nosotros</span></a></li>
+            <li><a href="#contacto" data-section="contacto"><span class="nav-label">Contacto</span></a></li>
+        </ul>
+        <div class="sidenav-progress"><div class="sidenav-progress-fill" id="scrollProgress"></div></div>
+    </div>
+</aside>
+
+<a href="https://app.noxadetail.com" class="btn btn-ghost btn-sm top-login">Iniciar sesión</a>
+
+<nav class="nav-mobile">
+    <a href="#top" class="nav-logo">
+        <img src="../noxa%20wh%20no%20bg.png" alt="Noxa Detail">
+    </a>
+    <button class="nav-toggle" id="navToggle" aria-label="Abrir menú">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+    </button>
+</nav>
+<ul class="nav-links-mobile" id="navLinks">
+    <li><a href="#top" class="active">Inicio</a></li>
+    <li><a href="#servicios">Servicios</a></li>
+    <li><a href="#nosotros">Nosotros</a></li>
+    <li><a href="#contacto">Contacto</a></li>
+    <li><a href="https://app.noxadetail.com">Iniciar sesión</a></li>
+</ul>
+
+<div class="page" id="main">
+
+<header class="hero" id="top">
+    <video class="hero-video loop-video" src="video/hero/hero.mp4" muted autoplay playsinline disablePictureInPicture disableRemotePlayback preload="auto" onerror="this.remove()"></video>
+    <div class="hero-inner">
+        <span class="eyebrow">Bogotá, Colombia</span>
+        <h1>DETALLES<br><span class="accent">QUE NOTAS.</span></h1>
+        <p class="lead">Cuidamos, restauramos y protegemos cada detalle de tu vehículo para que luzca como nuevo y conserve su valor por más tiempo. Cada recomendación comienza con un diagnóstico profesional sin costo.</p>
+        <div class="hero-actions">
+            <a href="#servicios" class="btn btn-gold">Ver servicios →</a>
+            <a href="#contacto" class="btn btn-ghost">Solicitar diagnóstico gratis</a>
+        </div>
+    </div>
+    <div class="hero-stats">
+        <!-- TODO (prod): reemplazar "500+" por el conteo real de citas en app.noxadetail.com + 300
+             (clientes atendidos antes de que la app entrara en producción, 3 meses después de abrir el local) -->
+        <div class="stat"><b>1200+</b><span>Clientes atendidos</span></div>
+        <div class="stat"><b>5.0</b><span>Calificación en Google</span></div>
+        <div class="stat"><b>96%</b><span>    Clientes recurrentes</span></div>
+        <div class="stat"><b>14+</b><span>Servicios especializados</span></div>
+    </div>
+</header>
+
+<section class="section section-dark" id="servicios">
+    <div class="wrap">
+        <div class="section-head">
+            <div>
+                <h2>Nuestros <span class="accent">Servicios</span></h2>
+                <p>Explora cada servicio, elige tu tipo de vehículo para ver el precio y solicita tu diagnóstico gratuito antes de decidir.</p>
+            </div>
+        </div>
+        <div class="filters" id="filterBar"></div>
+        <div class="grid" id="catalogGrid"></div>
+
+        <!-- PPF: estructura especial por marca de film -->
+        <div id="ppfCard" style="margin-top:22px;scroll-margin-top:100px;">
+            <div class="ppf-card">
+                <div class="ppf-head">
+                    <div>
+                        <span class="card-cat">PPF</span>
+                        <h3 class="card-title" style="font-size:1.4rem;margin-top:6px;">Paint Protection Film (PPF)</h3>
+                        <p class="card-tagline" style="max-width:520px;margin-top:6px;">Película de protección transparente contra rayones, impactos de piedra y agentes ambientales. Elige la marca de film según el nivel de garantía que buscas.</p>
+                    </div>
+                    <div style="display:flex;gap:10px;flex-wrap:wrap;">
+                        <button class="btn btn-gold" onclick="openLeadForm('Paint Protection Film (PPF)')">Diagnóstico gratis</button>
+                    </div>
+                </div>
+                <p class="ppf-note">*Valores estimados. Pueden variar según marca, modelo, estado del vehículo y complejidad de instalación — el precio real se confirma con un diagnóstico personalizado.</p>
+                <div class="brand-tabs">
+                    <button class="brand-tab active" data-brand="spectra" onclick="renderPPFTable('spectra')">Spectra · 5 años</button>
+                    <button class="brand-tab" data-brand="avery" onclick="renderPPFTable('avery')">Avery · 7 años</button>
+                    <button class="brand-tab" data-brand="xpel" onclick="renderPPFTable('xpel')">XPEL · 10 años</button>
+                </div>
+                <div style="overflow-x:auto;">
+                    <table class="ppf-table">
+                        <thead><tr><th>Pieza / cobertura</th><th>Precio</th></tr></thead>
+                        <tbody id="ppfTableBody"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section class="section section-soft" id="nosotros">
+    <div class="wrap">
+        <div class="section-head">
+            <div>
+                <h2>NO VENDEMOS <span class="accent">SERVICIOS.</span><br>ENTREGAMOS <span class="accent">CONFIANZA.</span></h2>
+                <p>Cada vehículo que pasa por Noxa recibe un diagnóstico honesto antes de cualquier recomendación — solo sugerimos lo que tu auto realmente necesita.</p>
+            </div>
+        </div>
+        <div class="value-grid">
+            <div class="value-item">
+                <span class="value-num">01</span>
+                <h3>Diagnóstico gratuito</h3>
+                <p>Antes de cotizar, revisamos el estado real de tu pintura y te decimos qué servicio le conviene a tu auto — sin costo y sin compromiso.</p>
+            </div>
+            <div class="value-item">
+                <span class="value-num">02</span>
+                <h3>Productos certificados</h3>
+                <p>Trabajamos con film de protección Spectra, Avery y XPEL, y cerámicos de grado profesional con garantía por contrato de hasta 5 años.</p>
+            </div>
+            <div class="value-item">
+                <span class="value-num">03</span>
+                <h3>Garantía por escrito</h3>
+                <p>Cada coating y PPF que instalamos queda respaldado por un contrato de garantía — no promesas verbales.</p>
+            </div>
+            <div class="value-item">
+                <span class="value-num">04</span>
+                <h3>Mano de obra calificada</h3>
+                <p>Técnicos capacitados y certificados en cada proceso, para un acabado consistente y de nivel profesional.</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section class="section section-dark" id="contacto">
+    <div class="wrap">
+        <div class="cta-band">
+            <div>
+                <h2>¿NO SABES QUÉ <span class="accent">SERVICIO NECESITAS?</span></h2>
+                <p>Cuéntanos marca, modelo y qué le notas al vehículo. Te respondemos con un diagnóstico gratuito y la recomendación honesta.</p>
+            </div>
+            <button class="btn btn-gold" onclick="openLeadForm('Diagnóstico general')">Solicitar diagnóstico gratis</button>
+        </div>
+    </div>
+</section>
+
+<footer>
+    <div class="wrap">
+        <div class="footer-top">
+            <div class="footer-brand">
+                <img src="../noxa%20wh%20no%20bg.png" alt="Noxa Detail">
+            </div>
+            <div class="footer-cols">
+                <div class="footer-col">
+                    <h4>Navegación</h4>
+                    <a href="index.html">Inicio</a>
+                    <a href="#servicios">Servicios</a>
+                    <a href="index.html#nosotros">Nosotros</a>
+                    <a href="index.html#contacto">Contacto</a>
+                </div>
+                <div class="footer-col">
+                    <h4>Contacto</h4>
+                    <a href="https://wa.me/573027928250" target="_blank">WhatsApp</a>
+                    <a href="https://instagram.com/noxa.detail" target="_blank">Instagram</a>
+                    <a href="https://tiktok.com/@noxa.detail" target="_blank">TikTok</a>
+                </div>
+            </div>
+        </div>
+        <div class="footer-bottom">
+            <span>© 2026 Noxa Detail — Bogotá, Colombia</span>
+            <span class="tag">Mockup v2 · Vista previa interna</span>
+        </div>
+    </div>
+</footer>
+
+</div><!-- /.page -->
+
+<!-- Detalle de servicio -->
+<div class="modal-overlay" id="serviceModal">
+    <div class="modal">
+        <button class="modal-close" onclick="closeModal('serviceModal')" aria-label="Cerrar">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg>
+        </button>
+        <span class="card-cat" id="modalCat"></span>
+        <h3 id="modalTitle"></h3>
+        <span class="warranty-pill hidden" id="modalWarranty"></span>
+        <ul class="bullets" id="modalBullets"></ul>
+        <div class="price-table" id="modalPrices"></div>
+        <button type="button" class="btn btn-gold btn-block" id="modalCtaBtn">Solicitar diagnóstico gratuito</button>
+    </div>
+</div>
+
+<!-- Lead form: diagnóstico gratuito -->
+<div class="modal-overlay" id="leadModal">
+    <div class="modal">
+        <button class="modal-close" onclick="closeModal('leadModal')" aria-label="Cerrar">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg>
+        </button>
+        <span class="card-cat">Diagnóstico gratuito</span>
+        <h3>Cuéntanos de tu auto</h3>
+        <form id="leadFormEl" onsubmit="submitLeadForm(event)">
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="leadNombre">Nombre</label>
+                    <input type="text" id="leadNombre" required placeholder="Tu nombre">
+                </div>
+                <div class="form-group">
+                    <label for="leadTelefono">WhatsApp</label>
+                    <input type="tel" id="leadTelefono" required placeholder="300 000 0000">
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="leadMarca">Marca</label>
+                    <input type="text" id="leadMarca" required placeholder="Ej. Mazda">
+                </div>
+                <div class="form-group">
+                    <label for="leadModelo">Modelo</label>
+                    <input type="text" id="leadModelo" required placeholder="Ej. CX-5 2022">
+                </div>
+            </div>
+            <div class="form-group">
+                <label for="leadServicio">Servicio de interés</label>
+                <select id="leadServicio"></select>
+            </div>
+            <div class="form-group">
+                <label for="leadComentario">Cuéntanos qué le notas al auto (opcional)</label>
+                <textarea id="leadComentario" rows="3" placeholder="Ej. rayones en el capó, quiero protegerlo antes de un viaje..."></textarea>
+            </div>
+            <button type="submit" class="btn btn-gold btn-block">Enviar por WhatsApp</button>
+            <p class="form-hint">Al enviar, se abre WhatsApp con tu mensaje ya redactado para que un asesor te responda directamente.</p>
+        </form>
+    </div>
+</div>
+
+<!-- Mariana chat widget (vista previa, sin conexión a IA real) -->
+<button class="mariana-launcher" id="marianaLauncher">
+    <span class="avatar">M</span> Habla con Mariana
+</button>
+<div class="mariana-panel" id="marianaPanel">
+    <div class="mariana-head">
+        <span class="avatar">M</span>
+        <div class="who">
+            <b>Mariana</b>
+            <span>Asesora virtual · Prediagnóstico</span>
+        </div>
+        <span class="mariana-soon">Próximamente</span>
+        <button class="mariana-close" id="marianaClose" aria-label="Cerrar chat">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg>
+        </button>
+    </div>
+    <div class="mariana-body" id="marianaBody">
+        <div class="msg msg-bot">¡Hola! Soy Mariana 👋 Muy pronto podré hacerte un prediagnóstico completo aquí mismo. Prueba escribirme algo.</div>
+    </div>
+    <form class="mariana-foot" id="marianaForm">
+        <input type="text" id="marianaInput" placeholder="Escribe tu mensaje..." autocomplete="off">
+        <button type="submit" aria-label="Enviar mensaje">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 2 11 13M22 2l-7 20-4-9-9-4Z"/></svg>
+    </button>
+    </form>
+</div>
+
+<script src="js/script.js"></script>
+<script>
+    initFilters();
+    renderPPFTable("spectra");
+</script>
+</body>
+</html>
