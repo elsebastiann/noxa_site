@@ -6,6 +6,7 @@ from flask_sqlalchemy import SQLAlchemy
 import os
 import csv
 import io
+import json
 import re
 import time
 import base64
@@ -4618,28 +4619,52 @@ def notify_admin_escalation(conversation: "Conversation", reason: str) -> None:
 # dar nombre + WhatsApp + consentimiento, esto crea/encuentra su Conversation,
 # le manda el primer mensaje real por WhatsApp y de ahí en adelante lo atiende
 # la MISMA Mariana (bot Claude) que ya responde por WhatsApp normal.
-def _build_web_lead_opening_text(name: str, website_message: str) -> str:
-    """Texto del mensaje de apertura — separado de quien lo envía para poder
-    ajustar la copia sin tocar la lógica de envío."""
-    snippet = (website_message or "").strip()
-    if snippet:
-        snippet = f' Vi que escribiste en la página: “{snippet[:200]}”.'
+def _build_web_lead_opening_text(name: str) -> str:
+    """Debe calzar EXACTO con el texto de la plantilla aprobada en Twilio/Meta
+    (único {{1}} = nombre) — esto solo sirve para dejar registro legible en el
+    panel de mensajes; el contenido real que WhatsApp entrega lo controla la
+    plantilla, no esta función."""
     return (
-        f"¡Hola {name}! 👋 Soy Mariana, de NOXA Detail.{snippet} "
-        f"Quedo por aquí para ayudarte con lo que necesites, ¿seguimos la conversación por este medio?"
+        f"Hola {name} 👋 Soy Mariana, de NOXA Detail. Vi que nos escribiste en la "
+        f"página buscando información sobre el cuidado de tu carro. Quedo por aquí "
+        f"para ayudarte con lo que necesites, ¿seguimos la conversación por este medio?"
     )
 
 
-def _send_whatsapp_opening_for_lead(conversation: "Conversation", opening_text: str) -> tuple[bool, str]:
-    """ÚNICO punto que hay que tocar cuando el Content Template de WhatsApp esté
-    aprobado por Meta: cambiar esta función para llamar a Twilio con
-    content_sid=os.environ["TWILIO_WEB_LEAD_TEMPLATE_SID"] y
-    content_variables=json.dumps({"1": <nombre>}) en vez de texto libre.
-    HOY (temporal, solo para pruebas): reusa send_whatsapp() con texto libre —
-    un primer contacto de negocio a un número que nunca ha escrito por texto
-    libre puede ser rechazado/marcado por WhatsApp en volumen real; sirve para
-    validar el flujo completo pero no debe quedar así en producción real."""
-    return send_whatsapp(conversation.phone, opening_text)
+def _send_whatsapp_opening_for_lead(conversation: "Conversation", name: str, opening_text: str) -> tuple[bool, str]:
+    """Manda el primer WhatsApp a un lead del sitio web. WhatsApp exige que el
+    primer contacto de un negocio (sin que el cliente haya escrito antes) use
+    una plantilla aprobada por Meta — texto libre aquí queda rechazado con
+    'Error 63016: Outside messaging window' (confirmado en Twilio en producción).
+
+    Por eso esta función NO intenta texto libre como respaldo: si
+    TWILIO_WEB_LEAD_TEMPLATE_SID todavía no está configurado (plantilla sin
+    aprobar), no llama a Twilio para nada — evita spamear el log de errores de
+    Twilio con envíos que ya se sabe que van a fallar. En cuanto se configure
+    esa variable en Railway, esto empieza a funcionar solo, sin tocar código."""
+    template_sid = os.environ.get("TWILIO_WEB_LEAD_TEMPLATE_SID", "")
+    if not template_sid:
+        return False, "Plantilla de WhatsApp aún no aprobada/configurada (TWILIO_WEB_LEAD_TEMPLATE_SID)."
+
+    account_sid = os.environ.get("TWILIO_ACCOUNT_SID", "")
+    auth_token  = os.environ.get("TWILIO_AUTH_TOKEN", "")
+    from_number = os.environ.get("TWILIO_FROM", "whatsapp:+14155238886")
+    if not account_sid or not auth_token:
+        return False, "Variables TWILIO_ACCOUNT_SID / TWILIO_AUTH_TOKEN no configuradas."
+    try:
+        from twilio.rest import Client as TwilioClient
+        from_clean = from_number.strip().replace("whatsapp:", "")
+        TwilioClient(account_sid, auth_token).messages.create(
+            from_=f"whatsapp:{from_clean}",
+            to=f"whatsapp:{conversation.phone}",
+            content_sid=template_sid,
+            content_variables=json.dumps({"1": name}),
+        )
+        app.logger.info(f"[WhatsApp] Plantilla de apertura enviada a {conversation.phone}")
+        return True, ""
+    except Exception as exc:
+        app.logger.error(f"[WhatsApp] Error al enviar plantilla a {conversation.phone}: {exc}")
+        return False, str(exc)
 
 
 def notify_admin_new_web_lead(
@@ -4720,8 +4745,8 @@ def api_public_web_lead():
     db.session.add(Message(conversation_id=conversation.id, direction="in", body=consent_note))
     db.session.commit()
 
-    opening_text = _build_web_lead_opening_text(name, website_message)
-    sent_ok, send_err = _send_whatsapp_opening_for_lead(conversation, opening_text)
+    opening_text = _build_web_lead_opening_text(name)
+    sent_ok, send_err = _send_whatsapp_opening_for_lead(conversation, name, opening_text)
     if sent_ok:
         db.session.add(Message(conversation_id=conversation.id, direction="out", body=opening_text))
         db.session.commit()
