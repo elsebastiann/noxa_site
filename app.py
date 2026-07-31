@@ -3488,7 +3488,7 @@ PUBLIC_ENDPOINTS  = {
     "login", "logout", "static", "whatsapp_webhook",
     "public_booking_mercedes", "api_public_mb_availability", "api_public_mb_book",
     "api_public_mb_price", "api_public_mb_available_days",
-    "api_public_stats_appointments_count",
+    "api_public_stats_appointments_count", "api_public_web_lead",
 }
 CHANGE_PWD_ENDPOINTS = {"change_password", "logout", "static"}
 
@@ -4024,6 +4024,17 @@ def user_salary_update(user_id):
 _BOGOTA = pytz.timezone("America/Bogota")
 
 
+def _normalize_whatsapp_number(raw: str) -> str:
+    """Normaliza un número al formato E.164 que usa Twilio/WhatsApp (+57 por
+    defecto, Colombia). Reutilizada por send_whatsapp() y por el endpoint de
+    leads del sitio web, para que el teléfono con el que se crea/busca una
+    Conversation siempre calce con el "From" que manda Twilio en el webhook."""
+    phone = (raw or "").strip().replace(" ", "").replace("whatsapp:", "")
+    if not phone.startswith("+"):
+        phone = "+57" + phone  # Colombia por defecto
+    return phone
+
+
 def send_whatsapp(to: str, body: str) -> tuple[bool, str]:
     """Envía un mensaje de WhatsApp via Twilio. Retorna (ok, error_msg)."""
     account_sid = os.environ.get("TWILIO_ACCOUNT_SID", "")
@@ -4033,10 +4044,7 @@ def send_whatsapp(to: str, body: str) -> tuple[bool, str]:
         return False, "Variables TWILIO_ACCOUNT_SID / TWILIO_AUTH_TOKEN no configuradas."
     try:
         from twilio.rest import Client as TwilioClient
-        # Normalizar número destino
-        phone = to.strip().replace(" ", "").replace("whatsapp:", "")
-        if not phone.startswith("+"):
-            phone = "+57" + phone  # Colombia por defecto
+        phone = _normalize_whatsapp_number(to)
         # Normalizar número origen — siempre forzar prefijo whatsapp:
         from_clean = from_number.strip().replace("whatsapp:", "")
         TwilioClient(account_sid, auth_token).messages.create(
@@ -4603,6 +4611,127 @@ def notify_admin_escalation(conversation: "Conversation", reason: str) -> None:
         f"Pausé el bot en esa conversación — respóndele tú desde el panel de Mensajes o por WhatsApp."
     )
     send_whatsapp(admin_phone, msg)
+
+
+# ── Lead entrante del sitio web (widget "Mariana" en noxadetail.com) ──────────
+# El visitante chatea un par de turnos en el widget (script/canned, sin IA) y al
+# dar nombre + WhatsApp + consentimiento, esto crea/encuentra su Conversation,
+# le manda el primer mensaje real por WhatsApp y de ahí en adelante lo atiende
+# la MISMA Mariana (bot Claude) que ya responde por WhatsApp normal.
+def _build_web_lead_opening_text(name: str, website_message: str) -> str:
+    """Texto del mensaje de apertura — separado de quien lo envía para poder
+    ajustar la copia sin tocar la lógica de envío."""
+    snippet = (website_message or "").strip()
+    if snippet:
+        snippet = f' Vi que escribiste en la página: “{snippet[:200]}”.'
+    return (
+        f"¡Hola {name}! 👋 Soy Mariana, de NOXA Detail.{snippet} "
+        f"Quedo por aquí para ayudarte con lo que necesites, ¿seguimos la conversación por este medio?"
+    )
+
+
+def _send_whatsapp_opening_for_lead(conversation: "Conversation", opening_text: str) -> tuple[bool, str]:
+    """ÚNICO punto que hay que tocar cuando el Content Template de WhatsApp esté
+    aprobado por Meta: cambiar esta función para llamar a Twilio con
+    content_sid=os.environ["TWILIO_WEB_LEAD_TEMPLATE_SID"] y
+    content_variables=json.dumps({"1": <nombre>}) en vez de texto libre.
+    HOY (temporal, solo para pruebas): reusa send_whatsapp() con texto libre —
+    un primer contacto de negocio a un número que nunca ha escrito por texto
+    libre puede ser rechazado/marcado por WhatsApp en volumen real; sirve para
+    validar el flujo completo pero no debe quedar así en producción real."""
+    return send_whatsapp(conversation.phone, opening_text)
+
+
+def notify_admin_new_web_lead(
+    conversation: "Conversation", name: str, website_message: str,
+    page_url: str, whatsapp_sent: bool, send_error: str,
+) -> None:
+    """Avisa por WhatsApp al admin cada vez que un visitante del sitio deja sus
+    datos en el widget de Mariana — SIEMPRE, sin importar si el primer WhatsApp
+    automático se pudo enviar o no, para que ningún lead se pierda en silencio."""
+    admin_phone = os.environ.get("ADMIN_WHATSAPP", "")
+    if not admin_phone:
+        app.logger.error("[WhatsApp] No se pudo avisar al admin: ADMIN_WHATSAPP no configurado.")
+        return
+    estado_linea = (
+        "✅ Ya le escribí por WhatsApp para seguir la conversación."
+        if whatsapp_sent else
+        f"⚠️ No le pude escribir por WhatsApp automáticamente ({send_error or 'error desconocido'}) — escríbele tú manual."
+    )
+    msg = (
+        f"🌐 Nuevo lead desde el sitio web (chat de Mariana)\n\n"
+        f"Nombre: {name}\n"
+        f"WhatsApp: {conversation.phone}\n"
+        + (f"Mensaje en el sitio: {website_message}\n" if website_message else "")
+        + (f"Página: {page_url}\n" if page_url else "")
+        + f"\n{estado_linea}"
+    )
+    send_whatsapp(admin_phone, msg)
+
+
+@app.route("/api/public/web-lead", methods=["POST", "OPTIONS"])
+def api_public_web_lead():
+    if request.method == "OPTIONS":
+        resp = app.make_default_options_response()
+        resp.headers["Access-Control-Allow-Origin"] = "*"
+        resp.headers["Access-Control-Allow-Methods"] = "POST, OPTIONS"
+        resp.headers["Access-Control-Allow-Headers"] = "Content-Type"
+        return resp
+
+    data = request.get_json(silent=True) or {}
+    name = (data.get("name") or "").strip()[:120]
+    phone_raw = (data.get("phone") or "").strip()
+    consent = bool(data.get("consent"))
+    website_message = (data.get("website_message") or "").strip()[:2000]
+    page_url = (data.get("page_url") or "").strip()[:300]
+
+    def _cors(payload, status=200):
+        resp = jsonify(payload)
+        resp.headers["Access-Control-Allow-Origin"] = "*"
+        return resp, status
+
+    if not name:
+        return _cors({"ok": False, "error": "Falta el nombre."}, 400)
+    if not consent:
+        return _cors({"ok": False, "error": "Debes autorizar el contacto por WhatsApp."}, 400)
+
+    # Limpieza más permisiva que _normalize_whatsapp_number (que no toca guiones/
+    # paréntesis) porque este es input humano tecleado en un formulario.
+    digits_and_plus = re.sub(r"[^\d+]", "", phone_raw)
+    phone = _normalize_whatsapp_number(digits_and_plus)
+    if not re.match(r"^\+573\d{9}$", phone):
+        return _cors({"ok": False, "error": "Ingresa un número de WhatsApp colombiano válido."}, 400)
+
+    conversation = Conversation.query.filter_by(phone=phone).first()
+    if not conversation:
+        conversation = Conversation(phone=phone, profile_name=name)
+        db.session.add(conversation)
+        db.session.flush()
+    elif name and conversation.profile_name != name:
+        conversation.profile_name = name
+    # bot_active se deja tal cual si la conversación ya existía (si un admin la
+    # había pausado a mano, un lead nuevo del sitio no debe reactivarla sola).
+
+    consent_note = (
+        f"(Desde el chat del sitio web — {page_url or 'noxadetail.com'} — el visitante dio "
+        f"su nombre, su WhatsApp y autorizó ser contactado por este medio.) "
+        f"{website_message or '(sin mensaje adicional en el sitio)'}"
+    )
+    db.session.add(Message(conversation_id=conversation.id, direction="in", body=consent_note))
+    db.session.commit()
+
+    opening_text = _build_web_lead_opening_text(name, website_message)
+    sent_ok, send_err = _send_whatsapp_opening_for_lead(conversation, opening_text)
+    if sent_ok:
+        db.session.add(Message(conversation_id=conversation.id, direction="out", body=opening_text))
+        db.session.commit()
+
+    try:
+        notify_admin_new_web_lead(conversation, name, website_message, page_url, sent_ok, send_err)
+    except Exception as exc:
+        app.logger.error(f"[WhatsApp] No se pudo avisar al admin del nuevo lead web: {exc}")
+
+    return _cors({"ok": True, "conversation_id": conversation.id, "whatsapp_sent": sent_ok})
 
 
 def _generate_and_send_reply(conversation: "Conversation", from_number: str, media_url: str = "", media_type: str = "") -> bool:
