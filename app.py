@@ -3472,11 +3472,23 @@ def seed_superadmin():
 
 seed_superadmin()
 
+# --- Stat público de solo lectura para el sitio de marketing (noxadetail.com):
+# número total de citas registradas, mostrado como "clientes atendidos" en el
+# hero. Sin datos sensibles (solo un conteo), así que lleva CORS abierto para
+# que el sitio estático (dominio distinto) pueda pedirlo por fetch().
+@app.route("/api/public/stats/appointments-count")
+def api_public_stats_appointments_count():
+    count = Appointment.query.count()
+    resp = jsonify({"ok": True, "count": count})
+    resp.headers["Access-Control-Allow-Origin"] = "*"
+    return resp
+
 # --- Endpoints que NO requieren sesión ---
 PUBLIC_ENDPOINTS  = {
     "login", "logout", "static", "whatsapp_webhook",
     "public_booking_mercedes", "api_public_mb_availability", "api_public_mb_book",
     "api_public_mb_price", "api_public_mb_available_days",
+    "api_public_stats_appointments_count",
 }
 CHANGE_PWD_ENDPOINTS = {"change_password", "logout", "static"}
 
