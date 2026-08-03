@@ -4422,6 +4422,8 @@ No lo expliques todo de una — da la idea central en 1-2 mensajes cortos y deja
 # CATÁLOGO DE SERVICIOS
 Precios por tipo de vehículo: Auto / SUV / Camioneta / Moto (donde aplique).
 
+⚠️ DE DÓNDE SALEN LOS PRECIOS: en cada turno te llega un bloque "PRECIOS VIGENTES" leído directamente del sistema de NOXA. **Ese bloque es la fuente de verdad y le gana siempre a las cifras escritas aquí abajo**, que están para que entiendas y expliques cada servicio. Si un precio de aquí no coincide con el del bloque, el del bloque es el correcto. Antes de escribir cualquier cifra, verifícala contra ese bloque — nunca cotices de memoria. PPF y Polarizado no aparecen ahí porque no se agendan por el sistema: para esos usa los valores de este catálogo, y los de PPF siempre como estimado.
+
 CÓMO CLASIFICAR EL VEHÍCULO (no adivines, usa este criterio siempre):
 - **Camioneta**: vehículos de 7 puestos, camionetas con platón (pickup, ej. Hilux, Frontier, D-Max), o combis/furgonetas. Son más grandes que una SUV.
 - **SUV**: vehículos de 5 puestos sin platón que no son automóvil/sedán/hatchback — ej. crossovers y todoterrenos tipo Tesla Model Y, RAV4, Tucson, CR-V.
@@ -4739,6 +4741,60 @@ def _diagnostic_availability(days: int = _AVAILABILITY_DAYS) -> list:
     return out
 
 
+def _format_prices_for_prompt() -> str:
+    """Tabla de precios real, leída de `service_prices` en cada turno.
+
+    El catálogo escrito dentro del prompt sirve para explicar cada servicio,
+    pero como fuente de precios se desactualiza en silencio apenas alguien los
+    cambia en el panel. Inyectar los valores vigentes evita que el bot cotice
+    de memoria y le dé al cliente una cifra que ya no existe.
+    """
+    try:
+        filas = (
+            db.session.query(ServicePrice, Service, VehicleType)
+            .join(Service, Service.id == ServicePrice.service_id)
+            .join(VehicleType, VehicleType.id == ServicePrice.vehicle_type_id)
+            .filter(
+                ServicePrice.is_active == True,
+                Service.is_active == True,
+                VehicleType.is_active == True,
+            )
+            .order_by(Service.name, VehicleType.id)
+            .all()
+        )
+    except Exception as exc:
+        app.logger.error(f"[Precios] No se pudo leer la tabla de precios para el bot: {exc}")
+        return ""
+
+    por_servicio = {}
+    for sp, svc, vt in filas:
+        if svc.is_diagnostic:
+            continue  # el diagnóstico es sin costo, no se cotiza
+        por_servicio.setdefault(svc.name, []).append((vt.name, sp.price))
+
+    if not por_servicio:
+        return ""
+
+    lineas = []
+    for nombre, precios in por_servicio.items():
+        detalle = " · ".join(f"{vt} ${p:,.0f}".replace(",", ".") for vt, p in precios)
+        lineas.append(f"- {nombre}: {detalle}")
+
+    return (
+        "PRECIOS VIGENTES (tomados ahora mismo del sistema de NOXA — esta es la fuente de "
+        "verdad). Si alguno no coincide con el catálogo de tu conocimiento base, MANDA ESTE, "
+        "no el del catálogo. Nunca cotices una cifra que no esté aquí. Los nombres pueden "
+        "estar escritos distinto que en tu catálogo (sin tildes, abreviados): identifícalos "
+        "por lo que son, no por la escritura exacta. Recuerda cómo clasificar antes de elegir "
+        "la columna: Camioneta = 7 puestos o platón; SUV = las demás de 5 puestos; Automovil = "
+        "sedanes, hatchbacks y compactos; Moto = motocicletas.\n"
+        + "\n".join(lineas)
+        + "\nPPF y Polarizado no se agendan por este sistema y por eso no aparecen arriba: "
+        "para esos usa los valores de tu catálogo, y los de PPF siempre como estimado que se "
+        "confirma en el diagnóstico sin costo."
+    )
+
+
 def _format_availability_for_prompt() -> str:
     """Bloque de disponibilidad que Mariana ve en cada turno."""
     try:
@@ -4797,6 +4853,9 @@ def get_claude_reply(conversation: "Conversation", media_url: str | None = None,
         if is_first_message else
         "\nYa se han cruzado mensajes antes en esta conversación: no te vuelvas a presentar."
     )
+    precios = _format_prices_for_prompt()
+    if precios:
+        profile_line += "\n\n" + precios
     profile_line += "\n\n" + _format_availability_for_prompt()
 
     return _call_claude(messages, profile_line)

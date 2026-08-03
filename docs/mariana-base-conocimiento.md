@@ -185,6 +185,7 @@ En `_generate_and_send_reply()`, replicando lo que ya hace `api_public_mb_book()
 | `DIAGNOSTIC_SERVICE_NAME` (env var, resuelve por nombre) | ~línea 55 |
 | `notif_post_service_sent` en `Appointment` + migración | modelo y `ensure_appointment_notif_schema` |
 | `_diagnostic_service()`, `_diagnostic_availability()`, `_format_availability_for_prompt()` | antes de `get_claude_reply` |
+| `_format_prices_for_prompt()` — inyecta los precios vigentes de `service_prices` en cada turno; el bloque le gana al catálogo escrito en el prompt | antes de `get_claude_reply` |
 | Inyección de disponibilidad real en cada turno | `get_claude_reply` |
 | `_AGENDAR_RE`, `_parse_agendar_marker()`, `book_diagnostic_from_bot()`, `notify_admin_bot_booking()` | junto a los demás marcadores |
 | Agendamiento validado + reintento único + escalamiento | `_generate_and_send_reply` |
