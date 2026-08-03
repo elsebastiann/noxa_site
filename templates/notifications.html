@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+
+{% block extra_head %}
+<style>
+  .nf-head { display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap; margin-top:16px; }
+  .nf-note { color:var(--text2); font-size:.85rem; max-width:70ch; line-height:1.5; margin:8px 0 20px; }
+  .nf-wrap { border:1px solid var(--border); border-radius:var(--radius); overflow:hidden; }
+  .nf-row { display:flex; gap:12px; padding:14px 16px; border-top:1px solid var(--border); text-decoration:none; color:inherit; }
+  .nf-row:first-child { border-top:none; }
+  .nf-row:hover { background:var(--bg2); }
+  .nf-row.unread { background:rgba(74,158,255,0.06); }
+  .nf-dot { width:9px; height:9px; border-radius:50%; margin-top:6px; flex:0 0 9px; }
+  .nf-row.read .nf-dot { opacity:.28; }
+  .nf-title { font-size:.9rem; font-weight:600; line-height:1.35; }
+  .nf-body { font-size:.82rem; color:var(--text2); line-height:1.45; margin-top:3px; white-space:pre-line; }
+  .nf-meta { font-size:.72rem; color:var(--text3); margin-top:5px; }
+  .nf-kind { font-family:ui-monospace, SFMono-Regular, Menlo, monospace; }
+  .nf-empty { padding:38px 16px; text-align:center; color:var(--text2); }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="nf-head">
+  <h2 style="margin:0;">Notificaciones</h2>
+  <div>
+    <a class="btn btn-sm {{ 'btn-warning' if solo_no_leidas else 'btn-outline-secondary' }}"
+       href="{{ url_for('notifications_list', no_leidas=1) }}">Solo no leídas</a>
+    <a class="btn btn-sm {{ 'btn-outline-secondary' if solo_no_leidas else 'btn-warning' }}"
+       href="{{ url_for('notifications_list') }}">Todas</a>
+  </div>
+</div>
+
+<p class="nf-note">
+  Todo lo que hace Mariana y necesita supervisión: cuando escala una conversación a un humano,
+  cuando deja un diagnóstico agendado, cuando entra un lead del sitio web y cuando no logra
+  responderle a un cliente. Queda registrado aquí aunque el aviso por WhatsApp no llegue.
+</p>
+
+<div class="nf-wrap">
+  {% for n in notificaciones %}
+    <a class="nf-row {{ 'unread' if not n.is_read else 'read' }}"
+       href="{{ n.url or url_for('notifications_list') }}">
+      <span class="nf-dot" style="background:{{ n.color }};"></span>
+      <span style="min-width:0;">
+        <div class="nf-title">{{ n.title }}</div>
+        {% if n.body %}<div class="nf-body">{{ n.body }}</div>{% endif %}
+        <div class="nf-meta">
+          <span class="nf-kind">{{ n.kind }}</span> · {{ n.created_at | hace_cuanto }} ·
+          {{ n.created_at | hora_bogota }}
+        </div>
+      </span>
+    </a>
+  {% else %}
+    <div class="nf-empty">
+      {% if solo_no_leidas %}No hay notificaciones sin leer.
+      {% else %}Todavía no hay notificaciones. Aparecen aquí desde la próxima vez que Mariana agende, escale o reciba un lead.{% endif %}
+    </div>
+  {% endfor %}
+</div>
+{% endblock %}

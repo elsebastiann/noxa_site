@@ -429,6 +429,43 @@
     /* ── NAVBAR Z-INDEX (por encima de eventos de calendario) ── */
     nav.navbar { position: relative; z-index: 1040; }
     nav.navbar .dropdown-menu { z-index: 1041; }
+    /* ── Campanita de notificaciones ── */
+    .notif-badge {
+      position:absolute; top:-2px; right:-4px; min-width:17px; height:17px; padding:0 4px;
+      border-radius:9px; background:#ef5350; color:#fff; font-size:.65rem; font-weight:700;
+      line-height:17px; text-align:center;
+    }
+    .notif-panel {
+      background:var(--surface); border:1px solid var(--border); border-radius:14px;
+      width:min(380px, calc(100vw - 24px)); box-shadow:0 8px 24px rgba(0,0,0,0.18); overflow:hidden;
+    }
+    .notif-head {
+      display:flex; align-items:center; justify-content:space-between; gap:10px;
+      padding:12px 14px; border-bottom:1px solid var(--border); font-size:.9rem;
+    }
+    .notif-linkbtn {
+      background:none; border:none; padding:0; color:var(--accent);
+      font-size:.76rem; font-weight:600; cursor:pointer;
+    }
+    .notif-linkbtn:hover { text-decoration:underline; }
+    #notifList { max-height:min(60vh, 440px); overflow-y:auto; }
+    .notif-item {
+      display:flex; gap:10px; padding:11px 14px; border-bottom:1px solid var(--border);
+      cursor:pointer; text-decoration:none; color:inherit;
+    }
+    .notif-item:hover { background:var(--bg2); }
+    .notif-item.unread { background:rgba(74,158,255,0.06); }
+    .notif-dot { width:8px; height:8px; border-radius:50%; margin-top:6px; flex:0 0 8px; }
+    .notif-item.read .notif-dot { opacity:.28; }
+    .notif-title { font-size:.84rem; font-weight:600; line-height:1.35; }
+    .notif-body  { font-size:.78rem; color:var(--text2); line-height:1.4; margin-top:2px; white-space:pre-line; }
+    .notif-when  { font-size:.7rem; color:var(--text3); margin-top:3px; }
+    .notif-empty { padding:26px 14px; text-align:center; color:var(--text2); font-size:.82rem; }
+    .notif-foot {
+      display:block; padding:10px; text-align:center; font-size:.8rem; font-weight:600;
+      color:var(--accent); text-decoration:none; border-top:1px solid var(--border);
+    }
+    .notif-foot:hover { background:var(--bg2); }
   </style>
 
   {% block extra_head %}{% endblock %}
@@ -492,6 +529,24 @@
         <a class="nav-link-custom" href="{{ url_for('quality_errors_list') }}">Errores</a>
         {% endif %}
         <a class="nav-link-custom nav-link-accent" href="{{ url_for('new_appointment') }}">+ Nueva</a>
+        {% if current_user and current_user.role != 'operario' %}
+        <div class="dropdown" id="notifWrap">
+          <button class="nav-link-custom border-0 bg-transparent position-relative d-flex align-items-center"
+                  type="button" data-bs-toggle="dropdown" data-bs-auto-close="outside"
+                  aria-expanded="false" aria-label="Notificaciones" title="Notificaciones">
+            <i class="bi bi-bell" style="font-size:1.15rem;"></i>
+            <span id="notifBadge" class="notif-badge" hidden>0</span>
+          </button>
+          <div class="dropdown-menu dropdown-menu-end p-0 notif-panel">
+            <div class="notif-head">
+              <span style="font-weight:700;">Notificaciones</span>
+              <button type="button" id="notifMarkAll" class="notif-linkbtn">Marcar todas leídas</button>
+            </div>
+            <div id="notifList"><div class="notif-empty">Cargando…</div></div>
+            <a href="{{ url_for('notifications_list') }}" class="notif-foot">Ver todas</a>
+          </div>
+        </div>
+        {% endif %}
         {% if not current_user or current_user.role != 'operario' %}
         <a class="nav-link-custom" href="{{ url_for('expenses_new') }}">Gastos</a>
         {% endif %}
@@ -598,6 +653,7 @@
   <div class="bn-group-label">Operaciones</div>
   {% if not current_user or current_user.role != 'operario' %}
   <a href="{{ url_for('whatsapp_inbox') }}"><i class="bi bi-whatsapp"></i>Mensajes</a>
+  <a href="{{ url_for('notifications_list') }}"><i class="bi bi-bell"></i>Notificaciones</a>
   <a href="{{ url_for('expenses_new') }}"><i class="bi bi-cash-stack"></i>Gastos</a>
   <a href="{{ url_for('sales_list') }}"><i class="bi bi-graph-up-arrow"></i>Ingresos</a>
   {% endif %}
@@ -674,6 +730,73 @@
     document.getElementById('bnOverlay').classList.remove('show');
   }
 </script>
+
+{% if current_user and current_user.role != 'operario' %}
+<script>
+(function(){
+  var wrap = document.getElementById('notifWrap');
+  if (!wrap) return;
+  var badge = document.getElementById('notifBadge');
+  var list  = document.getElementById('notifList');
+
+  function esc(s){
+    return String(s || '').replace(/[&<>"']/g, function(c){
+      return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];
+    });
+  }
+
+  function render(items){
+    if (!items.length){
+      list.innerHTML = '<div class="notif-empty">Sin notificaciones por ahora.</div>';
+      return;
+    }
+    list.innerHTML = items.map(function(n){
+      // Sin url la alerta es informativa: se marca leída pero no navega.
+      return '<a class="notif-item ' + (n.is_read ? 'read' : 'unread') + '"'
+           + ' data-id="' + n.id + '" data-url="' + esc(n.url) + '" href="' + (esc(n.url) || '#') + '">'
+           + '<span class="notif-dot" style="background:' + esc(n.color) + '"></span>'
+           + '<span style="min-width:0;">'
+           +   '<span class="notif-title">' + esc(n.title) + '</span>'
+           +   (n.body ? '<div class="notif-body">' + esc(n.body) + '</div>' : '')
+           +   '<div class="notif-when">' + esc(n.when) + '</div>'
+           + '</span></a>';
+    }).join('');
+  }
+
+  function refresh(){
+    fetch('/api/notifications', {headers:{'X-Requested-With':'fetch'}})
+      .then(function(r){ return r.ok ? r.json() : null; })
+      .then(function(d){
+        if (!d) return;
+        badge.hidden = d.unread === 0;
+        badge.textContent = d.unread > 9 ? '9+' : d.unread;
+        render(d.items);
+      })
+      .catch(function(){ /* sin red: se reintenta en el siguiente ciclo */ });
+  }
+
+  list.addEventListener('click', function(ev){
+    var item = ev.target.closest('.notif-item');
+    if (!item) return;
+    var url = item.getAttribute('data-url');
+    if (!url) ev.preventDefault();  // informativa: no navega
+    fetch('/notifications/' + item.getAttribute('data-id') + '/read', {method:'POST'})
+      .then(function(){ if (!url) refresh(); });
+  });
+
+  document.getElementById('notifMarkAll').addEventListener('click', function(){
+    fetch('/notifications/read-all', {method:'POST'}).then(refresh);
+  });
+
+  refresh();
+  setInterval(refresh, 30000);
+  // Al volver a la pestaña se refresca de una, sin esperar el ciclo de 30s.
+  document.addEventListener('visibilitychange', function(){
+    if (!document.hidden) refresh();
+  });
+})();
+</script>
+{% endif %}
 
 </body>
 </html>

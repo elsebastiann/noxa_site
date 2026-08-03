@@ -194,6 +194,27 @@ En `_generate_and_send_reply()`, replicando lo que ya hace `api_public_mb_book()
 
 **Orden de operaciones del agendamiento** (importante): la cita se intenta crear **antes** de mandar cualquier mensaje, porque los mensajes visibles de ese turno le están confirmando la cita al cliente. Si la agenda la rechaza, no se envía nada: se le devuelve el motivo a Mariana como `[Sistema: ...]` y se regenera el turno **una sola vez**. Si el segundo intento también falla, se pausa el bot y se escala a Diana — el cliente nunca recibe una confirmación falsa.
 
+### 4.3b Campanita de notificaciones internas (2026-08-03)
+
+Avisarle al admin por WhatsApp no es confiable: si no nos ha escrito en las últimas 24 horas, Meta rechaza el mensaje (63016) y el aviso se pierde en silencio. La campanita no depende de nadie más, así que es la fuente confiable de qué hizo Mariana; el WhatsApp al admin se mantiene como aviso oportunista encima.
+
+| Pieza | Qué hace |
+|---|---|
+| Modelo `Notification` | `kind`, `level` (info/warning/urgent), `title`, `body`, `url`, `ref_type`/`ref_id`, `is_read` |
+| `push_notification(...)` | Registra la alerta. Nunca lanza: una notificación que falla no puede tumbar la operación que la generó |
+| `GET /api/notifications` | Conteo sin leer + últimas 15. El navegador la consulta cada 30s y al volver a la pestaña |
+| `POST /notifications/<id>/read` · `POST /notifications/read-all` | Marcar leídas |
+| `GET /notifications` | Historial completo, con filtro de no leídas |
+| Campanita en `base.html` | Badge rojo con el conteo, panel desplegable, y entrada en el menú móvil |
+
+**Eventos que generan alerta:** escalamiento a humano (urgent), diagnóstico agendado por el bot (info), lead nuevo del sitio web (info, o warning si no se le pudo escribir), y Mariana no pudo responderle a un cliente (urgent).
+
+**Acceso:** todo el que no sea `operario`, mismo criterio que el panel de Mensajes.
+
+### 4.3c PPF y polarizado agendados como diagnóstico
+
+PPF y polarizado no existen como servicios en la agenda, así que no se pueden reservar como tal. Si un cliente quiere agendar uno directamente sin pasar por diagnóstico, Mariana lo agenda igual como `Diagnóstico` y manda el campo `interes=` en el marcador, que queda en las notas de la cita ("El cliente viene por: PPF Full Front"). Al cliente no se le menciona ese detalle interno.
+
 ### 4.4 Bugs de zona horaria corregidos de paso
 
 El servidor de Railway corre en UTC, pero `Appointment.start_datetime` se guarda en hora local de Bogotá. Comparar una contra la otra daba 5 horas de desfase:

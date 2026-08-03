@@ -928,6 +928,57 @@ class OutboundMessage(db.Model):
         return self.status in self.FAILED_STATUSES
 
 
+class Notification(db.Model):
+    """Alertas internas del panel — la campanita.
+
+    Existe porque avisarle al admin por WhatsApp no es confiable: si no nos ha
+    escrito en las últimas 24 horas, Meta rechaza el mensaje (63016) y el aviso
+    se pierde en silencio. Esto no depende de nadie más y siempre queda
+    registrado, así que es la fuente confiable de qué hizo Mariana; el WhatsApp
+    al admin se mantiene como aviso oportunista encima de esto.
+    """
+    __tablename__ = "notifications"
+    id         = db.Column(db.Integer, primary_key=True)
+    # escalamiento | cita_bot | agenda_fallida | lead_web | error_bot
+    kind       = db.Column(db.String(40), nullable=False, default="otro", index=True)
+    # info | warning | urgent — define el color del punto en el panel
+    level      = db.Column(db.String(10), nullable=False, default="info")
+    title      = db.Column(db.String(180), nullable=False)
+    body       = db.Column(db.Text, nullable=True)
+    # A dónde lleva el clic (ya resuelta, para no armar urls en el template)
+    url        = db.Column(db.String(300), nullable=True)
+    ref_type   = db.Column(db.String(30), nullable=True)
+    ref_id     = db.Column(db.Integer, nullable=True)
+    is_read    = db.Column(db.Boolean, nullable=False, default=False, index=True)
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow, index=True)
+
+    LEVEL_COLORS = {
+        "urgent":  "#ef5350",
+        "warning": "#e0a800",
+        "info":    "#4a9eff",
+    }
+
+    @property
+    def color(self) -> str:
+        return self.LEVEL_COLORS.get(self.level, self.LEVEL_COLORS["info"])
+
+
+def push_notification(kind: str, title: str, body: str = "", level: str = "info",
+                      url: str | None = None, ref_type: str | None = None,
+                      ref_id: int | None = None) -> None:
+    """Registra una alerta en la campanita. Nunca lanza: una notificación que
+    falla no puede tumbar la operación que la generó (agendar, escalar, etc.)."""
+    try:
+        db.session.add(Notification(
+            kind=kind, title=title[:180], body=body or None, level=level,
+            url=url, ref_type=ref_type, ref_id=ref_id,
+        ))
+        db.session.commit()
+    except Exception as exc:
+        db.session.rollback()
+        app.logger.error(f"[Notificaciones] No se pudo registrar la alerta {kind!r}: {exc}")
+
+
 # --- Ensure whatsapp_conversations schema migration for profile_name ---
 def ensure_whatsapp_schema():
     with app.app_context():
@@ -4378,13 +4429,15 @@ Los diagnósticos los agendas TÚ directamente en la agenda de NOXA. Nunca le di
 **Cómo pedirlos**: respeta la regla de una sola pregunta por turno. Primero el día, en el turno siguiente la hora, y una vez confirmados día y hora, pides nombre completo y placa en un mismo mensaje (eso cuenta como una sola pregunta: son los dos datos del mismo registro, no dos temas distintos).
 
 **Cómo dejar la cita creada**: cuando ya tengas todos esos datos MÁS el día y la hora exactos, agrega un mensaje SEPARADO (con "---" como siempre) que diga EXACTAMENTE esto, sin nada más en ese mensaje:
-[AGENDAR: nombre=<nombre completo>; celular=<número>; vehiculo=<Automovil|SUV|Camioneta|Moto>; placa=<placa>; fecha=<AAAA-MM-DD>; hora=<HH:MM>]
-Ejemplo: [AGENDAR: nombre=Andrés Rojas; celular=3001234567; vehiculo=SUV; placa=ABC123; fecha=2026-08-06; hora=15:00]
+[AGENDAR: nombre=<nombre completo>; celular=<número>; vehiculo=<Automovil|SUV|Camioneta|Moto>; placa=<placa>; fecha=<AAAA-MM-DD>; hora=<HH:MM>; interes=<qué lo trae, opcional>]
+Ejemplo: [AGENDAR: nombre=Andrés Rojas; celular=3001234567; vehiculo=SUV; placa=ABC123; fecha=2026-08-06; hora=15:00; interes=cerámico 9H]
+El campo `interes` es opcional pero úsalo siempre que sepas qué servicio lo trae — queda en las notas de la cita para que el asesor llegue sabiendo de qué se trata.
 El cliente nunca ve ese mensaje. Reglas duras:
 - No lo emitas si te falta CUALQUIERA de los datos, o si el cliente todavía no confirmó día Y hora exactos. Si falta algo, pídelo primero y agendas en el turno siguiente.
 - La hora tiene que ser una de las que aparecieron en la disponibilidad real.
 - Emítelo UNA sola vez por cita. Si ya agendaste en esta conversación, no lo repitas: para mover o cancelar una cita ya creada, escala a un humano.
-- Es solo para DIAGNÓSTICOS. Los servicios completos (cerámico, PPF, detallados) no se agendan así — esos se aseguran con el anticipo del 10%.
+- Lo que creas siempre es un DIAGNÓSTICO, nunca el servicio en sí. Para los servicios completos (cerámico, detallados) el cupo se asegura con el anticipo del 10%, no con este marcador.
+- ⚠️ **PPF y polarizado son la excepción**: no se pueden reservar como tal en el sistema. Si un cliente quiere agendar directamente uno de esos dos sin pasar por diagnóstico (raro, pero pasa), NO le digas que no se puede ni lo mandes a hacer otra cosa — agéndalo igual con este marcador y pon en `interes` qué es lo que viene a hacerse (ej. `interes=PPF Full Front` o `interes=polarizado`). Queda como diagnóstico en la agenda y el asesor lo ve en las notas. Al cliente le hablas normal de su cita, sin explicarle este detalle interno.
 - En el mismo turno en que agendas, el [META:] va con estado=Diagnóstico agendado.
 
 **Si el cupo se cayó**: puede pasar que entre que ofreciste la hora y el cliente aceptó, alguien más la haya tomado. Te va a llegar un "[Sistema: ...]" avisándote, con las alternativas — discúlpate en una línea, sin dramatizar, y ofrécele la más cercana.
@@ -4915,6 +4968,13 @@ def notify_admin_conversation_error(conversation: "Conversation", error: Excepti
         return
 
     contacto = conversation.profile_name or conversation.phone
+    push_notification(
+        kind="error_bot", level="urgent",
+        title=f"Mariana no pudo responderle a {contacto}",
+        body=f"{type(error).__name__}: {error}. Pausé el bot en esa conversación.",
+        url=f"/whatsapp/{conversation.id}",
+        ref_type="conversation", ref_id=conversation.id,
+    )
 
     try:
         resumen = _summarize_conversation_for_admin(conversation)
@@ -4988,6 +5048,7 @@ def book_diagnostic_from_bot(conversation: "Conversation", datos: dict) -> tuple
     placa    = normalize_plate(datos.get("placa") or "")
     fecha_raw = (datos.get("fecha") or "").strip()
     hora_raw  = (datos.get("hora") or "").strip()
+    interes   = (datos.get("interes") or "").strip()[:200]
 
     if not (nombre and placa and vehiculo and fecha_raw and hora_raw):
         return False, "faltan datos para agendar (nombre, celular, vehículo, placa, fecha u hora)", None
@@ -5042,6 +5103,9 @@ def book_diagnostic_from_bot(conversation: "Conversation", datos: dict) -> tuple
         ), None
 
     start_dt = datetime.combine(target_date, datetime.min.time()).replace(hour=hh, minute=mm)
+    notas = f"Diagnóstico agendado por Mariana (bot de WhatsApp) desde {conversation.phone}."
+    if interes:
+        notas += f" El cliente viene por: {interes}."
     appt = Appointment(
         customer_name=nombre,
         plate=placa,
@@ -5049,7 +5113,7 @@ def book_diagnostic_from_bot(conversation: "Conversation", datos: dict) -> tuple
         services=svc.name,
         start_datetime=start_dt,
         end_datetime=start_dt + timedelta(minutes=total_minutes),
-        notes=f"Diagnóstico agendado por Mariana (bot de WhatsApp) desde {conversation.phone}.",
+        notes=notas,
         vehicle_type_id=vt.id,
         status="scheduled",
         source="whatsapp_bot",
@@ -5065,6 +5129,17 @@ def book_diagnostic_from_bot(conversation: "Conversation", datos: dict) -> tuple
 
 def notify_admin_bot_booking(conversation: "Conversation", appt: "Appointment") -> None:
     """Avisa al admin cuando Mariana deja un diagnóstico agendado sola."""
+    vehiculo = appt.vehicle_type.name if appt.vehicle_type else "—"
+    push_notification(
+        kind="cita_bot", level="info",
+        title=f"Mariana agendó un diagnóstico — {appt.customer_name}",
+        body=(f"{appt.start_datetime.strftime('%d/%m a las %H:%M')} · {vehiculo} · "
+              f"placa {appt.plate} · {appt.phone}"
+              + (f"\n{appt.notes}" if appt.notes else "")),
+        url=f"/appointment/{appt.id}/edit",
+        ref_type="appointment", ref_id=appt.id,
+    )
+
     admin_phone = os.environ.get("ADMIN_WHATSAPP", "")
     if not admin_phone:
         app.logger.error("[WhatsApp] No se pudo avisar al admin: ADMIN_WHATSAPP no configurado.")
@@ -5085,11 +5160,19 @@ def notify_admin_bot_booking(conversation: "Conversation", appt: "Appointment") 
 def notify_admin_escalation(conversation: "Conversation", reason: str) -> None:
     """Avisa al admin por WhatsApp cuando Mariana detecta una señal de negocio que
     necesita un humano (quiere pagar, pide descuento, se queja, pide hablar con alguien, etc.)."""
+    contacto = conversation.profile_name or conversation.phone
+    push_notification(
+        kind="escalamiento", level="urgent",
+        title=f"{contacto} necesita atención humana",
+        body=f"{reason}. Pausé el bot en esa conversación.",
+        url=f"/whatsapp/{conversation.id}",
+        ref_type="conversation", ref_id=conversation.id,
+    )
+
     admin_phone = os.environ.get("ADMIN_WHATSAPP", "")
     if not admin_phone:
         app.logger.error("[WhatsApp] No se pudo avisar al admin: ADMIN_WHATSAPP no configurado.")
         return
-    contacto = conversation.profile_name or conversation.phone
     msg = (
         f"Diana, {contacto} necesita atención humana: {reason}\n\n"
         f"📱 {conversation.phone}\n\n"
@@ -5176,6 +5259,17 @@ def notify_admin_new_web_lead(
     """Avisa por WhatsApp al admin cada vez que un visitante del sitio deja sus
     datos en el widget de Mariana — SIEMPRE, sin importar si el primer WhatsApp
     automático se pudo enviar o no, para que ningún lead se pierda en silencio."""
+    push_notification(
+        kind="lead_web", level="warning" if not whatsapp_sent else "info",
+        title=f"Nuevo lead desde el sitio web — {name}",
+        body=(f"{conversation.phone}"
+              + (f"\nMensaje: {website_message}" if website_message else "")
+              + ("" if whatsapp_sent else
+                 f"\n⚠️ No se le pudo escribir automáticamente ({send_error or 'error desconocido'}) — escríbele tú.")),
+        url=f"/whatsapp/{conversation.id}",
+        ref_type="conversation", ref_id=conversation.id,
+    )
+
     admin_phone = os.environ.get("ADMIN_WHATSAPP", "")
     if not admin_phone:
         app.logger.error("[WhatsApp] No se pudo avisar al admin: ADMIN_WHATSAPP no configurado.")
@@ -5870,6 +5964,29 @@ def _job_whatsapp_followup():
 
 
 # ── Bandeja de salida — qué se envió y qué llegó de verdad (solo admin) ───────
+@app.template_filter("hace_cuanto")
+def _filtro_hace_cuanto(dt):
+    """"hace 5 min", "hace 2 h", "ayer"... Para las alertas, donde importa más
+    cuán reciente es algo que la hora exacta. Los timestamps se guardan en UTC."""
+    if not dt:
+        return "—"
+    delta = datetime.utcnow() - dt
+    segundos = delta.total_seconds()
+    if segundos < 60:
+        return "ahora"
+    if segundos < 3600:
+        return f"hace {int(segundos // 60)} min"
+    if segundos < 86400:
+        horas = int(segundos // 3600)
+        return f"hace {horas} h"
+    dias = int(segundos // 86400)
+    if dias == 1:
+        return "ayer"
+    if dias < 7:
+        return f"hace {dias} días"
+    return dt.replace(tzinfo=pytz.utc).astimezone(_BOGOTA).strftime("%d/%m")
+
+
 @app.template_filter("hora_bogota")
 def _filtro_hora_bogota(dt, fmt="%d/%m %I:%M %p"):
     """Los timestamps se guardan en UTC naive (datetime.utcnow). Mostrarlos tal
@@ -5877,6 +5994,80 @@ def _filtro_hora_bogota(dt, fmt="%d/%m %I:%M %p"):
     if not dt:
         return "—"
     return dt.replace(tzinfo=pytz.utc).astimezone(_BOGOTA).strftime(fmt)
+
+
+# ── Campanita — alertas internas de lo que hace Mariana ──────────────────────
+def _can_see_notifications() -> bool:
+    """Las alertas son de supervisión del negocio: las ve todo el que no sea
+    operario (mismo criterio que el panel de Mensajes)."""
+    u = getattr(g, "current_user", None)
+    return bool(u) and u.role != "operario"
+
+
+@app.route("/api/notifications")
+def api_notifications():
+    """Alimenta la campanita. Se consulta cada 30s desde el navegador."""
+    if not _can_see_notifications():
+        return jsonify({"unread": 0, "items": []})
+
+    items = (
+        Notification.query
+        .order_by(Notification.created_at.desc())
+        .limit(15)
+        .all()
+    )
+    unread = Notification.query.filter_by(is_read=False).count()
+    return jsonify({
+        "unread": unread,
+        "items": [{
+            "id": n.id,
+            "kind": n.kind,
+            "level": n.level,
+            "color": n.color,
+            "title": n.title,
+            "body": n.body or "",
+            "url": n.url or "",
+            "is_read": n.is_read,
+            "when": _filtro_hace_cuanto(n.created_at),
+        } for n in items],
+    })
+
+
+@app.route("/notifications/<int:notification_id>/read", methods=["POST"])
+def notification_mark_read(notification_id):
+    if not _can_see_notifications():
+        return jsonify({"ok": False}), 403
+    n = Notification.query.get_or_404(notification_id)
+    if not n.is_read:
+        n.is_read = True
+        db.session.commit()
+    return jsonify({"ok": True, "url": n.url or ""})
+
+
+@app.route("/notifications/read-all", methods=["POST"])
+def notifications_mark_all_read():
+    if not _can_see_notifications():
+        return jsonify({"ok": False}), 403
+    Notification.query.filter_by(is_read=False).update({"is_read": True})
+    db.session.commit()
+    return jsonify({"ok": True})
+
+
+@app.route("/notifications")
+def notifications_list():
+    """Historial completo, para cuando la campanita se queda corta."""
+    if not _can_see_notifications():
+        flash("Acceso restringido.", "danger")
+        return redirect(url_for("calendar_view"))
+
+    solo_no_leidas = request.args.get("no_leidas") == "1"
+    q = Notification.query
+    if solo_no_leidas:
+        q = q.filter_by(is_read=False)
+    notificaciones = q.order_by(Notification.created_at.desc()).limit(200).all()
+    return render_template("notifications.html",
+                           notificaciones=notificaciones,
+                           solo_no_leidas=solo_no_leidas)
 
 
 @app.route("/whatsapp/outbox")
