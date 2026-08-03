@@ -5649,7 +5649,8 @@ def whatsapp_messages_json(conversation_id):
     return jsonify({
         "bot_active": conversation.bot_active,
         "messages": [
-            {"id": m.id, "direction": m.direction, "body": m.body, "time": m.created_at.strftime("%d/%m %H:%M")}
+            {"id": m.id, "direction": m.direction, "body": m.body,
+             "time": _filtro_hora_bogota(m.created_at, "%d/%m %H:%M")}
             for m in messages
         ],
     })

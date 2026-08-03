@@ -128,7 +128,7 @@
       <div class="wa-row-main">
         <div class="wa-row-top">
           <span class="wa-name">{{ conv.profile_name or conv.phone }}</span>
-          <span class="wa-time">{{ last_msg.created_at.strftime('%d/%m %H:%M') if last_msg else conv.created_at.strftime('%d/%m %H:%M') }}</span>
+          <span class="wa-time">{{ (last_msg.created_at if last_msg else conv.created_at) | hora_bogota('%d/%m %H:%M') }}</span>
         </div>
         <div class="d-flex justify-content-between align-items-center mt-1">
           <span class="wa-preview">
@@ -182,7 +182,7 @@
       <div class="wa-body" id="waBody">
         {% for m in messages %}
           <div class="wa-bubble-row {{ m.direction }}">
-            <div class="wa-bubble {{ m.direction }}">{{ m.body }}<span class="wa-msg-time">{{ m.created_at.strftime('%H:%M') }}</span></div>
+            <div class="wa-bubble {{ m.direction }}">{{ m.body }}<span class="wa-msg-time">{{ m.created_at | hora_bogota('%H:%M') }}</span></div>
           </div>
         {% endfor %}
       </div>
