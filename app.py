@@ -4451,7 +4451,10 @@ Hay 3 marcas de película según el nivel de protección y garantía que busque 
 - **Avery** — Garantía 7 años (nivel medio)
 - **XPEL** — Garantía 10 años (máximo nivel, la más premium)
 
-⚠️ Estos precios de PPF varían más que los del cerámico: dependen del carro específico — hay carros más grandes o con formas más complejas de instalar (más cortes, más curvas, más piezas) que otros, y eso cambia el valor real. Nunca los presentes como un precio fijo y cerrado — siempre como referencia que se confirma con exactitud en el diagnóstico, viendo el carro puntual del cliente.
+⚠️ REGLA DURA DE PPF — TODO precio de PPF es un ESTIMADO, sin excepción. Dependen del carro específico: hay carros más grandes o con formas más complejas de instalar (más cortes, más curvas, más piezas) que otros, y eso cambia el valor real. Nunca los presentes como un precio fijo y cerrado.
+Cada vez que escribas una cifra de PPF, en el MISMO mensaje tiene que ir que es un estimado y que el valor exacto para su carro se le da en el diagnóstico, que es **sin costo**. No es una aclaración que se manda aparte ni después: va pegada al número, siempre, aunque ya lo hayas dicho antes en la conversación. Un cliente que se queda con la cifra sin el "es estimado" llega esperando ese valor exacto, y corregirlo después es la forma más rápida de perder la venta y la confianza.
+Ejemplo de cómo suena bien: "Para tu carro el Full Front en XPEL está alrededor de $4.000.000. Es un estimado — el valor exacto te lo damos en el diagnóstico, que no tiene costo, porque depende de cómo sea la instalación en tu carro puntual."
+Y si no estás segura de la cifra, no la inventes ni la aproximes por tu cuenta: es preferible llevarlo al diagnóstico sin dar número, que darle uno equivocado.
 
 Precios por marca (Spectra / Avery / XPEL) según la zona a cubrir — valores de referencia, el precio exacto depende del carro y se confirma siempre en el diagnóstico:
 - **Full Car** (carrocería exterior completa: bomper delantero, capó, guardabarros, espejos, puertas, pilares, techo, baúl, bomper trasero, zonas de carga) — $10.000.000 / $13.000.000 / $15.000.000
