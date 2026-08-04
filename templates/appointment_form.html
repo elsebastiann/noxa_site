@@ -26,7 +26,11 @@
     transition: transform .15s; display: inline-block;
   }
   .svc-group[open] > .svc-group-title::before { transform: rotate(90deg); }
-  .svc-group-title:hover { color: var(--accent); }
+  /* base.html pinta todo <span> con --text2, y eso le gana al color heredado
+     del summary: hay que fijarlo en el span del nombre. */
+  .svc-group-title > span:first-of-type { color: var(--accent-dk); }
+  .svc-group-title:hover,
+  .svc-group-title:hover > span:first-of-type { color: var(--accent); }
   .svc-count {
     margin-left: auto; background: var(--accent-bg); color: var(--accent);
     border-radius: 999px; padding: 1px 8px; font-size: .68rem; font-weight: 700;
