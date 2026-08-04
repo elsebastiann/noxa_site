@@ -4459,20 +4459,21 @@ Los diagnósticos los agendas TÚ directamente en la agenda de NOXA. Nunca le di
 
 **Los datos que necesitas antes de poder agendar**, además del día y la hora:
 1. **Nombre completo** del cliente.
-2. **Celular**. Por defecto es el mismo número de WhatsApp desde el que te está escribiendo, así que NO se lo preguntes. Solo pregunta si el cliente menciona que prefiere que lo contacten a otro número.
+2. **Celular**. TÚ NO VES el número desde el que te escribe, y no lo necesitas: el sistema lo pone solo. Así que NO se lo preguntes y, en el marcador, **OMITE el campo `celular` por completo**. Solo inclúyelo si el cliente te dictó explícitamente otro número de contacto, y en ese caso pon los dígitos que te dio, tal cual. Nunca escribas un texto de relleno tipo `celular=usar_whatsapp` o `celular=WHATSAPP_NUMBER` — eso queda guardado como si fuera el teléfono real del cliente.
 3. **Tipo de vehículo**: uno exacto de estos cuatro — Automovil, SUV, Camioneta, Moto. Esto lo DEDUCES tú a partir del carro que el cliente te diga que tiene (marca y modelo), con el criterio de la sección CATÁLOGO: Camioneta si es de 7 puestos, de platón o combi/furgoneta; SUV si es de 5 puestos sin platón; Automovil si es sedán, hatchback o compacto; Moto si es motocicleta. Nunca le preguntes al cliente "¿tu carro es SUV o camioneta?" — esa clasificación es interna tuya, no de él. Solo pregunta cuando de verdad no puedas deducirlo (te dio una marca sin modelo, o un modelo que viene en varias versiones), y pregunta por el dato concreto que te falta ("¿el tuyo es el de platón o el cerrado?", "¿cuántos puestos tiene?"), nunca por la categoría.
 4. **Placa** del vehículo. Se la pides al momento de dejar la cita creada, junto con el nombre completo, con amabilidad — es lo normal para dejarlo agendado.
 
 **Cómo pedirlos**: respeta la regla de una sola pregunta por turno. Primero el día, en el turno siguiente la hora, y una vez confirmados día y hora, pides nombre completo y placa en un mismo mensaje (eso cuenta como una sola pregunta: son los dos datos del mismo registro, no dos temas distintos).
 
 **Cómo dejar la cita creada**: cuando ya tengas todos esos datos MÁS el día y la hora exactos, agrega un mensaje SEPARADO (con "---" como siempre) que diga EXACTAMENTE esto, sin nada más en ese mensaje:
-[AGENDAR: nombre=<nombre completo>; celular=<número>; vehiculo=<Automovil|SUV|Camioneta|Moto>; placa=<placa>; fecha=<AAAA-MM-DD>; hora=<HH:MM>; interes=<qué lo trae, opcional>]
-Ejemplo: [AGENDAR: nombre=Andrés Rojas; celular=3001234567; vehiculo=SUV; placa=ABC123; fecha=2026-08-06; hora=15:00; interes=cerámico 9H]
+[AGENDAR: nombre=<nombre completo>; vehiculo=<Automovil|SUV|Camioneta|Moto>; placa=<placa>; fecha=<AAAA-MM-DD>; hora=<HH:MM>; interes=<qué lo trae, opcional>]
+Ejemplo normal (sin celular, que es el caso casi siempre): [AGENDAR: nombre=Andrés Rojas; vehiculo=SUV; placa=ABC123; fecha=2026-08-06; hora=15:00; interes=cerámico 9H]
+Ejemplo cuando el cliente dictó otro número: [AGENDAR: nombre=Andrés Rojas; celular=3001234567; vehiculo=SUV; placa=ABC123; fecha=2026-08-06; hora=15:00; interes=cerámico 9H]
 El campo `interes` es opcional pero úsalo siempre que sepas qué servicio lo trae — queda en las notas de la cita para que el asesor llegue sabiendo de qué se trata.
 El cliente nunca ve ese mensaje. Reglas duras:
 - No lo emitas si te falta CUALQUIERA de los datos, o si el cliente todavía no confirmó día Y hora exactos. Si falta algo, pídelo primero y agendas en el turno siguiente.
 - La hora tiene que ser una de las que aparecieron en la disponibilidad real.
-- Emítelo UNA sola vez por cita. Si ya agendaste en esta conversación, no lo repitas: para mover o cancelar una cita ya creada, escala a un humano.
+- Emítelo UNA sola vez por cita. Si ya agendaste en esta conversación, NO lo repitas por ningún motivo — ni para confirmar, ni para corregir un dato, ni aunque el cliente vuelva a mencionar la cita. Repetirlo crea una segunda cita duplicada en la agenda. Para mover, corregir o cancelar una cita ya creada, escala a un humano.
 - Lo que creas siempre es un DIAGNÓSTICO, nunca el servicio en sí. Para los servicios completos (cerámico, detallados) el cupo se asegura con el anticipo del 10%, no con este marcador.
 - ⚠️ **PPF y polarizado son la excepción**: no se pueden reservar como tal en el sistema. Si un cliente quiere agendar directamente uno de esos dos sin pasar por diagnóstico (raro, pero pasa), NO le digas que no se puede ni lo mandes a hacer otra cosa — agéndalo igual con este marcador y pon en `interes` qué es lo que viene a hacerse (ej. `interes=PPF Full Front` o `interes=polarizado`). Queda como diagnóstico en la agenda y el asesor lo ve en las notas. Al cliente le hablas normal de su cita, sin explicarle este detalle interno.
 - En el mismo turno en que agendas, el [META:] va con estado=Diagnóstico agendado.
@@ -4775,10 +4776,11 @@ def _transcribe_twilio_audio(media_url: str, media_type: str) -> str | None:
 # público del club Mercedes-Benz (api_public_mb_book).
 _DIAS_ES = ["lunes", "martes", "miércoles", "jueves", "viernes", "sábado", "domingo"]
 
-# Cuántos días y horarios se le muestran. Es un resumen a propósito: darle
-# demasiadas opciones al cliente hace que posponga la decisión (ver CIERRE).
+# Cuántos días hacia adelante se le muestran. Los horarios de cada día van
+# COMPLETOS a propósito: cuando se le mandaba solo una muestra, el modelo ofrecía
+# únicamente esos y le decía al cliente que no había tarde aunque estuviera libre.
+# Cuántas opciones ve el cliente es decisión de Mariana, no del recorte de datos.
 _AVAILABILITY_DAYS = 4
-_AVAILABILITY_SLOTS_PER_DAY = 4
 
 
 def _diagnostic_service():
@@ -4902,16 +4904,27 @@ def _format_availability_for_prompt() -> str:
 
     lineas = []
     for d, horas in disponibilidad:
-        muestra = horas[:_AVAILABILITY_SLOTS_PER_DAY]
-        resto = "" if len(horas) <= len(muestra) else f" (y {len(horas) - len(muestra)} más)"
+        manana = [h for h in horas if int(h.split(":")[0]) < 12]
+        tarde  = [h for h in horas if int(h.split(":")[0]) >= 12]
+        partes = []
+        if manana:
+            partes.append("mañana " + ", ".join(manana))
+        if tarde:
+            partes.append("tarde " + ", ".join(tarde))
         lineas.append(
             f"- {_DIAS_ES[d.weekday()]} {d.strftime('%d/%m')} ({d.isoformat()}): "
-            f"{', '.join(muestra)}{resto}"
+            + " · ".join(partes)
         )
     return (
-        "Disponibilidad real de la agenda para diagnósticos (hora de Bogotá). Ofrece "
-        "únicamente horarios de esta lista, y usa la fecha en formato AAAA-MM-DD cuando "
-        "emitas el marcador [AGENDAR: ...]:\n" + "\n".join(lineas)
+        "Disponibilidad real de la agenda para diagnósticos (hora de Bogotá). Esta lista "
+        "está COMPLETA: son todos los cupos libres, de mañana y de tarde. Si una hora "
+        "aparece aquí, está disponible y la puedes confirmar.\n"
+        + "\n".join(lineas)
+        + "\nCómo usarla: al cliente ofrécele máximo 2 opciones a la vez para que no se "
+        "abrume, pero elígelas según lo que él pida — si pide tarde, ofrécele horas de la "
+        "tarde; si pide un día u hora puntual y está en la lista, confírmasela directo sin "
+        "proponerle otra cosa. Nunca digas que no tienes disponibilidad en una franja que sí "
+        "aparece aquí. Usa la fecha en formato AAAA-MM-DD en el marcador [AGENDAR: ...]."
     )
 
 
@@ -5059,6 +5072,20 @@ SERVICE_TAGS = [
 ]
 
 
+def _clean_phone_or_default(raw: str | None, fallback: str) -> str:
+    """Devuelve el celular normalizado solo si parece un teléfono de verdad.
+
+    _normalize_whatsapp_number no valida: le antepone "+57" a lo que sea, así que
+    un placeholder del modelo terminaba guardado como "+57usar_whatsapp" en la
+    ficha del cliente. Se exige un mínimo de dígitos y nada de letras."""
+    candidato = (raw or "").strip()
+    solo_digitos = re.sub(r"[^\d]", "", candidato)
+    tiene_letras = bool(re.search(r"[A-Za-z]", candidato))
+    if tiene_letras or not (7 <= len(solo_digitos) <= 15):
+        return fallback
+    return _normalize_whatsapp_number(candidato)
+
+
 def _parse_agendar_marker(raw: str) -> dict:
     """"nombre=X; celular=Y; ..." -> dict. Tolerante con el orden y los espacios."""
     datos = {}
@@ -5080,7 +5107,11 @@ def book_diagnostic_from_bot(conversation: "Conversation", datos: dict) -> tuple
     para que lo resuelva con el cliente en el mismo hilo.
     """
     nombre   = (datos.get("nombre") or "").strip()
-    celular  = _normalize_whatsapp_number(datos.get("celular") or "") or conversation.phone
+    # El modelo no ve el número de la conversación, así que cuando se le pedía
+    # emitirlo devolvía cosas como "usar_whatsapp" o "WHATSAPP_NUMBER" y se
+    # guardaban tal cual. Solo se acepta algo que de verdad parezca un teléfono;
+    # cualquier otra cosa cae al número real de la conversación.
+    celular  = _clean_phone_or_default(datos.get("celular"), conversation.phone)
     vehiculo = (datos.get("vehiculo") or "").strip()
     placa    = normalize_plate(datos.get("placa") or "")
     fecha_raw = (datos.get("fecha") or "").strip()
@@ -5112,12 +5143,12 @@ def book_diagnostic_from_bot(conversation: "Conversation", datos: dict) -> tuple
     if target_date < hoy or target_date > hoy + timedelta(days=BOOKING_WINDOW_DAYS):
         return False, "esa fecha está fuera de la ventana de agendamiento", None
 
-    # Si el modelo repite el marcador en otro turno, no se duplica la cita. Se
-    # busca por los dos teléfonos posibles: el de la conversación y el que el
-    # cliente pidió como contacto, que no siempre son el mismo.
+    # Si el modelo repite el marcador, no se duplica la cita. Se busca por
+    # teléfono O por placa: cuando el modelo inventó un celular distinto en cada
+    # intento, el filtro por teléfono solo no alcanzó y se crearon dos citas.
     telefonos = {conversation.phone, celular} - {None, ""}
     ya_tiene = Appointment.query.filter(
-        Appointment.phone.in_(telefonos),
+        db.or_(Appointment.phone.in_(telefonos), Appointment.plate == placa),
         Appointment.status == "scheduled",
         Appointment.start_datetime >= bogota_now(),
     ).first()
@@ -5140,7 +5171,8 @@ def book_diagnostic_from_bot(conversation: "Conversation", datos: dict) -> tuple
         ), None
 
     start_dt = datetime.combine(target_date, datetime.min.time()).replace(hour=hh, minute=mm)
-    notas = f"Diagnóstico agendado por Mariana (bot de WhatsApp) desde {conversation.phone}."
+    # El teléfono va en su propio campo, no repetido en las notas.
+    notas = "Diagnóstico agendado por Mariana (bot de WhatsApp)."
     if interes:
         notas += f" El cliente viene por: {interes}."
     appt = Appointment(
