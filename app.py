@@ -4968,7 +4968,7 @@ def _format_promotions_for_prompt() -> str:
             detalle += f" Condiciones: {p.terms}"
         if p.valid_until:
             detalle += f" Vigente hasta el {p.valid_until.strftime('%d/%m/%Y')}."
-        if p.image_file:
+        if PROMO_IMAGES_ENABLED and p.image_file:
             detalle += f" (Tiene imagen de apoyo: puedes enviarla con [PROMO: {p.id}])"
         lineas.append(detalle)
 
@@ -4978,11 +4978,13 @@ def _format_promotions_for_prompt() -> str:
         "el precio o cuando necesites un empujón para que agende, NO en el saludo ni antes "
         "de que entienda el servicio (la regla de oro del valor antes del precio sigue "
         "aplicando igual). Nunca inventes promociones que no estén en esta lista ni cambies "
-        "sus condiciones.\n" + "\n".join(lineas) +
-        "\nPara mandarle la imagen de una promoción, agrega un mensaje separado con "
-        "EXACTAMENTE [PROMO: <id>] — el sistema le envía la imagen al cliente. Úsalo solo "
-        "cuando de verdad aporte, una sola vez por promoción, y siempre acompañado de un "
-        "mensaje tuyo explicándola; nunca mandes la imagen sola."
+        "sus condiciones.\n" + "\n".join(lineas)
+        + ("\nPara mandarle la imagen de una promoción, agrega un mensaje separado con "
+           "EXACTAMENTE [PROMO: <id>] — el sistema le envía la imagen al cliente. Úsalo solo "
+           "cuando de verdad aporte, una sola vez por promoción, y siempre acompañado de un "
+           "mensaje tuyo explicándola; nunca mandes la imagen sola."
+           if PROMO_IMAGES_ENABLED else
+           "\nNo puedes enviar imágenes: explica la promoción con tus palabras, en texto.")
     )
 
 
@@ -5647,7 +5649,7 @@ def _generate_and_send_reply(conversation: "Conversation", from_number: str, med
         if i < len(visible_chunks) - 1:
             time.sleep(1.2)  # pausa breve para que se sientan mensajes naturales, no un bloque
 
-    for promo_id in promo_ids[:1]:  # una imagen por turno, nunca una ráfaga
+    for promo_id in (promo_ids[:1] if PROMO_IMAGES_ENABLED else []):  # una imagen por turno, nunca una ráfaga
         promo = Promotion.query.get(promo_id)
         if not promo or not promo.vigente or not promo.image_url:
             app.logger.warning(f"[Promos] Se pidió enviar la promo {promo_id} pero no está vigente o no tiene imagen.")
@@ -6212,6 +6214,11 @@ def _filtro_hora_bogota(dt, fmt="%d/%m %I:%M %p"):
 PROMO_UPLOAD_DIR = os.path.join(os.path.dirname(os.path.abspath(db_path)) or ".", "promo_uploads")
 PROMO_ALLOWED_EXT = {".jpg", ".jpeg", ".png", ".webp"}
 
+# Envío de imágenes de promoción por WhatsApp: apagado por ahora a pedido del
+# negocio. Se deja todo montado (modelo, ruta, marcador) para reactivarlo
+# poniendo esto en True, sin tocar nada más.
+PROMO_IMAGES_ENABLED = False
+
 
 @app.route("/promos/img/<path:filename>")
 def promo_image(filename):
@@ -6228,6 +6235,8 @@ def _save_promo_image(file_storage) -> str | None:
     El nombre lleva un prefijo aleatorio para que dos promos con archivos que se
     llamen igual no se pisen, y se restringe la extensión: esto lo sirve Flask
     como estático y lo descarga Twilio desde internet."""
+    if not PROMO_IMAGES_ENABLED:
+        return None
     if not file_storage or not file_storage.filename:
         return None
     ext = os.path.splitext(file_storage.filename)[1].lower()
@@ -6272,7 +6281,8 @@ def promotions_list():
         return redirect(url_for("promotions_list"))
 
     promociones = Promotion.query.order_by(Promotion.created_at.desc()).all()
-    return render_template("promotions.html", promociones=promociones)
+    return render_template("promotions.html", promociones=promociones,
+                           promo_images_enabled=PROMO_IMAGES_ENABLED)
 
 
 @app.route("/promotions/<int:promo_id>/toggle", methods=["POST"])

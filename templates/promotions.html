@@ -26,8 +26,9 @@
 <h2 style="margin-top:16px;">Promociones</h2>
 <p class="pr-note">
   Lo que montes aquí lo ve Mariana en cada conversación y lo usa para cerrar: cuando el cliente
-  duda, objeta el precio o le falta un empujón para agendar. No lo saca en el saludo. Si le subes
-  una imagen, se la puede enviar al cliente por WhatsApp.
+  duda, objeta el precio o le falta un empujón para agendar. No lo saca en el saludo.
+  {% if not promo_images_enabled %}El envío de imágenes está desactivado por ahora: Mariana explica
+  la promoción con sus palabras, en texto.{% endif %}
 </p>
 
 <form class="pr-form" method="POST" enctype="multipart/form-data">
@@ -55,10 +56,12 @@
       <label class="pr-label" for="valid_until">Válida hasta (opcional)</label>
       <input class="form-control" type="date" id="valid_until" name="valid_until">
     </div>
+    {% if promo_images_enabled %}
     <div>
       <label class="pr-label" for="image">Imagen de apoyo (opcional)</label>
       <input class="form-control" type="file" id="image" name="image" accept=".jpg,.jpeg,.png,.webp">
     </div>
+    {% endif %}
   </div>
   <button type="submit" class="btn btn-warning mt-3">Crear promoción</button>
 </form>
@@ -67,7 +70,7 @@
 <div class="pr-list">
   {% for p in promociones %}
     <div class="pr-card {{ '' if p.vigente else 'off' }}">
-      {% if p.image_file %}
+      {% if promo_images_enabled and p.image_file %}
         <img class="pr-img" src="{{ url_for('promo_image', filename=p.image_file) }}" alt="{{ p.title }}">
       {% endif %}
       <div class="pr-body">
