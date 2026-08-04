@@ -1352,11 +1352,15 @@ def _appointment_capacity_profile(appt, service_lookup: dict):
     return is_diag, occupied_end
 
 
-def get_available_slots(target_date, service_ids: list[int], vehicle_type_id: int):
+def get_available_slots(target_date, service_ids: list[int], vehicle_type_id: int,
+                       exclude_appointment_id: int | None = None):
     """
     Devuelve (slots, total_minutes) para una fecha dada.
     Cada slot es {"start_iso", "start_label", "end_estimate_label"}.
     Lanza ValueError si se mezclan diagnósticos con servicios normales.
+
+    `exclude_appointment_id` saca una cita del cálculo de cupo: al reagendarla,
+    su reserva actual no debe contar como ocupada contra sí misma.
     """
     services = Service.query.filter(Service.id.in_(service_ids)).all()
     if not services:
@@ -1384,6 +1388,8 @@ def get_available_slots(target_date, service_ids: list[int], vehicle_type_id: in
     service_lookup = {s.name.strip().lower(): s for s in Service.query.all()}
     relevant = []
     for a in existing:
+        if exclude_appointment_id and a.id == exclude_appointment_id:
+            continue
         a_is_diag, a_occupied_end = _appointment_capacity_profile(a, service_lookup)
         if a_is_diag == is_diagnostic_booking:
             relevant.append((a.start_datetime, a_occupied_end))
@@ -4386,7 +4392,7 @@ En su lugar, frases que sí puedes usar con confianza: "para orientarte bien..."
 - LÍMITE DURO: cada mensaje individual debe tener máximo ~300 caracteres (2-4 líneas cortas de celular). Si tu respuesta completa supera eso, es un error tuyo — recórtala, no la mandes larga.
 - Casi nunca uses viñetas, negrillas en cadena, ni listas — eso es formato de documento, no de chat. Escribe como si estuvieras tecleando rápido desde el celular.
 - Para separar tu respuesta en varios mensajes de WhatsApp, escribe cada mensaje y sepáralos con una línea que contenga únicamente: ---
-  Máximo 3 mensajes VISIBLES por turno (la mayoría de las veces con 1-2 basta). Los marcadores internos [ESCALAR: ...], [AGENDAR: ...], [PROMO: ...], [META: ...] y [NOMBRE: ...] (ver más abajo) van aparte, no cuentan dentro de ese límite de 3 — siempre van al final, cada uno en su propio mensaje separado por "---".
+  Máximo 3 mensajes VISIBLES por turno (la mayoría de las veces con 1-2 basta). Los marcadores internos [ESCALAR: ...], [AGENDAR: ...], [REAGENDAR: ...], [PROMO: ...], [META: ...] y [NOMBRE: ...] (ver más abajo) van aparte, no cuentan dentro de ese límite de 3 — siempre van al final, cada uno en su propio mensaje separado por "---".
 - Ante preguntas técnicas o comparativas (ej. "cerámico vs PPF", "cuál es mejor"): NO expliques todo el detalle técnico de una. Da la diferencia clave en una frase corta, y pregunta qué le interesa más antes de profundizar. Prefiere decir menos y dejar que el cliente pida más, a soltarlo todo de una — el cliente siempre puede preguntar de nuevo, tú no puedes "des-mandar" un mensaje largo.
 - Por lo general termina tu turno con una pregunta que haga avanzar la conversación, para no dejarla muerta. Pero "avanzar" no significa seguir preguntando: ver la sección CUÁNDO DEJAR DE PREGUNTAR, que manda sobre esta regla.
 - REGLA DURA: nunca hagas dos preguntas en el mismo mensaje. Un solo signo de interrogación por turno, siempre — ni siquiera "¿y esto, o esto?" con dos ideas distintas. Elige la más importante ahora y espera la respuesta del cliente antes de hacer la siguiente. Ejemplo de lo que está MAL: "¿Qué carro es, marca y modelo? Y cuéntame, ¿lo usas para el día a día o el fin de semana?" — son dos preguntas, nunca hagas esto. BIEN: "¿Qué carro es?" y en el siguiente turno, ya con esa respuesta, preguntas lo del uso.
@@ -4532,7 +4538,7 @@ El campo `interes` es opcional pero úsalo siempre que sepas qué servicio lo tr
 El cliente nunca ve ese mensaje. Reglas duras:
 - No lo emitas si te falta CUALQUIERA de los datos, o si el cliente todavía no confirmó día Y hora exactos. Si falta algo, pídelo primero y agendas en el turno siguiente.
 - La hora tiene que ser una de las que aparecieron en la disponibilidad real.
-- Emítelo UNA sola vez por cita. Si ya agendaste en esta conversación, NO lo repitas por ningún motivo — ni para confirmar, ni para corregir un dato, ni aunque el cliente vuelva a mencionar la cita. Repetirlo crea una segunda cita duplicada en la agenda. Para mover, corregir o cancelar una cita ya creada, escala a un humano.
+- Emítelo UNA sola vez por cita. Si ya agendaste, NO lo repitas por ningún motivo — ni para confirmar, ni para corregir un dato, ni aunque el cliente vuelva a mencionar la cita. Repetirlo crea una cita duplicada. Si lo que el cliente quiere es MOVER la cita, eso NO es agendar de nuevo: se usa [REAGENDAR: ...] (ver abajo). Para cancelarla, escala a un humano.
 - Lo que creas siempre es un DIAGNÓSTICO, nunca el servicio en sí. Para los servicios completos (cerámico, detallados) el cupo se asegura con el anticipo del 10%, no con este marcador.
 - ⚠️ **PPF y polarizado son la excepción**: no se pueden reservar como tal en el sistema. Si un cliente quiere agendar directamente uno de esos dos sin pasar por diagnóstico (raro, pero pasa), NO le digas que no se puede ni lo mandes a hacer otra cosa — agéndalo igual con este marcador y pon en `interes` qué es lo que viene a hacerse (ej. `interes=PPF Full Front` o `interes=polarizado`). Queda como diagnóstico en la agenda y el asesor lo ve en las notas. Al cliente le hablas normal de su cita, sin explicarle este detalle interno.
 - En el mismo turno en que agendas, el [META:] va con estado=Diagnóstico agendado.
@@ -4542,6 +4548,16 @@ El cliente nunca ve ese mensaje. Reglas duras:
 **Si el cliente pide una hora más tarde de la que tienes** (típicamente las 6:00pm, porque sale de trabajar): no le digas simplemente que no se puede.
 1. Primero ofrécele **la hora más tarde que tengas disponible ese día** — idealmente las 5:30pm si aparece en la disponibilidad, y si no, la última que sí esté. Muchos clientes aceptan media hora antes sin problema.
 2. Si el cliente insiste en que **no puede llegar antes de las 6:00pm**, no lo pierdas ni le cierres la puerta: dile que lo vas a pasar al equipo para que lo evalúen y que le confirmamos. Y escala (ver ESCALAMIENTO) — es una excepción de agenda que decide un humano, no tú. Nunca prometas tú misma una hora fuera del horario.
+
+**MOVER UNA CITA YA AGENDADA** — esto sí lo puedes hacer tú, no lo escales.
+Si el cliente quiere cambiar la fecha o la hora de una cita que ya existe, confírmale la nueva hora contra la disponibilidad real y agrega un mensaje SEPARADO que diga EXACTAMENTE:
+[REAGENDAR: placa=<placa>; fecha=<AAAA-MM-DD>; hora=<HH:MM>]
+Ejemplo: [REAGENDAR: placa=ABC123; fecha=2026-08-07; hora=15:00]
+- La cita se busca **por placa**, así que es el único dato que necesitas además de la nueva fecha y hora. Si no la tienes a la mano, pídesela.
+- Igual que al agendar: la hora nueva tiene que estar en la disponibilidad, y lo emites UNA sola vez.
+- Nunca uses [AGENDAR: ...] para mover una cita — eso crea una segunda cita en vez de mover la que ya existe.
+
+**Si te aparece que el vehículo YA tiene una cita**: no es un error ni un problema. Dile al cliente con naturalidad qué cita tiene y pregúntale si quiere conservarla o moverla. Si dice que la mueva, la mueves tú con [REAGENDAR: ...] — nunca le digas que tienes que pasarlo con el equipo para eso.
 
 **Confirmación**: apenas quede agendado, mándale el resumen corto de la sección CIERRE (nombre, vehículo, que es el diagnóstico, día, hora, que es en NOXA Prado Veraniego, que toma 15-20 minutos, y que por favor te avise con tiempo si necesita reagendar).
 
@@ -5206,6 +5222,7 @@ _META_RE = re.compile(r"^\[META:\s*estado\s*=\s*(.*?)\s*;\s*servicios\s*=\s*(.*?
 _NOMBRE_RE = re.compile(r"^\[NOMBRE:\s*(.*?)\]$", re.IGNORECASE)
 _AGENDAR_RE = re.compile(r"^\[AGENDAR:\s*(.*?)\]$", re.IGNORECASE | re.DOTALL)
 _PROMO_RE   = re.compile(r"^\[PROMO:\s*(\d+)\s*\]$", re.IGNORECASE)
+_REAGENDAR_RE = re.compile(r"^\[REAGENDAR:\s*(.*?)\]$", re.IGNORECASE | re.DOTALL)
 
 LEAD_STATES = [
     "En proceso",
@@ -5304,20 +5321,16 @@ def book_diagnostic_from_bot(conversation: "Conversation", datos: dict) -> tuple
     if target_date < hoy or target_date > hoy + timedelta(days=BOOKING_WINDOW_DAYS):
         return False, "esa fecha está fuera de la ventana de agendamiento", None
 
-    # Si el modelo repite el marcador, no se duplica la cita. Se busca por
-    # teléfono O por placa: cuando el modelo inventó un celular distinto en cada
-    # intento, el filtro por teléfono solo no alcanzó y se crearon dos citas.
-    telefonos = {conversation.phone, celular,
-                 _phone_for_display(conversation.phone), _phone_for_display(celular)} - {None, ""}
-    ya_tiene = Appointment.query.filter(
-        db.or_(Appointment.phone.in_(telefonos), Appointment.plate == placa),
-        Appointment.status == "scheduled",
-        Appointment.start_datetime >= bogota_now(),
-    ).first()
+    # La cita se identifica por PLACA, no por teléfono ni por nombre: una misma
+    # persona puede tener dos carros y agendar para cada uno, y puede haber
+    # homónimos. Buscar por teléfono hacía que la segunda cita de un cliente con
+    # otro vehículo se rechazara como si fuera un duplicado.
+    ya_tiene = _find_active_appointment_by_plate(placa)
     if ya_tiene:
         return False, (
-            f"el cliente ya tiene una cita agendada para el "
-            f"{ya_tiene.start_datetime.strftime('%d/%m a las %H:%M')} — no se creó otra"
+            f"ese vehículo (placa {placa}) ya tiene una cita el "
+            f"{ya_tiene.start_datetime.strftime('%d/%m a las %H:%M')}. No se creó otra: si el "
+            f"cliente la quiere mover, usa [REAGENDAR: ...] en vez de agendar de nuevo"
         ), None
 
     try:
@@ -5359,6 +5372,104 @@ def book_diagnostic_from_bot(conversation: "Conversation", datos: dict) -> tuple
     db.session.commit()
 
     return True, f"cita #{appt.id} — {start_dt.strftime('%d/%m a las %H:%M')}", appt
+
+
+def _find_active_appointment_by_plate(placa: str):
+    """Cita futura vigente de un vehículo. La placa es la identidad real: el
+    nombre puede repetirse entre clientes y un mismo teléfono puede tener varios
+    carros."""
+    if not placa:
+        return None
+    return (
+        Appointment.query
+        .filter(
+            Appointment.plate == placa,
+            Appointment.status == "scheduled",
+            Appointment.start_datetime >= bogota_now(),
+        )
+        .order_by(Appointment.start_datetime)
+        .first()
+    )
+
+
+def reschedule_diagnostic_from_bot(conversation: "Conversation", datos: dict) -> tuple[bool, str, "Appointment | None"]:
+    """Mueve una cita existente a otra fecha/hora. Se ubica por placa y se
+    revalida el cupo nuevo contra la agenda, igual que al crearla."""
+    placa = normalize_plate(datos.get("placa") or "")
+    fecha_raw = (datos.get("fecha") or "").strip()
+    hora_raw  = (datos.get("hora") or "").strip()
+
+    if not (placa and fecha_raw and hora_raw):
+        return False, "faltan datos para reagendar (placa, fecha u hora)", None
+
+    appt = _find_active_appointment_by_plate(placa)
+    if not appt:
+        return False, f"no hay ninguna cita activa para la placa {placa}", None
+
+    try:
+        target_date = datetime.strptime(fecha_raw, "%Y-%m-%d").date()
+        hh, mm = (int(x) for x in hora_raw.split(":")[:2])
+        hora_label = f"{hh:02d}:{mm:02d}"
+    except (ValueError, TypeError):
+        return False, f"fecha u hora con formato inválido ({fecha_raw!r}, {hora_raw!r})", None
+
+    hoy = bogota_now().date()
+    if target_date < hoy or target_date > hoy + timedelta(days=BOOKING_WINDOW_DAYS):
+        return False, "esa fecha está fuera de la ventana de agendamiento", None
+
+    svc = _diagnostic_service()
+    if not svc or not appt.vehicle_type_id:
+        return False, "no se pudo resolver el servicio o el vehículo de la cita", None
+
+    try:
+        slots, total_minutes = get_available_slots(
+            target_date, [svc.id], appt.vehicle_type_id, exclude_appointment_id=appt.id
+        )
+    except ValueError as exc:
+        return False, str(exc), None
+
+    if not any(s["start_label"] == hora_label for s in slots):
+        alternativas = ", ".join(s["start_label"] for s in slots[:4]) or "ninguna ese día"
+        return False, (
+            f"el horario de las {hora_label} del {target_date.strftime('%d/%m')} no está "
+            f"disponible. Alternativas ese día: {alternativas}"
+        ), None
+
+    anterior = appt.start_datetime
+    nuevo_inicio = datetime.combine(target_date, datetime.min.time()).replace(hour=hh, minute=mm)
+    appt.start_datetime = nuevo_inicio
+    appt.end_datetime = nuevo_inicio + timedelta(minutes=total_minutes)
+    # Se reinicia el recordatorio: ya se le avisó de una fecha que cambió.
+    appt.notif_client_sent = False
+    appt.notif_reminder_sent = False
+    appt.notes = ((appt.notes or "") +
+                  f" Movida por Mariana del {anterior.strftime('%d/%m %H:%M')} "
+                  f"al {nuevo_inicio.strftime('%d/%m %H:%M')}.").strip()
+    db.session.commit()
+
+    return True, (f"cita #{appt.id} movida del {anterior.strftime('%d/%m a las %H:%M')} "
+                  f"al {nuevo_inicio.strftime('%d/%m a las %H:%M')}"), appt
+
+
+def notify_admin_bot_reschedule(conversation: "Conversation", appt: "Appointment", detalle: str) -> None:
+    """Toda cita que Mariana mueva queda registrada en la campanita, sí o sí."""
+    vehiculo = appt.vehicle_type.name if appt.vehicle_type else "—"
+    push_notification(
+        kind="cita_movida", level="warning",
+        title=f"Mariana movió una cita — {appt.customer_name}",
+        body=(f"{detalle}\n{vehiculo} · placa {appt.plate} · {appt.phone}"),
+        url=f"/appointment/{appt.id}/edit",
+        ref_type="appointment", ref_id=appt.id,
+    )
+    admin_phone = os.environ.get("ADMIN_WHATSAPP", "")
+    if not admin_phone:
+        return
+    send_whatsapp(admin_phone,
+                  f"🔄 Mariana movió una cita\n\n"
+                  f"Cliente: {appt.customer_name}\n"
+                  f"Placa: {appt.plate}\n"
+                  f"{detalle}",
+                  kind="admin_cita_movida", ref_type="appointment", ref_id=appt.id)
 
 
 def notify_admin_bot_booking(conversation: "Conversation", appt: "Appointment") -> None:
@@ -5602,6 +5713,7 @@ def _generate_and_send_reply(conversation: "Conversation", from_number: str, med
     new_service = None
     new_name = None
     booking_data = None
+    reschedule_data = None
     promo_ids = []
     visible_chunks = []
     for chunk in reply_chunks:
@@ -5611,8 +5723,11 @@ def _generate_and_send_reply(conversation: "Conversation", from_number: str, med
         m_nombre = _NOMBRE_RE.match(stripped)
         m_agendar = _AGENDAR_RE.match(stripped)
         m_promo = _PROMO_RE.match(stripped)
+        m_reagendar = _REAGENDAR_RE.match(stripped)
         if m_agendar:
             booking_data = _parse_agendar_marker(m_agendar.group(1))
+        elif m_reagendar:
+            reschedule_data = _parse_agendar_marker(m_reagendar.group(1))
         elif m_promo:
             promo_ids.append(int(m_promo.group(1)))
         elif m_esc:
@@ -5644,6 +5759,29 @@ def _generate_and_send_reply(conversation: "Conversation", from_number: str, med
     # se pueden enviar. En ese caso se le devuelve el motivo a Mariana y se
     # regenera el turno una sola vez (nunca en bucle) para que ofrezca otra hora.
     booked_appt = None
+    moved_appt = None
+    if reschedule_data:
+        try:
+            ok_move, detalle, appt = reschedule_diagnostic_from_bot(conversation, reschedule_data)
+        except Exception as exc:
+            db.session.rollback()
+            app.logger.error(f"[Agenda] Error moviendo la cita: {exc}")
+            ok_move, detalle, appt = False, "hubo un error técnico moviendo la cita", None
+
+        if ok_move:
+            app.logger.info(f"[Agenda] Mariana movió: {detalle} ({conversation.phone})")
+            moved_appt = (appt, detalle)
+        else:
+            app.logger.warning(f"[Agenda] No se pudo mover la cita ({conversation.phone}): {detalle}")
+            if _booking_retry:
+                escalation_reason = f"no se pudo mover la cita automáticamente ({detalle})"
+                visible_chunks = []
+            else:
+                nota = f"[Sistema: no se pudo mover la cita — {detalle}. No le digas al cliente que ya quedó movida; resuélvelo con él y vuelve a emitir [REAGENDAR: ...] solo cuando tengas una hora válida.]"
+                db.session.add(Message(conversation_id=conversation.id, direction="in", body=nota))
+                db.session.commit()
+                return _generate_and_send_reply(conversation, from_number, _booking_retry=True)
+
     if booking_data:
         try:
             ok_booking, detalle, appt = book_diagnostic_from_bot(conversation, booking_data)
@@ -5713,6 +5851,12 @@ def _generate_and_send_reply(conversation: "Conversation", from_number: str, med
             notify_admin_bot_booking(conversation, booked_appt)
         except Exception as exc:
             app.logger.error(f"[WhatsApp] Error avisando la cita del bot al admin: {exc}")
+
+    if moved_appt:
+        try:
+            notify_admin_bot_reschedule(conversation, moved_appt[0], moved_appt[1])
+        except Exception as exc:
+            app.logger.error(f"[WhatsApp] Error avisando el cambio de cita al admin: {exc}")
 
     if escalation_reason:
         conversation.bot_active = False
