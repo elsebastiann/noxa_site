@@ -5123,8 +5123,17 @@ def get_claude_reply(conversation: "Conversation", media_url: str | None = None,
         if conversation.profile_name else
         "Nombre de perfil de WhatsApp del cliente: no disponible."
     )
+    # Este bloque va al final del system prompt, donde más pesa. Cuando solo decía
+    # "preséntate por tu nombre", el modelo saludaba y se saltaba el menú de
+    # bienvenida aunque estuviera en IDENTIDAD: la instrucción de último momento
+    # le ganaba a la regla del prompt cacheado.
     profile_line += (
-        "\nEste es el PRIMER mensaje de esta conversación: preséntate por tu nombre."
+        "\nEste es el PRIMER mensaje de esta conversación. Tu respuesta son DOS mensajes "
+        "separados por '---': (1) el saludo presentándote por tu nombre y (2) el MENÚ DE "
+        "BIENVENIDA con las 4 opciones numeradas, copiado tal cual de la sección IDENTIDAD. "
+        "El menú NO es opcional. La única excepción es que en este mismo primer mensaje el "
+        "cliente ya haya dicho qué servicio necesita; si solo escribió algo genérico como "
+        "'hola', 'info' o 'quiero más información', el menú SÍ va."
         if is_first_message else
         "\nYa se han cruzado mensajes antes en esta conversación: no te vuelvas a presentar."
     )
