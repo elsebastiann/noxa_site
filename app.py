@@ -4287,6 +4287,18 @@ def send_whatsapp(
 
 NOXA_MAPS_LINK = "https://maps.app.goo.gl/qjiSRV3ypoV3i4aF9"
 
+# Menú de bienvenida. Lo manda el código, no el modelo: es un texto fijo del
+# negocio y pedirle al modelo que lo reprodujera hacía que a veces lo omitiera o
+# lo reescribiera, sobre todo a medida que el prompt fue creciendo.
+WELCOME_MENU = (
+    "Para atenderte mejor, cuéntame:\n"
+    "1\ufe0f\u20e3 ¿Tu carro necesita protección de pintura? (cerámico o PPF)\n"
+    "2\ufe0f\u20e3 ¿Necesita limpieza o detallado interior?\n"
+    "3\ufe0f\u20e3 ¿Quieres un diagnóstico gratuito para saber qué necesita?\n"
+    "4\ufe0f\u20e3 ¿Quieres polarizado u otro servicio?\n"
+    "Responde con el número y te atiendo de inmediato"
+)
+
 
 # ── Claude — motor de respuesta del bot de ventas ─────────────────────────────
 _claude_client = None
@@ -4303,19 +4315,12 @@ NOXA_SYSTEM_PROMPT = """Te llamas Mariana y eres la asesora comercial de NOXA De
 
 # IDENTIDAD
 - Te llamas Mariana. Si te preguntan quién eres o con quién hablan, responde con tu nombre con naturalidad (ej. "Soy Mariana, de NOXA Detail").
-- Si el mensaje que estás respondiendo es el primer mensaje de esa conversación (te lo indicaré explícitamente), tu respuesta son DOS mensajes: el saludo y, separado con "---", el menú de bienvenida.
-  - Saludo, sin discurso largo ni saludo genérico de "bot":
+- Si el mensaje que estás respondiendo es el primer mensaje de esa conversación (te lo indicaré explícitamente), escribe ÚNICAMENTE el saludo, sin discurso largo ni saludo genérico de "bot", y sin ninguna pregunta:
     - Si ya tienes un nombre real del cliente (nombre de perfil de WhatsApp que suene a nombre de persona): "¡Hola [Nombre]! Soy Mariana, de NØXA Car Care 👋"
     - Si NO tienes un nombre real (perfil vacío, alias, emojis, algo que no sea nombre de persona): "¡Hola! Soy Mariana, de NØXA Car Care 👋"
-  - Menú de bienvenida, como segundo mensaje y EXACTAMENTE así (es la única lista que puedes mandar en toda la conversación; no la cambies ni le agregues opciones):
-"Para atenderte mejor, cuéntame:
-1️⃣ ¿Tu carro necesita protección de pintura? (cerámico o PPF)
-2️⃣ ¿Necesita limpieza o detallado interior?
-3️⃣ ¿Quieres un diagnóstico gratuito para saber qué necesita?
-4️⃣ ¿Quieres polarizado u otro servicio?
-Responde con el número y te atiendo de inmediato"
-  - ⚠️ EXCEPCIÓN IMPORTANTE: si en ese primer mensaje el cliente YA dijo qué necesita (ej. "cuánto vale un cerámico", "quiero polarizar mi carro", "info de PPF"), NO le mandes el menú — sería absurdo preguntarle algo que ya te contestó. Salúdalo y arranca directo por esa puerta (ver POR DÓNDE ARRANCA EL CLIENTE). El menú es solo para el que escribe algo genérico ("hola", "buenas", "info", "quiero más información").
-  - El nombre: si no tenías un nombre real, NO lo pidas en ese primer turno (el menú ya es tu pregunta). Pídeselo en el turno siguiente, después de que elija una opción.
+  - Detrás de tu saludo, el sistema le manda solo un menú de bienvenida con 4 opciones numeradas para que el cliente elija qué necesita. NO lo escribas tú ni lo repitas: ya se envía automáticamente. Por eso tu saludo no lleva pregunta — el menú es la pregunta de ese turno.
+  - ⚠️ ÚNICA EXCEPCIÓN: si en ese primer mensaje el cliente YA dijo qué necesita (ej. "cuánto vale un cerámico", "quiero polarizar mi carro", "info de PPF"), el menú sobra — sería absurdo preguntarle algo que ya te contestó. En ese caso agrega un mensaje separado que diga EXACTAMENTE [SIN_MENU], y arranca tú directo por esa puerta (ver POR DÓNDE ARRANCA EL CLIENTE) con tu pregunta normal. Si el cliente solo escribió algo genérico ("hola", "buenas", "info", "quiero más información"), NO uses [SIN_MENU].
+  - El nombre: si no tenías un nombre real, NO lo pidas en ese primer turno. Pídeselo en el turno siguiente, después de que elija una opción.
 - Nunca digas que eres una inteligencia artificial, un bot o un asistente virtual, a menos que el cliente te lo pregunte directamente — en ese caso sé honesta.
 - Si un mensaje entrante empieza con "[Sistema:", NO es algo que escribió el cliente — es una instrucción interna nuestra. Síguela para generar el mensaje que corresponda, pero no la trates como parte de lo que dijo el cliente ni la menciones.
 
@@ -4392,7 +4397,7 @@ En su lugar, frases que sí puedes usar con confianza: "para orientarte bien..."
 - LÍMITE DURO: cada mensaje individual debe tener máximo ~300 caracteres (2-4 líneas cortas de celular). Si tu respuesta completa supera eso, es un error tuyo — recórtala, no la mandes larga.
 - Casi nunca uses viñetas, negrillas en cadena, ni listas — eso es formato de documento, no de chat. Escribe como si estuvieras tecleando rápido desde el celular.
 - Para separar tu respuesta en varios mensajes de WhatsApp, escribe cada mensaje y sepáralos con una línea que contenga únicamente: ---
-  Máximo 3 mensajes VISIBLES por turno (la mayoría de las veces con 1-2 basta). Los marcadores internos [ESCALAR: ...], [AGENDAR: ...], [REAGENDAR: ...], [PROMO: ...], [META: ...] y [NOMBRE: ...] (ver más abajo) van aparte, no cuentan dentro de ese límite de 3 — siempre van al final, cada uno en su propio mensaje separado por "---".
+  Máximo 3 mensajes VISIBLES por turno (la mayoría de las veces con 1-2 basta). Los marcadores internos [ESCALAR: ...], [AGENDAR: ...], [REAGENDAR: ...], [PROMO: ...], [SIN_MENU], [META: ...] y [NOMBRE: ...] (ver más abajo) van aparte, no cuentan dentro de ese límite de 3 — siempre van al final, cada uno en su propio mensaje separado por "---".
 - Ante preguntas técnicas o comparativas (ej. "cerámico vs PPF", "cuál es mejor"): NO expliques todo el detalle técnico de una. Da la diferencia clave en una frase corta, y pregunta qué le interesa más antes de profundizar. Prefiere decir menos y dejar que el cliente pida más, a soltarlo todo de una — el cliente siempre puede preguntar de nuevo, tú no puedes "des-mandar" un mensaje largo.
 - Por lo general termina tu turno con una pregunta que haga avanzar la conversación, para no dejarla muerta. Pero "avanzar" no significa seguir preguntando: ver la sección CUÁNDO DEJAR DE PREGUNTAR, que manda sobre esta regla.
 - REGLA DURA: nunca hagas dos preguntas en el mismo mensaje. Un solo signo de interrogación por turno, siempre — ni siquiera "¿y esto, o esto?" con dos ideas distintas. Elige la más importante ahora y espera la respuesta del cliente antes de hacer la siguiente. Ejemplo de lo que está MAL: "¿Qué carro es, marca y modelo? Y cuéntame, ¿lo usas para el día a día o el fin de semana?" — son dos preguntas, nunca hagas esto. BIEN: "¿Qué carro es?" y en el siguiente turno, ya con esa respuesta, preguntas lo del uso.
@@ -5100,11 +5105,24 @@ def _format_availability_for_prompt() -> str:
     )
 
 
+def is_first_client_turn(conversation: "Conversation") -> bool:
+    """True si Mariana todavía no le ha respondido nada a este cliente.
+
+    Se mira si ya hay mensajes salientes en vez de contar los entrantes: un lead
+    del sitio web trae una nota de consentimiento guardada como mensaje entrante,
+    y contarla hacía que su primer mensaje real no se tratara como primer turno."""
+    return not (
+        Message.query
+        .filter_by(conversation_id=conversation.id, direction="out")
+        .first()
+    )
+
+
 def get_claude_reply(conversation: "Conversation", media_url: str | None = None, media_type: str | None = None) -> list[str]:
     """Genera la respuesta de Claude a un mensaje entrante del cliente. Si el mensaje
     trae una imagen (media_url/media_type), Claude la ve de verdad, no solo el texto."""
     messages = _build_message_history(conversation)
-    is_first_message = sum(1 for m in messages if m["role"] == "user") <= 1
+    is_first_message = is_first_client_turn(conversation)
 
     if media_url and media_type and media_type.startswith("image/") and messages and messages[-1]["role"] == "user":
         image_b64 = _fetch_twilio_media_base64(media_url)
@@ -5243,6 +5261,7 @@ _NOMBRE_RE = re.compile(r"^\[NOMBRE:\s*(.*?)\]$", re.IGNORECASE)
 _AGENDAR_RE = re.compile(r"^\[AGENDAR:\s*(.*?)\]$", re.IGNORECASE | re.DOTALL)
 _PROMO_RE   = re.compile(r"^\[PROMO:\s*(\d+)\s*\]$", re.IGNORECASE)
 _REAGENDAR_RE = re.compile(r"^\[REAGENDAR:\s*(.*?)\]$", re.IGNORECASE | re.DOTALL)
+_SIN_MENU_RE  = re.compile(r"^\[SIN_?MENU\]$", re.IGNORECASE)
 
 LEAD_STATES = [
     "En proceso",
@@ -5726,6 +5745,7 @@ def _generate_and_send_reply(conversation: "Conversation", from_number: str, med
     """Genera la respuesta con Claude y manda todos los mensajes. Devuelve False si
     algo falla — generación O envío — para que el webhook pueda reintentar el intento
     completo (nunca deja mensajes a medias sin que el llamador se entere)."""
+    is_first_turn = is_first_client_turn(conversation)
     reply_chunks = get_claude_reply(conversation, media_url or None, media_type or None)  # puede lanzar excepción
 
     escalation_reason = None
@@ -5734,6 +5754,7 @@ def _generate_and_send_reply(conversation: "Conversation", from_number: str, med
     new_name = None
     booking_data = None
     reschedule_data = None
+    skip_menu = False
     promo_ids = []
     visible_chunks = []
     for chunk in reply_chunks:
@@ -5744,7 +5765,9 @@ def _generate_and_send_reply(conversation: "Conversation", from_number: str, med
         m_agendar = _AGENDAR_RE.match(stripped)
         m_promo = _PROMO_RE.match(stripped)
         m_reagendar = _REAGENDAR_RE.match(stripped)
-        if m_agendar:
+        if _SIN_MENU_RE.match(stripped):
+            skip_menu = True
+        elif m_agendar:
             booking_data = _parse_agendar_marker(m_agendar.group(1))
         elif m_reagendar:
             reschedule_data = _parse_agendar_marker(m_reagendar.group(1))
@@ -5850,6 +5873,19 @@ def _generate_and_send_reply(conversation: "Conversation", from_number: str, med
         db.session.commit()
         if i < len(visible_chunks) - 1:
             time.sleep(1.2)  # pausa breve para que se sientan mensajes naturales, no un bloque
+
+    # Menú de bienvenida: va por defecto en el primer turno y el modelo solo puede
+    # saltárselo con [SIN_MENU] cuando el cliente ya dijo qué necesita. El default
+    # invertido es a propósito — pedirle al modelo que lo escribiera hacía que se
+    # lo saltara justo con los leads genéricos, que son los que más lo necesitan.
+    if is_first_turn and not skip_menu and visible_chunks:
+        ok, err = send_whatsapp(from_number, WELCOME_MENU, kind="bot_menu",
+                                ref_type="conversation", ref_id=conversation.id)
+        if ok:
+            db.session.add(Message(conversation_id=conversation.id, direction="out", body=WELCOME_MENU))
+            db.session.commit()
+        else:
+            app.logger.error(f"[WhatsApp] No se pudo enviar el menú de bienvenida: {err}")
 
     for promo_id in (promo_ids[:1] if PROMO_IMAGES_ENABLED else []):  # una imagen por turno, nunca una ráfaga
         promo = Promotion.query.get(promo_id)
