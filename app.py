@@ -2392,6 +2392,139 @@ def expenses_list():
 # -----------------------
 # Listado de ingresos (ventas de servicios) con filtros básicos
 # -----------------------
+# ── Analítica ────────────────────────────────────────────────────────────────
+# La unidad de "cliente" es la PLACA: es la llave del modelo Client y lo único
+# que viene siempre en una venta. Un mismo dueño con dos carros cuenta como dos;
+# se advierte en la pantalla para que nadie lea el número como personas.
+_DIAS_POR_MES = 30.44
+
+
+def _meses_del_periodo(date_from, date_to) -> float:
+    """Duración del periodo en meses, con decimales. Nunca menos de un mes para
+    no inflar las proyecciones al dividir por un número diminuto."""
+    dias = (date_to - date_from).days + 1
+    return max(dias / _DIAS_POR_MES, 1.0)
+
+
+def _analytics_data(date_from, date_to, vehicle_type: str = ""):
+    """Métricas del periodo. Solo cuentan las ventas 'completed': las canceladas
+    no son ingreso ni hacen a un cliente nuevo."""
+    filtros = [ServiceSale.status == "completed"]
+    if vehicle_type:
+        filtros.append(ServiceSale.vehicle_type == vehicle_type)
+
+    con_placa = [ServiceSale.plate.isnot(None), ServiceSale.plate != ""]
+
+    # Primera compra histórica de cada placa: define en qué mes ese cliente fue
+    # nuevo. Se mira sobre TODA la historia, no sobre el periodo filtrado, o un
+    # cliente antiguo aparecería como nuevo solo por caer dentro del rango.
+    primera_compra = dict(
+        db.session.query(ServiceSale.plate, db.func.min(ServiceSale.service_date))
+        .filter(*filtros, *con_placa)
+        .group_by(ServiceSale.plate)
+        .all()
+    )
+
+    ventas = (
+        ServiceSale.query
+        .filter(*filtros)
+        .filter(ServiceSale.service_date >= date_from, ServiceSale.service_date <= date_to)
+        .order_by(ServiceSale.service_date)
+        .all()
+    )
+
+    meses = _meses_del_periodo(date_from, date_to)
+    ingresos = sum(v.final_amount or 0 for v in ventas)
+    visitas = len(ventas)
+    placas = {v.plate for v in ventas if v.plate}
+    clientes = len(placas)
+
+    # Serie mensual: ingresos, visitas y clientes nuevos
+    serie = {}
+    for v in ventas:
+        clave = v.service_date.strftime("%Y-%m")
+        d = serie.setdefault(clave, {"ingresos": 0, "visitas": 0, "nuevos": 0, "placas": set()})
+        d["ingresos"] += v.final_amount or 0
+        d["visitas"] += 1
+        if v.plate:
+            d["placas"].add(v.plate)
+    for placa, fecha in primera_compra.items():
+        if date_from <= fecha <= date_to:
+            clave = fecha.strftime("%Y-%m")
+            if clave in serie:
+                serie[clave]["nuevos"] += 1
+
+    meses_orden = sorted(serie.keys())
+    nuevos_total = sum(serie[m]["nuevos"] for m in meses_orden)
+
+    ticket = (ingresos / visitas) if visitas else 0
+    visitas_por_cliente = (visitas / clientes) if clientes else 0
+    # Proyección a 12 meses: se asume que el ritmo observado se mantiene. Es un
+    # run-rate, no una predicción — por eso la pantalla lo dice explícitamente.
+    visitas_ano = visitas_por_cliente * (12 / meses)
+    gasto_anual = ticket * visitas_ano
+
+    # Servicios más vendidos: se cuenta cuántas ventas incluyen cada servicio. No
+    # se reparte el monto entre ellos porque una venta con varios servicios no
+    # dice cuánto aportó cada uno, y repartirlo sería inventar la cifra.
+    servicios = {}
+    for v in ventas:
+        for nombre in {s.strip() for s in (v.services or "").split(",") if s.strip()}:
+            servicios[nombre] = servicios.get(nombre, 0) + 1
+    top_servicios = sorted(servicios.items(), key=lambda x: x[1], reverse=True)[:10]
+
+    return {
+        "meses": round(meses, 1),
+        "ingresos": ingresos,
+        "visitas": visitas,
+        "clientes": clientes,
+        "nuevos_total": nuevos_total,
+        "nuevos_por_mes": nuevos_total / meses,
+        "ticket": ticket,
+        "visitas_por_cliente": visitas_por_cliente,
+        "visitas_ano": visitas_ano,
+        "gasto_anual": gasto_anual,
+        "serie": [
+            {
+                "mes": m,
+                "etiqueta": datetime.strptime(m, "%Y-%m").strftime("%b %Y"),
+                "ingresos": serie[m]["ingresos"],
+                "visitas": serie[m]["visitas"],
+                "nuevos": serie[m]["nuevos"],
+                "clientes": len(serie[m]["placas"]),
+            }
+            for m in meses_orden
+        ],
+        "top_servicios": top_servicios,
+    }
+
+
+@app.route("/analytics")
+def analytics_dashboard():
+    if not _can_see_notifications():
+        flash("Acceso restringido.", "danger")
+        return redirect(url_for("calendar_view"))
+
+    primera = db.session.query(db.func.min(ServiceSale.service_date)).scalar()
+    hoy = bogota_now().date()
+    date_from = _parse_date(request.args.get("from")) or primera or hoy
+    date_to = _parse_date(request.args.get("to")) or hoy
+    if date_from > date_to:
+        date_from, date_to = date_to, date_from
+    vehicle_type = (request.args.get("vehicle_type") or "").strip()
+
+    tipos = [
+        t[0] for t in db.session.query(ServiceSale.vehicle_type)
+        .distinct().order_by(ServiceSale.vehicle_type).all() if t[0]
+    ]
+    return render_template(
+        "analytics.html",
+        data=_analytics_data(date_from, date_to, vehicle_type),
+        date_from=date_from, date_to=date_to,
+        vehicle_type=vehicle_type, tipos=tipos,
+    )
+
+
 @app.route("/sales")
 def sales_list():
     """Listado de ingresos (ventas de servicios) con filtros básicos."""

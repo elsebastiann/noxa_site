@@ -1,0 +1,206 @@
+{% extends "base.html" %}
+
+{% block extra_head %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<style>
+  .an-filters { display:flex; gap:12px; align-items:flex-end; flex-wrap:wrap;
+                background:var(--surface); border:1px solid var(--border);
+                border-radius:var(--radius); padding:14px 16px; margin:16px 0 18px; }
+  .an-label { display:block; font-size:.7rem; color:var(--text2); text-transform:uppercase;
+              letter-spacing:.05em; font-weight:700; margin-bottom:5px; }
+  .an-warn { background:rgba(224,168,0,.10); border:1px solid rgba(224,168,0,.35);
+             color:#e0a800; border-radius:var(--radius); padding:11px 15px;
+             font-size:.82rem; line-height:1.5; margin-bottom:18px; }
+  .an-grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(215px,1fr)); gap:12px; margin-bottom:20px; }
+  .an-card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:15px 17px; }
+  .an-card.hero { border-color:var(--border2); background:linear-gradient(180deg, var(--accent-bg), transparent); }
+  .an-k { font-size:.7rem; color:var(--text2); text-transform:uppercase; letter-spacing:.05em; font-weight:700; }
+  .an-v { font-size:1.65rem; font-weight:700; color:var(--text); margin-top:6px; line-height:1.1; }
+  .an-card.hero .an-v { color:var(--accent); }
+  .an-sub { font-size:.74rem; color:var(--text3); margin-top:5px; line-height:1.4; }
+  .an-charts { display:grid; grid-template-columns:repeat(auto-fit, minmax(340px,1fr)); gap:14px; margin-bottom:20px; }
+  .an-panel { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:16px; }
+  .an-panel h3 { font-size:.85rem; margin:0 0 12px; color:var(--text); }
+  .an-wrap { overflow-x:auto; border:1px solid var(--border); border-radius:var(--radius); }
+  table.an { width:100%; border-collapse:collapse; font-size:.84rem; min-width:560px; }
+  table.an th { background:var(--surface2); color:var(--text2); text-align:left; padding:9px 12px; font-weight:600; white-space:nowrap; }
+  table.an td { padding:9px 12px; border-top:1px solid var(--border); white-space:nowrap; }
+  table.an td.num, table.an th.num { text-align:right; }
+  .an-empty { padding:40px; text-align:center; color:var(--text2); }
+</style>
+{% endblock %}
+
+{% block content %}
+<h2 style="margin-top:16px;">Analítica</h2>
+
+<form class="an-filters" method="GET">
+  <div>
+    <label class="an-label" for="from">Desde</label>
+    <input class="form-control" type="date" id="from" name="from" value="{{ date_from.isoformat() }}">
+  </div>
+  <div>
+    <label class="an-label" for="to">Hasta</label>
+    <input class="form-control" type="date" id="to" name="to" value="{{ date_to.isoformat() }}">
+  </div>
+  <div>
+    <label class="an-label" for="vehicle_type">Tipo de vehículo</label>
+    <select class="form-select" id="vehicle_type" name="vehicle_type">
+      <option value="">Todos</option>
+      {% for t in tipos %}
+        <option value="{{ t }}" {% if t == vehicle_type %}selected{% endif %}>{{ t }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <button type="submit" class="btn btn-warning">Aplicar</button>
+  <a href="{{ url_for('analytics_dashboard') }}" class="btn btn-outline-secondary">Limpiar</a>
+</form>
+
+{% if data.visitas %}
+  <div class="an-warn">
+    <strong>Cómo leer esto:</strong> el periodo seleccionado cubre <strong>{{ data.meses }} meses</strong>.
+    Las cifras anuales son una <strong>proyección a ritmo actual</strong> (lo observado llevado a 12 meses),
+    no un dato histórico — asumen que los clientes siguen volviendo al mismo ritmo, algo que todavía no se
+    ha podido observar durante un año completo. Un "cliente" es una <strong>placa</strong>: un mismo dueño
+    con dos carros cuenta como dos.
+  </div>
+
+  <div class="an-grid">
+    <div class="an-card hero">
+      <div class="an-k">Clientes nuevos por mes</div>
+      <div class="an-v">{{ '%.1f'|format(data.nuevos_por_mes) }}</div>
+      <div class="an-sub">{{ data.nuevos_total }} clientes nuevos en {{ data.meses }} meses</div>
+    </div>
+    <div class="an-card hero">
+      <div class="an-k">Gasto anual por cliente</div>
+      <div class="an-v">${{ '{:,.0f}'.format(data.gasto_anual).replace(',', '.') }}</div>
+      <div class="an-sub">Proyección: ticket promedio × {{ '%.1f'|format(data.visitas_ano) }} visitas al año</div>
+    </div>
+    <div class="an-card">
+      <div class="an-k">Ticket promedio</div>
+      <div class="an-v">${{ '{:,.0f}'.format(data.ticket).replace(',', '.') }}</div>
+      <div class="an-sub">Dato observado, sin proyectar</div>
+    </div>
+    <div class="an-card">
+      <div class="an-k">Visitas por cliente</div>
+      <div class="an-v">{{ '%.2f'|format(data.visitas_por_cliente) }}</div>
+      <div class="an-sub">En el periodo · {{ '%.1f'|format(data.visitas_ano) }} proyectadas al año</div>
+    </div>
+    <div class="an-card">
+      <div class="an-k">Ingresos del periodo</div>
+      <div class="an-v">${{ '{:,.0f}'.format(data.ingresos).replace(',', '.') }}</div>
+      <div class="an-sub">{{ data.visitas }} servicios cerrados</div>
+    </div>
+    <div class="an-card">
+      <div class="an-k">Clientes atendidos</div>
+      <div class="an-v">{{ data.clientes }}</div>
+      <div class="an-sub">Placas distintas en el periodo</div>
+    </div>
+  </div>
+
+  <div class="an-charts">
+    <div class="an-panel">
+      <h3>Clientes nuevos por mes</h3>
+      <canvas id="chartNuevos" height="200"></canvas>
+    </div>
+    <div class="an-panel">
+      <h3>Ingresos por mes</h3>
+      <canvas id="chartIngresos" height="200"></canvas>
+    </div>
+  </div>
+
+  <div class="an-panel" style="margin-bottom:20px;">
+    <h3>Detalle mensual</h3>
+    <div class="an-wrap">
+      <table class="an">
+        <thead>
+          <tr>
+            <th>Mes</th>
+            <th class="num">Clientes nuevos</th>
+            <th class="num">Clientes atendidos</th>
+            <th class="num">Servicios</th>
+            <th class="num">Ingresos</th>
+            <th class="num">Ticket promedio</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for m in data.serie %}
+            <tr>
+              <td>{{ m.etiqueta }}</td>
+              <td class="num">{{ m.nuevos }}</td>
+              <td class="num">{{ m.clientes }}</td>
+              <td class="num">{{ m.visitas }}</td>
+              <td class="num">${{ '{:,.0f}'.format(m.ingresos).replace(',', '.') }}</td>
+              <td class="num">${{ '{:,.0f}'.format((m.ingresos / m.visitas) if m.visitas else 0).replace(',', '.') }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  {% if data.top_servicios %}
+  <div class="an-panel">
+    <h3>Servicios más vendidos</h3>
+    <div class="an-wrap">
+      <table class="an">
+        <thead><tr><th>Servicio</th><th class="num">Ventas que lo incluyen</th></tr></thead>
+        <tbody>
+          {% for nombre, veces in data.top_servicios %}
+            <tr><td>{{ nombre }}</td><td class="num">{{ veces }}</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {% endif %}
+
+  <script>
+    (function () {
+      const serie = {{ data.serie | tojson }};
+      const etiquetas = serie.map(m => m.etiqueta);
+      const css = getComputedStyle(document.documentElement);
+      const acento = css.getPropertyValue('--accent').trim();
+      const texto2 = css.getPropertyValue('--text2').trim();
+      const borde  = css.getPropertyValue('--border').trim();
+
+      const comun = {
+        responsive: true,
+        plugins: { legend: { display: false } },
+        scales: {
+          x: { ticks: { color: texto2 }, grid: { color: borde } },
+          y: { beginAtZero: true, ticks: { color: texto2 }, grid: { color: borde } }
+        }
+      };
+
+      new Chart(document.getElementById('chartNuevos'), {
+        type: 'bar',
+        data: { labels: etiquetas,
+                datasets: [{ data: serie.map(m => m.nuevos), backgroundColor: acento, borderRadius: 4 }] },
+        options: comun
+      });
+
+      new Chart(document.getElementById('chartIngresos'), {
+        type: 'line',
+        data: { labels: etiquetas,
+                datasets: [{ data: serie.map(m => m.ingresos), borderColor: acento,
+                             backgroundColor: 'rgba(212,180,108,0.14)', fill: true, tension: 0.3,
+                             pointRadius: 3 }] },
+        options: {
+          ...comun,
+          scales: {
+            ...comun.scales,
+            y: { ...comun.scales.y,
+                 ticks: { color: texto2,
+                          callback: v => '$' + v.toLocaleString('es-CO') } }
+          }
+        }
+      });
+    })();
+  </script>
+{% else %}
+  <div class="an-empty">
+    No hay servicios cerrados en este periodo. Las métricas se calculan sobre las ventas
+    completadas, así que aparecen a medida que se vayan cerrando citas.
+  </div>
+{% endif %}
+{% endblock %}

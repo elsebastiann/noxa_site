@@ -559,6 +559,7 @@
             <li><div class="dropdown-group-label">Operaciones</div></li>
             {% if not current_user or current_user.role != 'operario' %}
             <li><a class="dropdown-item-custom" href="{{ url_for('sales_list') }}"><i class="bi bi-graph-up-arrow"></i>Ingresos</a></li>
+            <li><a class="dropdown-item-custom" href="{{ url_for('analytics_dashboard') }}"><i class="bi bi-bar-chart-line"></i>Analítica</a></li>
             {% endif %}
             <li><a class="dropdown-item-custom" href="{{ url_for('appointments_list') }}"><i class="bi bi-card-list"></i>Citas</a></li>
             <li><a class="dropdown-item-custom" href="{{ url_for('parking_list') }}"><i class="bi bi-p-square"></i>Parqueaderos</a></li>
@@ -657,6 +658,7 @@
   <a href="{{ url_for('notifications_list') }}"><i class="bi bi-bell"></i>Notificaciones</a>
   <a href="{{ url_for('expenses_new') }}"><i class="bi bi-cash-stack"></i>Gastos</a>
   <a href="{{ url_for('sales_list') }}"><i class="bi bi-graph-up-arrow"></i>Ingresos</a>
+  <a href="{{ url_for('analytics_dashboard') }}"><i class="bi bi-bar-chart-line"></i>Analítica</a>
   {% endif %}
   <a href="{{ url_for('appointments_list') }}"><i class="bi bi-card-list"></i>Citas</a>
   <a href="{{ url_for('parking_list') }}"><i class="bi bi-p-square"></i>Parqueaderos</a>
