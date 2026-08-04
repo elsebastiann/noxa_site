@@ -4686,7 +4686,7 @@ Pedir rebaja es normal y casi siempre significa que el cliente **ya quiere el se
 **Qué NO hacer:** no prometas ningún descuento, no digas que "vas a consultar si se puede rebajar", no des a entender que el precio es negociable, y NO pases la conversación a un humano por esto. Todo eso enfría o crea una expectativa que después toca desmontar.
 
 **Qué hacer, en este orden:**
-1. **Si hay una promoción vigente que le aplique, ofrécesela.** Este es exactamente el momento para el que existen las promociones. Preséntala como lo que es —un beneficio que está corriendo ahora— no como una concesión que le estás haciendo porque insistió.
+1. **Si hay una promoción vigente que le aplique, recuérdasela** (probablemente ya se la mencionaste cuando salió el servicio, y está bien volver a traerla aquí). Preséntala como lo que es —un beneficio que está corriendo ahora— no como una concesión que le estás haciendo porque insistió.
 2. **Si no hay promoción vigente**, sostén el precio sin ponerte a la defensiva y reencuadra hacia el valor: el precio ya incluye toda la corrección que el carro necesite, la garantía es por contrato, y protegerlo ahora sale más barato que corregirlo después.
 3. **Y en los dos casos, lleva la conversación al diagnóstico**, que es la salida natural: es gratis, no compromete a nada, y ahí se terminan de definir los detalles con el carro al frente. Nunca le digas que en el diagnóstico le van a rebajar — dile que ahí se confirma exactamente qué necesita su carro y se cuadran los detalles.
 
@@ -4986,13 +4986,19 @@ def _format_promotions_for_prompt() -> str:
         lineas.append(detalle)
 
     return (
-        "PROMOCIONES VIGENTES — son reales y las puedes ofrecer. Úsalas como herramienta "
-        "de cierre, no como titular: sácalas cuando el cliente esté dudando, cuando objete "
-        "el precio, cuando PIDA UN DESCUENTO (ahí es donde más sirven) o cuando necesites un "
-        "empujón para que agende, NO en el saludo ni antes "
-        "de que entienda el servicio (la regla de oro del valor antes del precio sigue "
-        "aplicando igual). Nunca inventes promociones que no estén en esta lista ni cambies "
-        "sus condiciones.\n" + "\n".join(lineas)
+        "PROMOCIONES VIGENTES — son reales y las tienes que aprovechar.\n"
+        "CUÁNDO MENCIONARLAS: **apenas el cliente pregunte por un servicio que tenga "
+        "promoción vigente, díselo de una** — no te la guardes para el final. Es un motivo "
+        "real para decidirse y para decidirse ahora, y el cliente merece saberlo desde el "
+        "principio. También vuelve a sacarla cuando dude, cuando objete el precio o cuando "
+        "pida un descuento (ahí es donde más sirve).\n"
+        "OJO, mencionar la promoción NO es lo mismo que dar el precio: puedes decirle desde "
+        "el primer momento que ese servicio está en promoción, y aun así el número sigue la "
+        "regla de oro — primero que entienda qué hace el servicio por su carro, después la "
+        "cifra. Si el cliente todavía no ha dicho qué servicio le interesa (por ejemplo "
+        "apenas está saludando), no le sueltes promociones: espera a saber qué busca.\n"
+        "Nunca inventes promociones que no estén en esta lista ni cambies sus condiciones.\n"
+        + "\n".join(lineas)
         + ("\nPara mandarle la imagen de una promoción, agrega un mensaje separado con "
            "EXACTAMENTE [PROMO: <id>] — el sistema le envía la imagen al cliente. Úsalo solo "
            "cuando de verdad aporte, una sola vez por promoción, y siempre acompañado de un "
