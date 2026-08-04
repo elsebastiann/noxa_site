@@ -12,13 +12,26 @@
 {% set is_edit = (mode is defined and mode == "edit") %}
 
 <style>
-  .svc-group { margin-bottom: 14px; }
+  .svc-group { margin-bottom: 4px; border-bottom: 1px solid var(--border); }
   .svc-group:last-child { margin-bottom: 0; }
   .svc-group-title {
+    display: flex; align-items: center; gap: 8px; cursor: pointer; list-style: none;
     font-size: .68rem; font-weight: 800; letter-spacing: .8px; text-transform: uppercase;
-    color: var(--accent-dk); margin-bottom: 6px; padding-bottom: 4px;
-    border-bottom: 1px solid var(--border);
+    color: var(--accent-dk); padding: 9px 2px;
   }
+  .svc-group-title::-webkit-details-marker { display: none; }
+  /* Flecha propia, para que gire al abrir sin depender del marcador nativo. */
+  .svc-group-title::before {
+    content: "›"; font-size: 1.05rem; line-height: 1; color: var(--text3);
+    transition: transform .15s; display: inline-block;
+  }
+  .svc-group[open] > .svc-group-title::before { transform: rotate(90deg); }
+  .svc-group-title:hover { color: var(--accent); }
+  .svc-count {
+    margin-left: auto; background: var(--accent-bg); color: var(--accent);
+    border-radius: 999px; padding: 1px 8px; font-size: .68rem; font-weight: 700;
+  }
+  .svc-group .row { padding-bottom: 10px; }
 </style>
 
 <div class="row justify-content-center">
@@ -107,9 +120,14 @@
         <label class="form-label">Servicios * <small class="text-secondary">(selecciona uno o más)</small></label>
         {% set selected_services = appointment.services.split(', ') if is_edit else [] %}
         {% for categoria, svcs in agrupar_servicios(services) %}
-          <div class="svc-group">
-            <div class="svc-group-title">{{ categoria }}</div>
-            <div class="row g-2">
+          {# Se abre sola si trae algo marcado: colapsada escondería la selección. #}
+          {% set marcados = svcs | selectattr('name', 'in', selected_services) | list | length if is_edit else 0 %}
+          <details class="svc-group"{% if marcados %} open{% endif %}>
+            <summary class="svc-group-title">
+              <span>{{ categoria }}</span>
+              <span class="svc-count"{% if not marcados %} hidden{% endif %}>{{ marcados }}</span>
+            </summary>
+            <div class="row g-2 pt-2">
               {% for svc in svcs %}
                 <div class="col-sm-4 col-6">
                   <div class="form-check">
@@ -126,7 +144,7 @@
                 </div>
               {% endfor %}
             </div>
-          </div>
+          </details>
         {% endfor %}
       </div>
 
@@ -441,6 +459,20 @@
   }
 
   checkboxes.forEach(c => c.addEventListener("change", updatePrice));
+
+  // Contador por categoría: con los grupos colapsados es la única señal de qué
+  // quedó seleccionado adentro.
+  function updateGroupCounts() {
+    document.querySelectorAll(".svc-group").forEach(group => {
+      const n = group.querySelectorAll(".service-checkbox:checked").length;
+      const badge = group.querySelector(".svc-count");
+      if (!badge) return;
+      badge.textContent = n;
+      badge.hidden = n === 0;
+    });
+  }
+  checkboxes.forEach(c => c.addEventListener("change", updateGroupCounts));
+  updateGroupCounts();
   if (vehicleSelect) vehicleSelect.addEventListener("change", updatePrice);
   if (agreementSel)  agreementSel.addEventListener("change", updatePrice);
 

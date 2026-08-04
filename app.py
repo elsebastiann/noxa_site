@@ -6456,7 +6456,8 @@ SERVICE_CATEGORY_RULES = [
     ("Protección Cerámica",    ("coating",)),
     ("PPF",                    ("ppf", "chrome delete")),
     ("Corrección & Brillo",    ("polichado", "porcelanizado", "wrap")),
-    ("Detallado",              ("detallado", "alistamiento")),
+    ("Detallado",              ("detallado",)),
+    ("Alistamientos",          ("alistamiento",)),
     ("Lavado & Mantenimiento", ("wash", "lavado")),
 ]
 SERVICE_CATEGORY_FALLBACK = "Otros"
