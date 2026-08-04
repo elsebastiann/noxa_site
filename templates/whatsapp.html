@@ -72,6 +72,11 @@
 
   .wa-body { flex:1; background-image:radial-gradient(#182229 1px, transparent 1px); background-size:18px 18px;
              padding:16px; overflow-y:auto; display:flex; flex-direction:column; gap:4px; }
+  .wa-day-sep { display:flex; justify-content:center; margin:14px 0 8px; }
+  .wa-day-sep span {
+    background:var(--surface2); color:var(--text2); border:1px solid var(--border);
+    border-radius:999px; padding:3px 12px; font-size:0.7rem; font-weight:600;
+  }
   .wa-bubble-row { display:flex; }
   .wa-bubble-row.in { justify-content:flex-start; }
   .wa-bubble-row.out { justify-content:flex-end; }
@@ -180,7 +185,15 @@
       </div>
 
       <div class="wa-body" id="waBody">
+        {# Separador de día: sin él, una conversación de dos semanas se lee como si
+           hubiera pasado en una tarde, porque las burbujas solo muestran la hora. #}
+        {% set ns = namespace(dia=None) %}
         {% for m in messages %}
+          {% set dia = m.created_at | dia_bogota %}
+          {% if dia != ns.dia %}
+            <div class="wa-day-sep" data-day="{{ dia }}"><span>{{ dia }}</span></div>
+            {% set ns.dia = dia %}
+          {% endif %}
           <div class="wa-bubble-row {{ m.direction }}">
             <div class="wa-bubble {{ m.direction }}">{{ m.body }}<span class="wa-msg-time">{{ m.created_at | hora_bogota('%H:%M') }}</span></div>
           </div>
@@ -204,6 +217,18 @@
         scrollToBottom();
 
         function addBubble(m) {
+          // Separador de día, igual que en el render del servidor.
+          const seps = body.querySelectorAll('.wa-day-sep');
+          const ultimoDia = seps.length ? seps[seps.length - 1].dataset.day : null;
+          if (m.day && m.day !== ultimoDia) {
+            const sep = document.createElement('div');
+            sep.className = 'wa-day-sep';
+            sep.dataset.day = m.day;
+            const etiqueta = document.createElement('span');
+            etiqueta.textContent = m.day;
+            sep.appendChild(etiqueta);
+            body.appendChild(sep);
+          }
           const row = document.createElement('div');
           row.className = 'wa-bubble-row ' + m.direction;
           const bubble = document.createElement('div');
@@ -211,7 +236,7 @@
           bubble.textContent = m.body;
           const time = document.createElement('span');
           time.className = 'wa-msg-time';
-          time.textContent = m.time.split(' ').pop();
+          time.textContent = m.time;
           bubble.appendChild(time);
           row.appendChild(bubble);
           body.appendChild(row);

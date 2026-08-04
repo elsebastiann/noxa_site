@@ -6103,7 +6103,8 @@ def whatsapp_messages_json(conversation_id):
         "bot_active": conversation.bot_active,
         "messages": [
             {"id": m.id, "direction": m.direction, "body": m.body,
-             "time": _filtro_hora_bogota(m.created_at, "%d/%m %H:%M")}
+             "time": _filtro_hora_bogota(m.created_at, "%H:%M"),
+             "day": _filtro_dia_bogota(m.created_at)}
             for m in messages
         ],
     })
@@ -6439,6 +6440,20 @@ def _filtro_hace_cuanto(dt):
     if dias < 7:
         return f"hace {dias} días"
     return dt.replace(tzinfo=pytz.utc).astimezone(_BOGOTA).strftime("%d/%m")
+
+
+@app.template_filter("dia_bogota")
+def _filtro_dia_bogota(dt):
+    """Etiqueta del separador de día en el chat: "Hoy", "Ayer" o la fecha."""
+    if not dt:
+        return "—"
+    fecha = dt.replace(tzinfo=pytz.utc).astimezone(_BOGOTA).date()
+    hoy = bogota_now().date()
+    if fecha == hoy:
+        return "Hoy"
+    if fecha == hoy - timedelta(days=1):
+        return "Ayer"
+    return fecha.strftime("%d/%m/%Y")
 
 
 @app.template_filter("hora_bogota")
