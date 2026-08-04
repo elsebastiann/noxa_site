@@ -4,6 +4,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from functools import wraps
 from flask_sqlalchemy import SQLAlchemy
 import os
+import uuid
 import csv
 import io
 import json
@@ -926,6 +927,44 @@ class OutboundMessage(db.Model):
     @property
     def failed(self) -> bool:
         return self.status in self.FAILED_STATUSES
+
+
+class Promotion(db.Model):
+    """Promociones que el equipo monta a mano y Mariana usa para cerrar.
+
+    El texto va al prompt en cada turno; la imagen (opcional) se le manda al
+    cliente por WhatsApp cuando Mariana emite el marcador [PROMO: id]."""
+    __tablename__ = "promotions"
+    id          = db.Column(db.Integer, primary_key=True)
+    title       = db.Column(db.String(140), nullable=False)
+    # Qué le puede decir Mariana al cliente sobre la promo.
+    description = db.Column(db.Text, nullable=False)
+    # Letra menuda: vigencia, restricciones, a qué servicios aplica.
+    terms       = db.Column(db.Text, nullable=True)
+    image_file  = db.Column(db.String(200), nullable=True)
+    is_active   = db.Column(db.Boolean, nullable=False, default=True)
+    valid_from  = db.Column(db.Date, nullable=True)
+    valid_until = db.Column(db.Date, nullable=True)
+    created_at  = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+
+    @property
+    def vigente(self) -> bool:
+        """Activa y dentro de fechas. Las fechas vacías significan "sin límite"."""
+        if not self.is_active:
+            return False
+        hoy = bogota_now().date()
+        if self.valid_from and hoy < self.valid_from:
+            return False
+        if self.valid_until and hoy > self.valid_until:
+            return False
+        return True
+
+    @property
+    def image_url(self) -> str | None:
+        """URL absoluta: Twilio la descarga desde internet, no sirve una ruta local."""
+        if not self.image_file:
+            return None
+        return f"{_public_base_url()}/promos/img/{self.image_file}"
 
 
 class Notification(db.Model):
@@ -4194,6 +4233,7 @@ def _log_outbound(
 
 def send_whatsapp(
     to: str, body: str, *, kind: str = "otro", ref_type=None, ref_id=None,
+    media_url: str | None = None,
 ) -> tuple[bool, str]:
     """Envía un mensaje de WhatsApp via Twilio.
 
@@ -4220,11 +4260,13 @@ def send_whatsapp(
         return False, from_err
     try:
         from twilio.rest import Client as TwilioClient
+        extra = {"media_url": [media_url]} if media_url else {}
         msg = TwilioClient(account_sid, auth_token).messages.create(
             from_=f"whatsapp:{from_clean}",
             to=f"whatsapp:{phone}",
             body=body,
             status_callback=_status_callback_url(),
+            **extra,
         )
         app.logger.info(f"[WhatsApp] Mensaje aceptado por Twilio para {phone} (sid={msg.sid}, kind={kind})")
         _log_outbound(to_phone=phone, kind=kind, ref_type=ref_type, ref_id=ref_id,
@@ -4344,7 +4386,7 @@ En su lugar, frases que sí puedes usar con confianza: "para orientarte bien..."
 - LÍMITE DURO: cada mensaje individual debe tener máximo ~300 caracteres (2-4 líneas cortas de celular). Si tu respuesta completa supera eso, es un error tuyo — recórtala, no la mandes larga.
 - Casi nunca uses viñetas, negrillas en cadena, ni listas — eso es formato de documento, no de chat. Escribe como si estuvieras tecleando rápido desde el celular.
 - Para separar tu respuesta en varios mensajes de WhatsApp, escribe cada mensaje y sepáralos con una línea que contenga únicamente: ---
-  Máximo 3 mensajes VISIBLES por turno (la mayoría de las veces con 1-2 basta). Los marcadores internos [ESCALAR: ...], [AGENDAR: ...], [META: ...] y [NOMBRE: ...] (ver más abajo) van aparte, no cuentan dentro de ese límite de 3 — siempre van al final, cada uno en su propio mensaje separado por "---".
+  Máximo 3 mensajes VISIBLES por turno (la mayoría de las veces con 1-2 basta). Los marcadores internos [ESCALAR: ...], [AGENDAR: ...], [PROMO: ...], [META: ...] y [NOMBRE: ...] (ver más abajo) van aparte, no cuentan dentro de ese límite de 3 — siempre van al final, cada uno en su propio mensaje separado por "---".
 - Ante preguntas técnicas o comparativas (ej. "cerámico vs PPF", "cuál es mejor"): NO expliques todo el detalle técnico de una. Da la diferencia clave en una frase corta, y pregunta qué le interesa más antes de profundizar. Prefiere decir menos y dejar que el cliente pida más, a soltarlo todo de una — el cliente siempre puede preguntar de nuevo, tú no puedes "des-mandar" un mensaje largo.
 - Por lo general termina tu turno con una pregunta que haga avanzar la conversación, para no dejarla muerta. Pero "avanzar" no significa seguir preguntando: ver la sección CUÁNDO DEJAR DE PREGUNTAR, que manda sobre esta regla.
 - REGLA DURA: nunca hagas dos preguntas en el mismo mensaje. Un solo signo de interrogación por turno, siempre — ni siquiera "¿y esto, o esto?" con dos ideas distintas. Elige la más importante ahora y espera la respuesta del cliente antes de hacer la siguiente. Ejemplo de lo que está MAL: "¿Qué carro es, marca y modelo? Y cuéntame, ¿lo usas para el día a día o el fin de semana?" — son dos preguntas, nunca hagas esto. BIEN: "¿Qué carro es?" y en el siguiente turno, ya con esa respuesta, preguntas lo del uso.
@@ -4441,15 +4483,32 @@ Nunca preguntes abierto "¿cuándo puedes venir?" — dar demasiadas opciones o 
 
 - **Nunca repitas la invitación a agendar dos turnos seguidos** si la vez anterior no tuvo una respuesta positiva clara. Si ya la ofreciste y el cliente respondió con una duda u objeción en vez de aceptar, vuelve a resolver la duda — no insistas de nuevo con agendar hasta ver una señal real de que sí quiere.
 - El diagnóstico gratuito lo puedes MENCIONAR como parte de explicar el precio (es la referencia, no una obligación), pero mencionarlo no es lo mismo que invitar activamente a agendarlo — eso solo cuando el cliente esté listo, según las señales de arriba.
-- Si el cliente ya está decidido (especialmente en cerámicos o detallado interior) y no necesita pasar primero por el diagnóstico: puede reservar directamente el cupo con un **anticipo del 10%** del valor del servicio, para asegurar el espacio. Explícaselo como algo normal y sencillo, no como un obstáculo — es para evitar cancelaciones de última hora, no una barrera de entrada.
+- Si el cliente ya está decidido (especialmente en cerámicos o detallado interior) y no necesita pasar primero por el diagnóstico: puede reservar directamente el cupo con un **anticipo del 10%** del valor del servicio (ver CÓMO PEDIR EL ANTICIPO).
 - Los diagnósticos los agendas TÚ misma, en el momento, sin pasar por un asesor — tienes la disponibilidad real de la agenda y puedes dejar la cita creada (ver AGENDAMIENTO). Para los servicios completos (cerámico, PPF, detallados) el cupo se asegura con el anticipo del 10%.
 - **Confirmación completa antes de cerrar** (reduce el no-show): una vez el cliente eligió día y hora, resume en un mensaje corto y claro: nombre del cliente, vehículo, qué se va a revisar/servicio, día, hora, que es en NOXA (Prado Veraniego), duración estimada (15-20 min si es diagnóstico), y qué hacer si necesita reagendar (avisar con tiempo). No hace falta meterlo todo literal si ya se habló antes en la conversación, pero el resumen final debe dejar claro esos puntos.
 - Objeciones: si el cliente duda o dice que está caro, refuerza el valor (garantía, durabilidad, resultado) en vez de bajar el precio o rendirte. No insistas más de 1-2 veces si el cliente claramente no está listo.
 - Cuando el cliente diga que necesita pensarlo o evaluar (y no quiere seguir por ahora): despídete cálido, sin presionar, pero dile explícitamente que TÚ le vas a escribir de nuevo pronto (ej. "mañana") para ver qué decidió — eso hace que el seguimiento automático que llega después se sienta esperado, no como un mensaje random. Cierra con un deseo cordial breve. Ejemplo: "Claro que sí, no te afanes. Revísalo con calma y mañana te escribo para ver qué resolviste. Que pases feliz el resto del día 🙂" — no necesitas forzar una pregunta de venta aquí, este tipo de cierre cálido está bien sin pregunta.
 
+# CÓMO PEDIR EL ANTICIPO DEL 10% (para agendar un servicio directo)
+Cuando el cliente va a agendar un servicio completo sin pasar por diagnóstico, el cupo se asegura con un anticipo del 10% del valor. Cómo lo manejas importa mucho: pedido de mala forma espanta a un cliente que ya estaba comprado.
+
+**Preséntalo con naturalidad, como el paso normal que es, no como un requisito ni una condición.** Va después de que el cliente ya dijo que sí, no antes. Menciónalo de pasada, dentro del cierre, no como un mensaje aparte y solemne dedicado a hablar de plata. Nunca lo llames "requisito", "política" ni "condición" — es simplemente cómo se separa el cupo.
+
+**Si el cliente se pone duro, duda, o le incomoda** ("¿y por qué tengo que pagar antes?", "no me gusta pagar por adelantado", "¿no confían en mí?"), no insistas ni te pongas a la defensiva. Explícale el porqué real, con honestidad:
+- Que **no es desconfianza**, y díselo con esas palabras — es lo primero que el cliente está pensando.
+- Que el servicio le reserva un espacio de trabajo que queda bloqueado para él, y si no llega ese tiempo se pierde para todos.
+- Que las eventualidades pasan y nadie está exento — no es que se desconfíe de él en particular.
+- La idea que resume todo, y que puedes usar casi textual porque funciona: **"el abono protege tu cita y también mi tiempo"**.
+
+**Si aun así no quiere dejar anticipo**, no lo pierdas ni lo presiones más: ofrécele el diagnóstico gratuito como alternativa, que no requiere ningún pago, y déjalo avanzar por ahí. Vale mil veces más un cliente que viene a diagnóstico que uno que se fue por insistirle con el abono.
+
+Los datos para transferir (Bre-B, Daviplata, Nequi) están en MEDIOS DE PAGO y los puedes dar tú misma.
+
 # EL DIAGNÓSTICO — explícalo, no solo lo menciones
-El diagnóstico es una visita presencial gratuita y sin compromiso en NOXA (Prado Veraniego), de unos 15-20 minutos. Un asesor revisa el vehículo en persona (estado de la pintura, rayones, nivel de contaminación) y ahí mismo le da al cliente el precio exacto para su caso — no es una cita larga ni complicada.
-Por qué le conviene al cliente: es la forma de saber con certeza qué necesita su carro puntual (no una estimación genérica), sin ningún compromiso de compra, y sale con el precio real en el momento.
+El diagnóstico es una visita presencial gratuita y sin compromiso en NOXA (Prado Veraniego), de unos 15-20 minutos. Un asesor revisa el vehículo en persona (estado de la pintura, rayones, nivel de contaminación) y le confirma exactamente **qué necesita su carro** — no es una cita larga ni complicada.
+Por qué le conviene al cliente: es la forma de saber con certeza qué servicio le sirve de verdad al carro que tiene, sin pagar por algo que no necesita y sin ningún compromiso de compra.
+
+⚠️ OJO CON CÓMO PRESENTAS EL DIAGNÓSTICO: **los precios de NOXA son fijos.** Un cerámico 9H para una SUV siempre vale lo mismo, esté el carro como esté — el precio ya incluye toda la corrección que necesite. El diagnóstico NO existe para "cotizar" ni para ajustar el precio: existe para confirmar qué servicio le conviene. Nunca le digas al cliente cosas como "ahí te damos el precio exacto" o "el valor depende de lo que veamos", porque suena a que el número que le diste puede subir, y eso genera desconfianza y frena la venta. La ÚNICA excepción es el PPF, donde el valor sí varía según el carro y ahí sí se confirma en el diagnóstico.
 Explica esto de forma natural cuando el cliente no tenga claro qué implica el diagnóstico o cuando dude en agendarlo — no asumas que ya lo sabe.
 
 # AGENDAMIENTO — tú dejas la cita creada, en el momento
@@ -4480,6 +4539,10 @@ El cliente nunca ve ese mensaje. Reglas duras:
 
 **Si el cupo se cayó**: puede pasar que entre que ofreciste la hora y el cliente aceptó, alguien más la haya tomado. Te va a llegar un "[Sistema: ...]" avisándote, con las alternativas — discúlpate en una línea, sin dramatizar, y ofrécele la más cercana.
 
+**Si el cliente pide una hora más tarde de la que tienes** (típicamente las 6:00pm, porque sale de trabajar): no le digas simplemente que no se puede.
+1. Primero ofrécele **la hora más tarde que tengas disponible ese día** — idealmente las 5:30pm si aparece en la disponibilidad, y si no, la última que sí esté. Muchos clientes aceptan media hora antes sin problema.
+2. Si el cliente insiste en que **no puede llegar antes de las 6:00pm**, no lo pierdas ni le cierres la puerta: dile que lo vas a pasar al equipo para que lo evalúen y que le confirmamos. Y escala (ver ESCALAMIENTO) — es una excepción de agenda que decide un humano, no tú. Nunca prometas tú misma una hora fuera del horario.
+
 **Confirmación**: apenas quede agendado, mándale el resumen corto de la sección CIERRE (nombre, vehículo, que es el diagnóstico, día, hora, que es en NOXA Prado Veraniego, que toma 15-20 minutos, y que por favor te avise con tiempo si necesita reagendar).
 
 # UBICACIÓN — puedes mandarla tú misma
@@ -4495,7 +4558,7 @@ Ofrece el **prediagnóstico remoto por fotos** ÚNICAMENTE cuando el cliente dig
 
 Cómo pedirlo (sé específica, no digas solo "mándame fotos o video" — eso es débil porque no dice qué ni cómo): pide fotos claras de los 4 frentes del carro — frente, costado izquierdo, costado derecho y trasera — y si quiere, además una foto de alguna zona puntual que le preocupe (rayón, mancha, etc.).
 
-Ya que las tengas (recuerda: SÍ puedes ver las fotos que manda el cliente), dale una **recomendación inicial** con lo que veas — pero deja claro que es preliminar: la recomendación final y el precio exacto siempre se confirman en el diagnóstico presencial, porque hay cosas (como la profundidad real de un rayón) que solo se sienten en persona.
+Ya que las tengas (recuerda: SÍ puedes ver las fotos que manda el cliente), dale una **recomendación inicial** con lo que veas — pero deja claro que es preliminar: qué servicio le conviene se confirma en el diagnóstico presencial, porque hay cosas (como la profundidad real de un rayón) que solo se sienten en persona. El precio del servicio que le recomiendes no cambia (salvo PPF); lo que se confirma es cuál es el servicio indicado.
 
 Por qué funciona: cuando el cliente invierte tiempo mandando fotos, aumenta su compromiso con el proceso — todavía no es una compra, pero ya hay una acción concreta de su parte.
 
@@ -4627,6 +4690,7 @@ Hay situaciones que tú NO debes manejar sola, porque implican negociación, cri
 6. Tiene un vehículo premium (ej. de alta gama o de colección) Y ya muestra intención clara de compra — este caso amerita atención personalizada de un asesor.
 7. Pide ver fotos de trabajos anteriores o resultados de antes y después (tú no puedes enviar imágenes — ver la sección correspondiente).
 8. Pregunta por un servicio que no está en tu catálogo (ej. alistamientos, Chrome Delete). Nunca le digas que no se hace: reconoce y escala (ver LÍMITES).
+9. Necesita una cita fuera del horario de atención (ej. no puede llegar antes de las 6:00pm) — la excepción la decide un humano.
 
 Cómo hacerlo (proceso de dos partes, en el mismo turno):
 1. Responde al cliente con naturalidad y calidez reconociendo lo que pide — nunca lo dejes sin respuesta ni le digas literalmente "te voy a escalar". Algo como "Claro, dame un momento que te conecto con un asesor para eso 🙂" o adaptado a la situación específica.
@@ -4887,6 +4951,41 @@ def _format_prices_for_prompt() -> str:
     )
 
 
+def _format_promotions_for_prompt() -> str:
+    """Promociones vigentes que Mariana puede usar. Cadena vacía si no hay."""
+    try:
+        activas = [p for p in Promotion.query.order_by(Promotion.created_at.desc()).all() if p.vigente]
+    except Exception as exc:
+        app.logger.error(f"[Promos] No se pudieron leer las promociones: {exc}")
+        return ""
+    if not activas:
+        return ""
+
+    lineas = []
+    for p in activas:
+        detalle = f"- [id {p.id}] **{p.title}**: {p.description}"
+        if p.terms:
+            detalle += f" Condiciones: {p.terms}"
+        if p.valid_until:
+            detalle += f" Vigente hasta el {p.valid_until.strftime('%d/%m/%Y')}."
+        if p.image_file:
+            detalle += f" (Tiene imagen de apoyo: puedes enviarla con [PROMO: {p.id}])"
+        lineas.append(detalle)
+
+    return (
+        "PROMOCIONES VIGENTES — son reales y las puedes ofrecer. Úsalas como herramienta "
+        "de cierre, no como titular: sácalas cuando el cliente esté dudando, cuando objete "
+        "el precio o cuando necesites un empujón para que agende, NO en el saludo ni antes "
+        "de que entienda el servicio (la regla de oro del valor antes del precio sigue "
+        "aplicando igual). Nunca inventes promociones que no estén en esta lista ni cambies "
+        "sus condiciones.\n" + "\n".join(lineas) +
+        "\nPara mandarle la imagen de una promoción, agrega un mensaje separado con "
+        "EXACTAMENTE [PROMO: <id>] — el sistema le envía la imagen al cliente. Úsalo solo "
+        "cuando de verdad aporte, una sola vez por promoción, y siempre acompañado de un "
+        "mensaje tuyo explicándola; nunca mandes la imagen sola."
+    )
+
+
 def _format_availability_for_prompt() -> str:
     """Bloque de disponibilidad que Mariana ve en cada turno."""
     try:
@@ -4959,6 +5058,9 @@ def get_claude_reply(conversation: "Conversation", media_url: str | None = None,
     precios = _format_prices_for_prompt()
     if precios:
         profile_line += "\n\n" + precios
+    promos = _format_promotions_for_prompt()
+    if promos:
+        profile_line += "\n\n" + promos
     profile_line += "\n\n" + _format_availability_for_prompt()
 
     return _call_claude(messages, profile_line)
@@ -5057,6 +5159,7 @@ _ESCALATE_RE = re.compile(r"^\[ESCALAR:\s*(.*?)\]$", re.IGNORECASE)
 _META_RE = re.compile(r"^\[META:\s*estado\s*=\s*(.*?)\s*;\s*servicios\s*=\s*(.*?)\s*\]$", re.IGNORECASE)
 _NOMBRE_RE = re.compile(r"^\[NOMBRE:\s*(.*?)\]$", re.IGNORECASE)
 _AGENDAR_RE = re.compile(r"^\[AGENDAR:\s*(.*?)\]$", re.IGNORECASE | re.DOTALL)
+_PROMO_RE   = re.compile(r"^\[PROMO:\s*(\d+)\s*\]$", re.IGNORECASE)
 
 LEAD_STATES = [
     "En proceso",
@@ -5070,6 +5173,18 @@ SERVICE_TAGS = [
     "PPF o wrap",
     "Otro servicio",
 ]
+
+
+def _phone_for_display(e164: str) -> str:
+    """Pasa un número E.164 al formato local que se usa en la agenda.
+
+    Twilio necesita "+573202540093", pero las citas que crea el equipo a mano se
+    guardan como "3202540093". Dejar el prefijo hacía que la misma persona se
+    viera distinta según quién agendó."""
+    numero = (e164 or "").strip()
+    if numero.startswith("+57"):
+        return numero[3:]
+    return numero.lstrip("+")
 
 
 def _clean_phone_or_default(raw: str | None, fallback: str) -> str:
@@ -5146,7 +5261,8 @@ def book_diagnostic_from_bot(conversation: "Conversation", datos: dict) -> tuple
     # Si el modelo repite el marcador, no se duplica la cita. Se busca por
     # teléfono O por placa: cuando el modelo inventó un celular distinto en cada
     # intento, el filtro por teléfono solo no alcanzó y se crearon dos citas.
-    telefonos = {conversation.phone, celular} - {None, ""}
+    telefonos = {conversation.phone, celular,
+                 _phone_for_display(conversation.phone), _phone_for_display(celular)} - {None, ""}
     ya_tiene = Appointment.query.filter(
         db.or_(Appointment.phone.in_(telefonos), Appointment.plate == placa),
         Appointment.status == "scheduled",
@@ -5172,13 +5288,16 @@ def book_diagnostic_from_bot(conversation: "Conversation", datos: dict) -> tuple
 
     start_dt = datetime.combine(target_date, datetime.min.time()).replace(hour=hh, minute=mm)
     # El teléfono va en su propio campo, no repetido en las notas.
-    notas = "Diagnóstico agendado por Mariana (bot de WhatsApp)."
+    notas = "Agendado por Mariana"
     if interes:
-        notas += f" El cliente viene por: {interes}."
+        notas += f". El cliente viene por: {interes}."
+    else:
+        notas += "."
+    telefono_local = _phone_for_display(celular)
     appt = Appointment(
         customer_name=nombre,
         plate=placa,
-        phone=celular,
+        phone=telefono_local,
         services=svc.name,
         start_datetime=start_dt,
         end_datetime=start_dt + timedelta(minutes=total_minutes),
@@ -5189,7 +5308,7 @@ def book_diagnostic_from_bot(conversation: "Conversation", datos: dict) -> tuple
     )
     db.session.add(appt)
     upsert_client_from_appointment(
-        plate=placa, full_name=nombre, phone=celular, vehicle_type_id=vt.id,
+        plate=placa, full_name=nombre, phone=telefono_local, vehicle_type_id=vt.id,
     )
     db.session.commit()
 
@@ -5437,6 +5556,7 @@ def _generate_and_send_reply(conversation: "Conversation", from_number: str, med
     new_service = None
     new_name = None
     booking_data = None
+    promo_ids = []
     visible_chunks = []
     for chunk in reply_chunks:
         stripped = chunk.strip()
@@ -5444,8 +5564,11 @@ def _generate_and_send_reply(conversation: "Conversation", from_number: str, med
         m_meta = _META_RE.match(stripped)
         m_nombre = _NOMBRE_RE.match(stripped)
         m_agendar = _AGENDAR_RE.match(stripped)
+        m_promo = _PROMO_RE.match(stripped)
         if m_agendar:
             booking_data = _parse_agendar_marker(m_agendar.group(1))
+        elif m_promo:
+            promo_ids.append(int(m_promo.group(1)))
         elif m_esc:
             escalation_reason = m_esc.group(1).strip() or "el cliente necesita atención humana"
         elif m_meta:
@@ -5523,6 +5646,21 @@ def _generate_and_send_reply(conversation: "Conversation", from_number: str, med
         db.session.commit()
         if i < len(visible_chunks) - 1:
             time.sleep(1.2)  # pausa breve para que se sientan mensajes naturales, no un bloque
+
+    for promo_id in promo_ids[:1]:  # una imagen por turno, nunca una ráfaga
+        promo = Promotion.query.get(promo_id)
+        if not promo or not promo.vigente or not promo.image_url:
+            app.logger.warning(f"[Promos] Se pidió enviar la promo {promo_id} pero no está vigente o no tiene imagen.")
+            continue
+        ok, err = send_whatsapp(from_number, promo.title, kind="bot_promo",
+                                ref_type="conversation", ref_id=conversation.id,
+                                media_url=promo.image_url)
+        if ok:
+            db.session.add(Message(conversation_id=conversation.id, direction="out",
+                                   body=f"[imagen de promoción: {promo.title}]"))
+            db.session.commit()
+        else:
+            app.logger.error(f"[Promos] No se pudo enviar la imagen de la promo {promo_id}: {err}")
 
     if booked_appt:
         try:
@@ -6064,6 +6202,100 @@ def _filtro_hora_bogota(dt, fmt="%d/%m %I:%M %p"):
     if not dt:
         return "—"
     return dt.replace(tzinfo=pytz.utc).astimezone(_BOGOTA).strftime(fmt)
+
+
+# ── Promociones — el equipo las monta y Mariana las usa para cerrar ──────────
+# Las imágenes van JUNTO A LA BASE DE DATOS, no dentro de static/: en Railway el
+# sistema de archivos del contenedor es efímero y se borra en cada despliegue,
+# así que guardarlas en el repo desplegado significaría perderlas cada vez que se
+# sube un cambio. DB_PATH apunta al volumen persistente.
+PROMO_UPLOAD_DIR = os.path.join(os.path.dirname(os.path.abspath(db_path)) or ".", "promo_uploads")
+PROMO_ALLOWED_EXT = {".jpg", ".jpeg", ".png", ".webp"}
+
+
+@app.route("/promos/img/<path:filename>")
+def promo_image(filename):
+    """Sirve la imagen de una promoción. Es pública a propósito: Twilio la
+    descarga desde internet para adjuntarla al WhatsApp, así que no puede estar
+    detrás del login. El nombre es aleatorio, no se puede adivinar."""
+    from flask import send_from_directory
+    return send_from_directory(PROMO_UPLOAD_DIR, filename)
+
+
+def _save_promo_image(file_storage) -> str | None:
+    """Guarda la imagen de apoyo y devuelve el nombre con el que quedó.
+
+    El nombre lleva un prefijo aleatorio para que dos promos con archivos que se
+    llamen igual no se pisen, y se restringe la extensión: esto lo sirve Flask
+    como estático y lo descarga Twilio desde internet."""
+    if not file_storage or not file_storage.filename:
+        return None
+    ext = os.path.splitext(file_storage.filename)[1].lower()
+    if ext not in PROMO_ALLOWED_EXT:
+        return None
+    os.makedirs(PROMO_UPLOAD_DIR, exist_ok=True)
+    nombre = f"{uuid.uuid4().hex[:12]}{ext}"
+    file_storage.save(os.path.join(PROMO_UPLOAD_DIR, nombre))
+    return nombre
+
+
+def _parse_fecha(valor: str):
+    try:
+        return datetime.strptime((valor or "").strip(), "%Y-%m-%d").date()
+    except (ValueError, TypeError):
+        return None
+
+
+@app.route("/promotions", methods=["GET", "POST"])
+def promotions_list():
+    if not _can_see_notifications():
+        flash("Acceso restringido.", "danger")
+        return redirect(url_for("calendar_view"))
+
+    if request.method == "POST":
+        titulo = (request.form.get("title") or "").strip()
+        descripcion = (request.form.get("description") or "").strip()
+        if not titulo or not descripcion:
+            flash("El título y la descripción son obligatorios.", "danger")
+            return redirect(url_for("promotions_list"))
+        db.session.add(Promotion(
+            title=titulo[:140],
+            description=descripcion,
+            terms=(request.form.get("terms") or "").strip() or None,
+            image_file=_save_promo_image(request.files.get("image")),
+            valid_from=_parse_fecha(request.form.get("valid_from")),
+            valid_until=_parse_fecha(request.form.get("valid_until")),
+            is_active=True,
+        ))
+        db.session.commit()
+        flash("Promoción creada. Mariana ya la puede usar.", "success")
+        return redirect(url_for("promotions_list"))
+
+    promociones = Promotion.query.order_by(Promotion.created_at.desc()).all()
+    return render_template("promotions.html", promociones=promociones)
+
+
+@app.route("/promotions/<int:promo_id>/toggle", methods=["POST"])
+def promotions_toggle(promo_id):
+    if not _can_see_notifications():
+        flash("Acceso restringido.", "danger")
+        return redirect(url_for("calendar_view"))
+    promo = Promotion.query.get_or_404(promo_id)
+    promo.is_active = not promo.is_active
+    db.session.commit()
+    return redirect(url_for("promotions_list"))
+
+
+@app.route("/promotions/<int:promo_id>/delete", methods=["POST"])
+def promotions_delete(promo_id):
+    if not _can_see_notifications():
+        flash("Acceso restringido.", "danger")
+        return redirect(url_for("calendar_view"))
+    promo = Promotion.query.get_or_404(promo_id)
+    db.session.delete(promo)
+    db.session.commit()
+    flash("Promoción eliminada.", "success")
+    return redirect(url_for("promotions_list"))
 
 
 # ── Campanita — alertas internas de lo que hace Mariana ──────────────────────

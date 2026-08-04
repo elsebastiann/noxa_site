@@ -1,0 +1,107 @@
+{% extends "base.html" %}
+
+{% block extra_head %}
+<style>
+  .pr-note { color:var(--text2); font-size:.85rem; max-width:72ch; line-height:1.5; margin:8px 0 22px; }
+  .pr-form { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:18px; margin-bottom:26px; }
+  .pr-grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(220px,1fr)); gap:14px; }
+  .pr-label { display:block; font-size:.75rem; color:var(--text2); text-transform:uppercase; letter-spacing:.04em; margin-bottom:5px; font-weight:600; }
+  .pr-list { display:grid; grid-template-columns:repeat(auto-fill, minmax(320px,1fr)); gap:14px; }
+  .pr-card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); overflow:hidden; display:flex; flex-direction:column; }
+  .pr-card.off { opacity:.55; }
+  .pr-img { width:100%; height:150px; object-fit:cover; background:var(--bg2); }
+  .pr-body { padding:14px 16px; flex:1; }
+  .pr-title { font-weight:700; font-size:.95rem; }
+  .pr-desc { font-size:.83rem; color:var(--text2); line-height:1.45; margin-top:6px; white-space:pre-line; }
+  .pr-terms { font-size:.76rem; color:var(--text3); margin-top:8px; }
+  .pr-badge { display:inline-block; padding:2px 9px; border-radius:999px; font-size:.7rem; font-weight:700; }
+  .pr-on  { background:rgba(102,187,106,.15); color:#66bb6a; }
+  .pr-offb{ background:rgba(120,120,120,.18); color:var(--text2); }
+  .pr-foot { display:flex; gap:8px; padding:10px 16px; border-top:1px solid var(--border); }
+  .pr-empty { padding:34px; text-align:center; color:var(--text2); border:1px solid var(--border); border-radius:var(--radius); }
+</style>
+{% endblock %}
+
+{% block content %}
+<h2 style="margin-top:16px;">Promociones</h2>
+<p class="pr-note">
+  Lo que montes aquí lo ve Mariana en cada conversación y lo usa para cerrar: cuando el cliente
+  duda, objeta el precio o le falta un empujón para agendar. No lo saca en el saludo. Si le subes
+  una imagen, se la puede enviar al cliente por WhatsApp.
+</p>
+
+<form class="pr-form" method="POST" enctype="multipart/form-data">
+  <div style="margin-bottom:14px;">
+    <label class="pr-label" for="title">Título</label>
+    <input class="form-control" id="title" name="title" required maxlength="140"
+           placeholder="Ej: 20% en Coating Cerámico 9H">
+  </div>
+  <div style="margin-bottom:14px;">
+    <label class="pr-label" for="description">Qué le puede decir Mariana al cliente</label>
+    <textarea class="form-control" id="description" name="description" rows="3" required
+              placeholder="Ej: Este mes el Coating Cerámico 9H tiene 20% de descuento en cualquier tipo de vehículo."></textarea>
+  </div>
+  <div style="margin-bottom:14px;">
+    <label class="pr-label" for="terms">Condiciones (opcional)</label>
+    <input class="form-control" id="terms" name="terms"
+           placeholder="Ej: Aplica solo agendando en agosto. No acumulable con convenios.">
+  </div>
+  <div class="pr-grid">
+    <div>
+      <label class="pr-label" for="valid_from">Válida desde (opcional)</label>
+      <input class="form-control" type="date" id="valid_from" name="valid_from">
+    </div>
+    <div>
+      <label class="pr-label" for="valid_until">Válida hasta (opcional)</label>
+      <input class="form-control" type="date" id="valid_until" name="valid_until">
+    </div>
+    <div>
+      <label class="pr-label" for="image">Imagen de apoyo (opcional)</label>
+      <input class="form-control" type="file" id="image" name="image" accept=".jpg,.jpeg,.png,.webp">
+    </div>
+  </div>
+  <button type="submit" class="btn btn-warning mt-3">Crear promoción</button>
+</form>
+
+{% if promociones %}
+<div class="pr-list">
+  {% for p in promociones %}
+    <div class="pr-card {{ '' if p.vigente else 'off' }}">
+      {% if p.image_file %}
+        <img class="pr-img" src="{{ url_for('promo_image', filename=p.image_file) }}" alt="{{ p.title }}">
+      {% endif %}
+      <div class="pr-body">
+        <div class="pr-title">{{ p.title }}</div>
+        <div class="pr-desc">{{ p.description }}</div>
+        {% if p.terms %}<div class="pr-terms">{{ p.terms }}</div>{% endif %}
+        <div class="pr-terms">
+          {% if p.valid_from or p.valid_until %}
+            Vigencia:
+            {{ p.valid_from.strftime('%d/%m/%Y') if p.valid_from else 'sin inicio' }} —
+            {{ p.valid_until.strftime('%d/%m/%Y') if p.valid_until else 'sin fin' }}
+          {% else %}Sin fechas límite{% endif %}
+        </div>
+        <div style="margin-top:9px;">
+          <span class="pr-badge {{ 'pr-on' if p.vigente else 'pr-offb' }}">
+            {{ 'Mariana la está usando' if p.vigente else ('Inactiva' if not p.is_active else 'Fuera de vigencia') }}
+          </span>
+        </div>
+      </div>
+      <div class="pr-foot">
+        <form method="POST" action="{{ url_for('promotions_toggle', promo_id=p.id) }}">
+          <button type="submit" class="btn btn-sm btn-outline-secondary">
+            {{ 'Desactivar' if p.is_active else 'Activar' }}
+          </button>
+        </form>
+        <form method="POST" action="{{ url_for('promotions_delete', promo_id=p.id) }}"
+              onsubmit="return confirm('¿Eliminar esta promoción? Mariana dejará de ofrecerla.');">
+          <button type="submit" class="btn btn-sm btn-outline-danger">Eliminar</button>
+        </form>
+      </div>
+    </div>
+  {% endfor %}
+</div>
+{% else %}
+<div class="pr-empty">Todavía no hay promociones. Crea una arriba y Mariana la empieza a usar de inmediato.</div>
+{% endif %}
+{% endblock %}
