@@ -4180,11 +4180,22 @@ def _normalize_whatsapp_number(raw: str) -> str:
     """Normaliza un número al formato E.164 que usa Twilio/WhatsApp (+57 por
     defecto, Colombia). Reutilizada por send_whatsapp() y por el endpoint de
     leads del sitio web, para que el teléfono con el que se crea/busca una
-    Conversation siempre calce con el "From" que manda Twilio en el webhook."""
+    Conversation siempre calce con el "From" que manda Twilio en el webhook.
+
+    OJO: no todo remitente de WhatsApp es un número. Los leads que llegan de
+    anuncios con identidad protegida vienen como un id opaco de Meta, tipo
+    "CO.4590911997822205". A eso NO se le puede anteponer "+57": queda un
+    destinatario inválido, Twilio lo rechaza y la conversación se muere sin que
+    el bot ni un asesor puedan responder. Lo que no parece número se devuelve
+    tal cual, que es la única forma de contestarle a ese remitente."""
     phone = (raw or "").strip().replace(" ", "").replace("whatsapp:", "")
-    if not phone.startswith("+"):
-        phone = "+57" + phone  # Colombia por defecto
-    return phone
+    if not phone:
+        return phone
+    if phone.startswith("+"):
+        return phone
+    if phone.isdigit():
+        return "+57" + phone  # Colombia por defecto
+    return phone  # identificador no telefónico: se responde exactamente igual
 
 
 _TWILIO_SANDBOX_NUMBER = "+14155238886"
@@ -5157,6 +5168,17 @@ def get_claude_reply(conversation: "Conversation", media_url: str | None = None,
         if is_first_message else
         "\nYa se han cruzado mensajes antes en esta conversación: no te vuelvas a presentar."
     )
+    # Los leads de anuncios con identidad protegida no traen número: si Mariana
+    # agenda sin pedirlo, la cita queda con un id opaco en el campo de teléfono y
+    # el equipo no tiene cómo llamar al cliente.
+    if not _phone_for_display(conversation.phone or "").isdigit():
+        profile_line += (
+            "\nATENCIÓN: de este cliente NO tenemos su número de celular (escribe desde un "
+            "anuncio con el número oculto). Si van a agendar, PÍDESELO explícitamente junto "
+            "con el nombre y la placa, e inclúyelo en el campo `celular` del marcador "
+            "[AGENDAR: ...]. Sin eso la cita queda sin forma de contactarlo."
+        )
+
     precios = _format_prices_for_prompt()
     if precios:
         profile_line += "\n\n" + precios
