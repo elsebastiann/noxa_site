@@ -5146,12 +5146,14 @@ def get_claude_reply(conversation: "Conversation", media_url: str | None = None,
     # bienvenida aunque estuviera en IDENTIDAD: la instrucción de último momento
     # le ganaba a la regla del prompt cacheado.
     profile_line += (
-        "\nEste es el PRIMER mensaje de esta conversación. Tu respuesta son DOS mensajes "
-        "separados por '---': (1) el saludo presentándote por tu nombre y (2) el MENÚ DE "
-        "BIENVENIDA con las 4 opciones numeradas, copiado tal cual de la sección IDENTIDAD. "
-        "El menú NO es opcional. La única excepción es que en este mismo primer mensaje el "
-        "cliente ya haya dicho qué servicio necesita; si solo escribió algo genérico como "
-        "'hola', 'info' o 'quiero más información', el menú SÍ va."
+        "\nEste es el PRIMER mensaje de esta conversación. Escribe SOLO el saludo "
+        "presentándote por tu nombre, en un único mensaje corto y SIN pregunta. "
+        "NO escribas el menú de bienvenida ni ninguna lista de opciones: el sistema le "
+        "manda automáticamente el menú de 4 opciones justo después de tu saludo, y si tú "
+        "también lo escribes el cliente lo recibe DOS VECES. "
+        "Única excepción: si en este primer mensaje el cliente ya dijo qué servicio "
+        "necesita, agrega un mensaje separado con [SIN_MENU] y arranca por esa puerta con "
+        "tu pregunta normal."
         if is_first_message else
         "\nYa se han cruzado mensajes antes en esta conversación: no te vuelvas a presentar."
     )
@@ -5301,6 +5303,21 @@ def _clean_phone_or_default(raw: str | None, fallback: str) -> str:
     if tiene_letras or not (7 <= len(solo_digitos) <= 15):
         return fallback
     return _normalize_whatsapp_number(candidato)
+
+
+_MENU_HINTS = ("1\ufe0f\u20e3", "2\ufe0f\u20e3", "responde con el número",
+               "protección de pintura", "detallado interior", "diagnóstico gratuito")
+
+
+def _looks_like_welcome_menu(texto: str) -> bool:
+    """¿Este mensaje es el modelo reescribiendo el menú de bienvenida?
+
+    No se compara contra WELCOME_MENU literal porque el modelo lo parafrasea
+    ("Para orientarte mejor..." en vez de "Para atenderte mejor..."). Se pide
+    coincidencia de varias señales para no descartar por error un mensaje normal
+    que apenas mencione uno de esos temas."""
+    t = (texto or "").lower()
+    return sum(1 for h in _MENU_HINTS if h in t) >= 3
 
 
 def _parse_agendar_marker(raw: str) -> dict:
@@ -5796,6 +5813,12 @@ def _generate_and_send_reply(conversation: "Conversation", from_number: str, med
         else:
             visible_chunks.append(chunk)
     visible_chunks = visible_chunks[:3]  # el límite de "máximo 3 mensajes" aplica solo a lo visible
+
+    # Red de seguridad: si el modelo escribe su propia versión del menú, el cliente
+    # lo recibiría dos veces (el suyo y el que manda el código). Se descarta el
+    # suyo en vez de confiar en que respete la instrucción de no escribirlo.
+    if is_first_turn and not skip_menu:
+        visible_chunks = [c for c in visible_chunks if not _looks_like_welcome_menu(c)]
 
     # El agendamiento va ANTES de mandar nada: los mensajes visibles de este turno
     # le están confirmando la cita al cliente, así que si la agenda la rechaza no
