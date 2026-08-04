@@ -6631,6 +6631,16 @@ def _filtro_hace_cuanto(dt):
     return dt.replace(tzinfo=pytz.utc).astimezone(_BOGOTA).strftime("%d/%m")
 
 
+@app.template_filter("sin_tildes")
+def _filtro_sin_tildes(texto):
+    """Versión sin tildes de un texto, para buscar sin escribirlas."""
+    import unicodedata
+    return "".join(
+        c for c in unicodedata.normalize("NFD", texto or "")
+        if unicodedata.category(c) != "Mn"
+    )
+
+
 @app.template_filter("dia_bogota")
 def _filtro_dia_bogota(dt):
     """Etiqueta del separador de día en el chat: "Hoy", "Ayer" o la fecha."""
