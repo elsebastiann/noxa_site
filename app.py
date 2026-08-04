@@ -6447,6 +6447,40 @@ def _save_promo_image(file_storage) -> str | None:
     return nombre
 
 
+# Categorías del sitio público, para que el formulario de citas agrupe igual que
+# noxadetail.com. Se resuelve por palabra clave en el nombre y no por una lista
+# fija, así un servicio nuevo que siga la convención cae solo en su grupo. El
+# orden importa: gana la primera regla que coincida.
+SERVICE_CATEGORY_RULES = [
+    ("Polarizados",            ("polarizado",)),
+    ("Protección Cerámica",    ("coating",)),
+    ("PPF",                    ("ppf", "chrome delete")),
+    ("Corrección & Brillo",    ("polichado", "porcelanizado", "wrap")),
+    ("Detallado",              ("detallado", "alistamiento")),
+    ("Lavado & Mantenimiento", ("wash", "lavado")),
+]
+SERVICE_CATEGORY_FALLBACK = "Otros"
+
+
+def categoria_de_servicio(nombre: str) -> str:
+    n = (nombre or "").strip().lower()
+    for categoria, claves in SERVICE_CATEGORY_RULES:
+        if any(c in n for c in claves):
+            return categoria
+    return SERVICE_CATEGORY_FALLBACK
+
+
+@app.template_global()
+def agrupar_servicios(servicios):
+    """[(categoría, [servicios]), ...] en el orden de SERVICE_CATEGORY_RULES,
+    saltando las categorías vacías y dejando "Otros" de último."""
+    grupos = {}
+    for svc in servicios:
+        grupos.setdefault(categoria_de_servicio(svc.name), []).append(svc)
+    orden = [c for c, _ in SERVICE_CATEGORY_RULES] + [SERVICE_CATEGORY_FALLBACK]
+    return [(c, sorted(grupos[c], key=lambda s: s.name)) for c in orden if c in grupos]
+
+
 def _parse_fecha(valor: str):
     try:
         return datetime.strptime((valor or "").strip(), "%Y-%m-%d").date()

@@ -11,6 +11,16 @@
 
 {% set is_edit = (mode is defined and mode == "edit") %}
 
+<style>
+  .svc-group { margin-bottom: 14px; }
+  .svc-group:last-child { margin-bottom: 0; }
+  .svc-group-title {
+    font-size: .68rem; font-weight: 800; letter-spacing: .8px; text-transform: uppercase;
+    color: var(--accent-dk); margin-bottom: 6px; padding-bottom: 4px;
+    border-bottom: 1px solid var(--border);
+  }
+</style>
+
 <div class="row justify-content-center">
   <div class="col-lg-8">
 
@@ -95,24 +105,29 @@
       {# ---- Servicios ---- #}
       <div class="mb-3">
         <label class="form-label">Servicios * <small class="text-secondary">(selecciona uno o más)</small></label>
-        <div class="row g-2">
-          {% set selected_services = appointment.services.split(', ') if is_edit else [] %}
-          {% for svc in services %}
-            <div class="col-sm-4 col-6">
-              <div class="form-check">
-                <input class="form-check-input service-checkbox"
-                       type="checkbox"
-                       name="service_ids"
-                       id="svc_{{ svc.id }}"
-                       value="{{ svc.id }}"
-                       {% if is_edit and svc.name in selected_services %}checked{% endif %}>
-                <label class="form-check-label" for="svc_{{ svc.id }}">
-                  {{ svc.name }}
-                </label>
-              </div>
+        {% set selected_services = appointment.services.split(', ') if is_edit else [] %}
+        {% for categoria, svcs in agrupar_servicios(services) %}
+          <div class="svc-group">
+            <div class="svc-group-title">{{ categoria }}</div>
+            <div class="row g-2">
+              {% for svc in svcs %}
+                <div class="col-sm-4 col-6">
+                  <div class="form-check">
+                    <input class="form-check-input service-checkbox"
+                           type="checkbox"
+                           name="service_ids"
+                           id="svc_{{ svc.id }}"
+                           value="{{ svc.id }}"
+                           {% if is_edit and svc.name in selected_services %}checked{% endif %}>
+                    <label class="form-check-label" for="svc_{{ svc.id }}">
+                      {{ svc.name }}
+                    </label>
+                  </div>
+                </div>
+              {% endfor %}
             </div>
-          {% endfor %}
-        </div>
+          </div>
+        {% endfor %}
       </div>
 
       {# ---- Convenio ---- #}
