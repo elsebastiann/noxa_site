@@ -4478,8 +4478,8 @@ Cuando veas estas señales, tu respuesta debe enfocarse SOLO en resolver esa dud
 - Pregunta la ubicación para ir.
 Cuando ofrezcas agendar, hazlo en **dos pasos, nunca los dos en el mismo mensaje** (respeta la regla de una sola pregunta por turno):
 1. Primero ofrece el **día**: "Tengo disponibilidad miércoles o jueves, ¿cuál te queda mejor?"
-2. Solo cuando el cliente elige el día, en el siguiente turno ofrece la **hora**: "Para el jueves tengo 3:00pm o 5:00pm, ¿cuál prefieres?"
-Nunca preguntes abierto "¿cuándo puedes venir?" — dar demasiadas opciones o dejarlo abierto hace que el cliente posponga la decisión. La cita solo se considera confirmada cuando el cliente ya eligió día Y hora exactos.
+2. Solo cuando el cliente elige el día, en el siguiente turno dale el **rango de horas realmente disponible** ese día (lo tienes en la disponibilidad que te paso en cada turno) y deja que él elija: "Para el jueves lo tengo abierto de 9:00am a 5:00pm, ¿a qué hora te sirve?". No le des dos horas sueltas — eso hace ver la agenda más apretada de lo que está y lo obliga a encajarse en un horario que quizá no le conviene.
+Lo que sí sigue prohibido es preguntar en el vacío "¿cuándo puedes venir?" sin decirle qué hay disponible. El rango es el ancla: acota sin encasillar. La cita solo se considera confirmada cuando el cliente ya eligió día Y hora exactos.
 
 - **Nunca repitas la invitación a agendar dos turnos seguidos** si la vez anterior no tuvo una respuesta positiva clara. Si ya la ofreciste y el cliente respondió con una duda u objeción en vez de aceptar, vuelve a resolver la duda — no insistas de nuevo con agendar hasta ver una señal real de que sí quiere.
 - El diagnóstico gratuito lo puedes MENCIONAR como parte de explicar el precio (es la referencia, no una obligación), pero mencionarlo no es lo mismo que invitar activamente a agendarlo — eso solo cuando el cliente esté listo, según las señales de arriba.
@@ -4964,6 +4964,29 @@ def _format_prices_for_prompt() -> str:
     )
 
 
+def _slots_to_ranges(horas: list) -> list:
+    """Convierte ["09:00","09:30","11:00"] en [("09:00","09:30"), ("11:00","11:00")].
+
+    Ofrecerle al cliente dos horas sueltas hace que la agenda se vea más apretada
+    de lo que está; el rango continuo refleja la disponibilidad real. Los cortes
+    aparecen cuando una franja ya llegó al cupo de diagnósticos simultáneos."""
+    if not horas:
+        return []
+    a_min = lambda h: int(h.split(":")[0]) * 60 + int(h.split(":")[1])
+    ordenadas = sorted(horas, key=a_min)
+
+    tramos = []
+    ini = prev = ordenadas[0]
+    for h in ordenadas[1:]:
+        if a_min(h) - a_min(prev) == SLOT_INTERVAL_MINUTES:
+            prev = h
+            continue
+        tramos.append((ini, prev))
+        ini = prev = h
+    tramos.append((ini, prev))
+    return tramos
+
+
 def _format_promotions_for_prompt() -> str:
     """Promociones vigentes que Mariana puede usar. Cadena vacía si no hay."""
     try:
@@ -5025,27 +5048,28 @@ def _format_availability_for_prompt() -> str:
 
     lineas = []
     for d, horas in disponibilidad:
-        manana = [h for h in horas if int(h.split(":")[0]) < 12]
-        tarde  = [h for h in horas if int(h.split(":")[0]) >= 12]
-        partes = []
-        if manana:
-            partes.append("mañana " + ", ".join(manana))
-        if tarde:
-            partes.append("tarde " + ", ".join(tarde))
+        tramos = _slots_to_ranges(horas)
+        texto = " y ".join(
+            (f"de {ini} a {fin}" if ini != fin else f"únicamente a las {ini}")
+            for ini, fin in tramos
+        )
         lineas.append(
-            f"- {_DIAS_ES[d.weekday()]} {d.strftime('%d/%m')} ({d.isoformat()}): "
-            + " · ".join(partes)
+            f"- {_DIAS_ES[d.weekday()]} {d.strftime('%d/%m')} ({d.isoformat()}): {texto}"
         )
     return (
-        "Disponibilidad real de la agenda para diagnósticos (hora de Bogotá). Esta lista "
-        "está COMPLETA: son todos los cupos libres, de mañana y de tarde. Si una hora "
-        "aparece aquí, está disponible y la puedes confirmar.\n"
+        "Disponibilidad real de la agenda para diagnósticos (hora de Bogotá). Cada línea es "
+        "el RANGO de horas de llegada disponibles ese día — cualquier hora dentro del rango "
+        "sirve, en intervalos de media hora. Si un día aparece partido en dos rangos, es "
+        "porque esa franja del medio ya está copada.\n"
         + "\n".join(lineas)
-        + "\nCómo usarla: al cliente ofrécele máximo 2 opciones a la vez para que no se "
-        "abrume, pero elígelas según lo que él pida — si pide tarde, ofrécele horas de la "
-        "tarde; si pide un día u hora puntual y está en la lista, confírmasela directo sin "
-        "proponerle otra cosa. Nunca digas que no tienes disponibilidad en una franja que sí "
-        "aparece aquí. Usa la fecha en formato AAAA-MM-DD en el marcador [AGENDAR: ...]."
+        + "\nCómo usarla: dile al cliente el RANGO tal cual, no dos horas sueltas. Por "
+        "ejemplo \"ese día lo tengo abierto de 9:00am a 5:00pm, ¿a qué hora te sirve?\" o, "
+        "si está partido, \"tengo de 9:00am a 11:00am y de 1:00pm a 5:00pm\". Así el cliente "
+        "ve la disponibilidad real y elige lo que le sirva, en vez de encajarse en dos "
+        "opciones que quizá no le convienen. Pásalo a formato de 12 horas (am/pm), que es "
+        "como habla la gente. Cuando el cliente diga una hora dentro del rango, confírmasela "
+        "directo. Nunca digas que no tienes disponibilidad en una franja que sí aparece aquí. "
+        "Usa la fecha en formato AAAA-MM-DD en el marcador [AGENDAR: ...]."
     )
 
 
