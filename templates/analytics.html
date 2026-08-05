@@ -88,9 +88,70 @@
   <a href="{{ url_for('analytics_dashboard') }}" class="btn btn-outline-secondary">Limpiar</a>
 </form>
 
+{% if diag.total %}
+  <div class="an-sec"><h3>Diagnósticos</h3><span>la puerta de entrada: gratis, solo vale si termina en servicio</span></div>
+  <div class="an-grid">
+    <div class="an-card hero">
+      <div class="an-k">Diagnósticos por mes</div>
+      <div class="an-v">{{ '%.1f'|format(diag.por_mes) }}</div>
+      <div class="an-sub">{{ diag.total }} en el periodo</div>
+    </div>
+    <div class="an-card hero">
+      <div class="an-k">Conversión a servicio</div>
+      <div class="an-v">{{ '%.0f'|format(diag.conversion) }}%</div>
+      <div class="an-sub">{{ diag.convertidos }} de {{ diag.total }} terminaron agendando algo que factura</div>
+    </div>
+    <div class="an-card">
+      <div class="an-k">Tardan en decidirse</div>
+      <div class="an-v">{{ '%.0f'|format(diag.dias_promedio) }} días</div>
+      <div class="an-sub">Del diagnóstico al primer servicio</div>
+    </div>
+    <div class="an-card">
+      <div class="an-k">Valor por diagnóstico</div>
+      <div class="an-v">${{ '{:,.0f}'.format(diag.valor_por_diagnostico).replace(',', '.') }}</div>
+      <div class="an-sub">${{ '{:,.0f}'.format(diag.valor_generado).replace(',', '.') }} facturados en total · incluye los que no convirtieron</div>
+    </div>
+    <div class="an-card {{ 'bad' if diag.pendientes_frios else '' }}">
+      <div class="an-k">Perdidos por seguir</div>
+      <div class="an-v">{{ diag.pendientes_frios }}</div>
+      <div class="an-sub">Diagnósticos de hace más de 30 días que nunca agendaron</div>
+    </div>
+    <div class="an-card">
+      <div class="an-k">Todavía vivos</div>
+      <div class="an-v">{{ diag.pendientes_recientes }}</div>
+      <div class="an-sub">Menos de 30 días, aún pueden convertir</div>
+    </div>
+  </div>
+
+  {% if diag.serie %}
+    <div class="an-panel" style="margin-bottom:20px;">
+      <h3>Diagnósticos y conversión por mes</h3>
+      <canvas id="chartDiag" height="190"></canvas>
+      <div class="an-wrap" style="margin-top:14px;">
+        <table class="an">
+          <thead><tr><th>Mes</th><th class="num">Diagnósticos</th><th class="num">Convirtieron</th><th class="num">Tasa</th></tr></thead>
+          <tbody>
+            {% for m in diag.serie %}
+              <tr>
+                <td>{{ m.etiqueta }}</td>
+                <td class="num">{{ m.total }}</td>
+                <td class="num">{{ m.convertidos }}</td>
+                <td class="num">{{ '%.0f'|format(m.convertidos / m.total * 100 if m.total else 0) }}%</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  {% endif %}
+
+{% endif %}
+
 {% if data.visitas %}
   <div class="an-warn">
-    <strong>Cómo leer esto:</strong> toda cita agendada cuenta como servicio prestado y como venta.
+    <strong>Cómo leer esto:</strong> toda cita agendada cuenta como servicio prestado y como venta,
+    salvo los diagnósticos: son gratis, no suman ingreso ni cuentan como cliente nuevo, y tienen su
+    propia sección.
     El monto sale del precio del servicio según el tipo de vehículo, con el convenio y los ajustes
     que se hayan aplicado al agendar. El periodo seleccionado cubre <strong>{{ data.meses }} meses</strong>.
     Las cifras anuales son una <strong>proyección a ritmo actual</strong> (lo observado llevado a 12 meses),
@@ -356,6 +417,26 @@
                 datasets: [{ data: serie.map(m => m.nuevos), backgroundColor: acento, borderRadius: 4 }] },
         options: comun
       });
+
+      const serieDiag = {{ diag.serie | tojson }};
+      if (serieDiag.length) {
+        new Chart(document.getElementById('chartDiag'), {
+          type: 'bar',
+          data: {
+            labels: serieDiag.map(m => m.etiqueta),
+            datasets: [
+              { label: 'Convirtieron', data: serieDiag.map(m => m.convertidos), backgroundColor: acento, borderRadius: 4 },
+              { label: 'Sin convertir', data: serieDiag.map(m => m.total - m.convertidos),
+                backgroundColor: 'rgba(114,130,151,0.45)', borderRadius: 4 }
+            ]
+          },
+          options: {
+            ...comun,
+            plugins: { legend: { display: true, labels: { color: texto2, boxWidth: 12 } } },
+            scales: { x: { ...comun.scales.x, stacked: true }, y: { ...comun.scales.y, stacked: true } }
+          }
+        });
+      }
 
       const dias = {{ oper.por_dia | tojson }};
       new Chart(document.getElementById('chartDias'), {

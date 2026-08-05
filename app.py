@@ -2464,6 +2464,8 @@ def _transacciones_citas(vehicle_type: str = ""):
         ServiceSale.query.filter(ServiceSale.status == "completed",
                                  ServiceSale.appointment_id.isnot(None)).all()
     }
+    diag = _diagnostic_service()
+    nombre_diag = (diag.name.strip().lower() if diag else None)
     salida = []
     for a in citas:
         if vehicle_type and (not a.vehicle_type or a.vehicle_type.name != vehicle_type):
@@ -2478,6 +2480,10 @@ def _transacciones_citas(vehicle_type: str = ""):
             nombres = [x.strip() for x in (a.services or "").split(",") if x.strip()]
             ids = [x.id for x in Service.query.filter(Service.name.in_(nombres)).all()]
             lista = calculate_real_price(ids, a.vehicle_type_id) if (ids and a.vehicle_type_id) else cobrado
+        # Un diagnóstico no es una venta: es gratis y es un paso del embudo. Si
+        # entrara acá inflaría los clientes nuevos y hundiría el ticket promedio.
+        nombres = {x.strip().lower() for x in (a.services or "").split(",") if x.strip()}
+        es_diag = bool(nombre_diag) and nombres == {nombre_diag}
         salida.append({
             "fecha": a.start_datetime.date(),
             "placa": a.plate,
@@ -2485,15 +2491,21 @@ def _transacciones_citas(vehicle_type: str = ""):
             "lista": lista or cobrado,
             "servicios": a.services or "",
             "pago": venta.payment_method if venta else None,
+            "es_diagnostico": es_diag,
         })
     return salida
+
+
+def _servicios_facturables(vehicle_type: str = ""):
+    """Solo lo que factura: las citas de diagnóstico quedan fuera."""
+    return [t for t in _transacciones_citas(vehicle_type) if not t["es_diagnostico"]]
 
 
 def _analytics_data(date_from, date_to, vehicle_type: str = ""):
     """Métricas del periodo sobre las citas agendadas, que es como opera el
     negocio: toda cita agendada se asume cumplida. Las canceladas nunca cuentan:
     no son ingreso ni hacen a un cliente nuevo."""
-    todas = _transacciones_citas(vehicle_type)
+    todas = _servicios_facturables(vehicle_type)
 
     # Primera transacción histórica de cada placa: define en qué mes ese cliente
     # fue nuevo. Se mira sobre TODA la historia, no sobre el periodo filtrado, o
@@ -2607,7 +2619,7 @@ def _rango_utc(date_from, date_to):
 def _kpis_rentabilidad(date_from, date_to, vehicle_type: str = ""):
     """Ingresos contra gastos. Es la única cifra que dice si el negocio gana
     plata; el resto del tablero mide actividad, no resultado."""
-    servicios = [t for t in _transacciones_citas(vehicle_type)
+    servicios = [t for t in _servicios_facturables(vehicle_type)
                  if date_from <= t["fecha"] <= date_to]
     ingresos = sum(t["monto"] for t in servicios)
     bruto = sum(t["lista"] for t in servicios)
@@ -2735,10 +2747,73 @@ def _kpis_operacion(date_from, date_to):
     }
 
 
+def _kpis_diagnosticos(date_from, date_to):
+    """El diagnóstico es la puerta de entrada del negocio: es gratis y solo se
+    justifica si termina en servicio. Acá se mide si eso está pasando.
+
+    Un diagnóstico "convierte" cuando esa misma placa tiene después una cita de
+    algo que sí factura. La conversión se mira sobre TODA la historia posterior,
+    no solo dentro del periodo: un diagnóstico de marzo que agendó en junio
+    convirtió, aunque el filtro sea marzo."""
+    todas = _transacciones_citas()
+    diagnosticos = [t for t in todas if t["es_diagnostico"] and t["placa"]]
+    servicios = [t for t in todas if not t["es_diagnostico"] and t["placa"]]
+
+    # Primer servicio facturable de cada placa después de cada fecha
+    por_placa = {}
+    for t in servicios:
+        por_placa.setdefault(t["placa"], []).append(t)
+    for lista in por_placa.values():
+        lista.sort(key=lambda x: x["fecha"])
+
+    del_periodo = [d for d in diagnosticos if date_from <= d["fecha"] <= date_to]
+
+    convertidos, dias, valor = 0, [], 0
+    pendientes_frios, pendientes_recientes = 0, 0
+    hoy = bogota_now().date()
+    for d in del_periodo:
+        posteriores = [x for x in por_placa.get(d["placa"], []) if x["fecha"] >= d["fecha"]]
+        if posteriores:
+            convertidos += 1
+            dias.append((posteriores[0]["fecha"] - d["fecha"]).days)
+            valor += sum(x["monto"] for x in posteriores)
+        elif (hoy - d["fecha"]).days > 30:
+            pendientes_frios += 1      # ya pasó el tiempo razonable de decisión
+        else:
+            pendientes_recientes += 1  # todavía puede convertir
+
+    serie = {}
+    for d in del_periodo:
+        clave = d["fecha"].strftime("%Y-%m")
+        serie.setdefault(clave, {"total": 0, "convertidos": 0})
+        serie[clave]["total"] += 1
+        if [x for x in por_placa.get(d["placa"], []) if x["fecha"] >= d["fecha"]]:
+            serie[clave]["convertidos"] += 1
+
+    total = len(del_periodo)
+    meses = _meses_del_periodo(date_from, date_to)
+    return {
+        "total": total,
+        "por_mes": total / meses,
+        "convertidos": convertidos,
+        "conversion": (convertidos / total * 100) if total else 0,
+        "dias_promedio": (sum(dias) / len(dias)) if dias else 0,
+        "valor_generado": valor,
+        "valor_por_diagnostico": (valor / total) if total else 0,
+        "pendientes_frios": pendientes_frios,
+        "pendientes_recientes": pendientes_recientes,
+        "serie": [
+            {"mes": m, "etiqueta": datetime.strptime(m, "%Y-%m").strftime("%b %Y"),
+             "total": serie[m]["total"], "convertidos": serie[m]["convertidos"]}
+            for m in sorted(serie)
+        ],
+    }
+
+
 def _kpis_clientes(date_from, date_to, vehicle_type: str = ""):
     """Recurrencia: en detailing conseguir un cliente cuesta mucho más que hacerlo
     volver, así que la tasa de recompra manda sobre el conteo de nuevos."""
-    todas = _transacciones_citas(vehicle_type)
+    todas = _servicios_facturables(vehicle_type)
     visitas_por_placa = {}
     for v in todas:
         if v["placa"]:
@@ -2782,7 +2857,10 @@ def analytics_dashboard():
         flash("Acceso restringido.", "danger")
         return redirect(url_for("calendar_view"))
 
-    primera = db.session.query(db.func.min(ServiceSale.service_date)).scalar()
+    # El rango por defecto arranca en la primera CITA, no en la primera venta:
+    # las ventas ya no son la fuente y sin citas el tablero salía vacío.
+    primera_cita = db.session.query(db.func.min(Appointment.start_datetime)).scalar()
+    primera = primera_cita.date() if primera_cita else None
     hoy = bogota_now().date()
     date_from = _parse_date(request.args.get("from")) or primera or hoy
     date_to = _parse_date(request.args.get("to")) or hoy
@@ -2797,6 +2875,7 @@ def analytics_dashboard():
         embudo=_kpis_embudo(date_from, date_to),
         oper=_kpis_operacion(date_from, date_to),
         cli=_kpis_clientes(date_from, date_to, vehicle_type),
+        diag=_kpis_diagnosticos(date_from, date_to),
         date_from=date_from, date_to=date_to,
         vehicle_type=vehicle_type, tipos=tipos,
     )
