@@ -90,9 +90,9 @@
 
 {% if data.visitas %}
   <div class="an-warn">
-    <strong>Cómo leer esto:</strong> toda cita agendada cuenta como servicio prestado. El monto es el
-    valor real cobrado cuando la venta quedó registrada, y el valor estimado por servicio y tipo de
-    vehículo cuando no. El periodo seleccionado cubre <strong>{{ data.meses }} meses</strong>.
+    <strong>Cómo leer esto:</strong> toda cita agendada cuenta como servicio prestado y como venta.
+    El monto sale del precio del servicio según el tipo de vehículo, con el convenio y los ajustes
+    que se hayan aplicado al agendar. El periodo seleccionado cubre <strong>{{ data.meses }} meses</strong>.
     Las cifras anuales son una <strong>proyección a ritmo actual</strong> (lo observado llevado a 12 meses),
     no un dato histórico — asumen que los clientes siguen volviendo al mismo ritmo, algo que todavía no se
     ha podido observar durante un año completo. Un "cliente" es una <strong>placa</strong>: un mismo dueño
@@ -104,7 +104,7 @@
     <div class="an-card">
       <div class="an-k">Ingresos</div>
       <div class="an-v">${{ '{:,.0f}'.format(fin.ingresos).replace(',', '.') }}</div>
-      <div class="an-sub">Solo ventas cerradas</div>
+      <div class="an-sub">Toda cita agendada cuenta como servicio prestado</div>
     </div>
     <div class="an-card">
       <div class="an-k">Gastos</div>
@@ -149,9 +149,6 @@
       <h3>Qué servicio les interesa</h3>
       {% if embudo.interes %}{{ barras(embudo.interes) }}
       {% else %}<div class="an-sub">Sin interés registrado todavía.</div>{% endif %}
-      <h3 style="margin-top:18px;">Medios de pago</h3>
-      {% if cli.pagos %}{{ barras(cli.pagos, 'money') }}
-      {% else %}<div class="an-sub">Sin ventas cerradas en el periodo.</div>{% endif %}
     </div>
   </div>
 
@@ -174,7 +171,7 @@
         {% if oper.cronometradas %}
           {{ '%.0f'|format(oper.estimado_prom) }} min estimados vs {{ '%.0f'|format(oper.real_prom) }} reales
           · {{ oper.cronometradas }} cita{{ '' if oper.cronometradas == 1 else 's' }} cronometrada{{ '' if oper.cronometradas == 1 else 's' }}
-        {% else %}Nadie ha usado Iniciar/Finalizar todavía{% endif %}
+        {% else %}Sin citas cronometradas en el periodo{% endif %}
       </div>
     </div>
     <div class="an-card {{ 'bad' if oper.errores_calidad else '' }}">
@@ -292,11 +289,11 @@
       <h3>Clientes que más facturaron en el periodo</h3>
       <div class="an-wrap">
         <table class="an">
-          <thead><tr><th>Placa</th><th>Cliente</th><th class="num">Facturado</th></tr></thead>
+          <thead><tr><th>Placa</th><th class="num">Facturado</th></tr></thead>
           <tbody>
-            {% for placa, nombre, monto in cli.top %}
+            {% for placa, monto in cli.top %}
               <tr>
-                <td>{{ placa }}</td><td>{{ nombre }}</td>
+                <td>{{ placa }}</td>
                 <td class="num">${{ '{:,.0f}'.format(monto).replace(',', '.') }}</td>
               </tr>
             {% endfor %}

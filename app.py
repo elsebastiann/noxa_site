@@ -2446,18 +2446,6 @@ def _meses_del_periodo(date_from, date_to) -> float:
     return max(dias / _DIAS_POR_MES, 1.0)
 
 
-def _transacciones_ventas(vehicle_type: str = ""):
-    """Ventas cerradas: dinero real cobrado. Es la fuente de verdad, pero solo
-    existe si el equipo cierra la cita en la plataforma."""
-    filtros = [ServiceSale.status == "completed"]
-    if vehicle_type:
-        filtros.append(ServiceSale.vehicle_type == vehicle_type)
-    return [
-        {"fecha": v.service_date, "placa": v.plate, "monto": v.final_amount or 0,
-         "servicios": v.services or ""}
-        for v in ServiceSale.query.filter(*filtros).order_by(ServiceSale.service_date).all()
-    ]
-
 
 def _transacciones_citas(vehicle_type: str = ""):
     """Toda cita agendada cuenta como servicio prestado — así opera el negocio.
@@ -2481,11 +2469,22 @@ def _transacciones_citas(vehicle_type: str = ""):
         if vehicle_type and (not a.vehicle_type or a.vehicle_type.name != vehicle_type):
             continue
         venta = ventas.get(a.id)
+        cobrado = (venta.final_amount if venta else calculate_estimated_amount_for_appointment(a)) or 0
+        # Valor de lista, sin convenio ni ajustes: la diferencia contra lo cobrado
+        # es lo que se dejó de facturar.
+        if venta:
+            lista = venta.base_amount or cobrado
+        else:
+            nombres = [x.strip() for x in (a.services or "").split(",") if x.strip()]
+            ids = [x.id for x in Service.query.filter(Service.name.in_(nombres)).all()]
+            lista = calculate_real_price(ids, a.vehicle_type_id) if (ids and a.vehicle_type_id) else cobrado
         salida.append({
             "fecha": a.start_datetime.date(),
             "placa": a.plate,
-            "monto": (venta.final_amount if venta else calculate_estimated_amount_for_appointment(a)) or 0,
+            "monto": cobrado,
+            "lista": lista or cobrado,
             "servicios": a.services or "",
+            "pago": venta.payment_method if venta else None,
         })
     return salida
 
@@ -2605,15 +2604,13 @@ def _rango_utc(date_from, date_to):
             fin.astimezone(pytz.utc).replace(tzinfo=None))
 
 
-def _kpis_rentabilidad(date_from, date_to):
+def _kpis_rentabilidad(date_from, date_to, vehicle_type: str = ""):
     """Ingresos contra gastos. Es la única cifra que dice si el negocio gana
     plata; el resto del tablero mide actividad, no resultado."""
-    ventas = ServiceSale.query.filter(
-        ServiceSale.status == "completed",
-        ServiceSale.service_date >= date_from, ServiceSale.service_date <= date_to,
-    ).all()
-    ingresos = sum(v.final_amount or 0 for v in ventas)
-    bruto = sum(v.base_amount or 0 for v in ventas)
+    servicios = [t for t in _transacciones_citas(vehicle_type)
+                 if date_from <= t["fecha"] <= date_to]
+    ingresos = sum(t["monto"] for t in servicios)
+    bruto = sum(t["lista"] for t in servicios)
 
     gastos_rows = Expense.query.filter(
         Expense.is_void == False,
@@ -2738,66 +2735,45 @@ def _kpis_operacion(date_from, date_to):
     }
 
 
-def _kpis_clientes(date_from, date_to):
+def _kpis_clientes(date_from, date_to, vehicle_type: str = ""):
     """Recurrencia: en detailing conseguir un cliente cuesta mucho más que hacerlo
     volver, así que la tasa de recompra manda sobre el conteo de nuevos."""
-    todas = ServiceSale.query.filter(ServiceSale.status == "completed").all()
+    todas = _transacciones_citas(vehicle_type)
     visitas_por_placa = {}
     for v in todas:
-        if v.plate:
-            visitas_por_placa.setdefault(v.plate, []).append(v)
+        if v["placa"]:
+            visitas_por_placa.setdefault(v["placa"], []).append(v)
 
-    del_periodo = [v for v in todas if date_from <= v.service_date <= date_to]
-    placas_periodo = {v.plate for v in del_periodo if v.plate}
+    del_periodo = [v for v in todas if date_from <= v["fecha"] <= date_to]
+    placas_periodo = {v["placa"] for v in del_periodo if v["placa"]}
 
     nuevos = sum(
         1 for p in placas_periodo
-        if min(x.service_date for x in visitas_por_placa[p]) >= date_from
+        if min(x["fecha"] for x in visitas_por_placa[p]) >= date_from
     )
     recurrentes = len(placas_periodo) - nuevos
     con_recompra = sum(1 for p, vs in visitas_por_placa.items() if len(vs) > 1)
 
     gasto = {}
     for v in del_periodo:
-        if v.plate:
-            gasto[v.plate] = gasto.get(v.plate, 0) + (v.final_amount or 0)
+        if v["placa"]:
+            gasto[v["placa"]] = gasto.get(v["placa"], 0) + v["monto"]
     top = sorted(gasto.items(), key=lambda x: x[1], reverse=True)[:10]
-    nombres = {v.plate: v.customer_name for v in del_periodo if v.plate}
 
     # Días entre visitas: cada cuánto vuelve un cliente que sí vuelve.
     brechas = []
     for vs in visitas_por_placa.values():
-        fechas = sorted(x.service_date for x in vs)
+        fechas = sorted(x["fecha"] for x in vs)
         brechas += [(b - a).days for a, b in zip(fechas, fechas[1:])]
-
-    pagos = {}
-    for v in del_periodo:
-        pagos[v.payment_method or "Sin registrar"] = pagos.get(v.payment_method or "Sin registrar", 0) + (v.final_amount or 0)
 
     return {
         "nuevos": nuevos,
         "recurrentes": recurrentes,
         "recompra_pct": (con_recompra / len(visitas_por_placa) * 100) if visitas_por_placa else 0,
         "dias_entre_visitas": (sum(brechas) / len(brechas)) if brechas else 0,
-        "top": [(p, nombres.get(p, "—"), m) for p, m in top],
-        "pagos": sorted(pagos.items(), key=lambda x: x[1], reverse=True),
+        "top": top,
     }
 
-
-def _brecha_cierre(date_from, date_to):
-    """Cuántas citas del periodo quedaron sin cerrar. Es lo que explica que el
-    tablero de ventas se vea vacío aunque la agenda esté llena."""
-    citas = Appointment.query.filter(
-        Appointment.status != "cancelled",
-        Appointment.start_datetime >= datetime.combine(date_from, datetime.min.time()),
-        Appointment.start_datetime <= datetime.combine(date_to, datetime.max.time()),
-    ).count()
-    cerradas = ServiceSale.query.filter(
-        ServiceSale.status == "completed",
-        ServiceSale.service_date >= date_from,
-        ServiceSale.service_date <= date_to,
-    ).count()
-    return {"citas": citas, "cerradas": cerradas, "sin_cerrar": max(citas - cerradas, 0)}
 
 
 @app.route("/analytics")
@@ -2817,10 +2793,10 @@ def analytics_dashboard():
     return render_template(
         "analytics.html",
         data=_analytics_data(date_from, date_to, vehicle_type),
-        fin=_kpis_rentabilidad(date_from, date_to),
+        fin=_kpis_rentabilidad(date_from, date_to, vehicle_type),
         embudo=_kpis_embudo(date_from, date_to),
         oper=_kpis_operacion(date_from, date_to),
-        cli=_kpis_clientes(date_from, date_to),
+        cli=_kpis_clientes(date_from, date_to, vehicle_type),
         date_from=date_from, date_to=date_to,
         vehicle_type=vehicle_type, tipos=tipos,
     )
