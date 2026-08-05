@@ -2151,11 +2151,30 @@ def appointments_list():
     )
 
 
+# Palabra clave para borrar citas. Configurable por si hay que rotarla sin
+# desplegar; el valor por defecto es el que definió la administración.
+DELETE_KEYWORD = os.environ.get("DELETE_KEYWORD", "Sungsam")
+
+
 @app.route("/appointments/<int:appointment_id>/delete", methods=["POST"])
 def delete_appointment(appointment_id):
+    """Borrar una cita es irreversible y se pierde el historial del cliente, así
+    que además del usuario logueado se exige una palabra clave que solo tiene la
+    administración. Se valida acá y no solo en el navegador: el prompt del front
+    se salta con cualquier herramienta."""
     appt = Appointment.query.get_or_404(appointment_id)
+    clave = (request.form.get("clave") or "").strip()
+    if clave != DELETE_KEYWORD:
+        app.logger.warning(
+            f"[Citas] Intento de eliminar la cita {appointment_id} con clave incorrecta "
+            f"(usuario: {getattr(getattr(g, 'current_user', None), 'username', 'desconocido')})"
+        )
+        flash("Palabra clave incorrecta. La cita no se eliminó.", "danger")
+        return redirect(url_for("calendar_view"))
+
     db.session.delete(appt)
     db.session.commit()
+    flash("Cita eliminada.", "success")
     return redirect(url_for("calendar_view"))
 
 @app.route("/appointment/<int:appointment_id>/edit", methods=["GET", "POST"])
@@ -2441,34 +2460,41 @@ def _transacciones_ventas(vehicle_type: str = ""):
 
 
 def _transacciones_citas(vehicle_type: str = ""):
-    """Citas agendadas con su valor estimado. Sirve mientras el cierre de citas
-    no sea sistemático: sin esto el tablero se ve vacío aunque el taller haya
-    trabajado todo el mes. El monto es estimado, no cobrado."""
+    """Toda cita agendada cuenta como servicio prestado — así opera el negocio.
+
+    El monto sale de la venta cerrada cuando existe (trae descuentos y ajustes
+    reales) y del valor estimado cuando no. Así el histórico ya cerrado no pierde
+    precisión y las citas nuevas igual entran al tablero."""
     citas = (
         Appointment.query
         .filter(Appointment.status != "cancelled")
         .order_by(Appointment.start_datetime)
         .all()
     )
+    ventas = {
+        v.appointment_id: v for v in
+        ServiceSale.query.filter(ServiceSale.status == "completed",
+                                 ServiceSale.appointment_id.isnot(None)).all()
+    }
     salida = []
     for a in citas:
         if vehicle_type and (not a.vehicle_type or a.vehicle_type.name != vehicle_type):
             continue
+        venta = ventas.get(a.id)
         salida.append({
             "fecha": a.start_datetime.date(),
             "placa": a.plate,
-            "monto": calculate_estimated_amount_for_appointment(a) or 0,
+            "monto": (venta.final_amount if venta else calculate_estimated_amount_for_appointment(a)) or 0,
             "servicios": a.services or "",
         })
     return salida
 
 
-def _analytics_data(date_from, date_to, vehicle_type: str = "", fuente: str = "ventas"):
-    """Métricas del periodo, calculadas sobre ventas cerradas o sobre citas
-    agendadas según `fuente`. Las canceladas nunca cuentan: no son ingreso ni
-    hacen a un cliente nuevo."""
-    todas = (_transacciones_citas(vehicle_type) if fuente == "citas"
-             else _transacciones_ventas(vehicle_type))
+def _analytics_data(date_from, date_to, vehicle_type: str = ""):
+    """Métricas del periodo sobre las citas agendadas, que es como opera el
+    negocio: toda cita agendada se asume cumplida. Las canceladas nunca cuentan:
+    no son ingreso ni hacen a un cliente nuevo."""
+    todas = _transacciones_citas(vehicle_type)
 
     # Primera transacción histórica de cada placa: define en qué mes ese cliente
     # fue nuevo. Se mira sobre TODA la historia, no sobre el periodo filtrado, o
@@ -2787,25 +2813,16 @@ def analytics_dashboard():
     if date_from > date_to:
         date_from, date_to = date_to, date_from
     vehicle_type = (request.args.get("vehicle_type") or "").strip()
-    fuente = "citas" if request.args.get("fuente") == "citas" else "ventas"
-
-    if fuente == "citas":
-        tipos = [v.name for v in VehicleType.query.filter_by(is_active=True).order_by(VehicleType.name)]
-    else:
-        tipos = [
-            t[0] for t in db.session.query(ServiceSale.vehicle_type)
-            .distinct().order_by(ServiceSale.vehicle_type).all() if t[0]
-        ]
+    tipos = [v.name for v in VehicleType.query.filter_by(is_active=True).order_by(VehicleType.name)]
     return render_template(
         "analytics.html",
-        data=_analytics_data(date_from, date_to, vehicle_type, fuente),
-        brecha=_brecha_cierre(date_from, date_to),
+        data=_analytics_data(date_from, date_to, vehicle_type),
         fin=_kpis_rentabilidad(date_from, date_to),
         embudo=_kpis_embudo(date_from, date_to),
         oper=_kpis_operacion(date_from, date_to),
         cli=_kpis_clientes(date_from, date_to),
         date_from=date_from, date_to=date_to,
-        vehicle_type=vehicle_type, tipos=tipos, fuente=fuente,
+        vehicle_type=vehicle_type, tipos=tipos,
     )
 
 

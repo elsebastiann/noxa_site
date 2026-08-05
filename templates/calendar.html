@@ -98,6 +98,20 @@
 <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/locales-all.global.min.js"></script>
 
 <script>
+        // Borrar una cita es irreversible, así que pide una palabra clave que solo
+        // tiene la administración. La validación de verdad está en el servidor:
+        // esto es la reja, no la cerradura.
+        function pedirClaveEliminar(form) {
+          const clave = prompt(
+            "Eliminar esta cita es permanente.\n\nEscribe la palabra clave de administración para confirmar:"
+          );
+          if (clave === null) return false;           // canceló
+          if (!clave.trim()) return false;
+          form.querySelector('input[name="clave"]').value = clave.trim();
+          return true;
+        }
+
+
 document.addEventListener('DOMContentLoaded', function() {
   var calendarEl = document.getElementById('calendar');
 
@@ -172,22 +186,6 @@ document.addEventListener('DOMContentLoaded', function() {
             ? `<span class="ms-2 text-muted small">(${data.work_duration_minutes} min reales)</span>`
             : "";
 
-          // Botones de control de trabajo (solo si scheduled)
-          let workBtns = "";
-          if (data.status === "scheduled") {
-            if (data.work_status === "pending") {
-              workBtns = `<button class="btn btn-success btn-sm" onclick="calWorkAction(${data.id},'start',this)">Iniciar</button>`;
-            } else if (data.work_status === "in_progress") {
-              workBtns = `
-                <button class="btn btn-warning btn-sm" onclick="calWorkAction(${data.id},'pause',this)">Pausar</button>
-                <button class="btn btn-danger btn-sm" onclick="calWorkAction(${data.id},'end',this)">Terminar</button>`;
-            } else if (data.work_status === "paused") {
-              workBtns = `
-                <button class="btn btn-primary btn-sm" onclick="calWorkAction(${data.id},'pause',this)">Reanudar</button>
-                <button class="btn btn-danger btn-sm" onclick="calWorkAction(${data.id},'end',this)">Terminar</button>`;
-            }
-          }
-
           document.getElementById("modalBodyContent").innerHTML = `
   <p><b>Cliente:</b> ${data.customer_name}</p>
   <p><b>Placa:</b> ${data.plate || 'Sin placa'}</p>
@@ -223,8 +221,6 @@ document.addEventListener('DOMContentLoaded', function() {
   </p>
   <p><b>Trabajo:</b> ${workStatusBadge}${workDurationHtml}</p>
 
-  ${workBtns ? `<div class="d-flex gap-2 mb-3 flex-wrap">${workBtns}</div>` : ""}
-
   <div class="d-flex gap-2 mt-2 flex-wrap">
 
     ${
@@ -237,7 +233,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
           <form method="POST"
                 action="/appointments/${data.id}/delete"
-                onsubmit="return confirm('¿Seguro que deseas eliminar esta cita?');">
+                onsubmit="return pedirClaveEliminar(this);">
+            <input type="hidden" name="clave">
             <button type="submit" class="btn btn-outline-danger">
               Eliminar cita
             </button>
@@ -253,106 +250,15 @@ document.addEventListener('DOMContentLoaded', function() {
           `
     }
 
-    ${
-      data.status === "scheduled"
-        ? `
-          <button class="btn btn-success"
-                  onclick="openCloseService(${data.id})">
-            Finalizar / Cancelar
-          </button>
-        `
-        : `
-          <button class="btn btn-secondary" disabled>
-            Servicio ${data.status === "completed" ? "finalizado" : "cancelado"}
-          </button>
-        `
-    }
+
 
   </div>
 
-  <div id="closeServiceBox"
-       class="mt-4"
-       style="display:${data.status === "scheduled" ? "none" : "none"};">
-  <hr>
-  <h6>Cerrar servicio</h6>
 
-  <div class="mb-2">
-    <label class="form-label">Estado</label>
-    <select id="closeStatus" class="form-select">
-      <option value="completed">Finalizado</option>
-      <option value="cancelled">Cancelado</option>
-    </select>
-  </div>
-
-  <div class="mb-2" id="paymentMethodBox">
-    <label class="form-label">Medio de pago</label>
-    <input type="text"
-           id="closePaymentMethod"
-           class="form-control"
-           placeholder="Ej: Efectivo, Transferencia">
-  </div>
-
-  <hr>
-
-  <h6 class="mt-2">Ajuste manual (opcional)</h6>
-
-  <div class="row g-2">
-    <div class="col-md-4">
-      <select id="adjustmentType" class="form-select">
-        <option value="">Sin ajuste</option>
-        <option value="discount">Descuento</option>
-        <option value="surcharge">Recargo</option>
-      </select>
-    </div>
-
-    <div class="col-md-4">
-      <select id="adjustmentMode" class="form-select">
-        <option value="fixed">Valor fijo</option>
-        <option value="percentage">%</option>
-      </select>
-    </div>
-
-    <div class="col-md-4">
-      <input type="number"
-             id="adjustmentValue"
-             class="form-control"
-             min="0"
-             step="1"
-             inputmode="numeric"
-             placeholder="Valor">
-    </div>
-  </div>
-
-  <div class="mb-2 mt-2">
-    <label class="form-label">Motivo del ajuste</label>
-    <textarea id="adjustmentReason"
-              class="form-control"
-              rows="2"
-              placeholder="Obligatorio si hay ajuste"></textarea>
-  </div>
-
-  <div class="mb-2">
-    <label class="form-label">Notas</label>
-    <textarea id="closeNotes"
-              class="form-control"
-              rows="2"></textarea>
-  </div>
-
-  <button class="btn btn-success mt-2"
-          onclick="submitCloseService(${data.id})">
-    Confirmar cierre
-  </button>
-</div>
 `;
 
           let modal = new bootstrap.Modal(document.getElementById("appointmentModal"));
           modal.show();
-
-          // Resetear el closeServiceBox cada vez que se abre el modal
-          document.getElementById("appointmentModal").addEventListener("hidden.bs.modal", function () {
-            const box = document.getElementById("closeServiceBox");
-            if (box) box.style.display = "none";
-          }, { once: true });
         });
     },
 
@@ -364,83 +270,5 @@ document.addEventListener('DOMContentLoaded', function() {
   calendar.render();
 });
 
-function calWorkAction(id, action, btn) {
-  btn.disabled = true;
-  fetch(`/appointments/${id}/work/${action}`, { method: "POST" })
-    .then(r => r.json())
-    .then(data => {
-      if (!data.ok) {
-        alert(data.error || "Error al actualizar el estado de trabajo.");
-        btn.disabled = false;
-        return;
-      }
-      if (action === 'end') {
-        // Cronómetro terminado → abrir directamente el formulario de cierre
-        openCloseService(id);
-      } else {
-        location.reload();
-      }
-    })
-    .catch(() => { alert("Error de red."); btn.disabled = false; });
-}
-
-function openCloseService(appointmentId) {
-  const box = document.getElementById("closeServiceBox");
-  if (!box) {
-    alert("No se pudo abrir el formulario de cierre.");
-    return;
-  }
-  box.style.display = "block";
-}
-
-function submitCloseService(appointmentId) {
-  const currentStatus = document.getElementById("closeStatus").value;
-  if (currentStatus !== "completed" && currentStatus !== "cancelled") {
-    alert("Estado inválido.");
-    return;
-  }
-
-  const status = currentStatus;
-  const paymentMethod = document.getElementById("closePaymentMethod").value;
-
-  const adjustmentType = document.getElementById("adjustmentType").value;
-  const adjustmentMode = document.getElementById("adjustmentMode").value;
-  const adjustmentValue = document.getElementById("adjustmentValue").value;
-  const adjustmentReason = document.getElementById("adjustmentReason").value.trim();
-
-  const notes = document.getElementById("closeNotes").value;
-
-  if (status === "completed" && !paymentMethod) {
-    alert("Debes indicar el medio de pago.");
-    return;
-  }
-
-  if (adjustmentType && (!adjustmentValue || !adjustmentReason)) {
-    alert("Si aplicas un ajuste, debes indicar valor y motivo.");
-    return;
-  }
-
-  fetch(`/appointments/${appointmentId}/close`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      status: status,
-      payment_method: paymentMethod,
-      adjustment_type: adjustmentType,
-      adjustment_mode: adjustmentMode,
-      adjustment_value: adjustmentValue,
-      adjustment_reason: adjustmentReason,
-      notes: notes
-    })
-  })
-  .then(res => res.json())
-  .then(data => {
-    if (!data.ok) {
-      alert(data.error || "Error al cerrar el servicio");
-      return;
-    }
-    location.reload();
-  });
-}
 </script>
 {% endblock %}
