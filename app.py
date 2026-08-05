@@ -2881,6 +2881,128 @@ def analytics_dashboard():
     )
 
 
+def _resumen_gerencial(date_from, date_to):
+    """Los pocos números que un dueño necesita para saber si el negocio va bien.
+
+    Cada uno viene comparado contra el periodo inmediatamente anterior de la
+    misma duración: un número suelto no dice nada, la dirección sí."""
+    dias = (date_to - date_from).days + 1
+    prev_to = date_from - timedelta(days=1)
+    prev_from = prev_to - timedelta(days=dias - 1)
+
+    def foto(desde, hasta):
+        d = _analytics_data(desde, hasta)
+        f = _kpis_rentabilidad(desde, hasta)
+        e = _kpis_embudo(desde, hasta)
+        o = _kpis_operacion(desde, hasta)
+        c = _kpis_clientes(desde, hasta)
+        g = _kpis_diagnosticos(desde, hasta)
+        return {
+            "ingresos": f["ingresos"], "gastos": f["gastos"], "margen": f["margen"],
+            "margen_pct": f["margen_pct"], "servicios": d["visitas"], "clientes": d["clientes"],
+            "ticket": d["ticket"], "nuevos_mes": d["nuevos_por_mes"], "recompra": c["recompra_pct"],
+            "leads": e["leads"], "conversion_leads": e["conversion"],
+            "diagnosticos": g["total"], "conversion_diag": g["conversion"],
+            "cancelacion": o["cancelacion_pct"], "diag_frios": g["pendientes_frios"],
+        }
+
+    actual, previo = foto(date_from, date_to), foto(prev_from, prev_to)
+
+    def var(clave):
+        a, b = actual[clave], previo[clave]
+        if not b:
+            return None                      # sin base de comparación, no se inventa un %
+        return (a - b) / abs(b) * 100
+
+    return {
+        "actual": actual, "previo": previo,
+        "var": {k: var(k) for k in actual},
+        "periodo_previo": (prev_from, prev_to),
+        "dias": dias,
+    }
+
+
+@app.route("/gerencial")
+def dashboard_gerencial():
+    if not _can_see_notifications():
+        flash("Acceso restringido.", "danger")
+        return redirect(url_for("calendar_view"))
+    hoy = bogota_now().date()
+    date_from = _parse_date(request.args.get("from")) or (hoy - timedelta(days=29))
+    date_to = _parse_date(request.args.get("to")) or hoy
+    if date_from > date_to:
+        date_from, date_to = date_to, date_from
+    return render_template("gerencial.html", g=_resumen_gerencial(date_from, date_to),
+                           date_from=date_from, date_to=date_to)
+
+
+@app.route("/api/analytics/detalle")
+def analytics_detalle():
+    """Qué hay detrás de un punto de una gráfica.
+
+    Un número agregado sin poder abrirlo obliga a creerle al tablero; esto
+    permite ver exactamente qué citas lo componen."""
+    if not _can_see_notifications():
+        return jsonify({"ok": False}), 403
+
+    tipo = (request.args.get("tipo") or "").strip()      # mes | nuevos | diagnosticos | dia | hora
+    clave = (request.args.get("clave") or "").strip()
+    vehicle_type = (request.args.get("vehicle_type") or "").strip()
+    date_from = _parse_date(request.args.get("from"))
+    date_to = _parse_date(request.args.get("to"))
+    if not (date_from and date_to):
+        return jsonify({"ok": False, "error": "rango inválido"}), 400
+
+    todas = _transacciones_citas(vehicle_type)
+    en_rango = [t for t in todas if date_from <= t["fecha"] <= date_to]
+    facturables = [t for t in en_rango if not t["es_diagnostico"]]
+
+    if tipo == "mes":
+        filas = [t for t in facturables if t["fecha"].strftime("%Y-%m") == clave]
+        titulo = "Servicios del mes"
+    elif tipo == "diagnosticos":
+        filas = [t for t in en_rango if t["es_diagnostico"] and t["fecha"].strftime("%Y-%m") == clave]
+        titulo = "Diagnósticos del mes"
+    elif tipo == "nuevos":
+        # Solo la primera visita de cada placa, que es lo que la barra cuenta.
+        primera = {}
+        for t in [x for x in todas if not x["es_diagnostico"] and x["placa"]]:
+            if t["placa"] not in primera or t["fecha"] < primera[t["placa"]]["fecha"]:
+                primera[t["placa"]] = t
+        filas = [t for t in primera.values() if t["fecha"].strftime("%Y-%m") == clave]
+        titulo = "Clientes nuevos del mes"
+    elif tipo in ("dia", "hora"):
+        ini, fin = _rango(date_from, date_to)
+        citas = Appointment.query.filter(
+            Appointment.status != "cancelled",
+            Appointment.start_datetime >= ini, Appointment.start_datetime <= fin,
+        ).all()
+        if tipo == "dia":
+            citas = [a for a in citas if a.start_datetime.weekday() == int(clave)]
+            titulo = "Citas de ese día de la semana"
+        else:
+            citas = [a for a in citas if a.start_datetime.hour == int(clave)]
+            titulo = "Citas que llegan a esa hora"
+        filas = [{"fecha": a.start_datetime.date(), "placa": a.plate,
+                  "servicios": a.services or "", "monto": 0, "cliente": a.customer_name} for a in citas]
+        return jsonify({"ok": True, "titulo": titulo, "total": len(filas), "suma": 0,
+                        "filas": sorted([{**f, "fecha": f["fecha"].isoformat()} for f in filas],
+                                        key=lambda x: x["fecha"], reverse=True)[:100]})
+    else:
+        return jsonify({"ok": False, "error": "tipo desconocido"}), 400
+
+    nombres = {a.plate: a.customer_name for a in Appointment.query.filter(
+        Appointment.plate.isnot(None)).all() if a.plate}
+    return jsonify({
+        "ok": True, "titulo": titulo, "total": len(filas),
+        "suma": sum(f["monto"] for f in filas),
+        "filas": sorted([{"fecha": f["fecha"].isoformat(), "placa": f["placa"] or "—",
+                          "cliente": nombres.get(f["placa"], "—"),
+                          "servicios": f["servicios"], "monto": f["monto"]} for f in filas],
+                        key=lambda x: x["fecha"], reverse=True)[:100],
+    })
+
+
 @app.route("/sales")
 def sales_list():
     """Listado de ingresos (ventas de servicios) con filtros básicos."""

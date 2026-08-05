@@ -1,3 +1,9 @@
+{# El valor exacto viaja en data-v; el JS decide si mostrarlo abreviado o
+   completo, así el interruptor no obliga a recargar la página. #}
+{% macro money(valor) -%}
+<span class="money" data-v="{{ valor | round | int }}">${{ '{:,.0f}'.format(valor).replace(',', '.') }}</span>
+{%- endmacro %}
+
 {% extends "base.html" %}
 
 {% block extra_head %}
@@ -62,6 +68,21 @@
   .an-metodo[open] > summary::before { content:"⌄ "; }
   .an-metodo > summary:hover { color:var(--accent); }
   .an-metodo .an-warn { margin:0 12px 12px; }
+
+  .an-switch { display:inline-flex; border:1.5px solid var(--border); border-radius:var(--radius-sm); overflow:hidden; }
+  .an-switch button { background:transparent; border:none; padding:9px 13px; font-size:.8rem;
+                      font-weight:600; color:var(--text2); cursor:pointer; white-space:nowrap; }
+  .an-switch button.active { background:var(--accent); color:#0a0c0f; }
+
+  .an-modal { position:fixed; inset:0; z-index:1060; background:rgba(0,0,0,.6);
+              display:flex; align-items:center; justify-content:center; padding:20px; }
+  .an-modal[hidden] { display:none; }
+  .an-modal-box { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+                  width:min(760px, 100%); max-height:82vh; display:flex; flex-direction:column; }
+  .an-modal-head { display:flex; justify-content:space-between; align-items:flex-start; gap:14px;
+                   padding:15px 18px; border-bottom:1px solid var(--border); }
+  .an-modal-body { overflow:auto; padding:0 4px 4px; }
+  canvas { cursor:pointer; }
   .an-sec { margin:26px 0 12px; display:flex; align-items:baseline; gap:10px; }
   .an-sec h3 { font-size:1rem; margin:0; color:var(--text); }
   .an-sec span { font-size:.76rem; color:var(--text3); }
@@ -90,7 +111,7 @@
         <span class="lbl" title="{{ etiqueta }}">{{ etiqueta }}</span>
         <span class="an-bar-track"><span class="an-bar" style="width: {{ (valor / maximo * 100) if maximo else 0 }}%;"></span></span>
         <span class="val">
-          {%- if formato == 'money' -%}${{ '{:,.0f}'.format(valor).replace(',', '.') }}
+          {%- if formato == 'money' -%}{{ money(valor) }}
           {%- else -%}{{ valor }}{%- endif -%}
         </span>
       </div>
@@ -99,6 +120,19 @@
 {%- endmacro %}
 
 {% block content %}
+<div class="an-modal" id="anModal" hidden>
+  <div class="an-modal-box">
+    <div class="an-modal-head">
+      <div>
+        <strong id="anModalTitulo">Detalle</strong>
+        <div class="an-sub" id="anModalResumen"></div>
+      </div>
+      <button type="button" class="btn btn-sm btn-outline-secondary" id="anModalCerrar">Cerrar</button>
+    </div>
+    <div class="an-modal-body" id="anModalCuerpo"></div>
+  </div>
+</div>
+
 <h2 style="margin-top:16px;">Analítica</h2>
 
 <form class="an-filters" method="GET">
@@ -118,6 +152,13 @@
         <option value="{{ t }}" {% if t == vehicle_type %}selected{% endif %}>{{ t }}</option>
       {% endfor %}
     </select>
+  </div>
+  <div>
+    <label class="an-label">Cifras</label>
+    <div class="an-switch" id="anFormato">
+      <button type="button" data-fmt="corto">Abreviadas</button>
+      <button type="button" data-fmt="largo">Exactas</button>
+    </div>
   </div>
   <button type="submit" class="btn btn-warning">Aplicar</button>
   <a href="{{ url_for('analytics_dashboard') }}" class="btn btn-outline-secondary">Limpiar</a>
@@ -145,11 +186,11 @@
 <div class="an-kpis">
   <div class="an-kpi">
     <span class="k">Ingresos</span>
-    <span class="v">${{ '{:,.0f}'.format(fin.ingresos).replace(',', '.') }}</span>
+    <span class="v">{{ money(fin.ingresos) }}</span>
   </div>
   <div class="an-kpi">
     <span class="k">Margen</span>
-    <span class="v {{ 'ok' if fin.margen >= 0 else 'bad' }}">${{ '{:,.0f}'.format(fin.margen).replace(',', '.') }}</span>
+    <span class="v {{ 'ok' if fin.margen >= 0 else 'bad' }}">{{ money(fin.margen) }}</span>
     <span class="s">{{ '%.0f'|format(fin.margen_pct) }}% sobre ingresos</span>
   </div>
   <div class="an-kpi">
@@ -181,22 +222,22 @@
   <div class="an-grid">
     <div class="an-card">
       <div class="an-k">Ingresos</div>
-      <div class="an-v">${{ '{:,.0f}'.format(fin.ingresos).replace(',', '.') }}</div>
+      <div class="an-v">{{ money(fin.ingresos) }}</div>
       <div class="an-sub">Toda cita agendada cuenta como servicio prestado</div>
     </div>
     <div class="an-card">
       <div class="an-k">Gastos</div>
-      <div class="an-v">${{ '{:,.0f}'.format(fin.gastos).replace(',', '.') }}</div>
+      <div class="an-v">{{ money(fin.gastos) }}</div>
       <div class="an-sub">Registrados en el módulo de gastos</div>
     </div>
     <div class="an-card {{ 'ok' if fin.margen >= 0 else 'bad' }}">
       <div class="an-k">Margen</div>
-      <div class="an-v">${{ '{:,.0f}'.format(fin.margen).replace(',', '.') }}</div>
+      <div class="an-v">{{ money(fin.margen) }}</div>
       <div class="an-sub">{{ '%.1f'|format(fin.margen_pct) }}% sobre ingresos</div>
     </div>
     <div class="an-card">
       <div class="an-k">Descuentos otorgados</div>
-      <div class="an-v">${{ '{:,.0f}'.format(fin.descuentos).replace(',', '.') }}</div>
+      <div class="an-v">{{ money(fin.descuentos) }}</div>
       <div class="an-sub">{{ '%.1f'|format(fin.descuentos_pct) }}% del valor de lista · convenios, promos y ajustes</div>
     </div>
   </div>
@@ -239,8 +280,8 @@
     </div>
     <div class="an-card">
       <div class="an-k">Valor por diagnóstico</div>
-      <div class="an-v">${{ '{:,.0f}'.format(diag.valor_por_diagnostico).replace(',', '.') }}</div>
-      <div class="an-sub">${{ '{:,.0f}'.format(diag.valor_generado).replace(',', '.') }} facturados en total · incluye los que no convirtieron</div>
+      <div class="an-v">{{ money(diag.valor_por_diagnostico) }}</div>
+      <div class="an-sub">{{ money(diag.valor_generado) }} facturados en total · incluye los que no convirtieron</div>
     </div>
     <div class="an-card {{ 'bad' if diag.pendientes_frios else '' }}">
       <div class="an-k">Perdidos por seguir</div>
@@ -314,12 +355,12 @@
     </div>
     <div class="an-card hero">
       <div class="an-k">Gasto anual por cliente</div>
-      <div class="an-v">${{ '{:,.0f}'.format(data.gasto_anual).replace(',', '.') }}</div>
+      <div class="an-v">{{ money(data.gasto_anual) }}</div>
       <div class="an-sub">Proyección: ticket promedio × {{ '%.1f'|format(data.visitas_ano) }} visitas al año</div>
     </div>
     <div class="an-card">
       <div class="an-k">Ticket promedio</div>
-      <div class="an-v">${{ '{:,.0f}'.format(data.ticket).replace(',', '.') }}</div>
+      <div class="an-v">{{ money(data.ticket) }}</div>
       <div class="an-sub">Dato observado, sin proyectar</div>
     </div>
     <div class="an-card">
@@ -329,7 +370,7 @@
     </div>
     <div class="an-card">
       <div class="an-k">Ingresos del periodo</div>
-      <div class="an-v">${{ '{:,.0f}'.format(data.ingresos).replace(',', '.') }}</div>
+      <div class="an-v">{{ money(data.ingresos) }}</div>
       <div class="an-sub">{{ data.visitas }} servicio{{ "" if data.visitas == 1 else "s" }} prestado{{ "" if data.visitas == 1 else "s" }}</div>
     </div>
     <div class="an-card">
@@ -378,8 +419,8 @@
               <td class="num">{{ m.nuevos }}</td>
               <td class="num">{{ m.clientes }}</td>
               <td class="num">{{ m.visitas }}</td>
-              <td class="num">${{ '{:,.0f}'.format(m.ingresos).replace(',', '.') }}</td>
-              <td class="num">${{ '{:,.0f}'.format((m.ingresos / m.visitas) if m.visitas else 0).replace(',', '.') }}</td>
+              <td class="num">{{ money(m.ingresos) }}</td>
+              <td class="num">{{ money((m.ingresos / m.visitas) if m.visitas else 0) }}</td>
             </tr>
           {% endfor %}
         </tbody>
@@ -397,7 +438,7 @@
             {% for placa, monto in cli.top %}
               <tr>
                 <td>{{ placa }}</td>
-                <td class="num">${{ '{:,.0f}'.format(monto).replace(',', '.') }}</td>
+                <td class="num">{{ money(monto) }}</td>
               </tr>
             {% endfor %}
           </tbody>
@@ -521,18 +562,18 @@
       };
 
       registrar('clientes', () => {
-      new Chart(document.getElementById('chartNuevos'), {
+      conDetalle(new Chart(document.getElementById('chartNuevos'), {
         type: 'bar',
         data: { labels: etiquetas,
                 datasets: [{ data: serie.map(m => m.nuevos), backgroundColor: acento, borderRadius: 4 }] },
         options: comun
-      });
+      }), 'nuevos', serie.map(m => m.mes));
       });
 
       const serieDiag = {{ diag.serie | tojson }};
       if (serieDiag.length) {
         registrar('comercial', () => {
-        new Chart(document.getElementById('chartDiag'), {
+        conDetalle(new Chart(document.getElementById('chartDiag'), {
           type: 'bar',
           data: {
             labels: serieDiag.map(m => m.etiqueta),
@@ -547,32 +588,32 @@
             plugins: { legend: { display: true, labels: { color: texto2, boxWidth: 12 } } },
             scales: { x: { ...comun.scales.x, stacked: true }, y: { ...comun.scales.y, stacked: true } }
           }
-        });
+        }), 'diagnosticos', serieDiag.map(m => m.mes));
         });
       }
 
       const dias = {{ oper.por_dia | tojson }};
       registrar('operacion', () => {
-      new Chart(document.getElementById('chartDias'), {
+      conDetalle(new Chart(document.getElementById('chartDias'), {
         type: 'bar',
         data: { labels: ['Lun','Mar','Mié','Jue','Vie','Sáb'],
                 datasets: [{ data: dias, backgroundColor: acento, borderRadius: 4 }] },
         options: comun
-      });
+      }), 'dia', [0,1,2,3,4,5]);
       });
 
       const horas = {{ oper.por_hora | tojson }};
       registrar('operacion', () => {
-      new Chart(document.getElementById('chartHoras'), {
+      conDetalle(new Chart(document.getElementById('chartHoras'), {
         type: 'bar',
         data: { labels: horas.map(h => h[0] + ':00'),
                 datasets: [{ data: horas.map(h => h[1]), backgroundColor: acento, borderRadius: 4 }] },
         options: comun
-      });
+      }), 'hora', horas.map(h => h[0]));
       });
 
       registrar('resumen', () => {
-      new Chart(document.getElementById('chartIngresos'), {
+      conDetalle(new Chart(document.getElementById('chartIngresos'), {
         type: 'line',
         data: { labels: etiquetas,
                 datasets: [{ data: serie.map(m => m.ingresos), borderColor: acento,
@@ -584,11 +625,96 @@
             ...comun.scales,
             y: { ...comun.scales.y,
                  ticks: { color: texto2,
-                          callback: v => '$' + v.toLocaleString('es-CO') } }
+                          callback: v => ejeMoneda(v) } }
           }
         }
+      }), 'mes', serie.map(m => m.mes));
       });
+
+      // Formato de cifras. El valor exacto vive en data-v y acá solo se decide
+      // cómo mostrarlo, así cambiar de modo no recarga nada. La preferencia se
+      // guarda porque es del usuario, no del reporte.
+      const FMT_KEY = 'noxa_fmt_cifras';
+      function abreviar(n) {
+        const signo = n < 0 ? '-' : '';
+        const a = Math.abs(n);
+        if (a >= 1000000) return signo + '$' + (a / 1000000).toFixed(a >= 10000000 ? 0 : 1).replace('.', ',') + ' MM';
+        if (a >= 1000)    return signo + '$' + Math.round(a / 1000) + ' K';
+        return signo + '$' + a.toLocaleString('es-CO');
+      }
+      function pintarCifras(modo) {
+        document.querySelectorAll('.money').forEach(el => {
+          const v = Number(el.dataset.v || 0);
+          el.textContent = modo === 'corto' ? abreviar(v) : (v < 0 ? '-$' : '$') + Math.abs(v).toLocaleString('es-CO');
+          el.title = (v < 0 ? '-$' : '$') + Math.abs(v).toLocaleString('es-CO');
+        });
+        document.querySelectorAll('#anFormato button').forEach(b =>
+          b.classList.toggle('active', b.dataset.fmt === modo));
+        localStorage.setItem(FMT_KEY, modo);
+        window.__anFmt = modo;
+      }
+      document.querySelectorAll('#anFormato button').forEach(b =>
+        b.addEventListener('click', () => { pintarCifras(b.dataset.fmt); redibujarEjes(); }));
+      pintarCifras(localStorage.getItem(FMT_KEY) || 'corto');
+
+      // Los ejes de las gráficas de dinero siguen el mismo modo.
+      function ejeMoneda(v) {
+        return window.__anFmt === 'corto' ? abreviar(v) : '$' + Number(v).toLocaleString('es-CO');
+      }
+      function redibujarEjes() {
+        // Chart.instances desapareció en Chart.js 4: se recorren los canvas.
+        document.querySelectorAll('canvas').forEach(c => {
+          const ch = Chart.getChart(c);
+          if (ch) ch.update('none');
+        });
+      }
+
+      // Detalle al hacer clic en una gráfica.
+      const modal = document.getElementById('anModal');
+      document.getElementById('anModalCerrar').addEventListener('click', () => modal.hidden = true);
+      modal.addEventListener('click', e => { if (e.target === modal) modal.hidden = true; });
+      document.addEventListener('keydown', e => { if (e.key === 'Escape') modal.hidden = true; });
+
+      const PARAMS = new URLSearchParams({
+        from: '{{ date_from.isoformat() }}', to: '{{ date_to.isoformat() }}',
+        vehicle_type: '{{ vehicle_type }}'
       });
+
+      async function abrirDetalle(tipo, clave) {
+        document.getElementById('anModalTitulo').textContent = 'Cargando…';
+        document.getElementById('anModalResumen').textContent = '';
+        document.getElementById('anModalCuerpo').innerHTML = '';
+        modal.hidden = false;
+        const q = new URLSearchParams(PARAMS); q.set('tipo', tipo); q.set('clave', clave);
+        const d = await (await fetch('/api/analytics/detalle?' + q)).json();
+        if (!d.ok) { document.getElementById('anModalTitulo').textContent = 'No se pudo cargar'; return; }
+        document.getElementById('anModalTitulo').textContent = d.titulo;
+        const money = v => window.__anFmt === 'corto' ? abreviar(v) : '$' + Number(v).toLocaleString('es-CO');
+        document.getElementById('anModalResumen').textContent =
+          d.total + (d.total === 1 ? ' registro' : ' registros') + (d.suma ? ' · ' + money(d.suma) : '');
+        const esc = t => String(t == null ? '' : t).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+        document.getElementById('anModalCuerpo').innerHTML = d.filas.length ? (
+          '<div class="an-wrap" style="border:none;"><table class="an"><thead><tr>' +
+          '<th>Fecha</th><th>Placa</th><th>Cliente</th><th>Servicios</th><th class="num">Valor</th>' +
+          '</tr></thead><tbody>' +
+          d.filas.map(f => '<tr><td>' + esc(f.fecha) + '</td><td>' + esc(f.placa) + '</td><td>' +
+            esc(f.cliente) + '</td><td>' + esc(f.servicios) + '</td><td class="num">' +
+            (f.monto ? money(f.monto) : '—') + '</td></tr>').join('') +
+          '</tbody></table></div>' +
+          (d.total > d.filas.length ? '<div class="an-sub" style="padding:10px 14px;">Mostrando los ' +
+            d.filas.length + ' más recientes de ' + d.total + '.</div>' : '')
+        ) : '<div class="an-empty">Sin registros.</div>';
+      }
+
+      // Cada gráfica declara qué representa cada punto, para poder abrirlo.
+      function conDetalle(chart, tipo, claves) {
+        // 'index' sin intersect: basta con hacer clic en la columna, no exactamente
+        // sobre la barra. Con barras bajas acertar el pixel era imposible.
+        chart.canvas.onclick = ev => {
+          const p = chart.getElementsAtEventForMode(ev, 'index', { intersect: false }, true);
+          if (p.length && claves[p[0].index] !== undefined) abrirDetalle(tipo, claves[p[0].index]);
+        };
+      }
 
       // Pestañas. La elegida queda en el hash para que sobreviva a un refresco
       // y se pueda compartir el enlace ya en la vista correcta.
