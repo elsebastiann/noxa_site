@@ -5,17 +5,20 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="theme-color" content="#050506">
 <title>Noxa Detail | Detailing & Car Care Premium</title>
-<link rel="icon" type="image/png" href="../favicon.png">
+<link rel="icon" type="image/png" href="img/favicon.png">
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;600;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/style.css">
+<link rel="stylesheet" href="css/style.css?v=58">
 </head>
 <body>
+
+<!-- Fondo fijo de toda la página: si falla o no existe, se quita sola y queda el color de fondo de siempre -->
+<video class="hero-video loop-video" id="pageVideo" src="video/hero/hero.mp4" muted autoplay playsinline disablePictureInPicture disableRemotePlayback preload="auto" onerror="this.remove()"></video>
 
 <a href="#main" class="skip-link">Saltar al contenido</a>
 
 <aside class="sidenav">
     <a href="#top" class="sidenav-logo">
-        <img src="../noxa%20wh%20no%20bg.png" alt="Noxa Detail">
+        <img src="img/logo.png" alt="Noxa Detail">
     </a>
     <div class="sidenav-links-wrap">
         <ul class="sidenav-links" id="sidenavLinks">
@@ -23,16 +26,17 @@
             <li><a href="#servicios" data-section="servicios"><span class="nav-label">Servicios</span></a></li>
             <li><a href="#nosotros" data-section="nosotros"><span class="nav-label">Nosotros</span></a></li>
             <li><a href="#contacto" data-section="contacto"><span class="nav-label">Contacto</span></a></li>
+            <li><a href="#faq" data-section="faq"><span class="nav-label">FAQ</span></a></li>
         </ul>
         <div class="sidenav-progress"><div class="sidenav-progress-fill" id="scrollProgress"></div></div>
     </div>
 </aside>
 
-<a href="https://app.noxadetail.com" class="btn btn-ghost btn-sm top-login">Iniciar sesión</a>
+<a href="https://app.noxadetail.com" class="btn btn-ghost btn-sm top-login btn-lens"><video class="btn-lens-video" muted autoplay loop playsinline disablePictureInPicture disableRemotePlayback preload="auto" src="video/hero/hero.mp4" aria-hidden="true" onerror="this.remove()"></video><span class="btn-label">Iniciar sesión</span></a>
 
 <nav class="nav-mobile">
     <a href="#top" class="nav-logo">
-        <img src="../noxa%20wh%20no%20bg.png" alt="Noxa Detail">
+        <img src="img/logo.png" alt="Noxa Detail">
     </a>
     <button class="nav-toggle" id="navToggle" aria-label="Abrir menú">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
@@ -43,27 +47,25 @@
     <li><a href="#servicios">Servicios</a></li>
     <li><a href="#nosotros">Nosotros</a></li>
     <li><a href="#contacto">Contacto</a></li>
+    <li><a href="#faq">FAQ</a></li>
     <li><a href="https://app.noxadetail.com">Iniciar sesión</a></li>
 </ul>
 
 <div class="page" id="main">
 
 <header class="hero" id="top">
-    <video class="hero-video loop-video" src="video/hero/hero.mp4" muted autoplay playsinline disablePictureInPicture disableRemotePlayback preload="auto" onerror="this.remove()"></video>
     <div class="hero-inner">
         <span class="eyebrow">Bogotá, Colombia</span>
-        <h1>DETALLES<br><span class="accent">QUE NOTAS.</span></h1>
+        <h1>DETALLES<br><span class="accent">QUE NOTAS</span></h1>
         <p class="lead">Cuidamos, restauramos y protegemos cada detalle de tu vehículo para que luzca como nuevo y conserve su valor por más tiempo. Cada recomendación comienza con un diagnóstico profesional sin costo.</p>
         <div class="hero-actions">
             <a href="#servicios" class="btn btn-gold">Ver servicios →</a>
-            <a href="#contacto" class="btn btn-ghost">Solicitar diagnóstico gratis</a>
+            <button type="button" onclick="openLeadForm('Diagnóstico general')" class="btn btn-ghost btn-lens"><video class="btn-lens-video" muted autoplay loop playsinline disablePictureInPicture disableRemotePlayback preload="auto" src="video/hero/hero.mp4" aria-hidden="true" onerror="this.remove()"></video><span class="btn-label">Solicita diagnóstico sin costo</span></button>
         </div>
     </div>
     <div class="hero-stats">
-        <!-- TODO (prod): reemplazar "500+" por el conteo real de citas en app.noxadetail.com + 300
-             (clientes atendidos antes de que la app entrara en producción, 3 meses después de abrir el local) -->
-        <div class="stat"><b>1200+</b><span>Clientes atendidos</span></div>
-        <div class="stat"><b>5.0</b><span>Calificación en Google</span></div>
+        <div class="stat"><b id="statClientesAtendidos">1200+</b><span>Clientes atendidos</span></div>
+        <a class="stat stat-link" href="https://www.google.com/maps/place/NOXA+Car+Care/@4.7148773,-74.0616704,17z/data=!4m8!3m7!1s0x8e3f85eb3007af6f:0x6a861f8597fc299!8m2!3d4.7148773!4d-74.0616704!9m1!1b1!16s%2Fg%2F11xvx7bflc" target="_blank" rel="noopener noreferrer"><b>5.0</b><span>Calificación en Google</span></a>
         <div class="stat"><b>96%</b><span>    Clientes recurrentes</span></div>
         <div class="stat"><b>14+</b><span>Servicios especializados</span></div>
     </div>
@@ -83,27 +85,70 @@
         <!-- PPF: estructura especial por marca de film -->
         <div id="ppfCard" style="margin-top:22px;scroll-margin-top:100px;">
             <div class="ppf-card">
+                <div class="ppf-video-preview card-media">
+                    <video class="card-video loop-video" src="video/services/ppf.mp4" poster="video/services/posters/ppf.jpg" muted playsinline disablePictureInPicture disableRemotePlayback preload="metadata" onerror="this.remove()"></video>
+                </div>
+                <div class="ppf-content">
+                    <div class="ppf-head">
+                        <div>
+                            <span class="card-cat">PPF</span>
+                            <h3 class="card-title" style="font-size:1.4rem;margin-top:6px;">Paint Protection Film (PPF)</h3>
+                            <p class="card-tagline" style="max-width:520px;margin-top:6px;"><span class="pain-text" data-service="ppf">¿Sabes cuántas piedras golpean tu bomper y capó en cada viaje por carretera?</span></p>
+                        </div>
+                        <div style="display:flex;gap:10px;flex-wrap:wrap;">
+                            <button class="btn btn-gold" onclick="openLeadForm('Paint Protection Film (PPF)')">Diagnóstico gratis</button>
+                        </div>
+                    </div>
+                    <p class="ppf-note">*Valores estimados. Pueden variar según marca, modelo, estado del vehículo y complejidad de instalación, el precio real se confirma con un diagnóstico personalizado.</p>
+                    <div class="brand-tabs">
+                        <button class="brand-tab active" data-brand="spectra" onclick="renderPPFTable('spectra')">Spectra · 5 años</button>
+                        <button class="brand-tab" data-brand="avery" onclick="renderPPFTable('avery')">Avery · 7 años</button>
+                        <button class="brand-tab" data-brand="xpel" onclick="renderPPFTable('xpel')">XPEL · 10 años</button>
+                    </div>
+                    <div class="ppf-highlights" id="ppfHighlights"></div>
+                    <button type="button" class="ppf-toggle" id="ppfToggle" onclick="togglePPFExtra()">Ver más opciones <span id="ppfToggleIcon">▾</span></button>
+                    <div class="ppf-extra" id="ppfExtra" hidden>
+                        <div style="overflow-x:auto;">
+                            <table class="ppf-table">
+                                <thead><tr><th>Pieza / cobertura</th><th>Precio</th></tr></thead>
+                                <tbody id="ppfTableBody"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Polarizados: mismo patrón visual que PPF, sin tabs de marca porque cada
+             nivel (HD/Spectra/UltraOptic) ya trae su propia marca y garantía fijas. -->
+        <div id="polarizadosCard" style="margin-top:22px;scroll-margin-top:100px;">
+            <div class="ppf-card">
                 <div class="ppf-head">
                     <div>
-                        <span class="card-cat">PPF</span>
-                        <h3 class="card-title" style="font-size:1.4rem;margin-top:6px;">Paint Protection Film (PPF)</h3>
-                        <p class="card-tagline" style="max-width:520px;margin-top:6px;">Película de protección transparente contra rayones, impactos de piedra y agentes ambientales. Elige la marca de film según el nivel de garantía que buscas.</p>
+                        <span class="card-cat">Polarizados</span>
+                        <h3 class="card-title" style="font-size:1.4rem;margin-top:6px;">Polarizado de Vidrios (Nanocerámico)</h3>
+                        <p class="card-tagline" style="max-width:520px;margin-top:6px;"><span class="pain-text" data-service="polarizados">¿Sabes cuánto calor entra a tu carro por no tener buen rechazo de radiación infrarroja?</span></p>
                     </div>
                     <div style="display:flex;gap:10px;flex-wrap:wrap;">
-                        <button class="btn btn-gold" onclick="openLeadForm('Paint Protection Film (PPF)')">Diagnóstico gratis</button>
+                        <button class="btn btn-gold" onclick="openLeadForm('Polarizado de Vidrios (Nanocerámico)')">Diagnóstico gratis</button>
                     </div>
                 </div>
-                <p class="ppf-note">*Valores estimados. Pueden variar según marca, modelo, estado del vehículo y complejidad de instalación — el precio real se confirma con un diagnóstico personalizado.</p>
-                <div class="brand-tabs">
-                    <button class="brand-tab active" data-brand="spectra" onclick="renderPPFTable('spectra')">Spectra · 5 años</button>
-                    <button class="brand-tab" data-brand="avery" onclick="renderPPFTable('avery')">Avery · 7 años</button>
-                    <button class="brand-tab" data-brand="xpel" onclick="renderPPFTable('xpel')">XPEL · 10 años</button>
-                </div>
-                <div style="overflow-x:auto;">
-                    <table class="ppf-table">
-                        <thead><tr><th>Pieza / cobertura</th><th>Precio</th></tr></thead>
-                        <tbody id="ppfTableBody"></tbody>
-                    </table>
+                <div class="ppf-highlights">
+                    <div class="ppf-highlight-card">
+                        <span class="ppf-highlight-name">Nanocerámica HD · Tecnofilm</span>
+                        <span class="ppf-highlight-price">$699.000</span>
+                        <p class="ppf-highlight-desc">Garantía de 8 años. Rechazo de radiación infrarroja (IR) del 80%–87%.</p>
+                    </div>
+                    <div class="ppf-highlight-card">
+                        <span class="ppf-highlight-name">Nanocerámica · Spectra</span>
+                        <span class="ppf-highlight-price">$859.000</span>
+                        <p class="ppf-highlight-desc">Garantía con certificado de la marca por 10 años. Rechazo IR del 89%–94%.</p>
+                    </div>
+                    <div class="ppf-highlight-card">
+                        <span class="ppf-highlight-name">Nanocerámica UltraOptic · Spectra o GoVision</span>
+                        <span class="ppf-highlight-price">$969.000</span>
+                        <p class="ppf-highlight-desc">Garantía de 10 años. Rechazo IR del 95%–99%, con mejor visibilidad en tonos oscuros.</p>
+                    </div>
                 </div>
             </div>
         </div>
@@ -114,15 +159,15 @@
     <div class="wrap">
         <div class="section-head">
             <div>
-                <h2>NO VENDEMOS <span class="accent">SERVICIOS.</span><br>ENTREGAMOS <span class="accent">CONFIANZA.</span></h2>
-                <p>Cada vehículo que pasa por Noxa recibe un diagnóstico honesto antes de cualquier recomendación — solo sugerimos lo que tu auto realmente necesita.</p>
+                <h2>NO LIMPIAMOS<span class="accent"> AUTOS.</span><br>PROTEGEMOS TU <span class="accent">INVERSIÓN.</span></h2>
+                <p>Cada vehículo que pasa por Noxa recibe un diagnóstico honesto antes de cualquier recomendación, solo sugerimos lo que tu auto realmente necesita.</p>
             </div>
         </div>
         <div class="value-grid">
             <div class="value-item">
                 <span class="value-num">01</span>
                 <h3>Diagnóstico gratuito</h3>
-                <p>Antes de cotizar, revisamos el estado real de tu pintura y te decimos qué servicio le conviene a tu auto — sin costo y sin compromiso.</p>
+                <p>Antes de cotizar, revisamos el estado real de tu pintura y te decimos qué servicio le conviene a tu auto, sin costo y sin compromiso.</p>
             </div>
             <div class="value-item">
                 <span class="value-num">02</span>
@@ -132,7 +177,7 @@
             <div class="value-item">
                 <span class="value-num">03</span>
                 <h3>Garantía por escrito</h3>
-                <p>Cada coating y PPF que instalamos queda respaldado por un contrato de garantía — no promesas verbales.</p>
+                <p>Cada coating y PPF que instalamos queda respaldado por un contrato de garantía, no promesas verbales.</p>
             </div>
             <div class="value-item">
                 <span class="value-num">04</span>
@@ -143,43 +188,228 @@
     </div>
 </section>
 
+<!--
+    OPINIONES: reseñas REALES tomadas del perfil de Google Maps de NOXA Car Care
+    (5.0 ★, 68 opiniones en total), en el mismo orden "Más útiles" que muestra
+    Google por defecto. La vista de Maps sin sesión iniciada solo deja cargar
+    estas 8 (no hay manera de traer más ni de forzar que cargue el resto de las
+    68 sin loguearse) — de esas 8, 3 llegan truncadas por Google mismo con "…"
+    y no se pudo abrir el texto completo, así que se dejaron tal cual las
+    corta Google (no se inventó cómo seguían), con link a la reseña en Maps.
+    Si más adelante quieres más de 8, tendrías que copiarlas tú desde tu propio
+    Google Business Profile (ahí sí tienes acceso completo) y las agrego a mano.
+-->
+<section class="section section-dark" id="opiniones">
+    <div class="wrap">
+        <div class="section-head" style="justify-content:center;text-align:center;">
+            <div>
+                <h2>Reseñas <span class="accent">destacadas</span></h2>
+            </div>
+        </div>
+        <div class="reviews-carousel">
+            <button type="button" class="reviews-arrow reviews-arrow-prev" aria-label="Reseña anterior" onclick="scrollReviews(-1)">‹</button>
+            <div class="reviews-track" id="reviewsTrack">
+                <article class="review-card">
+                    <div class="review-head">
+                        <div class="review-avatar" style="background:#5b8def;">J</div>
+                        <div class="review-who">
+                            <strong class="review-name">Jorge Alvarez</strong>
+                            <span class="review-time">Hace 1 mes</span>
+                        </div>
+                        <svg class="review-google-icon" viewBox="0 0 48 48" aria-hidden="true"><path fill="#4285F4" d="M45.12 24.5c0-1.56-.14-3.06-.4-4.5H24v8.51h11.84c-.51 2.75-2.06 5.08-4.39 6.64v5.52h7.11c4.16-3.83 6.56-9.47 6.56-16.17z"/><path fill="#34A853" d="M24 46c5.94 0 10.92-1.97 14.56-5.33l-7.11-5.52c-1.97 1.32-4.49 2.1-7.45 2.1-5.73 0-10.58-3.87-12.31-9.07H4.34v5.7C7.96 41.07 15.4 46 24 46z"/><path fill="#FBBC05" d="M11.69 28.18A13.98 13.98 0 0 1 10.9 24c0-1.45.25-2.86.7-4.18v-5.7H4.34A21.99 21.99 0 0 0 2 24c0 3.55.85 6.91 2.34 9.88z"/><path fill="#EA4335" d="M24 10.75c3.23 0 6.13 1.11 8.41 3.29l6.31-6.31C34.91 4.18 29.93 2 24 2 15.4 2 7.96 6.93 4.34 14.12l7.35 5.7c1.73-5.2 6.58-9.07 12.31-9.07z"/></svg>
+                    </div>
+                    <div class="review-stars" aria-label="5 de 5 estrellas">★★★★★</div>
+                    <p class="review-text">Recomiendo este lugar 100% el profesionalismo para cada detalle la explicación del proceso perfecta. El espacio para poder esperar es un espacio muy agradable y la cordialidad tanto de las personas que te atienden como las personas que… <a href="https://www.google.com/maps/place/NOXA+Car+Care/@4.7148773,-74.0616704,17z/data=!4m8!3m7!1s0x8e3f85eb3007af6f:0x6a861f8597fc299!8m2!3d4.7148773!4d-74.0616704!9m1!1b1!16s%2Fg%2F11xvx7bflc" target="_blank" rel="noopener noreferrer">Ver en Google</a></p>
+                </article>
+                <article class="review-card">
+                    <div class="review-head">
+                        <div class="review-avatar" style="background:#7c5cff;">C</div>
+                        <div class="review-who">
+                            <strong class="review-name">Carlos Castañeda</strong>
+                            <span class="review-time">Hace 3 semanas</span>
+                        </div>
+                        <svg class="review-google-icon" viewBox="0 0 48 48" aria-hidden="true"><path fill="#4285F4" d="M45.12 24.5c0-1.56-.14-3.06-.4-4.5H24v8.51h11.84c-.51 2.75-2.06 5.08-4.39 6.64v5.52h7.11c4.16-3.83 6.56-9.47 6.56-16.17z"/><path fill="#34A853" d="M24 46c5.94 0 10.92-1.97 14.56-5.33l-7.11-5.52c-1.97 1.32-4.49 2.1-7.45 2.1-5.73 0-10.58-3.87-12.31-9.07H4.34v5.7C7.96 41.07 15.4 46 24 46z"/><path fill="#FBBC05" d="M11.69 28.18A13.98 13.98 0 0 1 10.9 24c0-1.45.25-2.86.7-4.18v-5.7H4.34A21.99 21.99 0 0 0 2 24c0 3.55.85 6.91 2.34 9.88z"/><path fill="#EA4335" d="M24 10.75c3.23 0 6.13 1.11 8.41 3.29l6.31-6.31C34.91 4.18 29.93 2 24 2 15.4 2 7.96 6.93 4.34 14.12l7.35 5.7c1.73-5.2 6.58-9.07 12.31-9.07z"/></svg>
+                    </div>
+                    <div class="review-stars" aria-label="5 de 5 estrellas">★★★★★</div>
+                    <p class="review-text">La atención, la calidad y la dedicación en cada trabajo que hacen, marca totalmente la diferencia. Me sentí súper cómodo y muy a gusto con todo el trabajo realizado. Sin duda alguna lo recomiendo.</p>
+                </article>
+                <article class="review-card">
+                    <div class="review-head">
+                        <div class="review-avatar" style="background:#e0662f;">M</div>
+                        <div class="review-who">
+                            <strong class="review-name">Mauricio Solano</strong>
+                            <span class="review-time">Hace 2 meses</span>
+                        </div>
+                        <svg class="review-google-icon" viewBox="0 0 48 48" aria-hidden="true"><path fill="#4285F4" d="M45.12 24.5c0-1.56-.14-3.06-.4-4.5H24v8.51h11.84c-.51 2.75-2.06 5.08-4.39 6.64v5.52h7.11c4.16-3.83 6.56-9.47 6.56-16.17z"/><path fill="#34A853" d="M24 46c5.94 0 10.92-1.97 14.56-5.33l-7.11-5.52c-1.97 1.32-4.49 2.1-7.45 2.1-5.73 0-10.58-3.87-12.31-9.07H4.34v5.7C7.96 41.07 15.4 46 24 46z"/><path fill="#FBBC05" d="M11.69 28.18A13.98 13.98 0 0 1 10.9 24c0-1.45.25-2.86.7-4.18v-5.7H4.34A21.99 21.99 0 0 0 2 24c0 3.55.85 6.91 2.34 9.88z"/><path fill="#EA4335" d="M24 10.75c3.23 0 6.13 1.11 8.41 3.29l6.31-6.31C34.91 4.18 29.93 2 24 2 15.4 2 7.96 6.93 4.34 14.12l7.35 5.7c1.73-5.2 6.58-9.07 12.31-9.07z"/></svg>
+                    </div>
+                    <div class="review-stars" aria-label="5 de 5 estrellas">★★★★★</div>
+                    <p class="review-text">De verdad una experiencia 10/10 en todo sentido. Llegas preocupado porque tu carro no luce como antes, porque se ve opaco o porque descubriste rayones, pero llegas a NOXA y desde el primer momento te asesoran y te dan opciones. La atención… <a href="https://www.google.com/maps/place/NOXA+Car+Care/@4.7148773,-74.0616704,17z/data=!4m8!3m7!1s0x8e3f85eb3007af6f:0x6a861f8597fc299!8m2!3d4.7148773!4d-74.0616704!9m1!1b1!16s%2Fg%2F11xvx7bflc" target="_blank" rel="noopener noreferrer">Ver en Google</a></p>
+                </article>
+                <article class="review-card">
+                    <div class="review-head">
+                        <div class="review-avatar" style="background:#c9723f;">C</div>
+                        <div class="review-who">
+                            <strong class="review-name">Car Quest</strong>
+                            <span class="review-time">Hace 1 mes</span>
+                        </div>
+                        <svg class="review-google-icon" viewBox="0 0 48 48" aria-hidden="true"><path fill="#4285F4" d="M45.12 24.5c0-1.56-.14-3.06-.4-4.5H24v8.51h11.84c-.51 2.75-2.06 5.08-4.39 6.64v5.52h7.11c4.16-3.83 6.56-9.47 6.56-16.17z"/><path fill="#34A853" d="M24 46c5.94 0 10.92-1.97 14.56-5.33l-7.11-5.52c-1.97 1.32-4.49 2.1-7.45 2.1-5.73 0-10.58-3.87-12.31-9.07H4.34v5.7C7.96 41.07 15.4 46 24 46z"/><path fill="#FBBC05" d="M11.69 28.18A13.98 13.98 0 0 1 10.9 24c0-1.45.25-2.86.7-4.18v-5.7H4.34A21.99 21.99 0 0 0 2 24c0 3.55.85 6.91 2.34 9.88z"/><path fill="#EA4335" d="M24 10.75c3.23 0 6.13 1.11 8.41 3.29l6.31-6.31C34.91 4.18 29.93 2 24 2 15.4 2 7.96 6.93 4.34 14.12l7.35 5.7c1.73-5.2 6.58-9.07 12.31-9.07z"/></svg>
+                    </div>
+                    <div class="review-stars" aria-label="5 de 5 estrellas">★★★★★</div>
+                    <p class="review-text">Una experiencia muy agradable, y el carro es en donde mejor me lo han dejado lavado, 100% recomendado.</p>
+                </article>
+                <article class="review-card">
+                    <div class="review-head">
+                        <div class="review-avatar" style="background:#2f9e6e;">D</div>
+                        <div class="review-who">
+                            <strong class="review-name">Duban Felipe Torres Díaz</strong>
+                            <span class="review-time">Hace 2 meses</span>
+                        </div>
+                        <svg class="review-google-icon" viewBox="0 0 48 48" aria-hidden="true"><path fill="#4285F4" d="M45.12 24.5c0-1.56-.14-3.06-.4-4.5H24v8.51h11.84c-.51 2.75-2.06 5.08-4.39 6.64v5.52h7.11c4.16-3.83 6.56-9.47 6.56-16.17z"/><path fill="#34A853" d="M24 46c5.94 0 10.92-1.97 14.56-5.33l-7.11-5.52c-1.97 1.32-4.49 2.1-7.45 2.1-5.73 0-10.58-3.87-12.31-9.07H4.34v5.7C7.96 41.07 15.4 46 24 46z"/><path fill="#FBBC05" d="M11.69 28.18A13.98 13.98 0 0 1 10.9 24c0-1.45.25-2.86.7-4.18v-5.7H4.34A21.99 21.99 0 0 0 2 24c0 3.55.85 6.91 2.34 9.88z"/><path fill="#EA4335" d="M24 10.75c3.23 0 6.13 1.11 8.41 3.29l6.31-6.31C34.91 4.18 29.93 2 24 2 15.4 2 7.96 6.93 4.34 14.12l7.35 5.7c1.73-5.2 6.58-9.07 12.31-9.07z"/></svg>
+                    </div>
+                    <div class="review-stars" aria-label="5 de 5 estrellas">★★★★★</div>
+                    <p class="review-text">Excelente servicio, dejaron mi camioneta como nueva.</p>
+                </article>
+                <article class="review-card">
+                    <div class="review-head">
+                        <div class="review-avatar" style="background:#a15fc7;">M</div>
+                        <div class="review-who">
+                            <strong class="review-name">Mauricio Betancourt</strong>
+                            <span class="review-time">Hace 6 meses</span>
+                        </div>
+                        <svg class="review-google-icon" viewBox="0 0 48 48" aria-hidden="true"><path fill="#4285F4" d="M45.12 24.5c0-1.56-.14-3.06-.4-4.5H24v8.51h11.84c-.51 2.75-2.06 5.08-4.39 6.64v5.52h7.11c4.16-3.83 6.56-9.47 6.56-16.17z"/><path fill="#34A853" d="M24 46c5.94 0 10.92-1.97 14.56-5.33l-7.11-5.52c-1.97 1.32-4.49 2.1-7.45 2.1-5.73 0-10.58-3.87-12.31-9.07H4.34v5.7C7.96 41.07 15.4 46 24 46z"/><path fill="#FBBC05" d="M11.69 28.18A13.98 13.98 0 0 1 10.9 24c0-1.45.25-2.86.7-4.18v-5.7H4.34A21.99 21.99 0 0 0 2 24c0 3.55.85 6.91 2.34 9.88z"/><path fill="#EA4335" d="M24 10.75c3.23 0 6.13 1.11 8.41 3.29l6.31-6.31C34.91 4.18 29.93 2 24 2 15.4 2 7.96 6.93 4.34 14.12l7.35 5.7c1.73-5.2 6.58-9.07 12.31-9.07z"/></svg>
+                    </div>
+                    <div class="review-stars" aria-label="5 de 5 estrellas">★★★★★</div>
+                    <p class="review-text">Nunca llegué a imaginarme que tenían tan excelentes servicios. Mi camioneta salió totalmente transformada, como salida del concesionario. Sobresale la amabilidad, el profesionalismo, la pulcritud del lugar y las comodidades con que cuenta… <a href="https://www.google.com/maps/place/NOXA+Car+Care/@4.7148773,-74.0616704,17z/data=!4m8!3m7!1s0x8e3f85eb3007af6f:0x6a861f8597fc299!8m2!3d4.7148773!4d-74.0616704!9m1!1b1!16s%2Fg%2F11xvx7bflc" target="_blank" rel="noopener noreferrer">Ver en Google</a></p>
+                </article>
+                <article class="review-card">
+                    <div class="review-head">
+                        <div class="review-avatar" style="background:#c94f4f;">D</div>
+                        <div class="review-who">
+                            <strong class="review-name">Diego Alberto Manrique Rodríguez</strong>
+                            <span class="review-time">Hace 8 meses</span>
+                        </div>
+                        <svg class="review-google-icon" viewBox="0 0 48 48" aria-hidden="true"><path fill="#4285F4" d="M45.12 24.5c0-1.56-.14-3.06-.4-4.5H24v8.51h11.84c-.51 2.75-2.06 5.08-4.39 6.64v5.52h7.11c4.16-3.83 6.56-9.47 6.56-16.17z"/><path fill="#34A853" d="M24 46c5.94 0 10.92-1.97 14.56-5.33l-7.11-5.52c-1.97 1.32-4.49 2.1-7.45 2.1-5.73 0-10.58-3.87-12.31-9.07H4.34v5.7C7.96 41.07 15.4 46 24 46z"/><path fill="#FBBC05" d="M11.69 28.18A13.98 13.98 0 0 1 10.9 24c0-1.45.25-2.86.7-4.18v-5.7H4.34A21.99 21.99 0 0 0 2 24c0 3.55.85 6.91 2.34 9.88z"/><path fill="#EA4335" d="M24 10.75c3.23 0 6.13 1.11 8.41 3.29l6.31-6.31C34.91 4.18 29.93 2 24 2 15.4 2 7.96 6.93 4.34 14.12l7.35 5.7c1.73-5.2 6.58-9.07 12.31-9.07z"/></svg>
+                    </div>
+                    <div class="review-stars" aria-label="5 de 5 estrellas">★★★★★</div>
+                    <p class="review-text">Super recomendados, el sitio espectacular con video juegos, pista de cars, simulador de juegos de conducción y tienda. La limpieza y la atención fuera de serie, adicional la camioneta la dejaron impecable con su lavado de motor y chasis.</p>
+                </article>
+                <article class="review-card">
+                    <div class="review-head">
+                        <div class="review-avatar" style="background:#3b7bc4;">A</div>
+                        <div class="review-who">
+                            <strong class="review-name">Andrés Gracia</strong>
+                            <span class="review-time">Hace 8 meses</span>
+                        </div>
+                        <svg class="review-google-icon" viewBox="0 0 48 48" aria-hidden="true"><path fill="#4285F4" d="M45.12 24.5c0-1.56-.14-3.06-.4-4.5H24v8.51h11.84c-.51 2.75-2.06 5.08-4.39 6.64v5.52h7.11c4.16-3.83 6.56-9.47 6.56-16.17z"/><path fill="#34A853" d="M24 46c5.94 0 10.92-1.97 14.56-5.33l-7.11-5.52c-1.97 1.32-4.49 2.1-7.45 2.1-5.73 0-10.58-3.87-12.31-9.07H4.34v5.7C7.96 41.07 15.4 46 24 46z"/><path fill="#FBBC05" d="M11.69 28.18A13.98 13.98 0 0 1 10.9 24c0-1.45.25-2.86.7-4.18v-5.7H4.34A21.99 21.99 0 0 0 2 24c0 3.55.85 6.91 2.34 9.88z"/><path fill="#EA4335" d="M24 10.75c3.23 0 6.13 1.11 8.41 3.29l6.31-6.31C34.91 4.18 29.93 2 24 2 15.4 2 7.96 6.93 4.34 14.12l7.35 5.7c1.73-5.2 6.58-9.07 12.31-9.07z"/></svg>
+                    </div>
+                    <div class="review-stars" aria-label="5 de 5 estrellas">★★★★★</div>
+                    <p class="review-text">Hace tiempo no encontraba un lugar donde no tuviera que preocuparme porque dañaron o rayaran mi auto. La delicadeza y el cuidado que le dieron a mi Seat fue increíble, muchas gracias.</p>
+                </article>
+            </div>
+            <button type="button" class="reviews-arrow reviews-arrow-next" aria-label="Siguiente reseña" onclick="scrollReviews(1)">›</button>
+        </div>
+        <div style="text-align:center;margin-top:32px;">
+            <a href="https://g.page/r/CZnCf1n4YagGEBM/review" target="_blank" rel="noopener noreferrer" class="btn btn-gold">Déjanos tu opinión</a>
+        </div>
+    </div>
+</section>
+
 <section class="section section-dark" id="contacto">
     <div class="wrap">
         <div class="cta-band">
             <div>
-                <h2>¿NO SABES QUÉ <span class="accent">SERVICIO NECESITAS?</span></h2>
-                <p>Cuéntanos marca, modelo y qué le notas al vehículo. Te respondemos con un diagnóstico gratuito y la recomendación honesta.</p>
+                <h2>¿NECESITAS UNA <span class="accent">GUÍA PERSONALIZADA?</span></h2>
+                <p>Cuéntanos marca, modelo y qué le notas al vehículo. Te respondemos con un pre-diagnóstico gratuito y la recomendación honesta.</p>
             </div>
             <button class="btn btn-gold" onclick="openLeadForm('Diagnóstico general')">Solicitar diagnóstico gratis</button>
         </div>
     </div>
 </section>
 
-<footer>
+<section class="section section-soft" id="faq">
     <div class="wrap">
-        <div class="footer-top">
-            <div class="footer-brand">
-                <img src="../noxa%20wh%20no%20bg.png" alt="Noxa Detail">
-            </div>
-            <div class="footer-cols">
-                <div class="footer-col">
-                    <h4>Navegación</h4>
-                    <a href="index.html">Inicio</a>
-                    <a href="#servicios">Servicios</a>
-                    <a href="index.html#nosotros">Nosotros</a>
-                    <a href="index.html#contacto">Contacto</a>
-                </div>
-                <div class="footer-col">
-                    <h4>Contacto</h4>
-                    <a href="https://wa.me/573027928250" target="_blank">WhatsApp</a>
-                    <a href="https://instagram.com/noxa.detail" target="_blank">Instagram</a>
-                    <a href="https://tiktok.com/@noxa.detail" target="_blank">TikTok</a>
-                </div>
+        <div class="section-head">
+            <div>
+                <h2>PREGUNTAS <span class="accent">FRECUENTES</span></h2>
+                <p>Resolvemos las dudas más comunes antes de que agendes. ¿No encuentras la tuya? Déjanosla aquí abajo.</p>
             </div>
         </div>
+
+        <div class="faq-list" id="faqList">
+            <details class="faq-item">
+                <summary><span class="faq-question">¿El diagnóstico realmente no tiene costo?</span><span class="faq-icon" aria-hidden="true">＋</span></summary>
+                <p class="faq-answer">Sí, es 100% gratuito y sin compromiso. Solo cuéntanos marca, modelo y qué le notas al vehículo, y te damos una recomendación honesta.</p>
+            </details>
+            <details class="faq-item">
+                <summary><span class="faq-question">¿Atienden todo tipo de vehículos?</span><span class="faq-icon" aria-hidden="true">＋</span></summary>
+                <p class="faq-answer">Sí: autos, SUVs, camionetas y motos. El tiempo y el valor exacto varían según el tipo y tamaño del vehículo, lo confirmamos en el diagnóstico.</p>
+            </details>
+            <details class="faq-item">
+                <summary><span class="faq-question">¿El PPF o el cerámico dañan la pintura original?</span><span class="faq-icon" aria-hidden="true">＋</span></summary>
+                <p class="faq-answer">No. Ambos son capas de protección que se aplican sobre la pintura de fábrica, no la alteran, la protegen.</p>
+            </details>
+            <details class="faq-item">
+                <summary><span class="faq-question">¿Necesito agendar cita antes de ir?</span><span class="faq-icon" aria-hidden="true">＋</span></summary>
+                <p class="faq-answer">Te recomendamos escribirnos primero por WhatsApp para asegurar un horario y revisar tu auto con calma.</p>
+            </details>
+        </div>
+
+        <div class="faq-ask">
+            <h3>¿Tienes otra pregunta?</h3>
+            <button type="button" class="mariana-teaser" onclick="document.getElementById('marianaLauncher').click()">
+                <span class="mariana-teaser-avatar">M<span class="status-dot" aria-hidden="true"></span></span>
+                <span class="mariana-teaser-bubble">
+                    <span class="mariana-teaser-msg">¡Hola! Soy Mariana 👋 Pregúntame directo, sin formularios.</span>
+                    <span class="mariana-teaser-cta">Escribirle ahora <span aria-hidden="true">→</span></span>
+                </span>
+            </button>
+        </div>
+    </div>
+</section>
+
+<footer>
+    <div class="wrap">
+        <!-- Carrusel decorativo de marcas: solo texto/tipografía (sin logos reales,
+             para no reproducir marcas registradas), duplicado una vez para que el
+             loop de -50% quede perfectamente continuo. Puramente ambiental. -->
+        <div class="brand-marquee" aria-hidden="true">
+            <div class="brand-marquee-track">
+                <span>Mercedes-Benz</span>
+                <span>BMW</span>
+                <span>Audi</span>
+                <span>Porsche</span>
+                <span>Land Rover</span>
+                <span>Volvo</span>
+                <span>Lexus</span>
+                <span>Jaguar</span>
+                <span>MINI</span>
+                <span>Genesis</span>
+                <span>Mercedes-Benz</span>
+                <span>BMW</span>
+                <span>Audi</span>
+                <span>Porsche</span>
+                <span>Land Rover</span>
+                <span>Volvo</span>
+                <span>Lexus</span>
+                <span>Jaguar</span>
+                <span>MINI</span>
+                <span>Genesis</span>
+            </div>
+        </div>
+
         <div class="footer-bottom">
             <span>© 2026 Noxa Detail — Bogotá, Colombia</span>
-            <span class="tag">Mockup v2 · Vista previa interna</span>
+            <div class="footer-social">
+                <a href="https://wa.me/573027928250" target="_blank" rel="noopener noreferrer" aria-label="WhatsApp">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3a9 9 0 0 0-7.75 13.5L3 21l4.6-1.2A9 9 0 1 0 12 3z"/><path d="M8.5 8.5c-.3 1 .1 2.3 1.3 3.7 1.4 1.6 2.7 2.1 3.7 1.8.5-.1.9-.7 1-1.2l-1.7-1-.6.6c-.6-.2-1.3-.7-1.9-1.4-.6-.7-1-1.4-1.1-2l.6-.6-1-1.7c-.5.1-1.1.4-1.3.8z"/></svg>
+                </a>
+                <a href="https://instagram.com/noxa.detail" target="_blank" rel="noopener noreferrer" aria-label="Instagram">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="0.8" fill="currentColor" stroke="none"/></svg>
+                </a>
+                <a href="https://tiktok.com/@noxa.detail" target="_blank" rel="noopener noreferrer" aria-label="TikTok">
+                    <svg viewBox="0 0 24 24" fill="currentColor" stroke="none" aria-hidden="true"><path d="M14.5 3c.3 1.9 1.6 3.4 3.5 3.8v2.6c-1.3 0-2.5-.4-3.5-1.1v6.2a5.1 5.1 0 1 1-4.4-5v2.7a2.4 2.4 0 1 0 1.7 2.3V3h2.7z"/></svg>
+                </a>
+            </div>
         </div>
     </div>
 </footer>
@@ -244,9 +474,11 @@
     </div>
 </div>
 
-<!-- Mariana chat widget (vista previa, sin conexión a IA real) -->
+<!-- Mariana chat widget: un par de turnos guionados en la página, y al dejar
+     nombre + WhatsApp la conversación continúa de verdad por WhatsApp con la
+     misma Mariana (bot con IA) que ya atiende ese canal. -->
 <button class="mariana-launcher" id="marianaLauncher">
-    <span class="avatar">M</span> Habla con Mariana
+    <span class="avatar">M<span class="status-dot" aria-hidden="true"></span></span> Habla con Mariana
 </button>
 <div class="mariana-panel" id="marianaPanel">
     <div class="mariana-head">
@@ -255,13 +487,12 @@
             <b>Mariana</b>
             <span>Asesora virtual · Prediagnóstico</span>
         </div>
-        <span class="mariana-soon">Próximamente</span>
         <button class="mariana-close" id="marianaClose" aria-label="Cerrar chat">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg>
         </button>
     </div>
     <div class="mariana-body" id="marianaBody">
-        <div class="msg msg-bot">¡Hola! Soy Mariana 👋 Muy pronto podré hacerte un prediagnóstico completo aquí mismo. Prueba escribirme algo.</div>
+        <div class="msg msg-bot">¡Hola! Soy Mariana 👋 Cuéntame qué le notas a tu carro y te ayudo a decidir el mejor servicio.</div>
     </div>
     <form class="mariana-foot" id="marianaForm">
         <input type="text" id="marianaInput" placeholder="Escribe tu mensaje..." autocomplete="off">
@@ -271,7 +502,21 @@
     </form>
 </div>
 
-<script src="js/script.js"></script>
+<template id="marianaCaptureTpl">
+    <div class="msg msg-bot mariana-capture">
+        <p class="mariana-capture-intro">Para seguir por WhatsApp con todo el contexto, cuéntame cómo te llamas y tu número:</p>
+        <input type="text" class="mariana-capture-name" placeholder="Tu nombre" autocomplete="name">
+        <input type="tel" class="mariana-capture-phone" placeholder="300 000 0000" autocomplete="tel">
+        <label class="mariana-capture-consent">
+            <input type="checkbox" class="mariana-capture-consent-check">
+            Autorizo que NOXA Detail me contacte por WhatsApp para continuar esta conversación.
+        </label>
+        <button type="button" class="btn btn-gold mariana-capture-submit">Continuar por WhatsApp</button>
+        <p class="mariana-capture-status" hidden></p>
+    </div>
+</template>
+
+<script src="js/script.js?v=32"></script>
 <script>
     initFilters();
     renderPPFTable("spectra");

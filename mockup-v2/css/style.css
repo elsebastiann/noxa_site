@@ -67,7 +67,31 @@ a{ color: inherit; }
 
 .skip-link:focus{ top: 16px; }
 
+/* Brillo dorado que sigue el cursor sobre los paneles de vidrio (secciones oscuras) —
+   toque ambiental de marca, no es una función que el usuario tenga que notar o usar,
+   solo se siente premium. Se inyecta por JS (initCursorGlow en script.js) y solo en
+   dispositivos con mouse real — en táctil no aplica. */
+.cursor-glow{
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 420px;
+    height: 420px;
+    margin-left: -210px;
+    margin-top: -210px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(212,180,108,0.16), rgba(212,180,108,0.05) 45%, transparent 72%);
+    pointer-events: none;
+    z-index: 5;
+    opacity: 0;
+    transition: opacity 0.35s ease;
+    will-change: transform, opacity;
+    mix-blend-mode: screen;
+}
+
 .wrap{
+    position: relative;
+    z-index: 1;
     max-width: var(--maxw);
     margin: 0 auto;
     padding: 0 24px;
@@ -85,11 +109,25 @@ a{ color: inherit; }
     display: flex;
     flex-direction: column;
     padding: 36px 22px 28px;
-    background: var(--glass-bg);
-    border-right: 1px solid var(--glass-border);
-    box-shadow: inset -1px 0 0 var(--glass-edge);
+}
+
+/* Panel de vidrio real y con intención — no un intento de camuflarse con el video.
+   Un nav estructural SIEMPRE debe leerse como su propia capa de material (más oscura/
+   más pesada que el contenido, según la jerarquía de materiales de Apple), nunca como
+   un truco de transparencia persiguiendo lo que hay detrás. La costura no se esconde:
+   se diseña — un borde sutil que atrapa luz (como el canto de un panel de vidrio real)
+   más una sombra profunda que separa el panel del contenido, exactamente como una
+   superficie grande y "gruesa" debe leerse en el lenguaje de materiales de Apple. */
+.sidenav::before{
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    background: var(--glass-bg-strong);
     backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
     -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+    border-right: 1px solid rgba(255,255,255,0.07);
+    box-shadow: 12px 0 32px rgba(0,0,0,0.45);
 }
 
 .sidenav-logo{
@@ -116,6 +154,7 @@ a{ color: inherit; }
     display: flex;
     flex-direction: column;
     justify-content: space-between;
+    text-align: right;
 }
 
 .sidenav-links a{
@@ -156,10 +195,12 @@ a{ color: inherit; }
 }
 
 /* Iniciar sesión: separado del sidebar, fijo arriba a la derecha */
-.top-login{
+/* Selector con más especificidad que ".btn-lens{position:relative}" (que viene
+   después en la hoja de estilos) para que "position:fixed" no se lo pise. */
+a.top-login{
     position: fixed;
     top: 24px;
-    right: 24px;
+    right: 32px;
     z-index: 60;
 }
 
@@ -173,6 +214,7 @@ a{ color: inherit; }
 /* ---------- NAV MÓVIL (barra superior, solo <=860px) ---------- */
 
 .nav-mobile{ display: none; }
+.nav-links-mobile{ display: none; }
 
 @media (max-width: 860px){
     .sidenav{ display: none; }
@@ -219,6 +261,7 @@ a{ color: inherit; }
     .nav-toggle:active{ transform: scale(0.9); }
 
     .nav-links-mobile{
+        display: block;
         list-style: none;
         position: fixed;
         top: 64px;
@@ -275,14 +318,13 @@ a{ color: inherit; }
 .btn:focus-visible,
 .filter-btn:focus-visible,
 .brand-tab:focus-visible,
-.vehicle-select button:focus-visible,
 .modal-close:focus-visible,
 .mariana-launcher:focus-visible,
 .mariana-close:focus-visible,
 .nav-toggle:focus-visible,
 .sidenav-links a:focus-visible,
 .nav-links-mobile a:focus-visible,
-.footer-col a:focus-visible,
+.footer-social a:focus-visible,
 .see-all:focus-visible{
     outline: none;
     box-shadow: 0 0 0 3px rgba(212,180,108,0.45);
@@ -314,6 +356,43 @@ a{ color: inherit; }
     transition: transform 120ms ease-out;
 }
 
+/* Efecto lupa: un clon del MISMO video de fondo, del tamaño exacto del viewport
+   (igual que .hero-video), pero agrandado y desplazado con JS (initBtnLens en
+   script.js) para que el punto que queda detrás del botón se mantenga fijo en su
+   sitio mientras todo a su alrededor se ve a mayor tamaño — el botón (con
+   overflow:hidden) actúa de "ventana" recortada sobre ese clon agrandado.
+   IMPORTANTE: tiene que ser "position: absolute" (no "fixed"). Un descendiente
+   "fixed" IGNORA el overflow:hidden de cualquier ancestro normal (solo lo respeta
+   si un ancestro tiene transform/filter) — por eso el primer intento reventó toda
+   la página: el clon gigante no se recortaba a la ventana del botón, tapaba todo
+   el sitio. Con "absolute" dentro de .btn-lens (position:relative) sí se recorta
+   de verdad. El JS compensa la posición (left/top = -rect del botón) para que,
+   antes de aplicar el zoom, el clon quede alineado con el viewport igual que si
+   fuera fixed. */
+.btn-lens{
+    position: relative;
+    overflow: hidden;
+    border-width: 1px;
+    border-color: rgba(255,255,255,0.28);
+}
+.btn-lens:hover{
+    border-color: rgba(255,255,255,0.4);
+}
+.btn-lens-video{
+    position: absolute;
+    width: 100vw;
+    height: 100vh;
+    object-fit: cover;
+    pointer-events: none;
+    z-index: 0;
+    transform-origin: 0 0;
+    filter: brightness(0.95) saturate(1.25) blur(4px);
+}
+.btn-lens .btn-label{
+    position: relative;
+    z-index: 1;
+}
+
 .btn-block{ width: 100%; }
 .btn-sm{ padding: 10px 18px; font-size: 0.72rem; }
 
@@ -321,33 +400,44 @@ a{ color: inherit; }
 
 .hero{
     position: relative;
-    padding: 150px 0 100px;
-    background: radial-gradient(ellipse at top, #14151a 0%, #050506 65%);
+    padding: 70px 0 24px;
     overflow: hidden;
 }
 
-/* Video de fondo del hero: si no existe o falla, se quita sola y queda el gradiente de siempre */
+/* Video de fondo de TODA la página: fijo detrás de todo, no se mueve con el scroll.
+   Si falla o no existe, se quita sola y queda el color de fondo de siempre (body). */
 .hero-video{
-    position: absolute;
+    position: fixed;
     inset: 0;
-    z-index: 0;
-    width: 100%;
-    height: 100%;
+    z-index: -1;
+    /* "inset:0" solo NO estira un <video> (es un elemento reemplazado, usa su tamaño nativo
+       si no se le dan width/height explícitos). Se usa vw/vh en vez de % para que cubra
+       el viewport completo sin dejar un borde sin cubrir por el ancho del scrollbar. */
+    width: 100vw;
+    height: 100vh;
     object-fit: cover;
     pointer-events: none;
     opacity: 1;
     transition: opacity 400ms ease;
+    /* Un solo filtro parejo, en el ÚNICO elemento de fondo que hay (el video fijo):
+       oscurece todo el site por igual, sin depender de scrims por sección — así
+       nunca hay una costura entre "zonas tratadas distinto", porque solo hay un
+       tratamiento, aplicado una sola vez, en un solo lugar. */
+    filter: brightness(0.62) saturate(1.05);
 }
 
 .hero-video.fade-out{ opacity: 0; }
 
-/* Scrim: oscurece hacia la izquierda (donde va el texto) y deja ver más video a la derecha */
+/* Sin fondo/scrim propio: el hero deja ver el video crudo, igual que la franja
+   fuera del recuadro de Servicios — nada de rectángulos ni tintes detrás. */
 .hero::before{
     content: "";
     position: absolute;
     inset: 0;
     z-index: 1;
-    background: linear-gradient(100deg, rgba(5,5,6,0.95) 0%, rgba(5,5,6,0.85) 35%, rgba(5,5,6,0.45) 70%, rgba(5,5,6,0.25) 100%);
+    background: none;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
     pointer-events: none;
 }
 
@@ -388,19 +478,35 @@ a{ color: inherit; }
 .hero h1 .accent{ color: var(--gold); }
 
 .hero p.lead{
-    margin-top: 24px;
+    margin-top: 18px;
     max-width: 520px;
     color: var(--muted);
     font-size: 1.05rem;
     line-height: 1.65;
+    text-shadow: 0 2px 10px rgba(0,0,0,0.85), 0 1px 3px rgba(0,0,0,0.9);
 }
 
 .hero-actions{
-    margin-top: 40px;
+    margin-top: 28px;
     display: flex;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
     justify-content: flex-start;
     gap: 16px;
+}
+.hero-actions .btn{
+    white-space: nowrap;
+    flex-shrink: 1;
+    min-width: 0;
+}
+
+@media (max-width: 640px){
+    .hero-actions{ gap: 10px; }
+    .hero-actions .btn{ padding: 12px 14px; font-size: 0.7rem; }
+}
+
+@media (max-width: 420px){
+    .hero-actions{ gap: 8px; }
+    .hero-actions .btn{ padding: 10px 10px; font-size: 0.62rem; }
 }
 
 .hero-stats{
@@ -409,9 +515,8 @@ a{ color: inherit; }
     display: flex;
     flex-wrap: wrap;
     gap: 40px;
-    margin-top: 70px;
+    margin-top: 26px;
     padding: 32px 56px 0;
-    border-top: 1px solid var(--border);
 }
 
 @media (max-width: 600px){
@@ -430,11 +535,78 @@ a{ color: inherit; }
     letter-spacing: 0.5px;
 }
 
+.stat-link{
+    text-decoration: none;
+    cursor: pointer;
+}
+.stat-link span{
+    text-decoration: underline;
+    text-decoration-color: transparent;
+    text-underline-offset: 3px;
+    transition: text-decoration-color 0.2s ease, color 0.2s ease;
+}
+.stat-link:hover span{
+    text-decoration-color: var(--muted);
+}
+.stat-link:hover b{ color: #e8ce97; }
+
 /* ---------- SECTION HEADERS ---------- */
 
-.section{ padding: 90px 0; }
-.section-dark{ background: var(--bg); }
-.section-soft{ background: var(--bg-soft); border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
+.section{ padding: 90px 0; position: relative; }
+
+/* TODAS las secciones (Servicios, Nosotros, Contacto) son paneles de vidrio
+   flotantes con esquinas redondeadas — mismo patrón, para que se vean homologadas.
+   ::before queda anulado (sin fondo/blur/sombra): así no hay ningún rectángulo recto
+   pegado a los bordes detrás del recuadro redondeado — solo se ve el video crudo en
+   la franja exterior. ::after es el único vidrio real: un recuadro inset, con blur +
+   saturate (Liquid Glass de verdad, no un panel opaco) y un borde que atrapa luz +
+   sombra de elevación, como el canto físico de un panel de vidrio (apple-design
+   skill, "Materials & depth") — la costura no se esconde, se diseña. */
+.section-dark::before, .section-soft::before{
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: none;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    box-shadow: none;
+    pointer-events: none;
+}
+
+.section-dark::after, .section-soft::after{
+    content: "";
+    position: absolute;
+    inset: 20px 32px;
+    border-radius: 32px;
+    background: var(--glass-bg-strong);
+    backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+    -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+    border: 1px solid rgba(255,255,255,0.14);
+    box-shadow:
+        0 30px 70px rgba(0,0,0,0.55),
+        inset 0 1px 0 rgba(255,255,255,0.16),
+        inset 0 0 80px rgba(255,255,255,0.035);
+    pointer-events: none;
+}
+
+/* El contenido real vive en .wrap (padding: 0 24px), pero el borde del vidrio
+   decorativo de arriba está a 32px (12px en mobile). El padding de .wrap no
+   solo debe alcanzar ese borde — debe pasarlo con margen de sobra (+8px) para
+   que el texto nunca quede pegado al canto de la tarjeta (buena práctica de
+   UI: siempre dejar aire entre el contenido y el borde de su contenedor). */
+.section-dark > .wrap, .section-soft > .wrap{
+    padding-left: 40px;
+    padding-right: 40px;
+}
+
+@media (max-width: 720px){
+    .section-dark::after, .section-soft::after{ inset: 12px 12px; border-radius: 22px; }
+    .section-dark > .wrap, .section-soft > .wrap{
+        padding-left: 20px;
+        padding-right: 20px;
+    }
+}
+
 
 .section-head{
     display: flex;
@@ -587,64 +759,49 @@ a{ color: inherit; }
     line-height: 1.25;
 }
 
+/* En las tarjetas de servicio (no en PPF/Polarizados ni en el modal, que
+   también usan .card-cat/.card-title) el nombre del servicio arriba pesa
+   más que la pregunta rotativa de abajo — al revés que el resto del sitio,
+   a propósito. */
+.card .card-cat{
+    font-size: 0.85rem;
+    font-weight: 800;
+}
+
+.card .card-title{
+    font-size: 0.96rem;
+    font-weight: 400;
+    line-height: 1.35;
+}
+
+/* Rotación de preguntas: slide horizontal, siempre en la misma dirección
+   (sale a la izquierda, entra por la derecha). ".in" no tiene transición a
+   propósito — coloca el texto nuevo ya afuera a la derecha instantáneamente;
+   el JS fuerza un reflow y recién ahí quita la clase, así el navegador anima
+   ESE regreso al centro con la transición normal ya activa. */
+.pain-text{
+    display: inline-block;
+    transition: opacity 400ms ease, transform 400ms ease;
+}
+.pain-text.out{
+    opacity: 0;
+    transform: translateX(-18px);
+}
+.pain-text.in{
+    transition: none;
+    opacity: 0;
+    transform: translateX(18px);
+}
+@media (prefers-reduced-motion: reduce){
+    .pain-text{ transition: opacity 200ms ease; }
+    .pain-text.out, .pain-text.in{ transform: none; }
+}
+
 .card-tagline{
     font-size: 0.83rem;
     color: var(--muted);
     line-height: 1.5;
     flex: 1;
-}
-
-.vehicle-select{
-    display: flex;
-    gap: 6px;
-    flex-wrap: wrap;
-}
-
-.vehicle-select button{
-    flex: 1;
-    min-width: 54px;
-    min-height: 44px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: rgba(255,255,255,0.03);
-    border: 1px solid var(--border);
-    color: var(--muted);
-    font-size: 0.68rem;
-    font-weight: 700;
-    letter-spacing: 0.5px;
-    padding: 7px 4px;
-    border-radius: 6px;
-    cursor: pointer;
-    transition: all 0.2s ease;
-}
-
-.vehicle-select button.active{
-    border-color: var(--gold);
-    color: var(--gold);
-    background: rgba(212,180,108,0.08);
-}
-
-.vehicle-select button:active{ transform: scale(0.97); }
-
-.card-price-row{
-    display: flex;
-    align-items: baseline;
-    justify-content: space-between;
-    margin-top: 4px;
-}
-
-.card-price-row .label{
-    font-size: 0.66rem;
-    color: var(--muted);
-    letter-spacing: 0.5px;
-    text-transform: uppercase;
-}
-
-.card-price{
-    font-size: 1.3rem;
-    font-weight: 800;
-    color: var(--text);
 }
 
 .card-actions{
@@ -692,8 +849,16 @@ a{ color: inherit; }
 
 .value-grid{
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    grid-template-columns: repeat(4, 1fr);
     gap: 30px;
+}
+
+@media (max-width: 720px){
+    .value-grid{ grid-template-columns: repeat(2, 1fr); gap: 24px; }
+}
+
+@media (max-width: 480px){
+    .value-grid{ grid-template-columns: 1fr; }
 }
 
 .value-item{
@@ -723,13 +888,108 @@ a{ color: inherit; }
     line-height: 1.6;
 }
 
+/* ---------- OPINIONES (reseñas de Google) ---------- */
+
+.reviews-carousel{
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-top: 44px;
+}
+
+.reviews-track{
+    display: flex;
+    gap: 20px;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    scroll-behavior: smooth;
+    padding: 4px 2px 12px;
+    /* Oculta la barra de scroll nativa (el scroll sigue funcionando con touch/arrastre) */
+    scrollbar-width: none;
+}
+.reviews-track::-webkit-scrollbar{ display: none; }
+
+.review-card{
+    flex: 0 0 300px;
+    scroll-snap-align: start;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 22px;
+}
+
+.review-head{
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 12px;
+}
+
+.review-avatar{
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    font-weight: 800;
+    flex-shrink: 0;
+}
+
+.review-who{ flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.review-name{ font-size: 0.92rem; }
+.review-time{ font-size: 0.75rem; color: var(--muted); }
+
+.review-google-icon{ width: 20px; height: 20px; flex-shrink: 0; }
+
+.review-stars{
+    color: var(--gold);
+    letter-spacing: 2px;
+    margin-bottom: 10px;
+}
+
+.review-text{
+    color: var(--muted);
+    font-size: 0.9rem;
+    line-height: 1.6;
+}
+.review-text a{
+    color: var(--gold);
+    text-decoration: none;
+    white-space: nowrap;
+}
+.review-text a:hover{ text-decoration: underline; }
+
+.reviews-arrow{
+    flex-shrink: 0;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    border: 1px solid var(--border);
+    background: rgba(255,255,255,0.03);
+    color: var(--text);
+    font-size: 1.4rem;
+    line-height: 1;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: border-color 0.2s ease, color 0.2s ease;
+}
+.reviews-arrow:hover{
+    border-color: var(--gold);
+    color: var(--gold);
+}
+
+@media (max-width: 720px){
+    .review-card{ flex-basis: 260px; }
+}
+
 /* ---------- CTA BAND ---------- */
 
 .cta-band{
-    background: linear-gradient(135deg, #14151a, #050506);
-    border: 1px solid var(--border);
-    border-radius: 16px;
-    padding: 56px;
+    padding: 56px 0;
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -763,6 +1023,14 @@ a{ color: inherit; }
     border: 1px solid var(--border);
     border-radius: var(--radius);
     padding: 32px;
+    display: flex;
+    gap: 28px;
+    align-items: stretch;
+}
+
+.ppf-content{
+    flex: 1;
+    min-width: 0;
 }
 
 .ppf-head{
@@ -772,6 +1040,22 @@ a{ color: inherit; }
     gap: 20px;
     flex-wrap: wrap;
     margin-bottom: 24px;
+}
+
+/* Reusa .card-media (mismo look, mismo poster+hover-preview de las tarjetas
+   chicas): franja vertical a la izquierda de toda la tarjeta, porque el video
+   de PPF es vertical (720x1280) — un thumbnail horizontal lo recortaba mal. */
+.ppf-video-preview{
+    width: 170px;
+    height: auto; /* pisa el height:150px fijo de .card-media para que sí estire con el flex */
+    flex-shrink: 0;
+    border-radius: 12px;
+    overflow: hidden;
+}
+
+@media (max-width: 720px){
+    .ppf-card{ flex-direction: column; }
+    .ppf-video-preview{ width: 100%; height: 220px; }
 }
 
 .brand-tabs{
@@ -842,6 +1126,69 @@ table.ppf-table .ppf-quote-hint{ color: var(--gold); font-style: italic; }
     margin-top: 14px;
     margin-bottom: 20px;
     font-style: italic;
+}
+
+/* ---------- PPF: 3 coberturas destacadas + resto colapsado ---------- */
+
+.ppf-highlights{
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+    margin-bottom: 20px;
+}
+
+.ppf-highlight-card{
+    background: rgba(255,255,255,0.03);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px;
+    transition: border-color 0.2s ease;
+}
+.ppf-highlight-card:hover{ border-color: rgba(212,180,108,0.5); }
+
+.ppf-highlight-name{
+    display: block;
+    font-size: 0.78rem;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    color: var(--muted);
+    text-transform: uppercase;
+    margin-bottom: 8px;
+}
+
+.ppf-highlight-price{
+    display: block;
+    font-size: 1.4rem;
+    font-weight: 800;
+    color: var(--gold);
+    margin-bottom: 10px;
+}
+
+.ppf-highlight-desc{
+    color: var(--muted);
+    font-size: 0.78rem;
+    line-height: 1.5;
+}
+
+.ppf-toggle{
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: none;
+    border: none;
+    color: var(--gold);
+    font-size: 0.82rem;
+    font-weight: 700;
+    cursor: pointer;
+    padding: 8px 0;
+    min-height: 44px;
+}
+.ppf-toggle:hover{ text-decoration: underline; }
+
+.ppf-extra{ margin-top: 8px; }
+
+@media (max-width: 720px){
+    .ppf-highlights{ grid-template-columns: 1fr; }
 }
 
 /* ---------- MODAL ---------- */
@@ -1059,63 +1406,289 @@ table.ppf-table .ppf-quote-hint{ color: var(--gold); font-style: italic; }
     line-height: 1.5;
 }
 
+/* ---------- FAQ ---------- */
+
+.faq-list{
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    max-width: 760px;
+}
+
+.faq-item{
+    background: rgba(255,255,255,0.03);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 4px 20px;
+}
+
+.faq-item[open]{ background: rgba(255,255,255,0.05); }
+
+.faq-item summary{
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 16px 0;
+    cursor: pointer;
+    list-style: none;
+}
+
+.faq-item summary::-webkit-details-marker{ display: none; }
+
+.faq-question{
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: var(--text);
+}
+
+.faq-icon{
+    flex-shrink: 0;
+    color: var(--gold);
+    font-size: 1.2rem;
+    line-height: 1;
+    transition: transform 0.25s ease;
+}
+
+.faq-item[open] .faq-icon{ transform: rotate(45deg); }
+
+.faq-answer{
+    font-size: 0.86rem;
+    color: var(--muted);
+    line-height: 1.6;
+    padding: 0 0 18px;
+}
+
+.faq-ask{
+    max-width: 640px;
+    margin-top: 40px;
+    padding-top: 32px;
+    border-top: 1px solid var(--border);
+}
+
+.faq-ask h3{
+    font-size: 1.15rem;
+    font-weight: 800;
+    margin-bottom: 18px;
+}
+
+/* Burbuja de chat clicable en vez de repetir el mismo botón dorado
+   "Diagnóstico gratis" que ya aparece por toda la página — usa el mismo
+   lenguaje visual del launcher de Mariana (avatar + punto de estado) para
+   que se lea como la MISMA Mariana invitando a escribirle, no como un CTA
+   genérico duplicado. */
+.mariana-teaser{
+    display: inline-flex;
+    align-items: flex-end;
+    gap: 12px;
+    max-width: 420px;
+    background: none;
+    border: none;
+    padding: 0;
+    cursor: pointer;
+    text-align: left;
+    font-family: inherit;
+}
+
+.mariana-teaser-avatar{
+    position: relative;
+    flex-shrink: 0;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 32% 28%, #2a2a2a, #0a0a0a 70%);
+    color: var(--gold);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 800;
+    font-size: 1rem;
+    box-shadow: inset 0 0 0 1px rgba(212,180,108,0.4);
+}
+
+.mariana-teaser-avatar .status-dot{
+    position: absolute;
+    bottom: 0;
+    right: 0;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: #3ddc72;
+    border: 2px solid var(--bg);
+    animation: marianaStatusPulse 2.4s ease-in-out infinite;
+}
+
+.mariana-teaser-bubble{
+    position: relative;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid var(--border);
+    border-radius: 4px 18px 18px 18px;
+    padding: 14px 18px;
+    transition: border-color 0.25s ease, background 0.25s ease, transform 0.25s cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+.mariana-teaser-bubble::before{
+    content: "";
+    position: absolute;
+    left: -6px;
+    bottom: 10px;
+    width: 12px;
+    height: 12px;
+    background: inherit;
+    border-left: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+    border-radius: 0 0 0 4px;
+    transform: rotate(45deg);
+}
+
+.mariana-teaser-msg{
+    display: block;
+    font-size: 0.86rem;
+    color: var(--text);
+    line-height: 1.5;
+}
+
+.mariana-teaser-cta{
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 10px;
+    font-size: 0.72rem;
+    font-weight: 800;
+    letter-spacing: 0.4px;
+    text-transform: uppercase;
+    color: var(--gold);
+}
+
+.mariana-teaser:hover .mariana-teaser-bubble{
+    border-color: rgba(212,180,108,0.5);
+    background: rgba(255,255,255,0.07);
+    transform: translateY(-2px);
+}
+
+.mariana-teaser:active .mariana-teaser-bubble{
+    transform: scale(0.98);
+    transition: transform 120ms ease-out;
+}
+
+@media (prefers-reduced-motion: reduce){
+    .faq-icon{ transition: none; }
+    .mariana-teaser-avatar .status-dot{ animation: none; }
+}
+
 /* ---------- FOOTER ---------- */
 
 footer{
-    border-top: 1px solid var(--border);
-    padding: 50px 0 30px;
-    background: var(--bg-soft);
+    position: relative;
+    padding: 40px 0 30px;
 }
 
-.footer-top{
+/* En mobile el launcher fijo de Mariana (bottom:26px, ~58px de alto) es casi
+   tan ancho como la pantalla, así que centrar el contenido del footer ya no
+   alcanza para esquivarlo — al hacer scroll hasta el final queda tapado por
+   detrás. Se le da al footer aire de sobra abajo para que su contenido
+   siempre termine por encima del launcher. */
+@media (max-width: 720px){
+    footer{ padding-bottom: 120px; }
+}
+
+footer::before{
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    border-top: 1px solid var(--glass-border);
+    background: var(--glass-bg-strong);
+    backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+    -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+}
+
+/* Carrusel de marcas: loop continuo (la pista duplica la lista una vez y se
+   traslada -50%, así el punto de reinicio queda invisible). Se pausa en
+   hover y se apaga con "reduced motion" — es puro ambiente, no información
+   esencial, así que va marcado aria-hidden en el HTML. */
+.brand-marquee{
+    position: relative;
+    overflow: hidden;
+    margin-bottom: 32px;
+    mask-image: linear-gradient(90deg, transparent, #000 10%, #000 90%, transparent);
+    -webkit-mask-image: linear-gradient(90deg, transparent, #000 10%, #000 90%, transparent);
+}
+
+.brand-marquee-track{
     display: flex;
-    justify-content: space-between;
-    gap: 40px;
-    flex-wrap: wrap;
-    margin-bottom: 34px;
+    width: max-content;
+    gap: 56px;
+    animation: brandMarquee 34s linear infinite;
 }
 
-.footer-brand{ display: flex; align-items: center; gap: 10px; }
-.footer-brand img{ height: 34px; width: auto; }
-
-.footer-cols{
-    display: flex;
-    gap: 60px;
-    flex-wrap: wrap;
-}
-
-.footer-col h4{
-    font-size: 0.72rem;
-    letter-spacing: 1px;
+.brand-marquee-track span{
+    flex-shrink: 0;
+    font-size: 0.78rem;
+    font-weight: 700;
+    letter-spacing: 2px;
     text-transform: uppercase;
-    color: var(--gold);
-    margin-bottom: 14px;
-}
-
-.footer-col a{
-    display: block;
     color: var(--muted);
-    text-decoration: none;
-    font-size: 0.85rem;
-    margin-bottom: 10px;
+    opacity: 0.65;
+    white-space: nowrap;
 }
-.footer-col a:hover{ color: var(--text); }
 
+.brand-marquee:hover .brand-marquee-track{ animation-play-state: paused; }
+
+@keyframes brandMarquee{
+    from{ transform: translateX(0); }
+    to{ transform: translateX(-50%); }
+}
+
+/* Centrado (no space-between) a propósito: con los iconos pegados al borde
+   derecho quedaban tapados por el launcher fijo de Mariana en esa esquina. */
 .footer-bottom{
     border-top: 1px solid var(--border);
     padding-top: 22px;
     display: flex;
-    justify-content: space-between;
-    flex-wrap: wrap;
-    gap: 10px;
-    font-size: 0.72rem;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+    font-size: 0.78rem;
     color: var(--muted);
+    text-align: center;
 }
 
-.footer-bottom .tag{
+.footer-social{
+    display: flex;
+    gap: 10px;
+}
+
+.footer-social a{
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 38px;
+    height: 38px;
+    flex-shrink: 0;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid var(--border);
+    color: var(--muted);
+    transition: color 0.25s ease, border-color 0.25s ease, background 0.25s ease, transform 0.25s cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+.footer-social a svg{ width: 18px; height: 18px; }
+
+.footer-social a:hover{
     color: var(--gold);
-    font-weight: 700;
-    letter-spacing: 0.5px;
+    border-color: rgba(212,180,108,0.5);
+    background: rgba(212,180,108,0.08);
+    transform: translateY(-3px);
+}
+
+.footer-social a:active{
+    transform: scale(0.94);
+    transition: transform 120ms ease-out;
+}
+
+@media (prefers-reduced-motion: reduce){
+    .brand-marquee-track{ animation: none; flex-wrap: wrap; width: auto; }
 }
 
 /* ---------- MARIANA CHAT WIDGET ---------- */
@@ -1123,12 +1696,12 @@ footer{
 .mariana-launcher{
     position: fixed;
     bottom: 26px;
-    right: 26px;
+    right: 32px;
     z-index: 300;
     display: flex;
     align-items: center;
     gap: 10px;
-    background: var(--gold);
+    background: linear-gradient(135deg, #e9d29c, var(--gold) 55%, #c7a35f);
     color: #0a0a0a;
     border: none;
     border-radius: 999px;
@@ -1137,31 +1710,75 @@ footer{
     font-size: 0.82rem;
     cursor: pointer;
     box-shadow: 0 8px 30px rgba(212,180,108,0.35);
-    transition: transform 0.25s ease;
+    transition: transform 0.25s cubic-bezier(0.23, 1, 0.32, 1), box-shadow 0.25s ease;
 }
-.mariana-launcher:hover{ transform: translateY(-3px); }
+.mariana-launcher:hover{
+    transform: translateY(-3px);
+    box-shadow: 0 12px 38px rgba(212,180,108,0.5);
+}
 .mariana-launcher:active{
     transform: scale(0.97);
     transition: transform 120ms ease-out;
 }
 
+/* Anillo de atención: pulso continuo alrededor del botón. */
+.mariana-launcher::before{
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    border: 1.5px solid var(--gold);
+    opacity: 0;
+    pointer-events: none;
+    animation: marianaAttention 2.2s cubic-bezier(0.23, 1, 0.32, 1) infinite;
+}
+
+@keyframes marianaAttention{
+    0%{ transform: scale(1); opacity: 0.6; }
+    100%{ transform: scale(1.22); opacity: 0; }
+}
+
 .mariana-launcher .avatar{
+    position: relative;
     width: 30px;
     height: 30px;
     border-radius: 50%;
-    background: #0a0a0a;
+    background: radial-gradient(circle at 32% 28%, #2a2a2a, #0a0a0a 70%);
     color: var(--gold);
     display: flex;
     align-items: center;
     justify-content: center;
     font-weight: 800;
     font-size: 0.9rem;
+    box-shadow: inset 0 0 0 1px rgba(212,180,108,0.4);
+}
+
+.mariana-launcher .avatar .status-dot{
+    position: absolute;
+    bottom: -1px;
+    right: -1px;
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    background: #3ddc72;
+    border: 2px solid var(--gold);
+    animation: marianaStatusPulse 2.4s ease-in-out infinite;
+}
+
+@keyframes marianaStatusPulse{
+    0%, 100%{ transform: scale(1); }
+    50%{ transform: scale(1.2); }
+}
+
+@media (prefers-reduced-motion: reduce){
+    .mariana-launcher::before{ animation: none; opacity: 0; }
+    .mariana-launcher .avatar .status-dot{ animation: none; }
 }
 
 .mariana-panel{
     position: fixed;
     bottom: 26px;
-    right: 26px;
+    right: 32px;
     z-index: 300;
     width: 340px;
     max-width: calc(100vw - 32px);
@@ -1192,6 +1809,7 @@ footer{
 .mariana-head .avatar{
     width: 38px;
     height: 38px;
+    flex-shrink: 0;
     border-radius: 50%;
     background: var(--gold);
     color: #0a0a0a;
@@ -1204,17 +1822,6 @@ footer{
 .mariana-head .who{ flex: 1; }
 .mariana-head .who b{ display: block; font-size: 0.88rem; }
 .mariana-head .who span{ font-size: 0.68rem; color: var(--muted); }
-
-.mariana-soon{
-    font-size: 0.6rem;
-    font-weight: 800;
-    letter-spacing: 0.5px;
-    text-transform: uppercase;
-    color: var(--gold);
-    border: 1px solid rgba(212,180,108,0.4);
-    padding: 3px 8px;
-    border-radius: 999px;
-}
 
 .mariana-close{
     width: 44px;
@@ -1254,6 +1861,56 @@ footer{
     background: rgba(255,255,255,0.05);
     border-bottom-left-radius: 4px;
 }
+
+.mariana-capture{
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    max-width: 92%;
+}
+
+.mariana-capture-intro{ margin: 0; }
+
+.mariana-capture-name,
+.mariana-capture-phone{
+    background: rgba(255,255,255,0.06);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 12px;
+    color: var(--text);
+    font-size: 0.82rem;
+    font-family: inherit;
+    min-height: 44px;
+}
+
+.mariana-capture-name:focus,
+.mariana-capture-phone:focus{
+    outline: none;
+    border-color: var(--gold);
+    box-shadow: 0 0 0 3px rgba(212,180,108,0.35);
+}
+
+.mariana-capture-consent{
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    font-size: 0.72rem;
+    color: var(--muted);
+    line-height: 1.4;
+    cursor: pointer;
+}
+
+.mariana-capture-consent input{
+    margin-top: 2px;
+    min-width: 18px;
+    min-height: 18px;
+}
+
+.mariana-capture-submit{ min-height: 44px; }
+
+.mariana-capture-status{ margin: 0; font-size: 0.76rem; }
+.mariana-capture-status-error{ color: #ff6b6b; }
+.mariana-capture-status-success{ color: var(--gold); font-weight: 600; }
 
 .msg-user{
     align-self: flex-end;
@@ -1312,7 +1969,7 @@ footer{
 .hidden{ display: none !important; }
 
 @media (max-width: 720px){
-    .cta-band{ flex-direction: column; align-items: flex-start; padding: 36px 26px; }
-    .hero{ padding: 130px 0 70px; }
+    .cta-band{ flex-direction: column; align-items: flex-start; padding: 36px 0; }
+    .hero{ padding: 60px 0 40px; }
     .section{ padding: 64px 0; }
 }

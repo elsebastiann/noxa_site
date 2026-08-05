@@ -4,6 +4,12 @@
 
 const WHATSAPP_NUMBER = "573027928250";
 
+// Citas registradas antes de que app.noxadetail.com entrara en producción
+// (primeros 3 meses del local, llevadas a mano) — se suman al conteo real
+// de la API para que el KPI del hero no arranque de cero.
+const CLIENT_COUNT_OFFSET = 300;
+const STATS_API_URL = "https://app.noxadetail.com/api/public/stats/appointments-count";
+
 const VEHICLE_LABELS = { auto: "Auto", suv: "SUV", camioneta: "Camioneta", moto: "Moto" };
 
 const SERVICES = [
@@ -11,7 +17,11 @@ const SERVICES = [
         id: "coating-7h",
         category: "Protección Cerámica",
         name: "Coating Cerámico de Grafeno 7H+",
-        tagline: "Brillo profundo y protección de grado profesional, con garantía por contrato de 3 años.",
+        taglines: [
+            "¿Sabes cuántos microrayones nuevos te deja cada lavada en un lugar cualquiera?",
+            "¿Confías en que tu pintura de fábrica aguante el sol y el esmog sin protección?",
+            "¿Ya notaste que tu carro no brilla igual que el día que lo compraste?"
+        ],
         warranty: "Garantía de 3 años",
         glyph: "◆",
         bullets: [
@@ -29,7 +39,11 @@ const SERVICES = [
         id: "coating-9h",
         category: "Protección Cerámica",
         name: "Coating Cerámico SiO2 + Grafeno 9H",
-        tagline: "Máxima dureza y resistencia disponible, con garantía por contrato de 5 años.",
+        taglines: [
+            "¿Sabes cuántos micro-rayones acumula tu pintura cada año sin la protección más resistente?",
+            "¿Sabes que si se daña la pintura original, la única solución real es repintar?",
+            "¿Vale la pena arriesgar la pintura de fábrica por ahorrarte la protección más resistente?"
+        ],
         warranty: "Garantía de 5 años",
         glyph: "◆",
         badge: "Top de línea",
@@ -49,7 +63,11 @@ const SERVICES = [
         id: "wash-shine",
         category: "Lavado & Mantenimiento",
         name: "Wash Shine",
-        tagline: "Nuestro lavado premium: protege, sella y deja un brillo notorio.",
+        taglines: [
+            "¿Sabías que un lavado mal hecho raya más tu pintura que el mismo polvo de la calle?",
+            "¿Sabes si usan la misma esponja del carro anterior, sin importar qué tan sucio estaba?",
+            "¿Notas que el agua se queda pegada a tu pintura en vez de resbalar y secarse sola?"
+        ],
         badge: "★ El más popular",
         glyph: "✦",
         bullets: [
@@ -64,7 +82,11 @@ const SERVICES = [
         id: "wash-essential",
         category: "Lavado & Mantenimiento",
         name: "Wash Essential",
-        tagline: "El lavado esencial para mantener tu vehículo impecable.",
+        taglines: [
+            "¿Cuántos días lleva tu carro acumulando polvo sin un lavado de verdad?",
+            "¿Sabías que la suciedad seca sobre la pintura actúa como lija cada vez que la tocas?",
+            "¿Tu carro todavía luce como el día que lo compraste, o ya perdió ese brillo?"
+        ],
         glyph: "✦",
         bullets: [
             "Doble shampoo pH neutro",
@@ -77,7 +99,11 @@ const SERVICES = [
         id: "wash-chasis",
         category: "Lavado & Mantenimiento",
         name: "Wash Chasis",
-        tagline: "Limpieza profunda del chasis, ideal tras viajes largos o lluvia.",
+        taglines: [
+            "¿Sabes cuánto barro y sal se han acumulado bajo tu carro sin que los veas?",
+            "¿Qué pasa si la humedad atrapada en el chasis ya empezó a oxidar la estructura?",
+            "¿Cuándo fue la última vez que lavaron lo que hay debajo de tu carro, no solo la carrocería?"
+        ],
         glyph: "✦",
         bullets: [
             "Eliminación de barro, grasa, polvo y contaminantes acumulados",
@@ -91,7 +117,11 @@ const SERVICES = [
         id: "detallado-ext",
         category: "Detallado",
         name: "Detallado Exterior",
-        tagline: "Detalle minucioso de cada rincón exterior del vehículo.",
+        taglines: [
+            "¿Sabes qué tan sucias están las juntas y rejillas que no alcanzas a ver?",
+            "¿Ya revisaste cómo están los emblemas y las uniones de tu carro?",
+            "¿Cuándo fue la última vez que revisaron la suciedad escondida en cada rincón?"
+        ],
         glyph: "●",
         bullets: [
             "Doble shampoo pH neutro",
@@ -106,7 +136,11 @@ const SERVICES = [
         id: "detallado-int",
         category: "Detallado",
         name: "Detallado Interior",
-        tagline: "Limpieza profunda de cada superficie del habitáculo.",
+        taglines: [
+            "¿Sabes qué tan sucio es el aire que respiras cada vez que prendes el aire acondicionado?",
+            "¿Notas un olor raro apenas subes al carro que no se va por más que lo ventiles?",
+            "¿Sabes cuántas manchas esconde tu tapicería que un aspirado normal no quita?"
+        ],
         glyph: "●",
         bullets: [
             "Limpieza profunda de tablero, puertas, consola, plásticos y superficies internas",
@@ -120,7 +154,11 @@ const SERVICES = [
         id: "detallado-llanta",
         category: "Detallado",
         name: "Detallado Llanta a Llanta",
-        tagline: "Desmontaje y detalle completo de cada rueda.",
+        taglines: [
+            "¿Sabías que el polvo de freno corroe tus rines poco a poco sin que lo notes?",
+            "¿Cuándo fue la última vez que lavaron tus rines por dentro, no solo por fuera?",
+            "¿Sabes qué tan sucios están los calipers y tornillería que solo ves al quitar la llanta?"
+        ],
         glyph: "●",
         bullets: [
             "Desmontaje completo de las cuatro ruedas",
@@ -134,7 +172,11 @@ const SERVICES = [
         id: "wash-motor",
         category: "Detallado",
         name: "Detallado de Motor",
-        tagline: "Limpieza segura del compartimiento del motor con vapor.",
+        taglines: [
+            "¿Sabías que la bahía del motor se debe lavar cada 6 meses para evitar corrosión?",
+            "¿Cuándo fue la última vez que viste el motor de tu carro realmente limpio?",
+            "¿Confiarías en detectar una fuga a tiempo con el motor cubierto de grasa?"
+        ],
         glyph: "●",
         bullets: [
             "Limpieza detallada del compartimiento del motor",
@@ -149,7 +191,11 @@ const SERVICES = [
         id: "polichado",
         category: "Corrección & Brillo",
         name: "Polichado",
-        tagline: "Corrección one-step de micro rayones y manchas.",
+        taglines: [
+            "¿Notas que tu pintura se ve opaca aunque el carro esté recién lavado?",
+            "¿Sabes cuántos microrayones tiene tu pintura de tantos lavados sin cuidado?",
+            "¿Cuándo fue la última vez que tu carro brilló como el primer día?"
+        ],
         glyph: "▲",
         bullets: [
             "Polichado one-step que corrige micro rayones y manchas hasta en un 60%",
@@ -164,7 +210,11 @@ const SERVICES = [
         id: "wrap",
         category: "Corrección & Brillo",
         name: "Corrección de Wrap",
-        tagline: "Recupera el color y brillo de tu vinilo.",
+        taglines: [
+            "¿Tu wrap ya perdió el color y el brillo que tenía recién instalado?",
+            "¿Vale la pena que esa inversión se vea opaca por falta de mantenimiento?",
+            "¿Notas marcas o rayones leves en tu vinilo que antes no estaban?"
+        ],
         glyph: "▲",
         bullets: [
             "Corrección visual de marcas leves, opacidad y swirls",
@@ -181,12 +231,16 @@ const SERVICES = [
         id: "porcelanizado",
         category: "Corrección & Brillo",
         name: "Porcelanizado",
-        tagline: "Pulido profundo a 4 pasos, la máxima corrección disponible.",
+        taglines: [
+            "¿Tu pintura ya tiene tantos rayones que un polichado normal no alcanza a corregir?",
+            "¿Sabes que repintar cuesta mucho más que corregir la pintura a tiempo?",
+            "¿Hasta cuándo vas a resignarte a que tu carro se vea así?"
+        ],
         glyph: "▲",
         badge: "Máxima corrección",
         bullets: [
             "Matizado completo para nivelar el barniz",
-            "Policharo para eliminar microrayones y manchas hasta en un 90%",
+            "Polichado para eliminar microrayones y manchas hasta en un 90%",
             "Realce del color y brillo",
             "Doble shampoo pH neutro",
             "Aspirado profundo",
@@ -197,7 +251,22 @@ const SERVICES = [
     }
 ];
 
-const CATEGORY_ORDER = ["Protección Cerámica", "Corrección & Brillo", "Detallado", "Lavado & Mantenimiento", "PPF"];
+const CATEGORY_ORDER = ["Protección Cerámica", "PPF", "Polarizados", "Corrección & Brillo", "Detallado", "Lavado & Mantenimiento"];
+
+// Preguntas rotativas para las tarjetas de categoría (PPF y Polarizados), que no
+// viven en SERVICES porque no son un servicio individual sino un grupo de opciones.
+const EXTRA_TAGLINES = {
+    ppf: [
+        "¿Sabes cuántas piedras golpean tu bomper y capó en cada viaje por carretera?",
+        "¿Confías en que tu pintura aguante un rayón de llave sin dejar marca?",
+        "¿Sabes que un golpe de piedra sin PPF deja una marca que el pulido no puede quitar?"
+    ],
+    polarizados: [
+        "¿Sabes cuánto calor entra a tu carro por no tener buen rechazo de radiación infrarroja?",
+        "¿Notas que tu tapicería y tablero se decoloran por el sol que entra sin filtro?",
+        "¿Confías en que tus vidrios actuales realmente bloquean los rayos UV?"
+    ]
+};
 
 function formatCOP(n){
     return "$" + n.toLocaleString("es-CO");
@@ -209,23 +278,13 @@ function vehicleTypesFor(service){
 
 /* ---------------- CARD RENDER ---------------- */
 
-const cardState = {};
-
 function serviceCardHTML(service){
-    const types = vehicleTypesFor(service);
-    if(!cardState[service.id]) cardState[service.id] = types[0];
-    const selected = cardState[service.id];
-
-    const vehicleButtons = types.map(t =>
-        `<button type="button" class="${t === selected ? "active" : ""}" data-service="${service.id}" data-vehicle="${t}" onclick="selectVehicle('${service.id}','${t}')">${VEHICLE_LABELS[t]}</button>`
-    ).join("");
-
     const badgeHTML = service.badge ? `<span class="badge">${service.badge}</span>` : "";
 
     // Si existe video/services/<id>.mp4 se muestra encima del glyph, en loop con fundido y sin sonido;
     // si falla o no existe todavía, se quita sola y queda el glyph de respaldo.
     // Sin atributo "loop": el reinicio lo controla initVideoLoopFade() para poder disimularlo con opacidad.
-    const videoHTML = `<video class="card-video loop-video" src="video/services/${service.id}.mp4" muted playsinline disablePictureInPicture disableRemotePlayback preload="metadata" onerror="this.remove()"></video>`;
+    const videoHTML = `<video class="card-video loop-video" src="video/services/${service.id}.mp4" poster="video/services/posters/${service.id}.jpg" muted playsinline disablePictureInPicture disableRemotePlayback preload="metadata" onerror="this.remove()"></video>`;
 
     return `
     <article class="card" data-category="${service.category}">
@@ -235,14 +294,8 @@ function serviceCardHTML(service){
             ${videoHTML}
         </div>
         <div class="card-body">
-            <span class="card-cat">${service.category}</span>
-            <h3 class="card-title">${service.name}</h3>
-            <p class="card-tagline">${service.tagline}</p>
-            <div class="vehicle-select" id="vsel-${service.id}">${vehicleButtons}</div>
-            <div class="card-price-row">
-                <span class="label">Desde</span>
-                <span class="card-price" id="price-${service.id}">${formatCOP(service.prices[selected])}</span>
-            </div>
+            <span class="card-cat">${service.name}</span>
+            <h3 class="card-title"><span class="pain-text" data-service="${service.id}">${service.taglines[0]}</span></h3>
             <div class="card-actions">
                 <button type="button" class="btn btn-ghost" onclick="openServiceModal('${service.id}')">Ver detalle</button>
                 <button type="button" class="btn btn-gold" onclick="openLeadForm('${service.name}')">Diagnóstico gratis</button>
@@ -251,20 +304,78 @@ function serviceCardHTML(service){
     </article>`;
 }
 
-function selectVehicle(serviceId, vehicle){
-    cardState[serviceId] = vehicle;
-    const service = SERVICES.find(s => s.id === serviceId);
-    document.getElementById(`price-${serviceId}`).textContent = formatCOP(service.prices[vehicle]);
-    document.querySelectorAll(`#vsel-${serviceId} button`).forEach(btn => {
-        btn.classList.toggle("active", btn.dataset.vehicle === vehicle);
-    });
-}
-
 function renderGrid(containerId, list){
     const el = document.getElementById(containerId);
     if(!el) return;
     el.innerHTML = list.map(serviceCardHTML).join("");
     initLoopVideos();
+    initPainRotator();
+}
+
+/* ---------------- ROTACIÓN DE PREGUNTAS (dolor real por tarjeta) ----------------
+   Cada servicio tiene varias preguntas (SERVICES[].taglines) en vez de una sola
+   afirmación — rotan solas para que, con tiempo suficiente en la página, el
+   cliente vea más de un dolor con el que se puede identificar.
+
+   Estilo único: slide horizontal, siempre en la misma dirección (sale a la
+   izquierda, entra por la derecha) — consistencia espacial en vez de mezclar
+   direcciones. El "entra por la derecha" se logra reposicionando el texto
+   nuevo YA afuera a la derecha SIN transición, forzando un reflow, y recién
+   ahí quitando esa clase para que anime de vuelta al centro (con la
+   transición ya reactivada) — si no se hace así, "salir por la izquierda"
+   y "entrar por la izquierda de regreso" es lo único que CSS haría solo.
+
+   La duración en pantalla de cada pregunta no es fija: se calcula según su
+   longitud (más letras = más tiempo para leerla), con un piso y un techo
+   para que ninguna se sienta demasiado corta ni demasiado larga. */
+let painRotatorGeneration = 0;
+
+function painDwellFor(text){
+    return Math.max(3500, Math.min(7000, text.length * 55 + 1800));
+}
+
+function initPainRotator(){
+    // Invalida cualquier rotación programada por una llamada anterior (p.ej.
+    // si se cambia de filtro y la grilla se vuelve a renderizar) sin tener
+    // que rastrear cada timeout individual.
+    const myGeneration = ++painRotatorGeneration;
+
+    const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const FADE = reduceMotion ? 0 : 400;
+
+    document.querySelectorAll(".pain-text").forEach(el => {
+        const service = SERVICES.find(s => s.id === el.dataset.service);
+        const taglines = service ? service.taglines : EXTRA_TAGLINES[el.dataset.service];
+        if(!taglines || taglines.length < 2) return;
+        let index = 0;
+
+        function scheduleNext(){
+            if(myGeneration !== painRotatorGeneration) return;
+            setTimeout(() => {
+                if(myGeneration !== painRotatorGeneration) return;
+                index = (index + 1) % taglines.length;
+
+                if(FADE === 0){
+                    el.textContent = taglines[index];
+                    scheduleNext();
+                    return;
+                }
+
+                el.classList.add("out"); // sale hacia la izquierda
+                setTimeout(() => {
+                    if(myGeneration !== painRotatorGeneration) return;
+                    el.textContent = taglines[index];
+                    el.classList.remove("out");
+                    el.classList.add("in"); // se reposiciona a la derecha, sin transición
+                    void el.offsetWidth; // fuerza el reflow antes de animar de vuelta
+                    el.classList.remove("in"); // entra desde la derecha
+                    scheduleNext();
+                }, FADE);
+            }, painDwellFor(taglines[index]));
+        }
+
+        scheduleNext();
+    });
 }
 
 // Reproduce cada video (tarjetas + hero) solo mientras está visible en pantalla
@@ -288,8 +399,33 @@ function initLoopVideos(){
     }
 
     document.querySelectorAll(".loop-video").forEach(video => {
-        loopVideoObserver.observe(video);
         initVideoLoopFade(video);
+        // Las tarjetas de servicio, en desktop (mouse real), ya no autoreproducen
+        // al entrar en pantalla — con varias entrando juntas al hacer scroll se
+        // trababa cargando/reproduciendo todas a la vez. En su lugar muestran un
+        // frame fijo (poster) y solo reproducen al pasar el mouse por encima,
+        // como las miniaturas de YouTube. El fondo del hero y el mobile (sin
+        // mouse real) siguen con el autoplay-al-scroll de siempre.
+        if(supportsHoverGlow && video.classList.contains("card-video")){
+            initVideoHoverPreview(video);
+        }else{
+            loopVideoObserver.observe(video);
+        }
+    });
+}
+
+function initVideoHoverPreview(video){
+    if(video.dataset.hoverPreviewReady) return;
+    video.dataset.hoverPreviewReady = "1";
+    video.preload = "none"; // no cargar nada hasta que realmente pase el mouse
+
+    const target = video.closest(".card-media") || video;
+    target.addEventListener("mouseenter", () => {
+        video.play().catch(() => {});
+    });
+    target.addEventListener("mouseleave", () => {
+        video.pause();
+        video.load(); // vuelve a mostrar el poster en vez de quedar pausado a medias
     });
 }
 
@@ -315,6 +451,34 @@ function initVideoLoopFade(video){
     });
 }
 
+/* ---------------- BRILLO QUE SIGUE EL CURSOR (secciones oscuras) ----------------
+   Toque ambiental de marca sobre los paneles de vidrio — no es algo que el
+   usuario tenga que usar o notar conscientemente, solo suma sensación premium.
+   Solo en dispositivos con mouse real (no táctiles). */
+const supportsHoverGlow = window.matchMedia("(hover: hover) and (pointer: fine)").matches;
+
+function initCursorGlow(){
+    if(!supportsHoverGlow) return;
+
+    const glow = document.createElement("div");
+    glow.className = "cursor-glow";
+    glow.setAttribute("aria-hidden", "true");
+    document.body.appendChild(glow);
+
+    let raf = null;
+    document.addEventListener("mousemove", (e) => {
+        if(raf) return;
+        raf = requestAnimationFrame(() => {
+            glow.style.transform = `translate(${e.clientX}px, ${e.clientY}px)`;
+            raf = null;
+        });
+        const overGlassPanel = e.target.closest(".section-dark, .section-soft");
+        glow.style.opacity = overGlassPanel ? "1" : "0";
+    });
+
+    window.addEventListener("blur", () => { glow.style.opacity = "0"; });
+}
+
 /* ---------------- FILTERS (catálogo) ---------------- */
 
 function initFilters(){
@@ -333,14 +497,17 @@ function filterCatalog(cat, btn){
     document.querySelectorAll(".filter-btn").forEach(b => b.classList.remove("active"));
     btn.classList.add("active");
     const ppfCard = document.getElementById("ppfCard");
+    const polarizadosCard = document.getElementById("polarizadosCard");
 
     if(cat === "Todos"){
         renderGrid("catalogGrid", SERVICES);
         if(ppfCard) ppfCard.classList.remove("hidden");
+        if(polarizadosCard) polarizadosCard.classList.remove("hidden");
         return;
     }
     if(ppfCard) ppfCard.classList.toggle("hidden", cat !== "PPF");
-    if(cat === "PPF"){
+    if(polarizadosCard) polarizadosCard.classList.toggle("hidden", cat !== "Polarizados");
+    if(cat === "PPF" || cat === "Polarizados"){
         document.getElementById("catalogGrid").innerHTML = "";
         return;
     }
@@ -447,14 +614,40 @@ function ppfPriceCellHTML(price){
     return formatCOP(price);
 }
 
+// Las 3 coberturas más pedidas se destacan aparte; el resto queda detrás de "Ver más opciones".
+const PPF_HIGHLIGHT_NAMES = ["Full Interior", "Full Front", "Full Car"];
+
 function renderPPFTable(brandKey){
     document.querySelectorAll(".brand-tab").forEach(b => b.classList.toggle("active", b.dataset.brand === brandKey));
     const brand = PPF_BRANDS[brandKey];
-    const rows = brand.rows.map(([name, price, desc]) => {
+
+    const highlightRows = PPF_HIGHLIGHT_NAMES
+        .map(name => brand.rows.find(row => row[0] === name))
+        .filter(Boolean);
+    document.getElementById("ppfHighlights").innerHTML = highlightRows.map(([name, price, desc]) => `
+        <div class="ppf-highlight-card">
+            <span class="ppf-highlight-name">${name}</span>
+            <span class="ppf-highlight-price">${ppfPriceCellHTML(price)}</span>
+            <p class="ppf-highlight-desc">${desc}</p>
+        </div>
+    `).join("");
+
+    const extraRows = brand.rows.filter(row => !PPF_HIGHLIGHT_NAMES.includes(row[0]));
+    const rows = extraRows.map(([name, price, desc]) => {
         const note = price === null ? `<div class="desc ppf-quote-hint">El precio varía mucho según el vehículo — se cotiza en el diagnóstico gratuito.</div>` : "";
         return `<tr><td>${name}<div class="desc">${desc}</div>${note}</td><td class="price">${ppfPriceCellHTML(price)}</td></tr>`;
     }).join("");
     document.getElementById("ppfTableBody").innerHTML = rows;
+}
+
+function togglePPFExtra(){
+    const extra = document.getElementById("ppfExtra");
+    const icon = document.getElementById("ppfToggleIcon");
+    const toggle = document.getElementById("ppfToggle");
+    const open = extra.hidden;
+    extra.hidden = !open;
+    icon.textContent = open ? "▴" : "▾";
+    toggle.firstChild.textContent = open ? "Ver menos opciones " : "Ver más opciones ";
 }
 
 /* ---------------- LEAD FORM: DIAGNÓSTICO GRATUITO ---------------- */
@@ -462,7 +655,7 @@ function renderPPFTable(brandKey){
 function openLeadForm(serviceName){
     const select = document.getElementById("leadServicio");
     if(select){
-        select.innerHTML = ["Diagnóstico general", ...SERVICES.map(s => s.name), "Paint Protection Film (PPF)"]
+        select.innerHTML = ["Diagnóstico general", ...SERVICES.map(s => s.name), "Paint Protection Film (PPF)", "Polarizado de Vidrios (Nanocerámico)"]
             .map(name => `<option ${name === serviceName ? "selected" : ""}>${name}</option>`).join("");
     }
     document.getElementById("leadModal").classList.add("open");
@@ -533,11 +726,57 @@ function initScrollSpy(){
     window.addEventListener("resize", update);
 }
 
-/* ---------------- MARIANA CHAT WIDGET (preview, sin backend) ---------------- */
+/* ---------------- CARRUSEL DE OPINIONES ---------------- */
+
+function scrollReviews(direction){
+    const track = document.getElementById("reviewsTrack");
+    if(!track) return;
+    const card = track.querySelector(".review-card");
+    const step = card ? card.getBoundingClientRect().width + 20 : 300;
+    const atEnd = track.scrollLeft + track.clientWidth >= track.scrollWidth - 4;
+    // Al llegar al final, el siguiente "avance" vuelve al principio (loop) en vez
+    // de quedarse pegado — así el autoplay puede girar indefinidamente.
+    if(direction > 0 && atEnd){
+        track.scrollTo({ left: 0, behavior: "smooth" });
+    }else{
+        track.scrollBy({ left: step * direction, behavior: "smooth" });
+    }
+}
+
+function initReviewsAutoplay(){
+    const carousel = document.querySelector(".reviews-carousel");
+    const track = document.getElementById("reviewsTrack");
+    if(!carousel || !track) return;
+
+    const INTERVAL = 7000;
+    let timer = setInterval(() => scrollReviews(1), INTERVAL);
+
+    // Pausa mientras el usuario interactúa a mano (hover, touch o flechas) y
+    // retoma el avance automático poco después de que lo suelta.
+    function pause(){ clearInterval(timer); }
+    function resume(){ clearInterval(timer); timer = setInterval(() => scrollReviews(1), INTERVAL); }
+
+    carousel.addEventListener("mouseenter", pause);
+    carousel.addEventListener("mouseleave", resume);
+    carousel.addEventListener("touchstart", pause, { passive: true });
+    carousel.addEventListener("touchend", resume, { passive: true });
+    carousel.querySelectorAll(".reviews-arrow").forEach(btn => {
+        btn.addEventListener("click", resume);
+    });
+}
+
+/* ---------------- MARIANA CHAT WIDGET ----------------
+   Un par de turnos guionados (sin IA) para romper el hielo, y al segundo
+   mensaje del visitante se muestra el mini-form de nombre+WhatsApp+consentimiento.
+   Al enviarlo, el backend real (agenda-detalling) crea/encuentra la Conversation
+   de esa persona y la MISMA Mariana que ya atiende WhatsApp (con IA) sigue la
+   charla por allá — la inteligencia real vive del lado de WhatsApp, no aquí. */
+
+const WEB_LEAD_API_URL = "https://app.noxadetail.com/api/public/web-lead";
 
 const MARIANA_REPLIES = [
-    "¡Hola! Soy Mariana 👋 En esta versión soy solo una vista previa — pronto podré hacerte un prediagnóstico real aquí mismo.",
-    "Por ahora, cuéntame por WhatsApp la marca, modelo y qué le notas al carro, y un asesor humano te responde enseguida.",
+    "Cuéntame más — ¿qué marca y modelo es tu carro, y qué te gustaría protegerle o mejorarle?",
+    "Perfecto, con esto ya tengo una idea clara. Para seguir contigo con calma (y poder mandarte fotos, cotización y agendar si quieres), pásame tus datos abajo y seguimos por WhatsApp 👇",
 ];
 
 function initMariana(){
@@ -547,7 +786,12 @@ function initMariana(){
     const form = document.getElementById("marianaForm");
     const input = document.getElementById("marianaInput");
     const body = document.getElementById("marianaBody");
+    const captureTpl = document.getElementById("marianaCaptureTpl");
     if(!launcher || !panel) return;
+
+    let userTurns = 0;
+    let captureShown = false;
+    const visitorTranscript = []; // solo lo que el visitante escribió, no lo que Mariana respondió
 
     launcher.addEventListener("click", () => {
         panel.classList.add("open");
@@ -561,14 +805,23 @@ function initMariana(){
     form.addEventListener("submit", (e) => {
         e.preventDefault();
         const text = input.value.trim();
-        if(!text) return;
+        if(!text || captureShown) return;
         addMarianaMsg(body, text, "user");
+        visitorTranscript.push(text);
         input.value = "";
+        userTurns++;
+        body.scrollTop = body.scrollHeight;
+
         setTimeout(() => {
-            addMarianaMsg(body, MARIANA_REPLIES[1], "bot");
+            if(userTurns >= 2){
+                addMarianaMsg(body, MARIANA_REPLIES[1], "bot");
+                showMarianaCapture(body, captureTpl, visitorTranscript, form);
+                captureShown = true;
+            }else{
+                addMarianaMsg(body, MARIANA_REPLIES[0], "bot");
+            }
             body.scrollTop = body.scrollHeight;
         }, 700);
-        body.scrollTop = body.scrollHeight;
     });
 }
 
@@ -579,12 +832,155 @@ function addMarianaMsg(body, text, who){
     body.appendChild(div);
 }
 
+function showMarianaCapture(body, captureTpl, visitorTranscript, form){
+    if(!captureTpl) return;
+    body.appendChild(captureTpl.content.cloneNode(true));
+    form.hidden = true; // ya no se sigue tecleando libre en el chat, se llena el mini-form
+
+    const cards = body.querySelectorAll(".mariana-capture");
+    const card = cards[cards.length - 1];
+    const nameInput = card.querySelector(".mariana-capture-name");
+    const phoneInput = card.querySelector(".mariana-capture-phone");
+    const consentCheck = card.querySelector(".mariana-capture-consent-check");
+    const submitBtn = card.querySelector(".mariana-capture-submit");
+    const statusEl = card.querySelector(".mariana-capture-status");
+
+    submitBtn.addEventListener("click", () => {
+        const name = nameInput.value.trim();
+        const phone = phoneInput.value.trim();
+        if(!name || !phone){
+            showCaptureStatus(statusEl, "Escribe tu nombre y tu WhatsApp para continuar.", "error");
+            return;
+        }
+        if(!consentCheck.checked){
+            showCaptureStatus(statusEl, "Marca la casilla de autorización para continuar.", "error");
+            return;
+        }
+
+        submitBtn.disabled = true;
+        submitBtn.textContent = "Enviando...";
+        showCaptureStatus(statusEl, "", "");
+
+        fetch(WEB_LEAD_API_URL, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                name,
+                phone,
+                consent: true,
+                website_message: visitorTranscript.join(" / "),
+                page_url: window.location.href,
+            }),
+        })
+        .then(res => res.json().catch(() => ({})).then(data => ({ ok: res.ok, data })))
+        .then(({ ok, data }) => {
+            if(ok && data && data.ok){
+                card.querySelectorAll("input, button").forEach(el => { el.disabled = true; });
+                submitBtn.hidden = true;
+                showCaptureStatus(
+                    statusEl,
+                    data.whatsapp_sent
+                        ? "¡Listo! Te acabo de escribir por WhatsApp, sigamos ahí 📲"
+                        : "¡Listo, quedaron tus datos! Un asesor te escribe por WhatsApp en breve.",
+                    "success"
+                );
+            }else{
+                submitBtn.disabled = false;
+                submitBtn.textContent = "Continuar por WhatsApp";
+                showCaptureStatus(statusEl, (data && data.error) || "No pudimos enviar tus datos, intenta de nuevo.", "error");
+            }
+        })
+        .catch(() => {
+            submitBtn.disabled = false;
+            submitBtn.textContent = "Continuar por WhatsApp";
+            showCaptureStatus(statusEl, "No pudimos conectar. Intenta de nuevo o escríbenos directo por WhatsApp.", "error");
+        });
+    });
+}
+
+function showCaptureStatus(el, text, kind){
+    if(!el) return;
+    el.hidden = !text;
+    el.textContent = text;
+    el.className = "mariana-capture-status" + (kind ? ` mariana-capture-status-${kind}` : "");
+}
+
+/* ---------------- EFECTO LUPA (botones .btn-lens) ---------------- */
+
+function initBtnLens(){
+    const mainVideo = document.getElementById("pageVideo");
+    const ZOOM = 1.8; // qué tanto se agranda lo que hay detrás del botón
+
+    document.querySelectorAll(".btn-lens").forEach(btn => {
+        const lensVideo = btn.querySelector(".btn-lens-video");
+        if(!lensVideo) return;
+
+        // "autoplay" solo no basta aquí: al ser position:fixed no pasa por el
+        // IntersectionObserver que reproduce los demás .loop-video, así que se
+        // arranca a mano.
+        lensVideo.play().catch(() => {});
+
+        function updateTransform(){
+            const rect = btn.getBoundingClientRect();
+            // El clon es "position:absolute" dentro del botón (para que sí se recorte
+            // con overflow:hidden) — este left/top negativo lo alinea con el viewport
+            // exactamente como si fuera "fixed", antes de aplicar el zoom.
+            lensVideo.style.left = (-rect.left) + "px";
+            lensVideo.style.top = (-rect.top) + "px";
+            const cx = rect.left + rect.width / 2;
+            const cy = rect.top + rect.height / 2;
+            // Escala ZOOM veces manteniendo fijo el punto (cx,cy) — así lo que está
+            // justo detrás del botón se ve agrandado en el mismo lugar, no desplazado.
+            lensVideo.style.transform =
+                `translate(${cx * (1 - ZOOM)}px, ${cy * (1 - ZOOM)}px) scale(${ZOOM})`;
+        }
+
+        updateTransform();
+        window.addEventListener("scroll", updateTransform, { passive: true });
+        window.addEventListener("resize", updateTransform);
+
+        // Mantiene el clon sincronizado con el frame real del video de fondo, para
+        // que lo que se ve agrandado corresponda a lo que de verdad se mueve detrás.
+        if(mainVideo){
+            lensVideo.addEventListener("loadedmetadata", () => {
+                lensVideo.currentTime = mainVideo.currentTime;
+            });
+            setInterval(() => {
+                if(Math.abs(lensVideo.currentTime - mainVideo.currentTime) > 0.15){
+                    lensVideo.currentTime = mainVideo.currentTime;
+                }
+            }, 1000);
+        }
+    });
+}
+
 /* ---------------- INIT ---------------- */
+
+/* ---------------- KPI "Clientes atendidos" (dato real, no inventado) ----------------
+   Se pide una sola vez al cargar la página (no hace falta más "tiempo real" que
+   eso para un contador del hero). Si la API no responde por lo que sea (app
+   caída, CORS, sin internet), se deja el valor estático del HTML tal cual en
+   vez de romper el hero con un "—" o un error visible. */
+function initClientCountStat(){
+    const el = document.getElementById("statClientesAtendidos");
+    if(!el) return;
+    fetch(STATS_API_URL)
+        .then(res => res.ok ? res.json() : Promise.reject(res.status))
+        .then(data => {
+            if(!data.ok || typeof data.count !== "number") return;
+            el.textContent = (data.count + CLIENT_COUNT_OFFSET).toLocaleString("es-CO");
+        })
+        .catch(() => {}); // se queda el valor estático del HTML
+}
 
 document.addEventListener("DOMContentLoaded", () => {
     initNavToggle();
+    initClientCountStat();
     initMariana();
     initScrollSpy();
+    initBtnLens();
+    initReviewsAutoplay();
+    initCursorGlow();
     initLoopVideos(); // captura el video del hero (los de las tarjetas ya se inicializan en renderGrid)
 
     document.querySelectorAll(".modal-overlay").forEach(overlay => {
