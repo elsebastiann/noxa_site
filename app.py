@@ -4137,19 +4137,27 @@ def users_new():
         flash(f"El usuario '{username}' ya existe.", "danger")
         return redirect(url_for("users_list"))
 
+    # La fecha de ingreso solo tiene sentido para operarios: alimenta el período
+    # de prueba y la nómina. Se ignora para el resto aunque venga en el formulario.
     hire_date = None
-    if hire_date_str:
+    if role == "operario" and hire_date_str:
         try:
             hire_date = date.fromisoformat(hire_date_str)
         except ValueError:
             pass
 
-    u = User(username=username, role=role, is_active=True, must_change_password=True,
-             hire_date=hire_date)
+    obligar_cambio = bool(request.form.get("must_change_password"))
+
+    u = User(username=username, role=role, is_active=True,
+             must_change_password=obligar_cambio, hire_date=hire_date)
     u.set_password(password)
     db.session.add(u)
     db.session.commit()
-    flash(f"Usuario '{username}' creado. Deberá cambiar su contraseña en el primer acceso.", "success")
+    flash(
+        f"Usuario '{username}' creado." + (" Deberá cambiar su contraseña en el primer acceso."
+                                           if obligar_cambio else ""),
+        "success",
+    )
     return redirect(url_for("users_list"))
 
 
@@ -4180,13 +4188,20 @@ def users_edit(user_id):
     user.role     = new_role
     if new_password:
         user.set_password(new_password)
-    if hire_date_str:
+
+    # Solo los operarios tienen fecha de ingreso; si alguien cambia de rol, la
+    # fecha se limpia para que no quede un dato de nómina huérfano.
+    if new_role != "operario":
+        user.hire_date = None
+    elif hire_date_str:
         try:
             user.hire_date = date.fromisoformat(hire_date_str)
         except ValueError:
             pass
-    elif hire_date_str == "":
+    else:
         user.hire_date = None
+
+    user.must_change_password = bool(request.form.get("must_change_password"))
     db.session.commit()
     flash(f"Usuario '{new_username}' actualizado.", "success")
     return redirect(url_for("users_list"))

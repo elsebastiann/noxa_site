@@ -98,7 +98,8 @@
                       data-id="{{ u.id }}"
                       data-username="{{ u.username }}"
                       data-role="{{ u.role }}"
-                      data-hire="{{ u.hire_date.isoformat() if u.hire_date else '' }}">
+                      data-hire="{{ u.hire_date.isoformat() if u.hire_date else '' }}"
+                      data-must-change="{{ '1' if u.must_change_password else '' }}">
                 <i class="bi bi-pencil"></i>
               </button>
               <!-- Activar / Desactivar -->
@@ -161,11 +162,18 @@
               <option value="admin">Admin</option>
             </select>
           </div>
-          <div>
+          <div class="campo-ingreso" data-solo-operario>
             <label class="form-label">Fecha de ingreso</label>
             <input type="date" name="hire_date" class="form-control"
                    value="{{ today.isoformat() }}">
             <small class="text-muted">Los primeros 30 días son período de prueba (–$100.000, sin bonos).</small>
+          </div>
+          <div class="form-check">
+            <input class="form-check-input" type="checkbox" name="must_change_password"
+                   id="newMustChange" value="1" checked>
+            <label class="form-check-label" for="newMustChange" style="font-size:.85rem;">
+              Debe cambiar la contraseña en el próximo ingreso
+            </label>
           </div>
         </div>
         <div class="modal-footer" style="border-top:1px solid var(--border);">
@@ -206,10 +214,17 @@
               <option value="admin">Admin</option>
             </select>
           </div>
-          <div>
+          <div class="campo-ingreso" data-solo-operario>
             <label class="form-label">Fecha de ingreso</label>
             <input type="date" name="hire_date" id="editHireDate" class="form-control">
             <small class="text-muted">Los primeros 30 días son período de prueba automático.</small>
+          </div>
+          <div class="form-check">
+            <input class="form-check-input" type="checkbox" name="must_change_password"
+                   id="editMustChange" value="1">
+            <label class="form-check-label" for="editMustChange" style="font-size:.85rem;">
+              Debe cambiar la contraseña en el próximo ingreso
+            </label>
           </div>
         </div>
         <div class="modal-footer" style="border-top:1px solid var(--border);">
@@ -228,6 +243,8 @@
     const btn = e.relatedTarget;
     document.getElementById('editUsername').value  = btn.getAttribute('data-username');
     document.getElementById('editRole').value      = btn.getAttribute('data-role');
+    document.getElementById('editMustChange').checked = btn.getAttribute('data-must-change') === '1';
+    sincronizarCampoIngreso(document.getElementById('editRole'));
     document.getElementById('editHireDate').value  = btn.getAttribute('data-hire') || '';
     document.getElementById('editUserForm').action = `/users/${btn.getAttribute('data-id')}/edit`;
   });
@@ -322,3 +339,20 @@
 </script>
 
 {% endblock %}
+
+<script>
+  // La fecha de ingreso solo aplica a operarios: alimenta el período de prueba y
+  // la nómina, que no existen para los demás roles.
+  function sincronizarCampoIngreso(select) {
+    const campo = select.closest('form').querySelector('[data-solo-operario]');
+    if (!campo) return;
+    const esOperario = select.value === 'operario';
+    campo.style.display = esOperario ? '' : 'none';
+    const input = campo.querySelector('input');
+    if (input && !esOperario) input.value = '';
+  }
+  document.querySelectorAll('form select[name="role"]').forEach(sel => {
+    sel.addEventListener('change', () => sincronizarCampoIngreso(sel));
+    sincronizarCampoIngreso(sel);
+  });
+</script>
