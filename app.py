@@ -7359,6 +7359,7 @@ SEMAFORO_UMBRALES = {
     "recompra":         (40, 20, False),   # % de clientes que vuelven
     "cancelacion":      (5,  15, True),    # % de citas canceladas
     "diag_frios":       (0,  3,  True),    # diagnósticos enfriados sin seguimiento
+    "descuentos_pct":   (5,  12, True),    # % del valor de lista que se deja de cobrar
 }
 
 

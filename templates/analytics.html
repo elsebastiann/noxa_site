@@ -94,6 +94,14 @@
   .an-card.hero.ok .an-v   { color:#66bb6a; }
   .an-card.hero.warn .an-v { color:#e0a800; }
   .an-card.hero.bad .an-v  { color:#ef5350; }
+  /* Punto en la esquina: el estado se capta sin leer la cifra. */
+  .an-card { position:relative; }
+  .an-card.ok::after, .an-card.warn::after, .an-card.bad::after {
+    content:""; position:absolute; top:13px; right:13px; width:9px; height:9px; border-radius:50%;
+  }
+  .an-card.ok::after   { background:#66bb6a; }
+  .an-card.warn::after { background:#e0a800; }
+  .an-card.bad::after  { background:#ef5350; }
   .an-leyenda { display:flex; gap:16px; flex-wrap:wrap; font-size:.72rem; color:var(--text3); margin:-4px 0 14px; }
   .an-leyenda span { display:flex; align-items:center; gap:6px; }
   .an-leyenda i { width:9px; height:9px; border-radius:50%; display:inline-block; }
@@ -250,7 +258,7 @@
       <div class="an-v">{{ money(fin.margen) }}</div>
       <div class="an-sub">{{ '%.1f'|format(fin.margen_pct) }}% sobre ingresos</div>
     </div>
-    <div class="an-card">
+    <div class="an-card {{ semaforo('descuentos_pct', fin.descuentos_pct) }}">
       <div class="an-k">Descuentos otorgados</div>
       <div class="an-v">{{ money(fin.descuentos) }}</div>
       <div class="an-sub">{{ '%.1f'|format(fin.descuentos_pct) }}% del valor de lista · convenios, promos y ajustes</div>
