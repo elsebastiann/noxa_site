@@ -7348,6 +7348,39 @@ def categoria_de_servicio(nombre: str) -> str:
     return SERVICE_CATEGORY_FALLBACK
 
 
+# Umbrales del semáforo de los tableros. Viven acá y no en las plantillas para
+# que Analítica y Gerencial pinten con el mismo criterio, y para que cambiar una
+# meta del negocio sea tocar un solo número.
+#   (bien, alerta, invertido) — invertido=True cuando MÁS es peor.
+SEMAFORO_UMBRALES = {
+    "margen_pct":       (20, 5,  False),   # % de margen sobre ingresos
+    "conversion_leads": (30, 15, False),   # % de leads que llegan a agendar
+    "conversion_diag":  (50, 30, False),   # % de diagnósticos que terminan en servicio
+    "recompra":         (40, 20, False),   # % de clientes que vuelven
+    "cancelacion":      (5,  15, True),    # % de citas canceladas
+    "diag_frios":       (0,  3,  True),    # diagnósticos enfriados sin seguimiento
+}
+
+
+@app.template_global()
+def semaforo(metrica, valor):
+    """'ok' | 'warn' | 'bad' según los umbrales del negocio.
+
+    Devuelve cadena vacía si la métrica no tiene umbral definido, para no pintar
+    de colores cifras que no tienen un "bueno" o "malo" claro (ingresos o número
+    de clientes, por ejemplo, dependen del contexto)."""
+    if metrica not in SEMAFORO_UMBRALES or valor is None:
+        return ""
+    bien, alerta, invertido = SEMAFORO_UMBRALES[metrica]
+    if invertido:
+        if valor <= bien:   return "ok"
+        if valor <= alerta: return "warn"
+        return "bad"
+    if valor >= bien:   return "ok"
+    if valor >= alerta: return "warn"
+    return "bad"
+
+
 @app.template_global()
 def agrupar_servicios(servicios):
     """[(categoría, [servicios]), ...] en el orden de SERVICE_CATEGORY_RULES,

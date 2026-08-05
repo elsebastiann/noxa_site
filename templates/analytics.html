@@ -41,8 +41,9 @@
   .an-kpi { background:var(--surface); padding:12px 15px; display:flex; flex-direction:column; gap:2px; }
   .an-kpi .k { font-size:.66rem; color:var(--text2); text-transform:uppercase; letter-spacing:.05em; font-weight:700; }
   .an-kpi .v { font-size:1.3rem; font-weight:700; color:var(--text); line-height:1.15; }
-  .an-kpi .v.ok  { color:#66bb6a; }
-  .an-kpi .v.bad { color:#ef5350; }
+  .an-kpi .v.ok   { color:#66bb6a; }
+  .an-kpi .v.warn { color:#e0a800; }
+  .an-kpi .v.bad  { color:#ef5350; }
   .an-kpi .s { font-size:.7rem; color:var(--text3); }
 
   /* Pestañas: una pregunta a la vez, en vez de todo compitiendo. */
@@ -86,8 +87,16 @@
   .an-sec { margin:26px 0 12px; display:flex; align-items:baseline; gap:10px; }
   .an-sec h3 { font-size:1rem; margin:0; color:var(--text); }
   .an-sec span { font-size:.76rem; color:var(--text3); }
-  .an-card.ok  .an-v { color:#66bb6a; }
-  .an-card.bad .an-v { color:#ef5350; }
+  .an-card.ok   .an-v { color:#66bb6a; }
+  .an-card.warn .an-v { color:#e0a800; }
+  .an-card.bad  .an-v { color:#ef5350; }
+  /* El color pisa el dorado de las tarjetas destacadas: el estado manda. */
+  .an-card.hero.ok .an-v   { color:#66bb6a; }
+  .an-card.hero.warn .an-v { color:#e0a800; }
+  .an-card.hero.bad .an-v  { color:#ef5350; }
+  .an-leyenda { display:flex; gap:16px; flex-wrap:wrap; font-size:.72rem; color:var(--text3); margin:-4px 0 14px; }
+  .an-leyenda span { display:flex; align-items:center; gap:6px; }
+  .an-leyenda i { width:9px; height:9px; border-radius:50%; display:inline-block; }
   .an-bars { display:flex; flex-direction:column; gap:7px; }
   .an-bar-row { display:grid; grid-template-columns:minmax(90px,34%) 1fr auto; gap:10px; align-items:center; font-size:.8rem; }
   .an-bar-row .lbl { color:var(--text2); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
@@ -190,7 +199,7 @@
   </div>
   <div class="an-kpi">
     <span class="k">Margen</span>
-    <span class="v {{ 'ok' if fin.margen >= 0 else 'bad' }}">{{ money(fin.margen) }}</span>
+    <span class="v {{ semaforo('margen_pct', fin.margen_pct) }}">{{ money(fin.margen) }}</span>
     <span class="s">{{ '%.0f'|format(fin.margen_pct) }}% sobre ingresos</span>
   </div>
   <div class="an-kpi">
@@ -204,9 +213,15 @@
   </div>
   <div class="an-kpi">
     <span class="k">Conversión diagnósticos</span>
-    <span class="v">{{ '%.0f'|format(diag.conversion) }}%</span>
+    <span class="v {{ semaforo('conversion_diag', diag.conversion) }}">{{ '%.0f'|format(diag.conversion) }}%</span>
     <span class="s">{{ diag.total }} en el periodo</span>
   </div>
+</div>
+
+<div class="an-leyenda">
+  <span><i style="background:#66bb6a"></i> En meta</span>
+  <span><i style="background:#e0a800"></i> Para vigilar</span>
+  <span><i style="background:#ef5350"></i> Fuera de meta</span>
 </div>
 
 <nav class="an-tabs" id="anTabs">
@@ -230,7 +245,7 @@
       <div class="an-v">{{ money(fin.gastos) }}</div>
       <div class="an-sub">Registrados en el módulo de gastos</div>
     </div>
-    <div class="an-card {{ 'ok' if fin.margen >= 0 else 'bad' }}">
+    <div class="an-card {{ semaforo('margen_pct', fin.margen_pct) }}">
       <div class="an-k">Margen</div>
       <div class="an-v">{{ money(fin.margen) }}</div>
       <div class="an-sub">{{ '%.1f'|format(fin.margen_pct) }}% sobre ingresos</div>
@@ -268,7 +283,7 @@
       <div class="an-v">{{ '%.1f'|format(diag.por_mes) }}</div>
       <div class="an-sub">{{ diag.total }} en el periodo</div>
     </div>
-    <div class="an-card hero">
+    <div class="an-card hero {{ semaforo('conversion_diag', diag.conversion) }}">
       <div class="an-k">Conversión a servicio</div>
       <div class="an-v">{{ '%.0f'|format(diag.conversion) }}%</div>
       <div class="an-sub">{{ diag.convertidos }} de {{ diag.total }} terminaron agendando algo que factura</div>
@@ -283,7 +298,7 @@
       <div class="an-v">{{ money(diag.valor_por_diagnostico) }}</div>
       <div class="an-sub">{{ money(diag.valor_generado) }} facturados en total · incluye los que no convirtieron</div>
     </div>
-    <div class="an-card {{ 'bad' if diag.pendientes_frios else '' }}">
+    <div class="an-card {{ semaforo('diag_frios', diag.pendientes_frios) }}">
       <div class="an-k">Perdidos por seguir</div>
       <div class="an-v">{{ diag.pendientes_frios }}</div>
       <div class="an-sub">Diagnósticos de hace más de 30 días que nunca agendaron</div>
@@ -378,7 +393,7 @@
       <div class="an-v">{{ data.clientes }}</div>
       <div class="an-sub">{{ cli.nuevos }} nuevos · {{ cli.recurrentes }} que ya habían venido</div>
     </div>
-    <div class="an-card">
+    <div class="an-card {{ semaforo('recompra', cli.recompra_pct) }}">
       <div class="an-k">Tasa de recompra</div>
       <div class="an-v">{{ '%.0f'|format(cli.recompra_pct) }}%</div>
       <div class="an-sub">De todos los clientes históricos, los que volvieron al menos una vez</div>
@@ -458,7 +473,7 @@
       <div class="an-v">{{ oper.total }}</div>
       <div class="an-sub">{% for e, n in oper.por_estado %}{{ e }}: {{ n }}{% if not loop.last %} · {% endif %}{% endfor %}</div>
     </div>
-    <div class="an-card {{ 'bad' if oper.cancelacion_pct > 15 else '' }}">
+    <div class="an-card {{ semaforo('cancelacion', oper.cancelacion_pct) }}">
       <div class="an-k">Tasa de cancelación</div>
       <div class="an-v">{{ '%.1f'|format(oper.cancelacion_pct) }}%</div>
       <div class="an-sub">{{ oper.canceladas }} cita{{ '' if oper.canceladas == 1 else 's' }} cancelada{{ '' if oper.canceladas == 1 else 's' }}</div>

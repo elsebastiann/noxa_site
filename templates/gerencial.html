@@ -35,7 +35,18 @@
   .ge-card.hero { border-color:var(--border2); background:linear-gradient(180deg, var(--accent-bg), transparent); }
   .ge-k { font-size:.7rem; color:var(--text2); text-transform:uppercase; letter-spacing:.05em; font-weight:700; }
   .ge-v { font-size:1.75rem; font-weight:700; color:var(--text); margin:7px 0 4px; line-height:1.1; }
-  .ge-v.ok { color:#66bb6a; } .ge-v.bad { color:#ef5350; }
+  .ge-v.ok { color:#66bb6a; } .ge-v.warn { color:#e0a800; } .ge-v.bad { color:#ef5350; }
+  /* Punto de color en la esquina: se ve el estado sin tener que leer la cifra. */
+  .ge-card { position:relative; }
+  .ge-card.est-ok::after, .ge-card.est-warn::after, .ge-card.est-bad::after {
+    content:""; position:absolute; top:14px; right:14px; width:9px; height:9px; border-radius:50%;
+  }
+  .ge-card.est-ok::after   { background:#66bb6a; }
+  .ge-card.est-warn::after { background:#e0a800; }
+  .ge-card.est-bad::after  { background:#ef5350; }
+  .ge-leyenda { display:flex; gap:16px; flex-wrap:wrap; font-size:.73rem; color:var(--text3); margin-bottom:16px; }
+  .ge-leyenda span { display:flex; align-items:center; gap:6px; }
+  .ge-leyenda i { width:9px; height:9px; border-radius:50%; display:inline-block; }
   .ge-foot { display:flex; align-items:center; gap:8px; flex-wrap:wrap; font-size:.73rem; color:var(--text3); }
   .ge-delta { font-weight:700; }
   .ge-delta.up { color:#66bb6a; } .ge-delta.down { color:#ef5350; } .ge-delta.nula { color:var(--text3); font-weight:500; }
@@ -77,6 +88,12 @@
   {{ g.periodo_previo[0].strftime('%d/%m/%Y') }} — {{ g.periodo_previo[1].strftime('%d/%m/%Y') }}.
 </div>
 
+<div class="ge-leyenda">
+  <span><i style="background:#66bb6a"></i> En meta</span>
+  <span><i style="background:#e0a800"></i> Para vigilar</span>
+  <span><i style="background:#ef5350"></i> Fuera de meta</span>
+</div>
+
 {# ── Alertas: lo que exige una decisión, arriba de todo ── #}
 <div class="ge-alertas">
   {% if g.actual.margen < 0 %}
@@ -110,9 +127,10 @@
     <div class="ge-v">{{ money(g.actual.ingresos) }}</div>
     <div class="ge-foot">{{ delta(g.var.ingresos) }} <span>vs. {{ money(g.previo.ingresos) }}</span></div>
   </div>
-  <div class="ge-card hero">
+  {% set e = semaforo('margen_pct', g.actual.margen_pct) %}
+  <div class="ge-card hero est-{{ e }}">
     <div class="ge-k">Margen</div>
-    <div class="ge-v {{ 'ok' if g.actual.margen >= 0 else 'bad' }}">{{ money(g.actual.margen) }}</div>
+    <div class="ge-v {{ e }}">{{ money(g.actual.margen) }}</div>
     <div class="ge-foot">{{ delta(g.var.margen) }} <span>{{ '%.0f'|format(g.actual.margen_pct) }}% sobre ingresos</span></div>
   </div>
   <div class="ge-card">
@@ -144,9 +162,10 @@
     <div class="ge-v">{{ '%.1f'|format(g.actual.nuevos_mes) }}</div>
     <div class="ge-foot">{{ delta(g.var.nuevos_mes) }} <span>vs. {{ '%.1f'|format(g.previo.nuevos_mes) }}</span></div>
   </div>
-  <div class="ge-card">
+  {% set e = semaforo('recompra', g.actual.recompra) %}
+  <div class="ge-card est-{{ e }}">
     <div class="ge-k">Tasa de recompra</div>
-    <div class="ge-v">{{ '%.0f'|format(g.actual.recompra) }}%</div>
+    <div class="ge-v {{ e }}">{{ '%.0f'|format(g.actual.recompra) }}%</div>
     <div class="ge-foot"><span>Clientes históricos que volvieron al menos una vez</span></div>
   </div>
 </div>
@@ -158,9 +177,10 @@
     <div class="ge-v">{{ g.actual.leads }}</div>
     <div class="ge-foot">{{ delta(g.var.leads) }} <span>vs. {{ g.previo.leads }}</span></div>
   </div>
-  <div class="ge-card">
+  {% set e = semaforo('conversion_leads', g.actual.conversion_leads) %}
+  <div class="ge-card est-{{ e }}">
     <div class="ge-k">Conversión de leads</div>
-    <div class="ge-v">{{ '%.0f'|format(g.actual.conversion_leads) }}%</div>
+    <div class="ge-v {{ e }}">{{ '%.0f'|format(g.actual.conversion_leads) }}%</div>
     <div class="ge-foot">{{ delta(g.var.conversion_leads) }} <span>llegaron a agendar</span></div>
   </div>
   <div class="ge-card">
@@ -168,23 +188,26 @@
     <div class="ge-v">{{ g.actual.diagnosticos }}</div>
     <div class="ge-foot">{{ delta(g.var.diagnosticos) }} <span>vs. {{ g.previo.diagnosticos }}</span></div>
   </div>
-  <div class="ge-card hero">
+  {% set e = semaforo('conversion_diag', g.actual.conversion_diag) %}
+  <div class="ge-card hero est-{{ e }}">
     <div class="ge-k">Conversión de diagnósticos</div>
-    <div class="ge-v">{{ '%.0f'|format(g.actual.conversion_diag) }}%</div>
+    <div class="ge-v {{ e }}">{{ '%.0f'|format(g.actual.conversion_diag) }}%</div>
     <div class="ge-foot">{{ delta(g.var.conversion_diag) }} <span>terminaron agendando servicio</span></div>
   </div>
 </div>
 
 <div class="ge-sec"><h3>Operación</h3><span>qué tan limpia va la agenda</span></div>
 <div class="ge-grid">
-  <div class="ge-card {{ 'bad' if g.actual.cancelacion > 15 else '' }}">
+  {% set e = semaforo('cancelacion', g.actual.cancelacion) %}
+  <div class="ge-card est-{{ e }}">
     <div class="ge-k">Tasa de cancelación</div>
-    <div class="ge-v">{{ '%.1f'|format(g.actual.cancelacion) }}%</div>
+    <div class="ge-v {{ e }}">{{ '%.1f'|format(g.actual.cancelacion) }}%</div>
     <div class="ge-foot">{{ delta(g.var.cancelacion, 'bajo') }} <span>vs. {{ '%.1f'|format(g.previo.cancelacion) }}%</span></div>
   </div>
-  <div class="ge-card">
+  {% set e = semaforo('diag_frios', g.actual.diag_frios) %}
+  <div class="ge-card est-{{ e }}">
     <div class="ge-k">Diagnósticos sin seguimiento</div>
-    <div class="ge-v">{{ g.actual.diag_frios }}</div>
+    <div class="ge-v {{ e }}">{{ g.actual.diag_frios }}</div>
     <div class="ge-foot"><span>Más de 30 días sin agendar nada</span></div>
   </div>
 </div>
