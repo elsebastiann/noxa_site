@@ -27,6 +27,41 @@
   table.an td { padding:9px 12px; border-top:1px solid var(--border); white-space:nowrap; }
   table.an td.num, table.an th.num { text-align:right; }
   .an-empty { padding:40px; text-align:center; color:var(--text2); }
+
+  /* Franja de KPIs: pegada arriba para que el titular no se pierda al bajar. */
+  .an-kpis { position:sticky; top:0; z-index:5; display:grid; gap:1px; background:var(--border);
+             grid-template-columns:repeat(auto-fit, minmax(160px,1fr));
+             border:1px solid var(--border); border-radius:var(--radius); overflow:hidden; margin-bottom:14px; }
+  .an-kpi { background:var(--surface); padding:12px 15px; display:flex; flex-direction:column; gap:2px; }
+  .an-kpi .k { font-size:.66rem; color:var(--text2); text-transform:uppercase; letter-spacing:.05em; font-weight:700; }
+  .an-kpi .v { font-size:1.3rem; font-weight:700; color:var(--text); line-height:1.15; }
+  .an-kpi .v.ok  { color:#66bb6a; }
+  .an-kpi .v.bad { color:#ef5350; }
+  .an-kpi .s { font-size:.7rem; color:var(--text3); }
+
+  /* Pestañas: una pregunta a la vez, en vez de todo compitiendo. */
+  .an-tabs { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:18px;
+             border-bottom:1px solid var(--border); padding-bottom:10px; }
+  .an-tab-btn { display:flex; flex-direction:column; align-items:flex-start; gap:1px;
+                background:transparent; border:1px solid transparent; border-radius:var(--radius-sm);
+                padding:8px 14px; cursor:pointer; color:var(--text2); font-size:.86rem; font-weight:600; }
+  .an-tab-btn small { font-size:.68rem; font-weight:500; color:var(--text3); }
+  .an-tab-btn:hover { background:var(--bg2); color:var(--text); }
+  .an-tab-btn.active { background:var(--accent-bg); border-color:var(--border2); color:var(--accent); }
+  .an-tab-btn.active small { color:var(--accent-dk); }
+  .an-pane { display:none; }
+  .an-pane.active { display:block; }
+  .an-pane > .an-sec:first-child { margin-top:6px; }
+
+  .an-metodo { margin-bottom:14px; border:1px solid var(--border); border-radius:var(--radius);
+               background:var(--surface); }
+  .an-metodo > summary { cursor:pointer; padding:10px 15px; font-size:.8rem; font-weight:600;
+                         color:var(--text2); list-style:none; }
+  .an-metodo > summary::-webkit-details-marker { display:none; }
+  .an-metodo > summary::before { content:"› "; color:var(--text3); }
+  .an-metodo[open] > summary::before { content:"⌄ "; }
+  .an-metodo > summary:hover { color:var(--accent); }
+  .an-metodo .an-warn { margin:0 12px 12px; }
   .an-sec { margin:26px 0 12px; display:flex; align-items:baseline; gap:10px; }
   .an-sec h3 { font-size:1rem; margin:0; color:var(--text); }
   .an-sec span { font-size:.76rem; color:var(--text3); }
@@ -88,6 +123,102 @@
   <a href="{{ url_for('analytics_dashboard') }}" class="btn btn-outline-secondary">Limpiar</a>
 </form>
 
+{% if data.visitas or diag.total %}
+
+<details class="an-metodo">
+  <summary>Cómo se calculan estas cifras</summary>
+  <div class="an-warn">
+    <strong>Cómo leer esto:</strong> toda cita agendada cuenta como servicio prestado y como venta,
+    salvo los diagnósticos: son gratis, no suman ingreso ni cuentan como cliente nuevo, y tienen su
+    propia sección.
+    El monto sale del precio del servicio según el tipo de vehículo, con el convenio y los ajustes
+    que se hayan aplicado al agendar. El periodo seleccionado cubre <strong>{{ data.meses }} meses</strong>.
+    Las cifras anuales son una <strong>proyección a ritmo actual</strong> (lo observado llevado a 12 meses),
+    no un dato histórico — asumen que los clientes siguen volviendo al mismo ritmo, algo que todavía no se
+    ha podido observar durante un año completo. Un "cliente" es una <strong>placa</strong>: un mismo dueño
+    con dos carros cuenta como dos.
+  </div>
+</details>
+
+{# Franja fija: las cifras que contestan "¿cómo va el negocio?" sin importar en
+   qué pestaña esté el usuario. #}
+<div class="an-kpis">
+  <div class="an-kpi">
+    <span class="k">Ingresos</span>
+    <span class="v">${{ '{:,.0f}'.format(fin.ingresos).replace(',', '.') }}</span>
+  </div>
+  <div class="an-kpi">
+    <span class="k">Margen</span>
+    <span class="v {{ 'ok' if fin.margen >= 0 else 'bad' }}">${{ '{:,.0f}'.format(fin.margen).replace(',', '.') }}</span>
+    <span class="s">{{ '%.0f'|format(fin.margen_pct) }}% sobre ingresos</span>
+  </div>
+  <div class="an-kpi">
+    <span class="k">Servicios</span>
+    <span class="v">{{ data.visitas }}</span>
+    <span class="s">{{ data.clientes }} clientes</span>
+  </div>
+  <div class="an-kpi">
+    <span class="k">Clientes nuevos / mes</span>
+    <span class="v">{{ '%.1f'|format(data.nuevos_por_mes) }}</span>
+  </div>
+  <div class="an-kpi">
+    <span class="k">Conversión diagnósticos</span>
+    <span class="v">{{ '%.0f'|format(diag.conversion) }}%</span>
+    <span class="s">{{ diag.total }} en el periodo</span>
+  </div>
+</div>
+
+<nav class="an-tabs" id="anTabs">
+  <button type="button" class="an-tab-btn" data-target="resumen">Resumen<small>cómo va el negocio</small></button>
+  <button type="button" class="an-tab-btn" data-target="comercial">Comercial<small>leads y diagnósticos</small></button>
+  <button type="button" class="an-tab-btn" data-target="clientes">Clientes<small>captación y recurrencia</small></button>
+  <button type="button" class="an-tab-btn" data-target="operacion">Operación<small>capacidad y equipo</small></button>
+  <button type="button" class="an-tab-btn" data-target="servicios">Servicios<small>qué se vende</small></button>
+</nav>
+
+<section class="an-pane" data-pane="resumen">
+<div class="an-sec"><h3>Resultado del negocio</h3><span>ingresos contra gastos reales del periodo</span></div>
+  <div class="an-grid">
+    <div class="an-card">
+      <div class="an-k">Ingresos</div>
+      <div class="an-v">${{ '{:,.0f}'.format(fin.ingresos).replace(',', '.') }}</div>
+      <div class="an-sub">Toda cita agendada cuenta como servicio prestado</div>
+    </div>
+    <div class="an-card">
+      <div class="an-k">Gastos</div>
+      <div class="an-v">${{ '{:,.0f}'.format(fin.gastos).replace(',', '.') }}</div>
+      <div class="an-sub">Registrados en el módulo de gastos</div>
+    </div>
+    <div class="an-card {{ 'ok' if fin.margen >= 0 else 'bad' }}">
+      <div class="an-k">Margen</div>
+      <div class="an-v">${{ '{:,.0f}'.format(fin.margen).replace(',', '.') }}</div>
+      <div class="an-sub">{{ '%.1f'|format(fin.margen_pct) }}% sobre ingresos</div>
+    </div>
+    <div class="an-card">
+      <div class="an-k">Descuentos otorgados</div>
+      <div class="an-v">${{ '{:,.0f}'.format(fin.descuentos).replace(',', '.') }}</div>
+      <div class="an-sub">{{ '%.1f'|format(fin.descuentos_pct) }}% del valor de lista · convenios, promos y ajustes</div>
+    </div>
+  </div>
+
+  {% if fin.gastos_por_categoria %}
+    <div class="an-panel" style="margin-bottom:20px;">
+      <h3>En qué se va la plata</h3>
+      {{ barras(fin.gastos_por_categoria, 'money') }}
+    </div>
+  {% endif %}
+
+  
+
+  <div class="an-charts">
+    <div class="an-panel">
+      <h3>Ingresos por mes</h3>
+      <canvas id="chartIngresos" height="200"></canvas>
+    </div>
+  </div>
+</section>
+
+<section class="an-pane" data-pane="comercial">
 {% if diag.total %}
   <div class="an-sec"><h3>Diagnósticos</h3><span>la puerta de entrada: gratis, solo vale si termina en servicio</span></div>
   <div class="an-grid">
@@ -147,51 +278,8 @@
 
 {% endif %}
 
-{% if data.visitas %}
-  <div class="an-warn">
-    <strong>Cómo leer esto:</strong> toda cita agendada cuenta como servicio prestado y como venta,
-    salvo los diagnósticos: son gratis, no suman ingreso ni cuentan como cliente nuevo, y tienen su
-    propia sección.
-    El monto sale del precio del servicio según el tipo de vehículo, con el convenio y los ajustes
-    que se hayan aplicado al agendar. El periodo seleccionado cubre <strong>{{ data.meses }} meses</strong>.
-    Las cifras anuales son una <strong>proyección a ritmo actual</strong> (lo observado llevado a 12 meses),
-    no un dato histórico — asumen que los clientes siguen volviendo al mismo ritmo, algo que todavía no se
-    ha podido observar durante un año completo. Un "cliente" es una <strong>placa</strong>: un mismo dueño
-    con dos carros cuenta como dos.
-  </div>
 
-  <div class="an-sec"><h3>Resultado del negocio</h3><span>ingresos contra gastos reales del periodo</span></div>
-  <div class="an-grid">
-    <div class="an-card">
-      <div class="an-k">Ingresos</div>
-      <div class="an-v">${{ '{:,.0f}'.format(fin.ingresos).replace(',', '.') }}</div>
-      <div class="an-sub">Toda cita agendada cuenta como servicio prestado</div>
-    </div>
-    <div class="an-card">
-      <div class="an-k">Gastos</div>
-      <div class="an-v">${{ '{:,.0f}'.format(fin.gastos).replace(',', '.') }}</div>
-      <div class="an-sub">Registrados en el módulo de gastos</div>
-    </div>
-    <div class="an-card {{ 'ok' if fin.margen >= 0 else 'bad' }}">
-      <div class="an-k">Margen</div>
-      <div class="an-v">${{ '{:,.0f}'.format(fin.margen).replace(',', '.') }}</div>
-      <div class="an-sub">{{ '%.1f'|format(fin.margen_pct) }}% sobre ingresos</div>
-    </div>
-    <div class="an-card">
-      <div class="an-k">Descuentos otorgados</div>
-      <div class="an-v">${{ '{:,.0f}'.format(fin.descuentos).replace(',', '.') }}</div>
-      <div class="an-sub">{{ '%.1f'|format(fin.descuentos_pct) }}% del valor de lista · convenios, promos y ajustes</div>
-    </div>
-  </div>
-
-  {% if fin.gastos_por_categoria %}
-    <div class="an-panel" style="margin-bottom:20px;">
-      <h3>En qué se va la plata</h3>
-      {{ barras(fin.gastos_por_categoria, 'money') }}
-    </div>
-  {% endif %}
-
-  <div class="an-sec"><h3>Embudo comercial</h3><span>de conversación de WhatsApp a cita</span></div>
+<div class="an-sec"><h3>Embudo comercial</h3><span>de conversación de WhatsApp a cita</span></div>
   <div class="an-charts">
     <div class="an-panel">
       <h3>Conversión de leads</h3>
@@ -213,54 +301,11 @@
     </div>
   </div>
 
-  <div class="an-sec"><h3>Operación</h3><span>capacidad, cumplimiento y equipo</span></div>
-  <div class="an-grid">
-    <div class="an-card">
-      <div class="an-k">Citas del periodo</div>
-      <div class="an-v">{{ oper.total }}</div>
-      <div class="an-sub">{% for e, n in oper.por_estado %}{{ e }}: {{ n }}{% if not loop.last %} · {% endif %}{% endfor %}</div>
-    </div>
-    <div class="an-card {{ 'bad' if oper.cancelacion_pct > 15 else '' }}">
-      <div class="an-k">Tasa de cancelación</div>
-      <div class="an-v">{{ '%.1f'|format(oper.cancelacion_pct) }}%</div>
-      <div class="an-sub">{{ oper.canceladas }} cita{{ '' if oper.canceladas == 1 else 's' }} cancelada{{ '' if oper.canceladas == 1 else 's' }}</div>
-    </div>
-    <div class="an-card">
-      <div class="an-k">Estimado vs. real</div>
-      <div class="an-v">{{ '%+.0f'|format(oper.desvio_pct) }}%</div>
-      <div class="an-sub">
-        {% if oper.cronometradas %}
-          {{ '%.0f'|format(oper.estimado_prom) }} min estimados vs {{ '%.0f'|format(oper.real_prom) }} reales
-          · {{ oper.cronometradas }} cita{{ '' if oper.cronometradas == 1 else 's' }} cronometrada{{ '' if oper.cronometradas == 1 else 's' }}
-        {% else %}Sin citas cronometradas en el periodo{% endif %}
-      </div>
-    </div>
-    <div class="an-card {{ 'bad' if oper.errores_calidad else '' }}">
-      <div class="an-k">Errores de calidad</div>
-      <div class="an-v">{{ oper.errores_calidad }}</div>
-      <div class="an-sub">Registrados en el periodo</div>
-    </div>
-  </div>
+  
+</section>
 
-  <div class="an-charts">
-    <div class="an-panel">
-      <h3>Demanda por día de la semana</h3>
-      <canvas id="chartDias" height="190"></canvas>
-    </div>
-    <div class="an-panel">
-      <h3>Demanda por hora de llegada</h3>
-      <canvas id="chartHoras" height="190"></canvas>
-    </div>
-  </div>
-
-  {% if oper.operarios %}
-    <div class="an-panel" style="margin-bottom:20px;">
-      <h3>Carga por operario</h3>
-      {{ barras(oper.operarios) }}
-    </div>
-  {% endif %}
-
-  <div class="an-sec"><h3>Clientes</h3><span>captación, recurrencia y valor</span></div>
+<section class="an-pane" data-pane="clientes">
+<div class="an-sec"><h3>Clientes</h3><span>captación, recurrencia y valor</span></div>
   <div class="an-grid">
     <div class="an-card hero">
       <div class="an-k">Clientes nuevos por mes</div>
@@ -309,10 +354,7 @@
       <h3>Clientes nuevos por mes</h3>
       <canvas id="chartNuevos" height="200"></canvas>
     </div>
-    <div class="an-panel">
-      <h3>Ingresos por mes</h3>
-      <canvas id="chartIngresos" height="200"></canvas>
-    </div>
+
   </div>
 
   <div class="an-panel" style="margin-bottom:20px;">
@@ -364,7 +406,62 @@
     </div>
   {% endif %}
 
-  <div class="an-sec"><h3>Servicios</h3><span>qué se vende y cuánto pesa</span></div>
+  
+</section>
+
+<section class="an-pane" data-pane="operacion">
+<div class="an-sec"><h3>Operación</h3><span>capacidad, cumplimiento y equipo</span></div>
+  <div class="an-grid">
+    <div class="an-card">
+      <div class="an-k">Citas del periodo</div>
+      <div class="an-v">{{ oper.total }}</div>
+      <div class="an-sub">{% for e, n in oper.por_estado %}{{ e }}: {{ n }}{% if not loop.last %} · {% endif %}{% endfor %}</div>
+    </div>
+    <div class="an-card {{ 'bad' if oper.cancelacion_pct > 15 else '' }}">
+      <div class="an-k">Tasa de cancelación</div>
+      <div class="an-v">{{ '%.1f'|format(oper.cancelacion_pct) }}%</div>
+      <div class="an-sub">{{ oper.canceladas }} cita{{ '' if oper.canceladas == 1 else 's' }} cancelada{{ '' if oper.canceladas == 1 else 's' }}</div>
+    </div>
+    <div class="an-card">
+      <div class="an-k">Estimado vs. real</div>
+      <div class="an-v">{{ '%+.0f'|format(oper.desvio_pct) }}%</div>
+      <div class="an-sub">
+        {% if oper.cronometradas %}
+          {{ '%.0f'|format(oper.estimado_prom) }} min estimados vs {{ '%.0f'|format(oper.real_prom) }} reales
+          · {{ oper.cronometradas }} cita{{ '' if oper.cronometradas == 1 else 's' }} cronometrada{{ '' if oper.cronometradas == 1 else 's' }}
+        {% else %}Sin citas cronometradas en el periodo{% endif %}
+      </div>
+    </div>
+    <div class="an-card {{ 'bad' if oper.errores_calidad else '' }}">
+      <div class="an-k">Errores de calidad</div>
+      <div class="an-v">{{ oper.errores_calidad }}</div>
+      <div class="an-sub">Registrados en el periodo</div>
+    </div>
+  </div>
+
+  <div class="an-charts">
+    <div class="an-panel">
+      <h3>Demanda por día de la semana</h3>
+      <canvas id="chartDias" height="190"></canvas>
+    </div>
+    <div class="an-panel">
+      <h3>Demanda por hora de llegada</h3>
+      <canvas id="chartHoras" height="190"></canvas>
+    </div>
+  </div>
+
+  {% if oper.operarios %}
+    <div class="an-panel" style="margin-bottom:20px;">
+      <h3>Carga por operario</h3>
+      {{ barras(oper.operarios) }}
+    </div>
+  {% endif %}
+
+  
+</section>
+
+<section class="an-pane" data-pane="servicios">
+<div class="an-sec"><h3>Servicios</h3><span>qué se vende y cuánto pesa</span></div>
   {% if data.mix_servicios %}
     <div class="an-panel" style="margin-bottom:20px;">
       <h3>Ingresos por servicio</h3>
@@ -393,10 +490,22 @@
   </div>
   {% endif %}
 
+
+</section>
   <script>
     (function () {
       const serie = {{ data.serie | tojson }};
       const etiquetas = serie.map(m => m.etiqueta);
+      // Cada gráfica se registra con la pestaña a la que pertenece y se crea
+      // recién cuando esa pestaña se muestra: dentro de un contenedor con
+      // display:none, Chart.js mide 0x0 y sale en blanco.
+      const pendientes = {};
+      function registrar(pane, fn) { (pendientes[pane] = pendientes[pane] || []).push(fn); }
+      window.__anDibujar = function (pane) {
+        (pendientes[pane] || []).forEach(fn => fn());
+        pendientes[pane] = [];
+      };
+
       const css = getComputedStyle(document.documentElement);
       const acento = css.getPropertyValue('--accent').trim();
       const texto2 = css.getPropertyValue('--text2').trim();
@@ -411,15 +520,18 @@
         }
       };
 
+      registrar('clientes', () => {
       new Chart(document.getElementById('chartNuevos'), {
         type: 'bar',
         data: { labels: etiquetas,
                 datasets: [{ data: serie.map(m => m.nuevos), backgroundColor: acento, borderRadius: 4 }] },
         options: comun
       });
+      });
 
       const serieDiag = {{ diag.serie | tojson }};
       if (serieDiag.length) {
+        registrar('comercial', () => {
         new Chart(document.getElementById('chartDiag'), {
           type: 'bar',
           data: {
@@ -436,24 +548,30 @@
             scales: { x: { ...comun.scales.x, stacked: true }, y: { ...comun.scales.y, stacked: true } }
           }
         });
+        });
       }
 
       const dias = {{ oper.por_dia | tojson }};
+      registrar('operacion', () => {
       new Chart(document.getElementById('chartDias'), {
         type: 'bar',
         data: { labels: ['Lun','Mar','Mié','Jue','Vie','Sáb'],
                 datasets: [{ data: dias, backgroundColor: acento, borderRadius: 4 }] },
         options: comun
       });
+      });
 
       const horas = {{ oper.por_hora | tojson }};
+      registrar('operacion', () => {
       new Chart(document.getElementById('chartHoras'), {
         type: 'bar',
         data: { labels: horas.map(h => h[0] + ':00'),
                 datasets: [{ data: horas.map(h => h[1]), backgroundColor: acento, borderRadius: 4 }] },
         options: comun
       });
+      });
 
+      registrar('resumen', () => {
       new Chart(document.getElementById('chartIngresos'), {
         type: 'line',
         data: { labels: etiquetas,
@@ -470,11 +588,29 @@
           }
         }
       });
+      });
+
+      // Pestañas. La elegida queda en el hash para que sobreviva a un refresco
+      // y se pueda compartir el enlace ya en la vista correcta.
+      const botones = document.querySelectorAll('.an-tab-btn');
+      const paneles = document.querySelectorAll('.an-pane');
+      function mostrar(nombre) {
+        let encontrado = false;
+        paneles.forEach(p => {
+          const activo = p.dataset.pane === nombre;
+          p.classList.toggle('active', activo);
+          if (activo) encontrado = true;
+        });
+        if (!encontrado) return mostrar('resumen');
+        botones.forEach(b => b.classList.toggle('active', b.dataset.target === nombre));
+        window.__anDibujar(nombre);
+        history.replaceState(null, '', '#' + nombre);
+      }
+      botones.forEach(b => b.addEventListener('click', () => mostrar(b.dataset.target)));
+      mostrar((location.hash || '#resumen').slice(1));
     })();
   </script>
 {% else %}
-  <div class="an-empty">
-No hay citas en este periodo.
-  </div>
+  <div class="an-empty">No hay citas en este periodo.</div>
 {% endif %}
 {% endblock %}
