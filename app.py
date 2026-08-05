@@ -6437,6 +6437,26 @@ def whatsapp_inbox():
     return render_template("whatsapp.html", rows=_whatsapp_rows(), conversation=None, messages=[], lead_states=LEAD_STATES, service_tags=SERVICE_TAGS)
 
 
+def _estados_entrega(conversation_id: int) -> dict:
+    """{texto del mensaje: estado de entrega} para una conversación.
+
+    Message y OutboundMessage son tablas distintas y no están enlazadas por id,
+    así que se cruzan por el contenido: dentro de una misma conversación los
+    textos no se repiten en la práctica. Se recorre en orden para que, si algo se
+    reenvió, quede el estado del último intento."""
+    estados = {}
+    registros = (
+        OutboundMessage.query
+        .filter_by(ref_type="conversation", ref_id=conversation_id)
+        .order_by(OutboundMessage.created_at)
+        .all()
+    )
+    for r in registros:
+        if r.body:
+            estados[r.body.strip()] = {"estado": r.status, "error": r.error_code}
+    return estados
+
+
 @app.route("/whatsapp/<int:conversation_id>")
 def whatsapp_conversation(conversation_id):
     conversation = Conversation.query.get_or_404(conversation_id)
@@ -6446,7 +6466,9 @@ def whatsapp_conversation(conversation_id):
         .order_by(Message.created_at)
         .all()
     )
-    return render_template("whatsapp.html", rows=_whatsapp_rows(), conversation=conversation, messages=messages, lead_states=LEAD_STATES, service_tags=SERVICE_TAGS)
+    return render_template("whatsapp.html", rows=_whatsapp_rows(), conversation=conversation,
+                           messages=messages, estados=_estados_entrega(conversation.id),
+                           lead_states=LEAD_STATES, service_tags=SERVICE_TAGS)
 
 
 @app.route("/whatsapp/media/<path:filename>")
@@ -6473,6 +6495,7 @@ def whatsapp_messages_json(conversation_id):
         .order_by(Message.created_at)
         .all()
     )
+    estados = _estados_entrega(conversation.id)
     return jsonify({
         "bot_active": conversation.bot_active,
         "messages": [
@@ -6480,7 +6503,8 @@ def whatsapp_messages_json(conversation_id):
              "time": _filtro_hora_bogota(m.created_at, "%H:%M"),
              "day": _filtro_dia_bogota(m.created_at),
              "media": [{"url": url_for("whatsapp_media", filename=a.filename),
-                        "es_imagen": a.es_imagen} for a in m.media]}
+                        "es_imagen": a.es_imagen} for a in m.media],
+             "entrega": estados.get((m.body or "").strip()) if m.direction == "out" else None}
             for m in messages
         ],
     })

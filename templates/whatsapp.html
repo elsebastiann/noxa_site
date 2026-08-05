@@ -15,6 +15,19 @@
   {%- endif -%}
 {%- endmacro %}
 
+{% macro tick(entrega) -%}
+  {%- if not entrega -%}
+  {%- elif entrega.estado in ('undelivered', 'failed', 'rejected_local') -%}
+    <span class="wa-tick err" title="No entregado{% if entrega.error %} · código {{ entrega.error }}{% endif %}">✕</span>
+  {%- elif entrega.estado == 'read' -%}
+    <span class="wa-tick leido" title="Leído">✓✓</span>
+  {%- elif entrega.estado == 'delivered' -%}
+    <span class="wa-tick" title="Entregado">✓✓</span>
+  {%- elif entrega.estado in ('sent', 'queued') -%}
+    <span class="wa-tick" title="{{ 'Enviado' if entrega.estado == 'sent' else 'En cola' }}">✓</span>
+  {%- endif -%}
+{%- endmacro %}
+
 {% block extra_head %}
 <style>
   .wa-shell { display:flex; border:1px solid var(--border); border-radius:var(--radius); overflow:hidden; margin-top:16px; height:75vh; background:#0b141a; }
@@ -90,6 +103,10 @@
   .wa-media-grid:has(> a:only-child) .wa-media { width:200px; height:auto; max-height:240px; }
   .wa-file { display:inline-block; margin-bottom:5px; color:#8fd3c4; text-decoration:underline; font-size:0.82rem; }
   .wa-bubble .wa-msg-time { display:block; text-align:right; font-size:0.65rem; color:#a8b3ba; margin-top:2px; }
+  /* Acuses de entrega, con la misma semántica de WhatsApp. */
+  .wa-tick { margin-left:4px; letter-spacing:-2px; color:#a8b3ba; }
+  .wa-tick.leido { color:#53bdeb; }
+  .wa-tick.err { color:#f15c6d; letter-spacing:0; font-weight:700; }
 
   .wa-inputbar { background:#202c33; padding:10px 14px; display:flex; gap:8px; align-items:center; }
   .wa-input { flex:1; background:#2a3942; border:none; border-radius:20px; padding:9px 16px; color:#e9edef; font-size:0.88rem; }
@@ -215,7 +232,7 @@
                   {% endif %}
                 {%- endfor -%}
               </div>{% endif -%}
-              {{ m.body }}<span class="wa-msg-time">{{ m.created_at | hora_bogota('%H:%M') }}</span></div>
+              {{ m.body }}<span class="wa-msg-time">{{ m.created_at | hora_bogota('%H:%M') }}{% if m.direction == 'out' %}{{ tick(estados.get((m.body or '').strip())) }}{% endif %}</span></div>
           </div>
         {% endfor %}
       </div>
@@ -275,6 +292,18 @@
           const time = document.createElement('span');
           time.className = 'wa-msg-time';
           time.textContent = m.time;
+          if (m.entrega) {
+            const e = m.entrega.estado;
+            const t = document.createElement('span');
+            t.className = 'wa-tick';
+            if (['undelivered','failed','rejected_local'].includes(e)) {
+              t.className += ' err'; t.textContent = '✕';
+              t.title = 'No entregado' + (m.entrega.error ? ' · código ' + m.entrega.error : '');
+            } else if (e === 'read')      { t.className += ' leido'; t.textContent = '✓✓'; t.title = 'Leído'; }
+            else if (e === 'delivered')   { t.textContent = '✓✓'; t.title = 'Entregado'; }
+            else if (e === 'sent' || e === 'queued') { t.textContent = '✓'; t.title = e === 'sent' ? 'Enviado' : 'En cola'; }
+            if (t.textContent) time.appendChild(t);
+          }
           bubble.appendChild(time);
           row.appendChild(bubble);
           body.appendChild(row);
