@@ -5318,9 +5318,9 @@ Corrección profunda en dos pasos, elimina hasta 90% de micro-rayones y marcas d
 
 **Polarizado de Vidrios (Nanocerámico)**
 A diferencia del resto del catálogo, estos precios NO cambian por tipo de vehículo: son tres láminas distintas y el cliente elige por nivel de protección y garantía.
-- **Nanocerámica HD (Tecnofilm)** — $650.000. Garantía 8 años. Rechazo de radiación infrarroja (IR) del 80-87%.
-- **Nanocerámica (Spectra)** — $790.000. Garantía 10 años con certificado de la marca. Rechazo IR del 89-94%.
-- **Nanocerámica Ultraoptic (Spectra o Govision)** — $900.000. Garantía 10 años. Rechazo IR del 95-99%, y mejor visibilidad en tonos oscuros.
+- **Nanocerámica HD (Tecnofilm)** — $699.000. Garantía 8 años. Rechazo de radiación infrarroja (IR) del 80-87%.
+- **Nanocerámica (Spectra)** — $859.000. Garantía 10 años con certificado de la marca. Rechazo IR del 89-94%.
+- **Nanocerámica Ultraoptic (Spectra o Govision)** — $969.000. Garantía 10 años. Rechazo IR del 95-99%, y mejor visibilidad en tonos oscuros.
 Si además se va a polarizar el **techo panorámico**, se suman **$120.000** al valor. Pregúntale si su carro tiene techo panorámico antes de darle el total, para no cotizarle de menos.
 El ángulo de venta aquí no es la estética sino la protección: mucha gente asume que sus vidrios ya bloquean los rayos UV y no es así. Una buena pregunta para abrir es si sabe cuánta radiación están dejando pasar hoy sus vidrios. La diferencia real entre las tres láminas es cuánto calor (IR) rechazan y por cuántos años responde la garantía — explícalo en esos términos, no en marcas.
 Aplica la regla de oro igual que con todo lo demás: primero que entienda qué le aporta, después el número, y solo el de la lámina que le sirve — nunca las tres de una.
