@@ -94,6 +94,10 @@
   .an-card.hero.ok .an-v   { color:#66bb6a; }
   .an-card.hero.warn .an-v { color:#e0a800; }
   .an-card.hero.bad .an-v  { color:#ef5350; }
+  /* Las cifras de dinero van dentro de <span class="money">, y base.html pinta
+     todo <span> de gris. Esa regla le gana al color HEREDADO del contenedor, así
+     que el número salía apagado aunque la tarjeta tuviera estado. */
+  .an-v .money, .an-kpi .v .money { color:inherit; }
   /* Punto en la esquina: el estado se capta sin leer la cifra. */
   .an-card { position:relative; }
   .an-card.ok::after, .an-card.warn::after, .an-card.bad::after {

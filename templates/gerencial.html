@@ -36,6 +36,8 @@
   .ge-k { font-size:.7rem; color:var(--text2); text-transform:uppercase; letter-spacing:.05em; font-weight:700; }
   .ge-v { font-size:1.75rem; font-weight:700; color:var(--text); margin:7px 0 4px; line-height:1.1; }
   .ge-v.ok { color:#66bb6a; } .ge-v.warn { color:#e0a800; } .ge-v.bad { color:#ef5350; }
+  /* Mismo motivo que en Analítica: el <span> de la cifra hereda, no se pinta solo. */
+  .ge-v .money { color:inherit; }
   /* Punto de color en la esquina: se ve el estado sin tener que leer la cifra. */
   .ge-card { position:relative; }
   .ge-card.est-ok::after, .ge-card.est-warn::after, .ge-card.est-bad::after {
