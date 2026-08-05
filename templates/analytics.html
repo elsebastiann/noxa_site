@@ -43,6 +43,13 @@
     <input class="form-control" type="date" id="to" name="to" value="{{ date_to.isoformat() }}">
   </div>
   <div>
+    <label class="an-label" for="fuente">Calcular sobre</label>
+    <select class="form-select" id="fuente" name="fuente">
+      <option value="ventas" {% if fuente == 'ventas' %}selected{% endif %}>Ventas cerradas</option>
+      <option value="citas"  {% if fuente == 'citas'  %}selected{% endif %}>Citas agendadas</option>
+    </select>
+  </div>
+  <div>
     <label class="an-label" for="vehicle_type">Tipo de vehículo</label>
     <select class="form-select" id="vehicle_type" name="vehicle_type">
       <option value="">Todos</option>
@@ -54,6 +61,29 @@
   <button type="submit" class="btn btn-warning">Aplicar</button>
   <a href="{{ url_for('analytics_dashboard') }}" class="btn btn-outline-secondary">Limpiar</a>
 </form>
+
+{% if fuente == 'ventas' and brecha.sin_cerrar %}
+  <div class="an-warn">
+    <strong>Ojo con estos números:</strong> en este periodo hay
+    <strong>{{ brecha.citas }} cita{{ '' if brecha.citas == 1 else 's' }}</strong> en la agenda, pero
+    {% if brecha.cerradas == 0 %}ninguna quedó cerrada{% else %}solo
+    <strong>{{ brecha.cerradas }}</strong> qued{{ 'ó' if brecha.cerradas == 1 else 'aron' }}
+    cerrada{{ '' if brecha.cerradas == 1 else 's' }}{% endif %} en la plataforma.
+    Las cifras de abajo cuentan únicamente lo cerrado, porque es el único dinero que quedó registrado —
+    {{ brecha.sin_cerrar }} cita{{ '' if brecha.sin_cerrar == 1 else 's' }} no aparece{{ '' if brecha.sin_cerrar == 1 else 'n' }}.
+    Para ver el panorama completo con valores estimados, cambia <em>Calcular sobre</em> a
+    <strong>Citas agendadas</strong>.
+  </div>
+{% endif %}
+
+{% if fuente == 'citas' %}
+  <div class="an-warn">
+    <strong>Estás viendo citas agendadas, no dinero cobrado.</strong> Los montos son el
+    <em>valor estimado</em> de cada cita según servicio y tipo de vehículo, sin descuentos ni
+    ajustes que se apliquen al cerrar. Sirve para dimensionar volumen y comportamiento de clientes;
+    para plata real, usa <strong>Ventas cerradas</strong>.
+  </div>
+{% endif %}
 
 {% if data.visitas %}
   <div class="an-warn">
@@ -88,7 +118,7 @@
     <div class="an-card">
       <div class="an-k">Ingresos del periodo</div>
       <div class="an-v">${{ '{:,.0f}'.format(data.ingresos).replace(',', '.') }}</div>
-      <div class="an-sub">{{ data.visitas }} servicios cerrados</div>
+      <div class="an-sub">{{ data.visitas }} {{ "citas agendadas" if fuente == "citas" else "servicios cerrados" }}</div>
     </div>
     <div class="an-card">
       <div class="an-k">Clientes atendidos</div>
@@ -199,8 +229,9 @@
   </script>
 {% else %}
   <div class="an-empty">
-    No hay servicios cerrados en este periodo. Las métricas se calculan sobre las ventas
-    completadas, así que aparecen a medida que se vayan cerrando citas.
+    No hay datos en este periodo con la fuente seleccionada. Si estás viendo
+    <em>Ventas cerradas</em>, recuerda que solo aparecen las citas que se cerraron con
+    "Finalizar" en la plataforma; prueba con <em>Citas agendadas</em>.
   </div>
 {% endif %}
 {% endblock %}

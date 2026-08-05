@@ -2406,48 +2406,77 @@ def _meses_del_periodo(date_from, date_to) -> float:
     return max(dias / _DIAS_POR_MES, 1.0)
 
 
-def _analytics_data(date_from, date_to, vehicle_type: str = ""):
-    """Métricas del periodo. Solo cuentan las ventas 'completed': las canceladas
-    no son ingreso ni hacen a un cliente nuevo."""
+def _transacciones_ventas(vehicle_type: str = ""):
+    """Ventas cerradas: dinero real cobrado. Es la fuente de verdad, pero solo
+    existe si el equipo cierra la cita en la plataforma."""
     filtros = [ServiceSale.status == "completed"]
     if vehicle_type:
         filtros.append(ServiceSale.vehicle_type == vehicle_type)
+    return [
+        {"fecha": v.service_date, "placa": v.plate, "monto": v.final_amount or 0,
+         "servicios": v.services or ""}
+        for v in ServiceSale.query.filter(*filtros).order_by(ServiceSale.service_date).all()
+    ]
 
-    con_placa = [ServiceSale.plate.isnot(None), ServiceSale.plate != ""]
 
-    # Primera compra histórica de cada placa: define en qué mes ese cliente fue
-    # nuevo. Se mira sobre TODA la historia, no sobre el periodo filtrado, o un
-    # cliente antiguo aparecería como nuevo solo por caer dentro del rango.
-    primera_compra = dict(
-        db.session.query(ServiceSale.plate, db.func.min(ServiceSale.service_date))
-        .filter(*filtros, *con_placa)
-        .group_by(ServiceSale.plate)
+def _transacciones_citas(vehicle_type: str = ""):
+    """Citas agendadas con su valor estimado. Sirve mientras el cierre de citas
+    no sea sistemático: sin esto el tablero se ve vacío aunque el taller haya
+    trabajado todo el mes. El monto es estimado, no cobrado."""
+    citas = (
+        Appointment.query
+        .filter(Appointment.status != "cancelled")
+        .order_by(Appointment.start_datetime)
         .all()
     )
+    salida = []
+    for a in citas:
+        if vehicle_type and (not a.vehicle_type or a.vehicle_type.name != vehicle_type):
+            continue
+        salida.append({
+            "fecha": a.start_datetime.date(),
+            "placa": a.plate,
+            "monto": calculate_estimated_amount_for_appointment(a) or 0,
+            "servicios": a.services or "",
+        })
+    return salida
 
-    ventas = (
-        ServiceSale.query
-        .filter(*filtros)
-        .filter(ServiceSale.service_date >= date_from, ServiceSale.service_date <= date_to)
-        .order_by(ServiceSale.service_date)
-        .all()
-    )
+
+def _analytics_data(date_from, date_to, vehicle_type: str = "", fuente: str = "ventas"):
+    """Métricas del periodo, calculadas sobre ventas cerradas o sobre citas
+    agendadas según `fuente`. Las canceladas nunca cuentan: no son ingreso ni
+    hacen a un cliente nuevo."""
+    todas = (_transacciones_citas(vehicle_type) if fuente == "citas"
+             else _transacciones_ventas(vehicle_type))
+
+    # Primera transacción histórica de cada placa: define en qué mes ese cliente
+    # fue nuevo. Se mira sobre TODA la historia, no sobre el periodo filtrado, o
+    # un cliente antiguo aparecería como nuevo solo por caer dentro del rango.
+    primera_compra = {}
+    for t in todas:
+        if not t["placa"]:
+            continue
+        actual = primera_compra.get(t["placa"])
+        if actual is None or t["fecha"] < actual:
+            primera_compra[t["placa"]] = t["fecha"]
+
+    ventas = [t for t in todas if date_from <= t["fecha"] <= date_to]
 
     meses = _meses_del_periodo(date_from, date_to)
-    ingresos = sum(v.final_amount or 0 for v in ventas)
+    ingresos = sum(v["monto"] for v in ventas)
     visitas = len(ventas)
-    placas = {v.plate for v in ventas if v.plate}
+    placas = {v["placa"] for v in ventas if v["placa"]}
     clientes = len(placas)
 
     # Serie mensual: ingresos, visitas y clientes nuevos
     serie = {}
     for v in ventas:
-        clave = v.service_date.strftime("%Y-%m")
+        clave = v["fecha"].strftime("%Y-%m")
         d = serie.setdefault(clave, {"ingresos": 0, "visitas": 0, "nuevos": 0, "placas": set()})
-        d["ingresos"] += v.final_amount or 0
+        d["ingresos"] += v["monto"]
         d["visitas"] += 1
-        if v.plate:
-            d["placas"].add(v.plate)
+        if v["placa"]:
+            d["placas"].add(v["placa"])
     for placa, fecha in primera_compra.items():
         if date_from <= fecha <= date_to:
             clave = fecha.strftime("%Y-%m")
@@ -2469,7 +2498,7 @@ def _analytics_data(date_from, date_to, vehicle_type: str = ""):
     # dice cuánto aportó cada uno, y repartirlo sería inventar la cifra.
     servicios = {}
     for v in ventas:
-        for nombre in {s.strip() for s in (v.services or "").split(",") if s.strip()}:
+        for nombre in {s.strip() for s in v["servicios"].split(",") if s.strip()}:
             servicios[nombre] = servicios.get(nombre, 0) + 1
     top_servicios = sorted(servicios.items(), key=lambda x: x[1], reverse=True)[:10]
 
@@ -2499,6 +2528,22 @@ def _analytics_data(date_from, date_to, vehicle_type: str = ""):
     }
 
 
+def _brecha_cierre(date_from, date_to):
+    """Cuántas citas del periodo quedaron sin cerrar. Es lo que explica que el
+    tablero de ventas se vea vacío aunque la agenda esté llena."""
+    citas = Appointment.query.filter(
+        Appointment.status != "cancelled",
+        Appointment.start_datetime >= datetime.combine(date_from, datetime.min.time()),
+        Appointment.start_datetime <= datetime.combine(date_to, datetime.max.time()),
+    ).count()
+    cerradas = ServiceSale.query.filter(
+        ServiceSale.status == "completed",
+        ServiceSale.service_date >= date_from,
+        ServiceSale.service_date <= date_to,
+    ).count()
+    return {"citas": citas, "cerradas": cerradas, "sin_cerrar": max(citas - cerradas, 0)}
+
+
 @app.route("/analytics")
 def analytics_dashboard():
     if not _can_see_notifications():
@@ -2512,16 +2557,21 @@ def analytics_dashboard():
     if date_from > date_to:
         date_from, date_to = date_to, date_from
     vehicle_type = (request.args.get("vehicle_type") or "").strip()
+    fuente = "citas" if request.args.get("fuente") == "citas" else "ventas"
 
-    tipos = [
-        t[0] for t in db.session.query(ServiceSale.vehicle_type)
-        .distinct().order_by(ServiceSale.vehicle_type).all() if t[0]
-    ]
+    if fuente == "citas":
+        tipos = [v.name for v in VehicleType.query.filter_by(is_active=True).order_by(VehicleType.name)]
+    else:
+        tipos = [
+            t[0] for t in db.session.query(ServiceSale.vehicle_type)
+            .distinct().order_by(ServiceSale.vehicle_type).all() if t[0]
+        ]
     return render_template(
         "analytics.html",
-        data=_analytics_data(date_from, date_to, vehicle_type),
+        data=_analytics_data(date_from, date_to, vehicle_type, fuente),
+        brecha=_brecha_cierre(date_from, date_to),
         date_from=date_from, date_to=date_to,
-        vehicle_type=vehicle_type, tipos=tipos,
+        vehicle_type=vehicle_type, tipos=tipos, fuente=fuente,
     )
 
 
