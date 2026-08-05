@@ -205,15 +205,19 @@
 {# Franja fija: las cifras que contestan "¿cómo va el negocio?" sin importar en
    qué pestaña esté el usuario. #}
 <div class="an-kpis">
+  {% if puede_ver_finanzas() %}
   <div class="an-kpi">
     <span class="k">Ingresos</span>
     <span class="v">{{ money(fin.ingresos) }}</span>
   </div>
+  {% endif %}
+  {% if puede_ver_finanzas() %}
   <div class="an-kpi">
     <span class="k">Margen</span>
     <span class="v {{ semaforo('margen_pct', fin.margen_pct) }}">{{ money(fin.margen) }}</span>
     <span class="s">{{ '%.0f'|format(fin.margen_pct) }}% sobre ingresos</span>
   </div>
+  {% endif %}
   <div class="an-kpi">
     <span class="k">Servicios</span>
     <span class="v">{{ data.visitas }}</span>
@@ -237,13 +241,18 @@
 </div>
 
 <nav class="an-tabs" id="anTabs">
+{% if puede_ver_finanzas() %}
   <button type="button" class="an-tab-btn" data-target="resumen">Resumen<small>cómo va el negocio</small></button>
+{% endif %}
   <button type="button" class="an-tab-btn" data-target="comercial">Comercial<small>leads y diagnósticos</small></button>
   <button type="button" class="an-tab-btn" data-target="clientes">Clientes<small>captación y recurrencia</small></button>
+{% if puede_ver_finanzas() %}
   <button type="button" class="an-tab-btn" data-target="operacion">Operación<small>capacidad y equipo</small></button>
+{% endif %}
   <button type="button" class="an-tab-btn" data-target="servicios">Servicios<small>qué se vende</small></button>
 </nav>
 
+{% if puede_ver_finanzas() %}
 <section class="an-pane" data-pane="resumen">
 <div class="an-sec"><h3>Resultado del negocio</h3><span>ingresos contra gastos reales del periodo</span></div>
   <div class="an-grid">
@@ -285,6 +294,7 @@
     </div>
   </div>
 </section>
+{% endif %}
 
 <section class="an-pane" data-pane="comercial">
 {% if diag.total %}
@@ -395,11 +405,13 @@
       <div class="an-v">{{ '%.2f'|format(data.visitas_por_cliente) }}</div>
       <div class="an-sub">En el periodo · {{ '%.1f'|format(data.visitas_ano) }} proyectadas al año</div>
     </div>
+    {% if puede_ver_finanzas() %}
     <div class="an-card">
       <div class="an-k">Ingresos del periodo</div>
       <div class="an-v">{{ money(data.ingresos) }}</div>
       <div class="an-sub">{{ data.visitas }} servicio{{ "" if data.visitas == 1 else "s" }} prestado{{ "" if data.visitas == 1 else "s" }}</div>
     </div>
+    {% endif %}
     <div class="an-card">
       <div class="an-k">Clientes atendidos</div>
       <div class="an-v">{{ data.clientes }}</div>
@@ -477,6 +489,7 @@
   
 </section>
 
+{% if puede_ver_finanzas() %}
 <section class="an-pane" data-pane="operacion">
 <div class="an-sec"><h3>Operación</h3><span>capacidad, cumplimiento y equipo</span></div>
   <div class="an-grid">
@@ -527,6 +540,7 @@
 
   
 </section>
+{% endif %}
 
 <section class="an-pane" data-pane="servicios">
 <div class="an-sec"><h3>Servicios</h3><span>qué se vende y cuánto pesa</span></div>
@@ -754,13 +768,16 @@
           p.classList.toggle('active', activo);
           if (activo) encontrado = true;
         });
-        if (!encontrado) return mostrar('resumen');
+        if (!encontrado) return mostrar(porDefecto);
         botones.forEach(b => b.classList.toggle('active', b.dataset.target === nombre));
         window.__anDibujar(nombre);
         history.replaceState(null, '', '#' + nombre);
       }
       botones.forEach(b => b.addEventListener('click', () => mostrar(b.dataset.target)));
-      mostrar((location.hash || '#resumen').slice(1));
+      // Marketing no tiene la pestaña Resumen: se arranca en la primera que exista.
+      const porDefecto = document.querySelector('.an-tab-btn') ?
+        document.querySelector('.an-tab-btn').dataset.target : 'comercial';
+      mostrar((location.hash || '#' + porDefecto).slice(1));
     })();
   </script>
 {% else %}

@@ -4130,7 +4130,7 @@ def users_new():
     if not username or not password:
         flash("Usuario y contraseña son obligatorios.", "danger")
         return redirect(url_for("users_list"))
-    if role not in ("admin", "lider", "operario"):
+    if role not in ("admin", "lider", "operario", "marketing"):
         flash("Rol inválido.", "danger")
         return redirect(url_for("users_list"))
     if User.query.filter_by(username=username).first():
@@ -4167,7 +4167,7 @@ def users_edit(user_id):
     if not new_username:
         flash("El nombre de usuario no puede estar vacío.", "danger")
         return redirect(url_for("users_list"))
-    if new_role not in ("admin", "lider", "operario"):
+    if new_role not in ("admin", "lider", "operario", "marketing"):
         flash("Rol inválido.", "danger")
         return redirect(url_for("users_list"))
 
@@ -4269,6 +4269,30 @@ OPERARIO_ENDPOINTS = {
     "change_password",
 }
 
+# La agencia de marketing atiende conversaciones y mira los tableros comerciales,
+# nada más. Es una lista blanca a propósito: si mañana se agrega una pantalla
+# nueva, queda fuera de su alcance por defecto en vez de quedar expuesta.
+MARKETING_ENDPOINTS = {
+    "whatsapp_inbox", "whatsapp_conversation", "whatsapp_messages_json",
+    "whatsapp_toggle_bot", "whatsapp_send_manual", "whatsapp_media",
+    "analytics_dashboard", "analytics_detalle",
+    "notifications_list", "api_notifications",
+    "notification_mark_read", "notifications_mark_all_read",
+    "change_password", "logout",
+}
+
+
+def es_marketing() -> bool:
+    u = getattr(g, "current_user", None)
+    return bool(u) and u.role == "marketing"
+
+
+@app.template_global()
+def puede_ver_finanzas() -> bool:
+    """Marketing ve conversión y comportamiento de clientes, no la caja."""
+    return not es_marketing()
+
+
 @app.before_request
 def require_login():
     endpoint = request.endpoint
@@ -4295,6 +4319,10 @@ def require_login():
     if user.role == "operario" and endpoint not in OPERARIO_ENDPOINTS:
         flash("No tienes permiso para acceder a esa sección.", "danger")
         return redirect(url_for("calendar_view"))
+
+    if user.role == "marketing" and endpoint not in MARKETING_ENDPOINTS:
+        flash("No tienes permiso para acceder a esa sección.", "danger")
+        return redirect(url_for("whatsapp_inbox"))
 
 
 @app.context_processor
@@ -6917,11 +6945,32 @@ def whatsapp_messages_json(conversation_id):
     })
 
 
+def _quien() -> str:
+    u = getattr(g, "current_user", None)
+    return f"{u.username} ({u.role})" if u else "alguien sin sesión"
+
+
 @app.route("/whatsapp/<int:conversation_id>/toggle-bot", methods=["POST"])
 def whatsapp_toggle_bot(conversation_id):
     conversation = Conversation.query.get_or_404(conversation_id)
     conversation.bot_active = not conversation.bot_active
     db.session.commit()
+
+    # Pausar el bot deja al cliente esperando a una persona, así que tiene que
+    # quedar registrado quién lo hizo: la conversación pasa a ser responsabilidad
+    # de quien la intervino.
+    contacto = conversation.profile_name or conversation.phone
+    accion = "reactivó" if conversation.bot_active else "pausó"
+    push_notification(
+        kind="bot_intervenido",
+        level="info" if conversation.bot_active else "warning",
+        title=f"{_quien()} {accion} el bot con {contacto}",
+        body=("Mariana vuelve a responder automáticamente."
+              if conversation.bot_active else
+              "Mariana no va a responder hasta que alguien lo reactive."),
+        url=f"/whatsapp/{conversation.id}",
+        ref_type="conversation", ref_id=conversation.id,
+    )
     flash("Bot pausado en esta conversación." if not conversation.bot_active else "Bot reactivado.", "success")
     return redirect(url_for("whatsapp_conversation", conversation_id=conversation.id))
 
@@ -6937,6 +6986,14 @@ def whatsapp_send_manual(conversation_id):
             db.session.add(Message(conversation_id=conversation.id, direction="out", body=body))
             conversation.followup_count = 0  # un asesor humano ya respondió, resetea el seguimiento automático
             db.session.commit()
+            contacto = conversation.profile_name or conversation.phone
+            push_notification(
+                kind="respuesta_manual", level="info",
+                title=f"{_quien()} le respondió manualmente a {contacto}",
+                body=body[:280],
+                url=f"/whatsapp/{conversation.id}",
+                ref_type="conversation", ref_id=conversation.id,
+            )
         else:
             flash(f"Error enviando mensaje: {err}", "danger")
     return redirect(url_for("whatsapp_conversation", conversation_id=conversation.id))
