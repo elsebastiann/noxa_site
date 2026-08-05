@@ -9,11 +9,14 @@ import csv
 import io
 import json
 import re
+import secrets
 import time
 import base64
 import requests
 from decimal import Decimal
+from urllib.parse import urlparse
 import pytz
+from werkzeug.middleware.proxy_fix import ProxyFix
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.cron import CronTrigger
 from apscheduler.triggers.interval import IntervalTrigger
@@ -82,7 +85,29 @@ COLORS = {
 
 
 app = Flask(__name__)
-app.secret_key = "cambia_esto_por_algo_mas_seguro"
+
+# Railway (y cualquier proxy inverso) termina TLS antes de reenviar al proceso
+# Flask por HTTP interno — sin esto, request.is_secure siempre da False y
+# SESSION_COOKIE_SECURE=True rompería el login en producción.
+app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_for=1)
+
+# La secret key firma las cookies de sesión: con un valor fijo en el código
+# (y este repo es público), cualquiera puede fabricar su propia cookie de
+# admin sin contraseña. SIEMPRE debe venir de una variable de entorno en
+# producción. El fallback aleatorio es solo para correr localmente sin
+# configurar nada — las sesiones no sobreviven un reinicio con ese fallback,
+# lo cual es aceptable en desarrollo pero NO en producción.
+app.secret_key = os.environ.get("SECRET_KEY") or secrets.token_hex(32)
+if not os.environ.get("SECRET_KEY"):
+    app.logger.warning(
+        "[Seguridad] SECRET_KEY no configurada — usando una clave aleatoria temporal. "
+        "Configura SECRET_KEY en las variables de entorno de Railway cuanto antes."
+    )
+
+app.config["SESSION_COOKIE_SECURE"] = True
+app.config["SESSION_COOKIE_HTTPONLY"] = True
+app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
+app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(hours=12)
 
 
 # Base de datos SQLite
@@ -105,6 +130,14 @@ app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
 
 db = SQLAlchemy(app)
+
+# Límite de intentos de login por IP — antes no había ninguno, así que se
+# podían probar contraseñas sin parar. El almacenamiento en memoria alcanza
+# porque el servicio corre en una sola réplica (numReplicas: 1).
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
+
+limiter = Limiter(get_remote_address, app=app, storage_uri="memory://")
 
 # --- Ensure expenses schema migration for is_void column ---
 from sqlalchemy import text
@@ -4243,13 +4276,21 @@ def ensure_users_schema():
 ensure_users_schema()
 
 # --- Seed: crear super admin si no existe ningún usuario ---
+# Antes tenía una contraseña fija en el código ("Slm2026$$") — visible para
+# cualquiera en este repo público. Ahora se genera una temporal al azar, se
+# imprime UNA sola vez en los logs, y se obliga a cambiarla en el primer login.
 def seed_superadmin():
     with app.app_context():
         if User.query.count() == 0:
-            u = User(username="sa", role="admin", is_active=True)
-            u.set_password("Slm2026$$")
+            temp_password = secrets.token_urlsafe(12)
+            u = User(username="sa", role="admin", is_active=True, must_change_password=True)
+            u.set_password(temp_password)
             db.session.add(u)
             db.session.commit()
+            app.logger.warning(
+                f"[Seguridad] Usuario 'sa' creado con contraseña temporal: {temp_password} "
+                "— inicia sesión y cámbiala de inmediato. Este mensaje solo aparece una vez."
+            )
 
 seed_superadmin()
 
@@ -4381,7 +4422,18 @@ def change_password():
 
 
 # --- Login ---
+def _is_safe_redirect_target(target: str) -> bool:
+    """Evita "open redirect": el 'next' debe ser una ruta propia (/algo), nunca
+    una URL externa (http://sitio-malicioso.com) que alguien podría meter en el
+    link de login para mandar a un usuario ya autenticado a otro lado."""
+    if not target or not target.startswith("/") or target.startswith("//"):
+        return False
+    parsed = urlparse(target)
+    return not parsed.netloc and not parsed.scheme
+
+
 @app.route("/login", methods=["GET", "POST"])
+@limiter.limit("10 per minute", methods=["POST"])
 def login():
     if session.get("user_id"):
         return redirect(url_for("calendar_view"))
@@ -4399,7 +4451,9 @@ def login():
             # Si debe cambiar contraseña, ignorar el 'next' y forzar el cambio
             if bool(user.must_change_password):
                 return redirect(url_for("change_password"))
-            next_url = request.form.get("next") or url_for("calendar_view")
+            next_url = request.form.get("next") or ""
+            if not _is_safe_redirect_target(next_url):
+                next_url = url_for("calendar_view")
             return redirect(next_url)
         error = "Usuario o contraseña incorrectos."
 

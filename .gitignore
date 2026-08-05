@@ -1,0 +1,10 @@
+__pycache__/
+*.pyc
+.env
+.env.*
+*.key
+*.pem
+*_recovery_code.txt
+*credential*
+*secret*
+.DS_Store
