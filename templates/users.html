@@ -338,21 +338,32 @@
   });
 </script>
 
-{% endblock %}
-
 <script>
   // La fecha de ingreso solo aplica a operarios: alimenta el período de prueba y
   // la nómina, que no existen para los demás roles.
   function sincronizarCampoIngreso(select) {
     const campo = select.closest('form').querySelector('[data-solo-operario]');
     if (!campo) return;
+    const input = campo.querySelector('input');
+    // Se recuerda el valor original para devolverlo si vuelven a Operario: al
+    // ocultar el campo hay que limpiarlo, pero perder la fecha por haber mirado
+    // otro rol obliga a escribirla de nuevo sin motivo.
+    if (input && input.dataset.previo === undefined) input.dataset.previo = input.value;
+
     const esOperario = select.value === 'operario';
     campo.style.display = esOperario ? '' : 'none';
-    const input = campo.querySelector('input');
-    if (input && !esOperario) input.value = '';
+    if (!input) return;
+    if (esOperario) {
+      if (!input.value) input.value = input.dataset.previo || '';
+    } else {
+      if (input.value) input.dataset.previo = input.value;
+      input.value = '';
+    }
   }
   document.querySelectorAll('form select[name="role"]').forEach(sel => {
     sel.addEventListener('change', () => sincronizarCampoIngreso(sel));
     sincronizarCampoIngreso(sel);
   });
 </script>
+
+{% endblock %}
