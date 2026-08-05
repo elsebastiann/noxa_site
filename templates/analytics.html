@@ -27,8 +27,41 @@
   table.an td { padding:9px 12px; border-top:1px solid var(--border); white-space:nowrap; }
   table.an td.num, table.an th.num { text-align:right; }
   .an-empty { padding:40px; text-align:center; color:var(--text2); }
+  .an-sec { margin:26px 0 12px; display:flex; align-items:baseline; gap:10px; }
+  .an-sec h3 { font-size:1rem; margin:0; color:var(--text); }
+  .an-sec span { font-size:.76rem; color:var(--text3); }
+  .an-card.ok  .an-v { color:#66bb6a; }
+  .an-card.bad .an-v { color:#ef5350; }
+  .an-bars { display:flex; flex-direction:column; gap:7px; }
+  .an-bar-row { display:grid; grid-template-columns:minmax(90px,34%) 1fr auto; gap:10px; align-items:center; font-size:.8rem; }
+  .an-bar-row .lbl { color:var(--text2); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  /* display:block es necesario: en un span inline el ancho no aplica y la barra
+     quedaba invisible. */
+  .an-bar-track { display:block; width:100%; height:8px; border-radius:6px; background:var(--bg2); }
+  .an-bar { display:block; height:8px; border-radius:6px; background:var(--accent); min-width:2px; }
+  .an-bar-row .val { color:var(--text); font-weight:600; white-space:nowrap; }
+  .an-funnel { display:flex; flex-direction:column; gap:8px; }
+  .an-step { display:flex; justify-content:space-between; align-items:center; padding:10px 14px;
+             border:1px solid var(--border); border-radius:var(--radius-sm); background:var(--bg2); }
+  .an-step b { color:var(--text); font-size:1.05rem; }
 </style>
 {% endblock %}
+
+{% macro barras(items, formato='num') -%}
+  {% set maximo = (items | map(attribute=1) | max) if items else 0 %}
+  <div class="an-bars">
+    {% for etiqueta, valor in items %}
+      <div class="an-bar-row">
+        <span class="lbl" title="{{ etiqueta }}">{{ etiqueta }}</span>
+        <span class="an-bar-track"><span class="an-bar" style="width: {{ (valor / maximo * 100) if maximo else 0 }}%;"></span></span>
+        <span class="val">
+          {%- if formato == 'money' -%}${{ '{:,.0f}'.format(valor).replace(',', '.') }}
+          {%- else -%}{{ valor }}{%- endif -%}
+        </span>
+      </div>
+    {% endfor %}
+  </div>
+{%- endmacro %}
 
 {% block content %}
 <h2 style="margin-top:16px;">Analítica</h2>
@@ -94,6 +127,110 @@
     con dos carros cuenta como dos.
   </div>
 
+  <div class="an-sec"><h3>Resultado del negocio</h3><span>ingresos contra gastos reales del periodo</span></div>
+  <div class="an-grid">
+    <div class="an-card">
+      <div class="an-k">Ingresos</div>
+      <div class="an-v">${{ '{:,.0f}'.format(fin.ingresos).replace(',', '.') }}</div>
+      <div class="an-sub">Solo ventas cerradas</div>
+    </div>
+    <div class="an-card">
+      <div class="an-k">Gastos</div>
+      <div class="an-v">${{ '{:,.0f}'.format(fin.gastos).replace(',', '.') }}</div>
+      <div class="an-sub">Registrados en el módulo de gastos</div>
+    </div>
+    <div class="an-card {{ 'ok' if fin.margen >= 0 else 'bad' }}">
+      <div class="an-k">Margen</div>
+      <div class="an-v">${{ '{:,.0f}'.format(fin.margen).replace(',', '.') }}</div>
+      <div class="an-sub">{{ '%.1f'|format(fin.margen_pct) }}% sobre ingresos</div>
+    </div>
+    <div class="an-card">
+      <div class="an-k">Descuentos otorgados</div>
+      <div class="an-v">${{ '{:,.0f}'.format(fin.descuentos).replace(',', '.') }}</div>
+      <div class="an-sub">{{ '%.1f'|format(fin.descuentos_pct) }}% del valor de lista · convenios, promos y ajustes</div>
+    </div>
+  </div>
+
+  {% if fin.gastos_por_categoria %}
+    <div class="an-panel" style="margin-bottom:20px;">
+      <h3>En qué se va la plata</h3>
+      {{ barras(fin.gastos_por_categoria, 'money') }}
+    </div>
+  {% endif %}
+
+  <div class="an-sec"><h3>Embudo comercial</h3><span>de conversación de WhatsApp a cita</span></div>
+  <div class="an-charts">
+    <div class="an-panel">
+      <h3>Conversión de leads</h3>
+      <div class="an-funnel">
+        <div class="an-step"><span>Leads que escribieron</span><b>{{ embudo.leads }}</b></div>
+        <div class="an-step"><span>Llegaron a agendar</span><b>{{ embudo.con_cita }}</b></div>
+        <div class="an-step"><span>Tasa de conversión</span><b>{{ '%.1f'|format(embudo.conversion) }}%</b></div>
+        <div class="an-step"><span>Citas creadas por Mariana</span><b>{{ embudo.agendadas_bot }}</b></div>
+      </div>
+      {% if embudo.por_estado %}
+        <h3 style="margin-top:16px;">Estado actual de los leads</h3>
+        {{ barras(embudo.por_estado) }}
+      {% endif %}
+    </div>
+    <div class="an-panel">
+      <h3>Qué servicio les interesa</h3>
+      {% if embudo.interes %}{{ barras(embudo.interes) }}
+      {% else %}<div class="an-sub">Sin interés registrado todavía.</div>{% endif %}
+      <h3 style="margin-top:18px;">Medios de pago</h3>
+      {% if cli.pagos %}{{ barras(cli.pagos, 'money') }}
+      {% else %}<div class="an-sub">Sin ventas cerradas en el periodo.</div>{% endif %}
+    </div>
+  </div>
+
+  <div class="an-sec"><h3>Operación</h3><span>capacidad, cumplimiento y equipo</span></div>
+  <div class="an-grid">
+    <div class="an-card">
+      <div class="an-k">Citas del periodo</div>
+      <div class="an-v">{{ oper.total }}</div>
+      <div class="an-sub">{% for e, n in oper.por_estado %}{{ e }}: {{ n }}{% if not loop.last %} · {% endif %}{% endfor %}</div>
+    </div>
+    <div class="an-card {{ 'bad' if oper.cancelacion_pct > 15 else '' }}">
+      <div class="an-k">Tasa de cancelación</div>
+      <div class="an-v">{{ '%.1f'|format(oper.cancelacion_pct) }}%</div>
+      <div class="an-sub">{{ oper.canceladas }} cita{{ '' if oper.canceladas == 1 else 's' }} cancelada{{ '' if oper.canceladas == 1 else 's' }}</div>
+    </div>
+    <div class="an-card">
+      <div class="an-k">Estimado vs. real</div>
+      <div class="an-v">{{ '%+.0f'|format(oper.desvio_pct) }}%</div>
+      <div class="an-sub">
+        {% if oper.cronometradas %}
+          {{ '%.0f'|format(oper.estimado_prom) }} min estimados vs {{ '%.0f'|format(oper.real_prom) }} reales
+          · {{ oper.cronometradas }} cita{{ '' if oper.cronometradas == 1 else 's' }} cronometrada{{ '' if oper.cronometradas == 1 else 's' }}
+        {% else %}Nadie ha usado Iniciar/Finalizar todavía{% endif %}
+      </div>
+    </div>
+    <div class="an-card {{ 'bad' if oper.errores_calidad else '' }}">
+      <div class="an-k">Errores de calidad</div>
+      <div class="an-v">{{ oper.errores_calidad }}</div>
+      <div class="an-sub">Registrados en el periodo</div>
+    </div>
+  </div>
+
+  <div class="an-charts">
+    <div class="an-panel">
+      <h3>Demanda por día de la semana</h3>
+      <canvas id="chartDias" height="190"></canvas>
+    </div>
+    <div class="an-panel">
+      <h3>Demanda por hora de llegada</h3>
+      <canvas id="chartHoras" height="190"></canvas>
+    </div>
+  </div>
+
+  {% if oper.operarios %}
+    <div class="an-panel" style="margin-bottom:20px;">
+      <h3>Carga por operario</h3>
+      {{ barras(oper.operarios) }}
+    </div>
+  {% endif %}
+
+  <div class="an-sec"><h3>Clientes</h3><span>captación, recurrencia y valor</span></div>
   <div class="an-grid">
     <div class="an-card hero">
       <div class="an-k">Clientes nuevos por mes</div>
@@ -123,7 +260,17 @@
     <div class="an-card">
       <div class="an-k">Clientes atendidos</div>
       <div class="an-v">{{ data.clientes }}</div>
-      <div class="an-sub">Placas distintas en el periodo</div>
+      <div class="an-sub">{{ cli.nuevos }} nuevos · {{ cli.recurrentes }} que ya habían venido</div>
+    </div>
+    <div class="an-card">
+      <div class="an-k">Tasa de recompra</div>
+      <div class="an-v">{{ '%.0f'|format(cli.recompra_pct) }}%</div>
+      <div class="an-sub">De todos los clientes históricos, los que volvieron al menos una vez</div>
+    </div>
+    <div class="an-card">
+      <div class="an-k">Cada cuánto vuelven</div>
+      <div class="an-v">{{ '%.0f'|format(cli.dias_entre_visitas) }} días</div>
+      <div class="an-sub">Promedio entre visitas de quienes repiten</div>
     </div>
   </div>
 
@@ -168,6 +315,38 @@
     </div>
   </div>
 
+  {% if cli.top %}
+    <div class="an-panel" style="margin-bottom:20px;">
+      <h3>Clientes que más facturaron en el periodo</h3>
+      <div class="an-wrap">
+        <table class="an">
+          <thead><tr><th>Placa</th><th>Cliente</th><th class="num">Facturado</th></tr></thead>
+          <tbody>
+            {% for placa, nombre, monto in cli.top %}
+              <tr>
+                <td>{{ placa }}</td><td>{{ nombre }}</td>
+                <td class="num">${{ '{:,.0f}'.format(monto).replace(',', '.') }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  {% endif %}
+
+  <div class="an-sec"><h3>Servicios</h3><span>qué se vende y cuánto pesa</span></div>
+  {% if data.mix_servicios %}
+    <div class="an-panel" style="margin-bottom:20px;">
+      <h3>Ingresos por servicio</h3>
+      {{ barras(data.mix_servicios, 'money') }}
+      <div class="an-sub" style="margin-top:10px;">
+        Una venta con varios servicios suma su monto completo en cada uno, porque no hay forma
+        de saber cuánto aportó cada servicio por separado. Sirve para comparar peso relativo,
+        no para sumar: el total de estas barras es mayor que los ingresos reales.
+      </div>
+    </div>
+  {% endif %}
+
   {% if data.top_servicios %}
   <div class="an-panel">
     <h3>Servicios más vendidos</h3>
@@ -206,6 +385,22 @@
         type: 'bar',
         data: { labels: etiquetas,
                 datasets: [{ data: serie.map(m => m.nuevos), backgroundColor: acento, borderRadius: 4 }] },
+        options: comun
+      });
+
+      const dias = {{ oper.por_dia | tojson }};
+      new Chart(document.getElementById('chartDias'), {
+        type: 'bar',
+        data: { labels: ['Lun','Mar','Mié','Jue','Vie','Sáb'],
+                datasets: [{ data: dias, backgroundColor: acento, borderRadius: 4 }] },
+        options: comun
+      });
+
+      const horas = {{ oper.por_hora | tojson }};
+      new Chart(document.getElementById('chartHoras'), {
+        type: 'bar',
+        data: { labels: horas.map(h => h[0] + ':00'),
+                datasets: [{ data: horas.map(h => h[1]), backgroundColor: acento, borderRadius: 4 }] },
         options: comun
       });
 

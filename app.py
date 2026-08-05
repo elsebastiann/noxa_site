@@ -2523,7 +2523,18 @@ def _analytics_data(date_from, date_to, vehicle_type: str = "", fuente: str = "v
             servicios[nombre] = servicios.get(nombre, 0) + 1
     top_servicios = sorted(servicios.items(), key=lambda x: x[1], reverse=True)[:10]
 
+    # Mix: cuánto pesa cada servicio y cada tipo de vehículo. En ventas con varios
+    # servicios el monto no se reparte (no hay forma de saber cuánto aportó cada
+    # uno), así que se cuenta el ingreso de la venta completa en cada servicio y
+    # se advierte en pantalla.
+    ingreso_servicio = {}
+    for v in ventas:
+        for nombre in {x.strip() for x in v["servicios"].split(",") if x.strip()}:
+            ingreso_servicio[nombre] = ingreso_servicio.get(nombre, 0) + v["monto"]
+    mix_servicios = sorted(ingreso_servicio.items(), key=lambda x: x[1], reverse=True)[:10]
+
     return {
+        "mix_servicios": mix_servicios,
         "meses": round(meses, 1),
         "ingresos": ingresos,
         "visitas": visitas,
@@ -2546,6 +2557,204 @@ def _analytics_data(date_from, date_to, vehicle_type: str = "", fuente: str = "v
             for m in meses_orden
         ],
         "top_servicios": top_servicios,
+    }
+
+
+def _rango(date_from, date_to):
+    """Límites para campos guardados en hora LOCAL de Bogotá, como
+    Appointment.start_datetime (viene del formulario, es hora de pared)."""
+    return (datetime.combine(date_from, datetime.min.time()),
+            datetime.combine(date_to, datetime.max.time()))
+
+
+def _rango_utc(date_from, date_to):
+    """Límites para campos guardados en UTC (los `created_at`, que usan utcnow).
+
+    Sin esto, un día de Bogotá se compara contra marcas UTC que van 5 horas
+    adelante: lo registrado después de las 7pm cae fuera del rango y desaparece
+    del tablero."""
+    ini = _BOGOTA.localize(datetime.combine(date_from, datetime.min.time()))
+    fin = _BOGOTA.localize(datetime.combine(date_to, datetime.max.time()))
+    return (ini.astimezone(pytz.utc).replace(tzinfo=None),
+            fin.astimezone(pytz.utc).replace(tzinfo=None))
+
+
+def _kpis_rentabilidad(date_from, date_to):
+    """Ingresos contra gastos. Es la única cifra que dice si el negocio gana
+    plata; el resto del tablero mide actividad, no resultado."""
+    ventas = ServiceSale.query.filter(
+        ServiceSale.status == "completed",
+        ServiceSale.service_date >= date_from, ServiceSale.service_date <= date_to,
+    ).all()
+    ingresos = sum(v.final_amount or 0 for v in ventas)
+    bruto = sum(v.base_amount or 0 for v in ventas)
+
+    gastos_rows = Expense.query.filter(
+        Expense.is_void == False,
+        Expense.expense_date >= date_from, Expense.expense_date <= date_to,
+    ).all()
+    gastos = sum(float(g.amount or 0) for g in gastos_rows)
+
+    por_categoria = {}
+    for g in gastos_rows:
+        por_categoria[g.category] = por_categoria.get(g.category, 0) + float(g.amount or 0)
+
+    margen = ingresos - gastos
+    return {
+        "ingresos": ingresos,
+        "gastos": gastos,
+        "margen": margen,
+        "margen_pct": (margen / ingresos * 100) if ingresos else 0,
+        # Lo que se dejó de cobrar entre convenios, promociones y ajustes al cierre.
+        "descuentos": max(bruto - ingresos, 0),
+        "descuentos_pct": ((bruto - ingresos) / bruto * 100) if bruto else 0,
+        "gastos_por_categoria": sorted(por_categoria.items(), key=lambda x: x[1], reverse=True)[:8],
+    }
+
+
+def _kpis_embudo(date_from, date_to):
+    """De conversación de WhatsApp a plata. Conecta el trabajo de Mariana con el
+    resultado, que es lo que no se podía ver por separado."""
+    ini_utc, fin_utc = _rango_utc(date_from, date_to)   # Conversation.created_at es UTC
+    ini, fin = _rango(date_from, date_to)                # Appointment.start_datetime es local
+    leads = Conversation.query.filter(
+        Conversation.created_at >= ini_utc, Conversation.created_at <= fin_utc
+    ).all()
+    por_estado = {}
+    for c in leads:
+        por_estado[c.status] = por_estado.get(c.status, 0) + 1
+
+    interes = {}
+    for c in leads:
+        for tag in [t.strip() for t in (c.service_tag or "").split(",") if t.strip()]:
+            interes[tag] = interes.get(tag, 0) + 1
+
+    agendadas_bot = Appointment.query.filter(
+        Appointment.source == "whatsapp_bot",
+        Appointment.start_datetime >= ini, Appointment.start_datetime <= fin,
+    ).count()
+    con_cita = sum(por_estado.get(e, 0) for e in ("Diagnóstico agendado", "Servicio agendado"))
+    total = len(leads)
+    return {
+        "leads": total,
+        "por_estado": [(e, por_estado.get(e, 0)) for e in LEAD_STATES if por_estado.get(e)],
+        "interes": sorted(interes.items(), key=lambda x: x[1], reverse=True),
+        "con_cita": con_cita,
+        "conversion": (con_cita / total * 100) if total else 0,
+        "agendadas_bot": agendadas_bot,
+    }
+
+
+def _kpis_operacion(date_from, date_to):
+    """Cómo se está usando la capacidad instalada: cancelaciones, cuándo llega la
+    demanda, si los tiempos estimados se parecen a los reales y quién produce."""
+    ini, fin = _rango(date_from, date_to)
+    citas = Appointment.query.filter(
+        Appointment.start_datetime >= ini, Appointment.start_datetime <= fin
+    ).all()
+
+    por_estado = {}
+    for a in citas:
+        por_estado[a.status] = por_estado.get(a.status, 0) + 1
+    total = len(citas)
+    canceladas = por_estado.get("cancelled", 0)
+
+    por_dia = [0] * 6      # lunes..sábado
+    por_hora = {}
+    for a in citas:
+        if a.status == "cancelled":
+            continue
+        if a.start_datetime.weekday() < 6:
+            por_dia[a.start_datetime.weekday()] += 1
+        por_hora[a.start_datetime.hour] = por_hora.get(a.start_datetime.hour, 0) + 1
+
+    # Estimado contra real: solo las citas que de verdad se cronometraron.
+    desvios = []
+    for a in citas:
+        if not (a.work_started_at and a.work_ended_at):
+            continue
+        real = (a.work_ended_at - a.work_started_at).total_seconds() / 60 - (a.total_pause_seconds or 0) / 60
+        estimado = (a.end_datetime - a.start_datetime).total_seconds() / 60
+        if real > 0 and estimado > 0:
+            desvios.append((a.services or "—", estimado, real))
+    if desvios:
+        est_prom = sum(d[1] for d in desvios) / len(desvios)
+        real_prom = sum(d[2] for d in desvios) / len(desvios)
+    else:
+        est_prom = real_prom = 0
+
+    operarios = {}
+    for a in citas:
+        if a.status == "cancelled" or not a.operator_assignments:
+            continue
+        for ao in a.operator_assignments:
+            nombre = ao.user.username if ao.user else "—"
+            operarios[nombre] = operarios.get(nombre, 0) + 1
+
+    ini_utc, fin_utc = _rango_utc(date_from, date_to)   # QualityError.created_at es UTC
+    errores = QualityError.query.filter(
+        QualityError.created_at >= ini_utc, QualityError.created_at <= fin_utc
+    ).count()
+
+    return {
+        "total": total,
+        "por_estado": sorted(por_estado.items(), key=lambda x: x[1], reverse=True),
+        "canceladas": canceladas,
+        "cancelacion_pct": (canceladas / total * 100) if total else 0,
+        "por_dia": por_dia,
+        "por_hora": [(h, por_hora[h]) for h in sorted(por_hora)],
+        "cronometradas": len(desvios),
+        "estimado_prom": est_prom,
+        "real_prom": real_prom,
+        "desvio_pct": ((real_prom - est_prom) / est_prom * 100) if est_prom else 0,
+        "operarios": sorted(operarios.items(), key=lambda x: x[1], reverse=True),
+        "errores_calidad": errores,
+    }
+
+
+def _kpis_clientes(date_from, date_to):
+    """Recurrencia: en detailing conseguir un cliente cuesta mucho más que hacerlo
+    volver, así que la tasa de recompra manda sobre el conteo de nuevos."""
+    todas = ServiceSale.query.filter(ServiceSale.status == "completed").all()
+    visitas_por_placa = {}
+    for v in todas:
+        if v.plate:
+            visitas_por_placa.setdefault(v.plate, []).append(v)
+
+    del_periodo = [v for v in todas if date_from <= v.service_date <= date_to]
+    placas_periodo = {v.plate for v in del_periodo if v.plate}
+
+    nuevos = sum(
+        1 for p in placas_periodo
+        if min(x.service_date for x in visitas_por_placa[p]) >= date_from
+    )
+    recurrentes = len(placas_periodo) - nuevos
+    con_recompra = sum(1 for p, vs in visitas_por_placa.items() if len(vs) > 1)
+
+    gasto = {}
+    for v in del_periodo:
+        if v.plate:
+            gasto[v.plate] = gasto.get(v.plate, 0) + (v.final_amount or 0)
+    top = sorted(gasto.items(), key=lambda x: x[1], reverse=True)[:10]
+    nombres = {v.plate: v.customer_name for v in del_periodo if v.plate}
+
+    # Días entre visitas: cada cuánto vuelve un cliente que sí vuelve.
+    brechas = []
+    for vs in visitas_por_placa.values():
+        fechas = sorted(x.service_date for x in vs)
+        brechas += [(b - a).days for a, b in zip(fechas, fechas[1:])]
+
+    pagos = {}
+    for v in del_periodo:
+        pagos[v.payment_method or "Sin registrar"] = pagos.get(v.payment_method or "Sin registrar", 0) + (v.final_amount or 0)
+
+    return {
+        "nuevos": nuevos,
+        "recurrentes": recurrentes,
+        "recompra_pct": (con_recompra / len(visitas_por_placa) * 100) if visitas_por_placa else 0,
+        "dias_entre_visitas": (sum(brechas) / len(brechas)) if brechas else 0,
+        "top": [(p, nombres.get(p, "—"), m) for p, m in top],
+        "pagos": sorted(pagos.items(), key=lambda x: x[1], reverse=True),
     }
 
 
@@ -2591,6 +2800,10 @@ def analytics_dashboard():
         "analytics.html",
         data=_analytics_data(date_from, date_to, vehicle_type, fuente),
         brecha=_brecha_cierre(date_from, date_to),
+        fin=_kpis_rentabilidad(date_from, date_to),
+        embudo=_kpis_embudo(date_from, date_to),
+        oper=_kpis_operacion(date_from, date_to),
+        cli=_kpis_clientes(date_from, date_to),
         date_from=date_from, date_to=date_to,
         vehicle_type=vehicle_type, tipos=tipos, fuente=fuente,
     )
