@@ -83,6 +83,12 @@
   .wa-bubble { max-width:72%; padding:6px 9px 7px; border-radius:8px; font-size:0.88rem; line-height:1.35; white-space:pre-wrap; word-wrap:break-word; box-shadow:0 1px 1px rgba(0,0,0,0.3); }
   .wa-bubble.in { background:#202c33; color:#e9edef; border-top-left-radius:0; }
   .wa-bubble.out { background:#005c4b; color:#e9edef; border-top-right-radius:0; }
+  /* Rejilla: con varias fotos, apiladas alargaban muchísimo la conversación. */
+  .wa-media-grid { display:flex; flex-wrap:wrap; gap:4px; margin-bottom:5px; }
+  .wa-media { display:block; width:130px; height:130px; border-radius:6px;
+              cursor:zoom-in; object-fit:cover; background:#0b141a; }
+  .wa-media-grid:has(> a:only-child) .wa-media { width:200px; height:auto; max-height:240px; }
+  .wa-file { display:inline-block; margin-bottom:5px; color:#8fd3c4; text-decoration:underline; font-size:0.82rem; }
   .wa-bubble .wa-msg-time { display:block; text-align:right; font-size:0.65rem; color:#a8b3ba; margin-top:2px; }
 
   .wa-inputbar { background:#202c33; padding:10px 14px; display:flex; gap:8px; align-items:center; }
@@ -195,7 +201,21 @@
             {% set ns.dia = dia %}
           {% endif %}
           <div class="wa-bubble-row {{ m.direction }}">
-            <div class="wa-bubble {{ m.direction }}">{{ m.body }}<span class="wa-msg-time">{{ m.created_at | hora_bogota('%H:%M') }}</span></div>
+            <div class="wa-bubble {{ m.direction }}">
+              {%- if m.media %}<div class="wa-media-grid">
+                {%- for a in m.media %}
+                  {% if a.es_imagen %}
+                    <a href="{{ url_for('whatsapp_media', filename=a.filename) }}" target="_blank" rel="noopener">
+                      <img class="wa-media" src="{{ url_for('whatsapp_media', filename=a.filename) }}" alt="Foto del cliente">
+                    </a>
+                  {% else %}
+                    <a class="wa-file" href="{{ url_for('whatsapp_media', filename=a.filename) }}" target="_blank" rel="noopener">
+                      <i class="bi bi-paperclip"></i> Ver archivo adjunto
+                    </a>
+                  {% endif %}
+                {%- endfor -%}
+              </div>{% endif -%}
+              {{ m.body }}<span class="wa-msg-time">{{ m.created_at | hora_bogota('%H:%M') }}</span></div>
           </div>
         {% endfor %}
       </div>
@@ -233,7 +253,25 @@
           row.className = 'wa-bubble-row ' + m.direction;
           const bubble = document.createElement('div');
           bubble.className = 'wa-bubble ' + m.direction;
-          bubble.textContent = m.body;
+          if ((m.media || []).length) {
+            const grid = document.createElement('div');
+            grid.className = 'wa-media-grid';
+            m.media.forEach(function (a) {
+              const link = document.createElement('a');
+              link.href = a.url; link.target = '_blank'; link.rel = 'noopener';
+              if (a.es_imagen) {
+                const img = document.createElement('img');
+                img.className = 'wa-media'; img.src = a.url; img.alt = 'Foto del cliente';
+                link.appendChild(img);
+              } else {
+                link.className = 'wa-file';
+                link.textContent = 'Ver archivo adjunto';
+              }
+              grid.appendChild(link);
+            });
+            bubble.appendChild(grid);
+          }
+          bubble.appendChild(document.createTextNode(m.body));
           const time = document.createElement('span');
           time.className = 'wa-msg-time';
           time.textContent = m.time;

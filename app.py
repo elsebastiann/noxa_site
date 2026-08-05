@@ -893,6 +893,27 @@ class Message(db.Model):
     created_at      = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
 
 
+class MessageMedia(db.Model):
+    """Archivo (normalmente una foto) que llegó adjunto a un mensaje.
+
+    Se guarda una copia local en vez de apuntar a Twilio: sus URLs exigen
+    autenticación y además caducan, así que enlazarlas significaría perder las
+    fotos del cliente al poco tiempo. Un mensaje puede traer varias, por eso es
+    una tabla aparte y no columnas en Message."""
+    __tablename__ = "whatsapp_message_media"
+    id           = db.Column(db.Integer, primary_key=True)
+    message_id   = db.Column(db.Integer, db.ForeignKey("whatsapp_messages.id"), nullable=False, index=True)
+    filename     = db.Column(db.String(200), nullable=False)
+    content_type = db.Column(db.String(80), nullable=True)
+    created_at   = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+
+    message = db.relationship("Message", backref=db.backref("media", lazy="joined"))
+
+    @property
+    def es_imagen(self) -> bool:
+        return (self.content_type or "").startswith("image/")
+
+
 class OutboundMessage(db.Model):
     """Libro mayor de TODO lo que sale por WhatsApp, con el estado real de entrega.
 
@@ -5039,6 +5060,49 @@ def _call_claude(messages: list[dict], extra_system_text: str) -> list[str]:
     return [c for c in chunks if c] or [full_text]
 
 
+# Los adjuntos entrantes se guardan junto a la base de datos, en el volumen
+# persistente: el disco del contenedor de Railway se borra en cada despliegue.
+# Tope por turno: varias fotos en alta resolución encarecen y alargan la
+# llamada al modelo sin aportar mucho más criterio.
+MAX_IMAGENES_POR_TURNO = 4
+INBOX_MEDIA_DIR = os.path.join(os.path.dirname(os.path.abspath(db_path)) or ".", "whatsapp_media")
+_EXT_POR_TIPO = {
+    "image/jpeg": ".jpg", "image/jpg": ".jpg", "image/png": ".png",
+    "image/webp": ".webp", "image/gif": ".gif", "application/pdf": ".pdf",
+}
+
+
+def _guardar_media_entrante(media_url: str, content_type: str) -> str | None:
+    """Descarga un adjunto de Twilio y lo guarda. Devuelve el nombre del archivo.
+
+    Se hace apenas llega el mensaje porque las URLs de Twilio caducan: si se
+    dejara para después, la foto del cliente se pierde."""
+    account_sid = os.environ.get("TWILIO_ACCOUNT_SID", "")
+    auth_token = os.environ.get("TWILIO_AUTH_TOKEN", "")
+    try:
+        resp = requests.get(media_url, auth=(account_sid, auth_token), timeout=20)
+        resp.raise_for_status()
+        os.makedirs(INBOX_MEDIA_DIR, exist_ok=True)
+        ext = _EXT_POR_TIPO.get((content_type or "").split(";")[0].strip(), ".bin")
+        nombre = f"{uuid.uuid4().hex[:16]}{ext}"
+        with open(os.path.join(INBOX_MEDIA_DIR, nombre), "wb") as f:
+            f.write(resp.content)
+        return nombre
+    except Exception as exc:
+        app.logger.error(f"[WhatsApp] No se pudo guardar el adjunto {media_url}: {exc}")
+        return None
+
+
+def _media_base64(nombre: str) -> str | None:
+    """Lee un adjunto ya guardado y lo devuelve en base64 para mandárselo a Claude."""
+    try:
+        with open(os.path.join(INBOX_MEDIA_DIR, nombre), "rb") as f:
+            return base64.b64encode(f.read()).decode("utf-8")
+    except Exception as exc:
+        app.logger.error(f"[WhatsApp] No se pudo leer el adjunto {nombre}: {exc}")
+        return None
+
+
 def _fetch_twilio_media_base64(media_url: str) -> str | None:
     """Descarga una imagen de un mensaje de WhatsApp (requiere auth de Twilio) y la
     devuelve en base64, lista para mandarle a Claude. None si algo falla."""
@@ -5329,17 +5393,32 @@ def get_claude_reply(conversation: "Conversation", media_url: str | None = None,
     messages = _build_message_history(conversation)
     is_first_message = is_first_client_turn(conversation)
 
-    if media_url and media_type and media_type.startswith("image/") and messages and messages[-1]["role"] == "user":
-        image_b64 = _fetch_twilio_media_base64(media_url)
-        if image_b64:
-            caption = messages[-1]["content"] or "El cliente mandó esta foto."
-            messages[-1] = {
-                "role": "user",
-                "content": [
-                    {"type": "image", "source": {"type": "base64", "media_type": media_type, "data": image_b64}},
-                    {"type": "text", "text": caption},
-                ],
-            }
+    # Las imágenes se leen de lo YA GUARDADO en disco, no de Twilio: así se le
+    # pasan TODAS las del mensaje (antes solo la primera) y los reintentos del
+    # webhook no vuelven a descargarlas ni dependen de que la URL siga viva.
+    ultimo_entrante = (
+        Message.query
+        .filter_by(conversation_id=conversation.id, direction="in")
+        .order_by(Message.created_at.desc(), Message.id.desc())
+        .first()
+    )
+    if ultimo_entrante and messages and messages[-1]["role"] == "user":
+        bloques = []
+        for m in ultimo_entrante.media:
+            if not m.es_imagen or len(bloques) >= MAX_IMAGENES_POR_TURNO:
+                continue
+            b64 = _media_base64(m.filename)
+            if b64:
+                bloques.append({
+                    "type": "image",
+                    "source": {"type": "base64", "media_type": m.content_type, "data": b64},
+                })
+        if bloques:
+            caption = messages[-1]["content"] or (
+                "El cliente mandó esta foto." if len(bloques) == 1
+                else f"El cliente mandó estas {len(bloques)} fotos."
+            )
+            messages[-1] = {"role": "user", "content": bloques + [{"type": "text", "text": caption}]}
 
     profile_line = (
         f"Nombre de perfil de WhatsApp del cliente: {conversation.profile_name!r}"
@@ -6233,8 +6312,15 @@ def whatsapp_webhook():
     body = request.form.get("Body", "").strip()
     profile_name = request.form.get("ProfileName", "").strip()
     num_media = int(request.form.get("NumMedia", "0") or "0")
-    media_url = request.form.get("MediaUrl0", "") if num_media > 0 else ""
-    media_type = request.form.get("MediaContentType0", "") if num_media > 0 else ""
+    # TODOS los adjuntos, no solo el primero: cuando el cliente manda varias
+    # fotos del carro, antes se procesaba una y las demás se perdían.
+    adjuntos = [
+        (request.form.get(f"MediaUrl{i}", ""), request.form.get(f"MediaContentType{i}", ""))
+        for i in range(num_media)
+    ]
+    adjuntos = [(u, t) for u, t in adjuntos if u]
+    media_url = adjuntos[0][0] if adjuntos else ""
+    media_type = adjuntos[0][1] if adjuntos else ""
     app.logger.info(f"[WhatsApp] Mensaje recibido de {from_number} ({profile_name!r}): {body!r} media={media_type or None}")
 
     conversation = Conversation.query.filter_by(phone=from_number).first()
@@ -6258,14 +6344,51 @@ def whatsapp_webhook():
         transcript = _transcribe_twilio_audio(media_url, media_type)
         if transcript:
             stored_body = f"{body} {transcript}".strip() if body else transcript
-            media_url, media_type = "", ""  # ya es texto, no hace falta tratarlo como adjunto
+            adjuntos = []  # ya es texto, no hace falta guardarlo como adjunto
+            media_url, media_type = "", ""
         elif not stored_body:
             stored_body = "[nota de voz — no se pudo transcribir]"
-    elif not stored_body and media_url:
-        stored_body = "[imagen]" if media_type.startswith("image/") else f"[archivo adjunto: {media_type or 'desconocido'}]"
-    db.session.add(Message(conversation_id=conversation.id, direction="in", body=stored_body))
+    elif not stored_body and adjuntos:
+        imagenes = sum(1 for _, t in adjuntos if (t or "").startswith("image/"))
+        if imagenes == len(adjuntos):
+            stored_body = "[imagen]" if imagenes == 1 else f"[{imagenes} imágenes]"
+        else:
+            stored_body = f"[archivo adjunto: {media_type or 'desconocido'}]"
+
+    mensaje = Message(conversation_id=conversation.id, direction="in", body=stored_body)
+    db.session.add(mensaje)
     conversation.followup_count = 0  # el cliente volvió a escribir, resetea el seguimiento
+    db.session.flush()
+
+    # Se guardan ANTES de generar la respuesta: si algo falla más adelante, las
+    # fotos del cliente ya quedaron a salvo y visibles en el panel.
+    guardados = []
+    for url, tipo in adjuntos:
+        nombre = _guardar_media_entrante(url, tipo)
+        if nombre:
+            db.session.add(MessageMedia(message_id=mensaje.id, filename=nombre, content_type=tipo))
+            guardados.append((nombre, tipo))
     db.session.commit()
+
+    if guardados:
+        contacto = conversation.profile_name or conversation.phone
+        n = len(guardados)
+        solo_imagenes = all((t or "").startswith("image/") for _, t in guardados)
+        if solo_imagenes:
+            que = "una imagen" if n == 1 else f"{n} imágenes"
+        else:
+            que = "un archivo" if n == 1 else f"{n} archivos"
+        push_notification(
+            kind="media_recibida", level="info",
+            title=f"{contacto} envió {que}",
+            body=(body or "(sin texto)") + f"\nGuardad{'a' if n == 1 else 'os'} y visible{'' if n == 1 else 's'} en la conversación.",
+            url=f"/whatsapp/{conversation.id}",
+            ref_type="conversation", ref_id=conversation.id,
+        )
+    if len(adjuntos) != len(guardados):
+        app.logger.error(
+            f"[WhatsApp] Se perdieron {len(adjuntos) - len(guardados)} adjunto(s) de {from_number}"
+        )
 
     if conversation.bot_active:
         success = False
@@ -6326,6 +6449,18 @@ def whatsapp_conversation(conversation_id):
     return render_template("whatsapp.html", rows=_whatsapp_rows(), conversation=conversation, messages=messages, lead_states=LEAD_STATES, service_tags=SERVICE_TAGS)
 
 
+@app.route("/whatsapp/media/<path:filename>")
+def whatsapp_media(filename):
+    """Sirve una foto que mandó un cliente. A diferencia de las promociones,
+    esto SÍ va detrás del login: son fotos del carro de un cliente, no material
+    público."""
+    if not _can_see_notifications():
+        flash("Acceso restringido.", "danger")
+        return redirect(url_for("calendar_view"))
+    from flask import send_from_directory
+    return send_from_directory(INBOX_MEDIA_DIR, filename)
+
+
 @app.route("/whatsapp/<int:conversation_id>/messages.json")
 def whatsapp_messages_json(conversation_id):
     """Mensajes nuevos desde el último id visto — usado por el polling del chat."""
@@ -6343,7 +6478,9 @@ def whatsapp_messages_json(conversation_id):
         "messages": [
             {"id": m.id, "direction": m.direction, "body": m.body,
              "time": _filtro_hora_bogota(m.created_at, "%H:%M"),
-             "day": _filtro_dia_bogota(m.created_at)}
+             "day": _filtro_dia_bogota(m.created_at),
+             "media": [{"url": url_for("whatsapp_media", filename=a.filename),
+                        "es_imagen": a.es_imagen} for a in m.media]}
             for m in messages
         ],
     })
