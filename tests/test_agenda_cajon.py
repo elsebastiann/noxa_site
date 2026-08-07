@@ -115,3 +115,91 @@ class TestLineasDelEvento:
 
         login_as(client, make_user("admin_test", role="admin"))
         assert self._lineas(client, appt)["saldo"] == "A favor $10.000"
+
+
+class TestAgendaDeDiagnosticos:
+    """Dos agendas con la misma pantalla: la que factura y la de diagnósticos."""
+
+    @pytest.fixture
+    def escenario(self):
+        # El catálogo semilla no siempre trae el servicio de diagnóstico; se
+        # crea acá y se borra al final para no ensuciar los demás tests.
+        diag = app_module._diagnostic_service()
+        diag_creado = False
+        if not diag:
+            diag = app_module.Service(name=app_module.DIAGNOSTIC_SERVICE_NAME,
+                                      duration_minutes=30, is_active=True,
+                                      is_diagnostic=True)
+            db.session.add(diag)
+            db.session.commit()
+            diag_creado = True
+
+        precio = (app_module.ServicePrice.query
+                  .filter(app_module.ServicePrice.is_active == True,   # noqa: E712
+                          app_module.ServicePrice.price > 0)
+                  .filter(app_module.ServicePrice.service_id != diag.id).first())
+        otro = db.session.get(app_module.Service, precio.service_id)
+
+        def crear(placa, servicios, hora):
+            ini = datetime(2026, 6, 25, hora, 0)
+            a = app_module.Appointment(
+                customer_name="Cliente " + placa, plate=placa, services=servicios,
+                start_datetime=ini, end_datetime=ini + app_module.timedelta(minutes=60),
+                vehicle_type_id=precio.vehicle_type_id, status="scheduled")
+            db.session.add(a)
+            return a
+
+        creadas = [
+            crear("SOLODIAG", diag.name, 9),
+            crear("SOLOCITA", otro.name, 11),
+            crear("MIXTA001", f"{diag.name}, {otro.name}", 13),
+        ]
+        db.session.commit()
+        yield {a.plate: a for a in creadas}
+        for a in creadas:
+            db.session.delete(a)
+        if diag_creado:
+            db.session.delete(diag)
+        db.session.commit()
+
+    def _placas(self, client, modo):
+        eventos = client.get(f"/api/events?modo={modo}").get_json()
+        return {e["extendedProps"]["lineas"]["placa"] for e in eventos}
+
+    def test_cada_agenda_ve_lo_suyo(self, client, escenario):
+        login_as(client, make_user("admin_test", role="admin"))
+        assert "SOLODIAG" in self._placas(client, "diagnosticos")
+        assert "SOLODIAG" not in self._placas(client, "citas")
+        assert "SOLOCITA" in self._placas(client, "citas")
+        assert "SOLOCITA" not in self._placas(client, "diagnosticos")
+
+    def test_una_cita_mixta_cuenta_como_cita(self, client, escenario):
+        """Si el cliente aprovechó y agendó también un servicio, ya factura."""
+        login_as(client, make_user("admin_test", role="admin"))
+        assert "MIXTA001" in self._placas(client, "citas")
+        assert "MIXTA001" not in self._placas(client, "diagnosticos")
+
+    def test_sin_modo_se_asume_la_agenda_de_citas(self, client, escenario):
+        login_as(client, make_user("admin_test", role="admin"))
+        eventos = client.get("/api/events").get_json()
+        placas = {e["extendedProps"]["lineas"]["placa"] for e in eventos}
+        assert "SOLOCITA" in placas and "SOLODIAG" not in placas
+
+    def test_en_diagnosticos_no_se_repite_la_palabra_diagnostico(self, client, escenario):
+        """Todos los cajones dirían lo mismo; el renglón rinde más con las notas."""
+        login_as(client, make_user("admin_test", role="admin"))
+        eventos = client.get("/api/events?modo=diagnosticos").get_json()
+        assert all(e["extendedProps"]["lineas"]["servicio"] == "" for e in eventos)
+
+    def test_un_diagnostico_gratis_no_muestra_cero(self, client, escenario):
+        login_as(client, make_user("admin_test", role="admin"))
+        eventos = client.get("/api/events?modo=diagnosticos").get_json()
+        evento = next(e for e in eventos
+                      if e["extendedProps"]["lineas"]["placa"] == "SOLODIAG")
+        assert evento["extendedProps"]["lineas"]["saldo"] == "", \
+            "un '$0' no informa y le quita el renglón a las notas"
+
+    def test_marketing_no_entra_a_la_agenda(self, client, escenario):
+        login_as(client, make_user("agencia", role="marketing"))
+        r = client.get("/calendar/diagnosticos")
+        assert r.status_code == 302 and "/whatsapp" in r.headers["Location"]

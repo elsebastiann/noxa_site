@@ -1731,6 +1731,22 @@ def abreviar_servicio(nombre: str) -> str:
     return corto if len(corto) <= 20 else corto[:19] + "…"
 
 
+def es_cita_de_diagnostico(services: str, nombre_diag: str | None) -> bool:
+    """Una cita es de diagnóstico solo si NO trae nada más.
+
+    Si el cliente aprovechó y agendó también un lavado, ya es una cita que
+    factura y tiene que aparecer como tal, no en la agenda de diagnósticos."""
+    if not nombre_diag:
+        return False
+    nombres = {x.strip().lower() for x in (services or "").split(",") if x.strip()}
+    return nombres == {nombre_diag}
+
+
+def _nombre_servicio_diagnostico() -> str | None:
+    svc = _diagnostic_service()
+    return svc.name.strip().lower() if svc else None
+
+
 def abreviar_servicios(services: str) -> str:
     """Varios servicios en una línea: los dos primeros y cuántos faltan."""
     nombres = [s.strip() for s in (services or "").split(",") if s.strip()]
@@ -1991,8 +2007,17 @@ def index():
 
 @app.route("/calendar")
 def calendar_view():
-    """Vista principal con el calendario."""
-    return render_template("calendar.html")
+    """La agenda de siempre: todo lo que factura."""
+    return render_template("calendar.html", modo="citas")
+
+
+@app.route("/calendar/diagnosticos")
+def calendar_diagnosticos():
+    """La misma agenda, pero solo con los diagnósticos.
+
+    Van aparte porque se leen distinto: un diagnóstico no es trabajo vendido,
+    es una visita a la que hay que hacerle seguimiento."""
+    return render_template("calendar.html", modo="diagnosticos")
 
 
 @app.route("/appointments/new", methods=["GET", "POST"])
@@ -2734,8 +2759,7 @@ def _transacciones_citas(vehicle_type: str = ""):
             recargo = m["recargos"]
         # Un diagnóstico no es una venta: es gratis y es un paso del embudo. Si
         # entrara acá inflaría los clientes nuevos y hundiría el ticket promedio.
-        nombres = {x.strip().lower() for x in (a.services or "").split(",") if x.strip()}
-        es_diag = bool(nombre_diag) and nombres == {nombre_diag}
+        es_diag = es_cita_de_diagnostico(a.services, nombre_diag)
         salida.append({
             "fecha": a.start_datetime.date(),
             "placa": a.plate,
@@ -3730,10 +3754,19 @@ def api_events():
     Las líneas van sueltas y en orden de prioridad (nombre, placa, servicio,
     saldo, notas) en vez de un solo texto: el cajón de una cita corta no da
     para todo, y el navegador necesita saber qué recortar primero."""
+    # La agenda de diagnósticos es la misma pantalla con otro filtro; el modo
+    # llega desde el front para no tener dos endpoints que hagan casi lo mismo.
+    modo = (request.args.get("modo") or "citas").strip()
+    nombre_diag = _nombre_servicio_diagnostico()
+
     appointments = Appointment.query.all()
     events = []
 
     for appt in appointments:
+        es_diag = es_cita_de_diagnostico(appt.services, nombre_diag)
+        if (modo == "diagnosticos") != es_diag:
+            continue
+
         # Definir el color según el PRIMER servicio listado
         first_service = appt.services.split(",")[0].strip().lower()
         color = COLORS.get(first_service, "#A0C8FF")  # color por defecto pastel
@@ -3750,8 +3783,12 @@ def api_events():
             saldo_texto = "A favor $" + f"{abs(plata['saldo']):,}".replace(",", ".")
         elif plata["abonado"]:
             saldo_texto = "Saldo $" + f"{plata['saldo']:,}".replace(",", ".")
-        else:
+        elif plata["total"]:
             saldo_texto = "$" + f"{plata['total']:,}".replace(",", ".")
+        else:
+            # Un "$0" no informa nada y le quita un renglón a las notas, que en
+            # un diagnóstico son justamente lo que hay que leer.
+            saldo_texto = ""
 
         events.append(
             {
@@ -3769,7 +3806,10 @@ def api_events():
                     "lineas": {
                         "nombre": first_name,
                         "placa": plate,
-                        "servicio": abreviar_servicios(appt.services),
+                        # En la agenda de diagnósticos todos los cajones dirían
+                        # "Diagnóstico": el renglón rinde más con las notas, que
+                        # son el motivo de la visita.
+                        "servicio": "" if modo == "diagnosticos" else abreviar_servicios(appt.services),
                         "saldo": saldo_texto,
                         "notas": notes,
                     },
@@ -4615,7 +4655,7 @@ CHANGE_PWD_ENDPOINTS = {"change_password", "logout", "static"}
 
 # --- Endpoints accesibles por operario (además de los públicos) ---
 OPERARIO_ENDPOINTS = {
-    "calendar_view", "new_appointment", "edit_appointment",
+    "calendar_view", "calendar_diagnosticos", "new_appointment", "edit_appointment",
     "appointments_list", "appointment_delete", "appointment_json",
     "close_appointment",
     "parking_list", "parking_new", "parking_delete",

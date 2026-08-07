@@ -78,6 +78,13 @@
     font-size: 0.82rem; font-weight: 700;
     color: #1a1a1a; text-align: center; line-height: 1.2;
   }
+  /* Cuál de las dos agendas se está viendo. Va en el centro del toolbar, que
+     ya estaba vacío, para no moverle el alto al calendario. */
+  .fc-toolbar-chunk:nth-child(2) { display: flex; justify-content: center; }
+  .ag-titulo {
+    font-size: 0.78rem; font-weight: 700; color: #1a1a1a;
+    letter-spacing: 0.3px;
+  }
 
   .fc .fc-button {
     background: transparent !important; border: none !important;
@@ -164,6 +171,8 @@ function ajustarCajon(el) {
     lineas[i].style.display = 'none';
   }
 }
+
+const AGENDA_TITULO = {{ ('Diagnósticos' if modo == 'diagnosticos' else 'Citas') | tojson }};
 
 document.addEventListener('DOMContentLoaded', function() {
   var calendarEl = document.getElementById('calendar');
@@ -347,7 +356,19 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     },
 
-    events: '/api/events',
+    // El toolbar deja el centro vacío; ahí va el nombre de la agenda. Se pone
+    // en datesSet porque FullCalendar reconstruye el toolbar al cambiar de vista.
+    datesSet: function() {
+      const centro = calendarEl.querySelector('.fc-toolbar-chunk:nth-child(2)');
+      if (centro && !centro.querySelector('.ag-titulo')) {
+        const t = document.createElement('span');
+        t.className = 'ag-titulo';
+        t.textContent = AGENDA_TITULO;
+        centro.appendChild(t);
+      }
+    },
+
+    events: '/api/events?modo={{ modo | default("citas") }}',
     displayEventTime: false,
     eventColor: null,
 });
