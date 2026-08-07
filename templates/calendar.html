@@ -194,6 +194,9 @@ document.addEventListener('DOMContentLoaded', function() {
             `<span class="badge ${a.kind === 'discount' ? 'bg-warning text-dark' : 'bg-info text-dark'} me-1">
                ${a.kind === 'discount' ? 'Descuento' : 'Recargo'}
                ${a.mode === 'percentage' ? a.value + '%' : pesos(a.value)}
+               ${a.mode === 'percentage'
+                  ? (a.base === 'subtotal' ? 'sobre subtotal' : 'sobre lista') : ''}
+               = ${pesos(a.amount)}
                ${a.description ? '· ' + a.description : ''}
              </span>`;
           const ajustesHtml = (m.ajustes || []).length

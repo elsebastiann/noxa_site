@@ -47,9 +47,9 @@ def cita(catalogo):
     db.session.commit()
 
 
-def _ajuste(kind, mode, value, description=None):
+def _ajuste(kind, mode, value, description=None, base="lista"):
     return app_module.AppointmentAdjustment(
-        kind=kind, mode=mode, value=value, description=description
+        kind=kind, mode=mode, value=value, base=base, description=description
     )
 
 
@@ -102,13 +102,13 @@ class TestVariosAjustes:
         assert plata["recargos"] == 10000
         assert plata["total"] == lista - 5000 + 10000
 
-    def test_el_porcentaje_va_sobre_el_subtotal_no_en_cascada(self, cita, catalogo):
+    def test_los_porcentajes_no_se_encadenan(self, cita, catalogo):
         _, _, lista = catalogo
         cita.adjustments.append(_ajuste("discount", "percentage", 10))
         cita.adjustments.append(_ajuste("discount", "percentage", 10))
         db.session.commit()
 
-        # Dos veces 10% del subtotal, no 10% y luego 10% del resto.
+        # Dos veces 10% de la misma base, no 10% y luego 10% del resto.
         esperado = lista - 2 * round(lista * 0.10)
         assert app_module.appointment_money(cita)["total"] == esperado
 
@@ -131,6 +131,81 @@ class TestVariosAjustes:
         total, detalle = app_module.apply_adjustments(50000, basura)
         assert total == 50000
         assert detalle == []
+
+
+class TestBaseDelPorcentaje:
+    """Con convenio de por medio, un 10% sobre lista y un 10% sobre subtotal
+    son plata distinta. Cada línea elige su base."""
+
+    @pytest.fixture
+    def con_convenio(self, cita):
+        convenio = app_module.Agreement.query.filter_by(
+            discount_type="percentage", is_active=True).first()
+        assert convenio, "el seed debería traer un convenio en porcentaje"
+        cita.agreement_id = convenio.id
+        db.session.commit()
+        return cita, convenio
+
+    def test_sobre_lista_ignora_el_convenio(self, con_convenio, catalogo):
+        cita, _ = con_convenio
+        _, _, lista = catalogo
+        subtotal = app_module.appointment_money(cita)["subtotal"]
+        assert subtotal < lista, "el convenio debería estar rebajando algo"
+
+        cita.adjustments.append(_ajuste("discount", "percentage", 10, base="lista"))
+        db.session.commit()
+
+        plata = app_module.appointment_money(cita)
+        assert plata["descuentos"] == round(lista * 0.10)
+        assert plata["total"] == subtotal - round(lista * 0.10)
+
+    def test_sobre_subtotal_usa_el_valor_ya_con_convenio(self, con_convenio, catalogo):
+        cita, _ = con_convenio
+        subtotal = app_module.appointment_money(cita)["subtotal"]
+
+        cita.adjustments.append(_ajuste("discount", "percentage", 10, base="subtotal"))
+        db.session.commit()
+
+        plata = app_module.appointment_money(cita)
+        assert plata["descuentos"] == round(subtotal * 0.10)
+        assert plata["total"] == subtotal - round(subtotal * 0.10)
+
+    def test_las_dos_bases_dan_montos_distintos(self, con_convenio, catalogo):
+        cita, _ = con_convenio
+        _, _, lista = catalogo
+        subtotal = app_module.appointment_money(cita)["subtotal"]
+
+        sobre_lista, _ = app_module.apply_adjustments(
+            subtotal, [_ajuste("discount", "percentage", 10, base="lista")], lista)
+        sobre_sub, _ = app_module.apply_adjustments(
+            subtotal, [_ajuste("discount", "percentage", 10, base="subtotal")], lista)
+        assert sobre_lista < sobre_sub, "sobre lista descuenta más porque la base es mayor"
+
+    def test_en_valor_fijo_la_base_no_cambia_nada(self, con_convenio):
+        cita, _ = con_convenio
+        subtotal = app_module.appointment_money(cita)["subtotal"]
+        a, _ = app_module.apply_adjustments(
+            subtotal, [_ajuste("discount", "fixed", 5000, base="lista")], 999999)
+        b, _ = app_module.apply_adjustments(
+            subtotal, [_ajuste("discount", "fixed", 5000, base="subtotal")], 999999)
+        assert a == b == subtotal - 5000
+
+    def test_sin_precio_de_lista_cae_al_subtotal(self):
+        """apply_adjustments se puede llamar sin lista (cierres viejos): en ese
+        caso la única referencia posible es el subtotal, y no debe reventar."""
+        total, detalle = app_module.apply_adjustments(
+            50000, [_ajuste("discount", "percentage", 10, base="lista")])
+        assert total == 45000
+        assert detalle[0]["amount"] == 5000
+
+    def test_el_detalle_reporta_la_base_solo_en_porcentaje(self, cita):
+        _, detalle = app_module.apply_adjustments(
+            100000,
+            [_ajuste("discount", "percentage", 10, base="subtotal"),
+             _ajuste("discount", "fixed", 5000, base="lista")],
+            100000)
+        assert detalle[0]["base"] == "subtotal"
+        assert detalle[1]["base"] is None, "en valor fijo la base no significa nada"
 
 
 class TestFormulario:
@@ -157,6 +232,7 @@ class TestFormulario:
         self._post(client, cita, catalogo, {
             "adj_kind": ["discount", "surcharge"],
             "adj_mode": ["percentage", "fixed"],
+            "adj_base": ["subtotal", "lista"],
             "adj_value": ["10", "20000"],
             "adj_desc": ["Frecuente", "Domicilio"],
             "pay_amount": ["50000", "30000"],
@@ -164,10 +240,30 @@ class TestFormulario:
             "pay_desc": ["Abono inicial", ""],
         })
         db.session.refresh(cita)
-        assert [(a.kind, a.mode, a.value) for a in cita.adjustments] == [
-            ("discount", "percentage", 10), ("surcharge", "fixed", 20000)]
+        assert [(a.kind, a.mode, a.base, a.value) for a in cita.adjustments] == [
+            ("discount", "percentage", "subtotal", 10),
+            ("surcharge", "fixed", "lista", 20000)]
         assert [(p.amount, p.paid_on) for p in cita.payments] == [
             (50000, date(2026, 6, 1)), (30000, date(2026, 6, 5))]
+
+    def test_sin_base_en_el_form_queda_sobre_lista(self, client, cita, catalogo):
+        """El default acordado con la operación: si nadie elige, es sobre lista."""
+        login_as(client, make_user("admin_test", role="admin"))
+        self._post(client, cita, catalogo, {
+            "adj_kind": ["discount"], "adj_mode": ["percentage"],
+            "adj_value": ["10"], "adj_desc": [""],
+        })
+        db.session.refresh(cita)
+        assert cita.adjustments[0].base == "lista"
+
+    def test_una_base_inventada_cae_a_lista(self, client, cita, catalogo):
+        login_as(client, make_user("admin_test", role="admin"))
+        self._post(client, cita, catalogo, {
+            "adj_kind": ["discount"], "adj_mode": ["percentage"],
+            "adj_base": ["lo_que_sea"], "adj_value": ["10"], "adj_desc": [""],
+        })
+        db.session.refresh(cita)
+        assert cita.adjustments[0].base == "lista"
 
     def test_una_fila_sin_valor_se_descarta(self, client, cita, catalogo):
         login_as(client, make_user("admin_test", role="admin"))

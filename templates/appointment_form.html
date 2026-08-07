@@ -214,7 +214,11 @@
         <button type="button" class="btn btn-sm btn-outline-secondary" onclick="addAdjRow()">
           + Agregar descuento o recargo
         </button>
-        <div class="form-text">Los porcentajes se calculan sobre el valor después del convenio.</div>
+        <div class="form-text">
+          Un porcentaje puede ir sobre el precio de lista o sobre el subtotal ya con el
+          convenio aplicado. Ninguno se encadena con el anterior, así que el orden de las
+          líneas no cambia el total.
+        </div>
       </div>
 
       {# ---- Abonos (varios) ---- #}
@@ -262,16 +266,24 @@
       {# Plantillas de fila: se clonan al agregar. #}
       <template id="tplAdj">
         <div class="row g-2 mb-2 align-items-center adj-row">
-          <div class="col-6 col-sm-3">
+          <div class="col-6 col-sm-2">
             <select name="adj_kind" class="form-select form-select-sm bg-dark text-light border-secondary">
               <option value="discount">Descuento</option>
               <option value="surcharge">Recargo</option>
             </select>
           </div>
-          <div class="col-6 col-sm-3">
+          <div class="col-6 col-sm-2">
             <select name="adj_mode" class="form-select form-select-sm bg-dark text-light border-secondary">
               <option value="fixed">Valor fijo $</option>
               <option value="percentage">Porcentaje %</option>
+            </select>
+          </div>
+          {# Solo tiene sentido en porcentaje: sobre un valor fijo la base da igual. #}
+          <div class="col-6 col-sm-2 adj-base-col d-none">
+            <select name="adj_base" class="form-select form-select-sm bg-dark text-light border-secondary"
+                    title="Sobre qué valor se calcula el porcentaje">
+              <option value="lista">Sobre lista</option>
+              <option value="subtotal">Sobre subtotal</option>
             </select>
           </div>
           <div class="col-5 col-sm-2">
@@ -478,6 +490,14 @@
   // Se exponen en window porque los botones las llaman desde onclick.
   const pesos = n => "$" + Number(n || 0).toLocaleString("es-CO");
 
+  // La base del porcentaje solo se pregunta cuando el ajuste ES un porcentaje.
+  function sincronizarBase(row) {
+    const col = row.querySelector(".adj-base-col");
+    if (!col) return;
+    const esPct = row.querySelector('[name="adj_mode"]')?.value === "percentage";
+    col.classList.toggle("d-none", !esPct);
+  }
+
   function fila(tplId, destinoId, valores) {
     const nodo = document.getElementById(tplId).content.firstElementChild.cloneNode(true);
     Object.entries(valores || {}).forEach(([campo, v]) => {
@@ -485,9 +505,13 @@
       if (input && v !== null && v !== undefined) input.value = v;
     });
     nodo.querySelectorAll("input, select").forEach(el => {
-      el.addEventListener(el.tagName === "SELECT" ? "change" : "input", updatePrice);
+      el.addEventListener(el.tagName === "SELECT" ? "change" : "input", () => {
+        sincronizarBase(nodo);
+        updatePrice();
+      });
     });
     document.getElementById(destinoId).appendChild(nodo);
+    sincronizarBase(nodo);
     updatePrice();
     return nodo;
   }
@@ -529,6 +553,7 @@
         adjustments: leerFilas(".adj-row", [
           { campo: "adj_kind", destino: "kind" },
           { campo: "adj_mode", destino: "mode" },
+          { campo: "adj_base", destino: "base" },
           { campo: "adj_value", destino: "value" },
         ]),
         payments: leerFilas(".pay-row", [{ campo: "pay_amount", destino: "amount" }]),
@@ -596,6 +621,7 @@
   {% if is_edit %}
   {% for aj in appointment.adjustments %}
   addAdjRow({ adj_kind: "{{ aj.kind }}", adj_mode: "{{ aj.mode }}",
+              adj_base: "{{ aj.base or 'lista' }}",
               adj_value: "{{ aj.value }}", adj_desc: {{ (aj.description or '') | tojson }} });
   {% endfor %}
   {% for ab in appointment.payments %}

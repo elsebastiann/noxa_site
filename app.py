@@ -762,6 +762,11 @@ class AppointmentAdjustment(db.Model):
     kind        = db.Column(db.String(20), nullable=False)                    # discount | surcharge
     mode        = db.Column(db.String(20), nullable=False, default="fixed")   # fixed | percentage
     value       = db.Column(db.Integer, nullable=False, default=0)
+    # Sobre qué se calcula el porcentaje: "lista" (precio sin tocar) o
+    # "subtotal" (después del convenio). Solo aplica cuando mode=percentage.
+    # Un 10% sobre lista y un 10% sobre subtotal son plata distinta cuando hay
+    # convenio, y las dos formas se usan según lo que se le prometió al cliente.
+    base        = db.Column(db.String(20), nullable=False, default="lista")
     description = db.Column(db.String(200), nullable=True)
     created_at  = db.Column(db.DateTime, default=datetime.utcnow)
 
@@ -1586,17 +1591,24 @@ def apply_agreement_discount_split(service_ids: list[int], vehicle_type_id: int,
 # -----------------------
 # HELPER: Calcular valor estimado de una cita (precio base + convenio, sin ajustes manuales)
 # -----------------------
-def apply_adjustments(subtotal: int, adjustments) -> tuple[int, list]:
+def apply_adjustments(subtotal: int, adjustments, lista: int | None = None) -> tuple[int, list]:
     """Aplica una lista de descuentos/recargos sobre el subtotal.
 
-    Los porcentajes se calculan SIEMPRE sobre el subtotal (el valor después del
-    convenio), nunca en cascada sobre el resultado del ajuste anterior. Así el
-    orden en que se monten no cambia el total, que es lo que uno puede
-    explicarle a un cliente sin hacer cuentas raras.
+    Cada línea en porcentaje elige su base: el precio de LISTA o el SUBTOTAL
+    (lo que queda después del convenio). Un 10% sobre lista y un 10% sobre
+    subtotal no son la misma plata cuando hay convenio de por medio, y en la
+    calle se prometen las dos cosas.
+
+    Lo que nunca se hace es encadenar: ningún porcentaje se calcula sobre el
+    resultado del ajuste anterior. Por eso el orden en que se monten las líneas
+    no cambia el total, que es lo que se le puede explicar a un cliente sin
+    hacer cuentas raras.
 
     Devuelve (total, detalle) donde detalle trae el monto en pesos que terminó
     pesando cada línea, ya resuelto el porcentaje.
     """
+    # Sin precio de lista a mano, la única referencia posible es el subtotal.
+    precio_lista = subtotal if lista is None else lista
     total = subtotal
     detalle = []
     for aj in adjustments or []:
@@ -1606,15 +1618,21 @@ def apply_adjustments(subtotal: int, adjustments) -> tuple[int, list]:
         kind = getattr(aj, "kind", None)
         if kind not in ("discount", "surcharge"):
             continue
-        if getattr(aj, "mode", "fixed") == "percentage":
-            monto = int(round(subtotal * (valor / 100)))
+        modo = getattr(aj, "mode", "fixed") or "fixed"
+        base = getattr(aj, "base", None) or "lista"
+        if modo == "percentage":
+            referencia = subtotal if base == "subtotal" else precio_lista
+            monto = int(round(referencia * (valor / 100)))
         else:
             monto = valor
         total = (total - monto) if kind == "discount" else (total + monto)
         detalle.append({
             "id": getattr(aj, "id", None),
             "kind": kind,
-            "mode": getattr(aj, "mode", "fixed") or "fixed",
+            "mode": modo,
+            # En valor fijo la base no significa nada; se reporta igual para que
+            # la pantalla no tenga que adivinar.
+            "base": base if modo == "percentage" else None,
             "value": valor,
             "amount": monto,
             "description": getattr(aj, "description", None) or "",
@@ -1649,7 +1667,7 @@ def appointment_money(appt: Appointment) -> dict:
     lista = calculate_real_price(service_ids=service_ids, vehicle_type_id=appt.vehicle_type_id)
     subtotal, _ = apply_agreement_discount_split(service_ids, appt.vehicle_type_id, appt.agreement)
 
-    total, detalle = apply_adjustments(subtotal, appt.adjustments)
+    total, detalle = apply_adjustments(subtotal, appt.adjustments, lista)
 
     abonos = [{"id": p.id, "amount": int(p.amount or 0),
                "paid_on": p.paid_on.isoformat() if p.paid_on else None,
@@ -1695,6 +1713,7 @@ def sync_appointment_adjustments(appt: Appointment, form):
     'borra' una línea dejándola vacía."""
     kinds  = form.getlist("adj_kind")
     modes  = form.getlist("adj_mode")
+    bases  = form.getlist("adj_base")
     values = form.getlist("adj_value")
     descs  = form.getlist("adj_desc")
 
@@ -1704,9 +1723,11 @@ def sync_appointment_adjustments(appt: Appointment, form):
         if kind not in ("discount", "surcharge") or valor <= 0:
             continue
         modo = modes[i] if i < len(modes) else "fixed"
+        base = bases[i] if i < len(bases) else "lista"
         appt.adjustments.append(AppointmentAdjustment(
             kind=kind,
             mode=modo if modo in ("fixed", "percentage") else "fixed",
+            base=base if base in ("lista", "subtotal") else "lista",
             value=valor,
             description=(descs[i].strip()[:200] if i < len(descs) and descs[i] else None),
         ))
@@ -3900,11 +3921,12 @@ def api_estimate_price():
             self.id = None
             self.kind = d.get("kind")
             self.mode = d.get("mode") or "fixed"
+            self.base = d.get("base") or "lista"
             self.value = _int_o_cero(d.get("value"))
             self.description = d.get("description") or ""
 
     ajustes = [_Aj(a) for a in (data.get("adjustments") or []) if isinstance(a, dict)]
-    final_price, detalle = apply_adjustments(subtotal, ajustes)
+    final_price, detalle = apply_adjustments(subtotal, ajustes, base_price)
 
     abonado = sum(_int_o_cero(a.get("amount")) for a in (data.get("payments") or [])
                   if isinstance(a, dict))
@@ -3956,7 +3978,7 @@ def close_appointment(appointment_id):
 
     # Convenio + los descuentos/recargos montados en la cita
     subtotal, _ = apply_agreement_discount_split(service_ids, appt.vehicle_type_id, appt.agreement)
-    base_amount, _ = apply_adjustments(subtotal, appt.adjustments)
+    base_amount, _ = apply_adjustments(subtotal, appt.adjustments, base_price)
 
     # Ajuste manual al cierre (descuento/recargo)
     adjustment_type = data.get("adjustment_type")  # discount | surcharge | None
@@ -4162,6 +4184,24 @@ def ensure_payroll_schema():
                 db.session.execute(text(f"ALTER TABLE users ADD COLUMN {col} {definition}"))
                 db.session.commit()
 
+def ensure_adjustment_base_schema():
+    """Agrega `base` a los descuentos/recargos ya guardados.
+
+    Ojo con el valor que se les pone: los que ya existen se calcularon sobre el
+    subtotal (después del convenio), porque era la única forma que había. Se
+    marcan como 'subtotal' para que su total no cambie de un despliegue a otro.
+    El default para los nuevos es 'lista', que es lo que pidió la operación."""
+    with app.app_context():
+        try:
+            db.session.execute(text("SELECT base FROM appointment_adjustments LIMIT 1"))
+        except Exception:
+            db.session.execute(text(
+                "ALTER TABLE appointment_adjustments "
+                "ADD COLUMN base VARCHAR(20) NOT NULL DEFAULT 'subtotal'"
+            ))
+            db.session.commit()
+
+
 def migrate_booking_adjustments_to_rows():
     """El ajuste al crear la cita era uno solo y vivía en tres columnas de
     `appointments`. Ahora son filas en `appointment_adjustments`, tantas como
@@ -4206,6 +4246,7 @@ with app.app_context():
     ensure_clients_agreement_schema()
     ensure_appointments_close_schema()
     ensure_payroll_schema()
+    ensure_adjustment_base_schema()
     migrate_booking_adjustments_to_rows()
     # --- Normalización defensiva de convenios (migración suave) ---
     normalize_agreements_discount_type()
