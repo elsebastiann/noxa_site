@@ -1697,6 +1697,52 @@ def calculate_estimated_amount_for_appointment(appt: Appointment) -> int:
     return appointment_money(appt)["total"]
 
 
+# Nombres cortos para el cajón de la agenda. Los que no estén acá se abrevian
+# por regla; el mapa es para los casos donde la regla queda fea o ambigua.
+SERVICIOS_ABREVIADOS = {
+    "wash essential": "Wash Ess",
+    "wash shine": "Wash Shine",
+    "wash chasis": "Chasis",
+    "wash motor": "Motor",
+    "detallado exterior": "Det. Ext",
+    "detallado interior": "Det. Int",
+    "detallado llanta a llanta": "Det. L a L",
+    "correccion de wrap": "Corr. Wrap",
+    "corrección de wrap": "Corr. Wrap",
+    "coating ceramico 7h+": "Cerámico 7H+",
+    "coating ceramico 9h": "Cerámico 9H",
+    "coating cerámico 7h+": "Cerámico 7H+",
+    "coating cerámico 9h": "Cerámico 9H",
+}
+
+
+def abreviar_servicio(nombre: str) -> str:
+    """Un nombre de servicio que quepa en el cajón de una cita."""
+    corto = SERVICIOS_ABREVIADOS.get(nombre.strip().lower())
+    if corto:
+        return corto
+    nombre = " ".join(nombre.split())
+    if len(nombre) <= 14:
+        return nombre
+    # Regla general: se corta cada palabra a 4 letras, salvo las que ya son
+    # siglas. "Instalación PPF Completa" queda "Inst PPF Comp", que se lee.
+    palabras = [p if (len(p) <= 4 or p.isupper()) else p[:4] for p in nombre.split()]
+    corto = " ".join(palabras)
+    return corto if len(corto) <= 20 else corto[:19] + "…"
+
+
+def abreviar_servicios(services: str) -> str:
+    """Varios servicios en una línea: los dos primeros y cuántos faltan."""
+    nombres = [s.strip() for s in (services or "").split(",") if s.strip()]
+    if not nombres:
+        return ""
+    if len(nombres) == 1:
+        return abreviar_servicio(nombres[0])
+    if len(nombres) == 2:
+        return " + ".join(abreviar_servicio(n) for n in nombres)
+    return abreviar_servicio(nombres[0]) + " +" + str(len(nombres) - 1)
+
+
 def _int_o_cero(valor) -> int:
     """Los campos de plata llegan del formulario como texto y a veces con
     puntos de miles pegados por el navegador."""
@@ -3679,7 +3725,11 @@ def expense_categories_delete(category_id):
 # -----------------------
 @app.route("/api/events")
 def api_events():
-    """Devuelve las citas en formato JSON para FullCalendar."""
+    """Devuelve las citas en formato JSON para FullCalendar.
+
+    Las líneas van sueltas y en orden de prioridad (nombre, placa, servicio,
+    saldo, notas) en vez de un solo texto: el cajón de una cita corta no da
+    para todo, y el navegador necesita saber qué recortar primero."""
     appointments = Appointment.query.all()
     events = []
 
@@ -3688,48 +3738,42 @@ def api_events():
         first_service = appt.services.split(",")[0].strip().lower()
         color = COLORS.get(first_service, "#A0C8FF")  # color por defecto pastel
 
-        # Primer nombre
-        first_name = ""
-        if appt.customer_name:
-            first_name = appt.customer_name.strip().split(" ")[0]
-
-        # Placa
+        first_name = appt.customer_name.strip().split(" ")[0] if appt.customer_name else ""
         plate = appt.plate.upper() if appt.plate else ""
+        notes = " ".join((appt.notes or "").split())   # sin saltos ni espacios de más
 
-        # Observaciones
-        notes = (appt.notes or "").strip()
-
-        # Construcción del título (líneas separadas)
-        title_lines = []
-
-        if first_name:
-            title_lines.append(first_name)
-
-        if plate:
-            title_lines.append(plate)
-
-        if notes:
-            title_lines.append(notes)
-
-        title = "\n".join(title_lines)
-
-        # Calcular el valor estimado antes de construir el dict
-        estimated_amount = calculate_estimated_amount_for_appointment(appt)
-
-        # Si en el futuro extendedProps tiene más campos, los conservamos y solo agregamos/actualizamos estimated_amount
-        extended_props = {
-            "estimated_amount": estimated_amount
-        }
+        plata = appointment_money(appt)
+        # Sin abonos el saldo ES el valor del servicio, así que la cifra sola se
+        # entiende. Cuando hay abonos de por medio hay que decir qué es, o se
+        # confunde con el total.
+        if plata["saldo"] < 0:
+            saldo_texto = "A favor $" + f"{abs(plata['saldo']):,}".replace(",", ".")
+        elif plata["abonado"]:
+            saldo_texto = "Saldo $" + f"{plata['saldo']:,}".replace(",", ".")
+        else:
+            saldo_texto = "$" + f"{plata['total']:,}".replace(",", ".")
 
         events.append(
             {
                 "id": appt.id,
-                "title": title,
+                # FullCalendar necesita un title; se arma con lo mismo para que
+                # el tooltip del navegador muestre todo aunque el cajón recorte.
+                "title": " · ".join(x for x in [first_name, plate, appt.services or "",
+                                                saldo_texto, notes] if x),
                 "start": appt.start_datetime.isoformat(),
                 "end": appt.end_datetime.isoformat(),
                 "backgroundColor": color,
                 "borderColor": color,
-                "extendedProps": extended_props
+                "extendedProps": {
+                    "estimated_amount": plata["total"],
+                    "lineas": {
+                        "nombre": first_name,
+                        "placa": plate,
+                        "servicio": abreviar_servicios(appt.services),
+                        "saldo": saldo_texto,
+                        "notas": notes,
+                    },
+                },
             }
         )
 

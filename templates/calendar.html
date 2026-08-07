@@ -24,6 +24,24 @@
   /* Eventos */
   .fc-event-title, .fc-event-main, .fc-event { color: #fff !important; }
   .fc-event { line-height: 1.25; border-radius: 6px !important; border: none !important; }
+  /* El texto nunca debe desbordar el cajón: la cita de al lado queda ilegible. */
+  .fc-event, .fc-event-main, .fc-timegrid-event-harness { overflow: hidden; }
+
+  .ev-box {
+    height: 100%; overflow: hidden; padding: 3px 5px;
+    font-size: 11px; line-height: 1.2; color: #000; font-weight: 600;
+  }
+  /* Las cuatro líneas fijas ocupan una sola línea y se cortan con puntos. */
+  .ev-linea { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .ev-servicio, .ev-saldo { font-weight: 500; }
+  /* Las notas sí envuelven: se quedan con el alto que sobre. El número de
+     líneas lo fija el JS según lo que quepa, y -webkit-line-clamp pone los
+     puntos suspensivos solo. */
+  .ev-notas {
+    white-space: normal; font-weight: 400; opacity: .8;
+    display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2;
+    overflow: hidden;
+  }
 
   /* Día actual — dorado cálido sutil */
   .fc-timegrid-col.fc-day-today,
@@ -112,6 +130,41 @@
         }
 
 
+// Ajusta el contenido de un cajón al alto que realmente tiene.
+//
+// El ancho lo resuelve el CSS (cada línea corta con puntos suspensivos). Acá
+// solo se decide CUÁNTAS líneas caben: una cita de media hora no da para las
+// cinco, y antes el texto se salía y tapaba la cita de al lado.
+function ajustarCajon(el) {
+  const box = el.querySelector('.ev-box');
+  if (!box || !box.clientHeight) return;
+
+  // Se oculta, no se borra: esto se vuelve a correr al cambiar el tamaño de la
+  // ventana, y si el cajón creció las líneas tienen que poder volver.
+  const lineas = [...box.children];
+  lineas.forEach(l => { l.style.display = ''; });
+
+  const cabe = () => box.scrollHeight <= box.clientHeight + 1;
+
+  // Las notas se quedan con el alto que sobre. Se prueba de más a menos
+  // líneas en vez de calcular a mano, así el padding y la fuente reales
+  // entran en la cuenta sin tener que suponerlos.
+  const notas = box.querySelector('.ev-notas');
+  if (notas) {
+    for (let n = 6; n >= 1; n--) {
+      notas.style.webkitLineClamp = String(n);
+      if (cabe()) break;
+      if (n === 1) notas.style.display = 'none';
+    }
+  }
+
+  // Si ni las líneas fijas caben, se van cayendo de abajo hacia arriba: el
+  // nombre del cliente es lo último que se pierde.
+  for (let i = lineas.length - 1; i > 0 && !cabe(); i--) {
+    lineas[i].style.display = 'none';
+  }
+}
+
 document.addEventListener('DOMContentLoaded', function() {
   var calendarEl = document.getElementById('calendar');
 
@@ -142,25 +195,33 @@ document.addEventListener('DOMContentLoaded', function() {
     height: '100%',
     handleWindowResize: true,
 
+    // Orden de prioridad dentro del cajón. Lo de más abajo es lo primero que
+    // se recorta cuando la cita es corta y no hay alto para todo.
     eventContent: function(info) {
-      let container = document.createElement("div");
-      container.style.whiteSpace = "pre-line";
-      container.style.fontSize = "11px";
-      container.style.color = "#000";
-      container.style.padding = "4px 6px";
-      container.style.fontWeight = "600";
+      const L = info.event.extendedProps?.lineas || {};
+      const box = document.createElement("div");
+      box.className = "ev-box";
+      [["nombre", L.nombre], ["placa", L.placa], ["servicio", L.servicio],
+       ["saldo", L.saldo], ["notas", L.notas]].forEach(([clase, texto]) => {
+        if (!texto) return;
+        const linea = document.createElement("div");
+        linea.className = "ev-linea ev-" + clase;
+        linea.textContent = texto;
+        box.appendChild(linea);
+      });
+      return { domNodes: [box] };
+    },
 
-      const estimated = info.event.extendedProps?.estimated_amount;
-
-      let text = info.event.title;
-
-      if (estimated !== undefined && estimated !== null) {
-        const formatted = "$" + Number(estimated).toLocaleString("es-CO");
-        text += "\n" + formatted;
+    eventDidMount: function(info) {
+      // En el mount el cajón todavía no tiene su alto definitivo: FullCalendar
+      // lo posiciona después, y midiendo acá sale 0. Un ResizeObserver dispara
+      // cuando el alto ya es real, y otra vez si cambia (ventana, vista, otra
+      // cita que se le pone al lado).
+      if (window.ResizeObserver) {
+        new ResizeObserver(() => ajustarCajon(info.el)).observe(info.el);
+      } else {
+        requestAnimationFrame(() => ajustarCajon(info.el));
       }
-
-      container.textContent = text;
-      return { domNodes: [container] };
     },
 
     eventClick: function(info) {
