@@ -205,58 +205,110 @@
         </div>
       </div>
 
-      {# ---- Ajuste al crear (opcional) ---- #}
+      {# ---- Descuentos y recargos (varios) ---- #}
       <div class="mb-3">
-        <label class="form-label">Ajuste de precio <small class="text-secondary">(opcional)</small></label>
-        <div class="row g-2">
-          <div class="col-sm-4">
-            <select name="booking_adjustment_type"
-                    id="booking_adjustment_type"
-                    class="form-select bg-dark text-light border-secondary">
-              <option value="">Sin ajuste</option>
-              <option value="discount"
-                {% if is_edit and appointment.booking_adjustment_type == 'discount' %}selected{% endif %}>
-                Descuento
-              </option>
-              <option value="surcharge"
-                {% if is_edit and appointment.booking_adjustment_type == 'surcharge' %}selected{% endif %}>
-                Recargo
-              </option>
-            </select>
-          </div>
-          <div class="col-sm-4" id="adjustmentModeCol" style="display:none;">
-            <select name="booking_adjustment_mode"
-                    id="booking_adjustment_mode"
-                    class="form-select bg-dark text-light border-secondary">
-              <option value="fixed"
-                {% if is_edit and appointment.booking_adjustment_mode == 'fixed' %}selected{% endif %}>
-                Valor fijo $
-              </option>
-              <option value="percentage"
-                {% if is_edit and appointment.booking_adjustment_mode == 'percentage' %}selected{% endif %}>
-                Porcentaje %
-              </option>
-            </select>
-          </div>
-          <div class="col-sm-4" id="adjustmentValueCol" style="display:none;">
-            <input type="number"
-                   name="booking_adjustment_value"
-                   id="booking_adjustment_value"
-                   class="form-control bg-dark text-light border-secondary"
-                   min="1" step="1"
-                   placeholder="Valor"
-                   value="{{ appointment.booking_adjustment_value or '' if is_edit else '' }}">
-          </div>
+        <label class="form-label">
+          Descuentos y recargos <small class="text-secondary">(opcional, los que necesites)</small>
+        </label>
+        <div id="adjRows"></div>
+        <button type="button" class="btn btn-sm btn-outline-secondary" onclick="addAdjRow()">
+          + Agregar descuento o recargo
+        </button>
+        <div class="form-text">Los porcentajes se calculan sobre el valor después del convenio.</div>
+      </div>
+
+      {# ---- Abonos (varios) ---- #}
+      <div class="mb-3">
+        <label class="form-label">
+          Abonos <small class="text-secondary">(opcional, los que necesites)</small>
+        </label>
+        <div id="payRows"></div>
+        <button type="button" class="btn btn-sm btn-outline-secondary" onclick="addPayRow()">
+          + Agregar abono
+        </button>
+        <div class="form-text">
+          Un abono no rebaja el valor del servicio: solo el saldo que falta por cobrar.
         </div>
       </div>
 
-      {# ---- Precio estimado (calculado en tiempo real) ---- #}
+      {# ---- Resumen de plata (calculado en tiempo real) ---- #}
       <div class="mb-3 p-3 rounded border border-secondary" id="pricePreviewBox" style="display:none;">
+        <div class="d-flex justify-content-between small text-secondary mb-1">
+          <span>Precio de lista</span><span id="sumLista">$0</span>
+        </div>
+        <div class="d-flex justify-content-between small text-secondary mb-1 d-none" id="rowConvenio">
+          <span>Convenio</span><span id="sumConvenio">$0</span>
+        </div>
+        <div class="d-flex justify-content-between small text-secondary mb-1 d-none" id="rowDesc">
+          <span>Descuentos</span><span id="sumDesc">$0</span>
+        </div>
+        <div class="d-flex justify-content-between small text-secondary mb-1 d-none" id="rowRec">
+          <span>Recargos</span><span id="sumRec">$0</span>
+        </div>
+        <hr class="my-2" style="border-color:var(--border);">
         <div class="d-flex justify-content-between align-items-center">
-          <span class="text-secondary">Precio estimado:</span>
+          <span class="text-secondary">Valor del servicio</span>
           <span class="fs-5 fw-bold text-success" id="pricePreview">$0</span>
         </div>
+        <div class="d-flex justify-content-between small text-secondary mt-2 d-none" id="rowAbonado">
+          <span>Abonado</span><span id="sumAbonado">$0</span>
+        </div>
+        <div class="d-flex justify-content-between align-items-center mt-1 d-none" id="rowSaldo">
+          <span class="text-secondary">Saldo pendiente</span>
+          <span class="fs-6 fw-bold" id="sumSaldo">$0</span>
+        </div>
       </div>
+
+      {# Plantillas de fila: se clonan al agregar. #}
+      <template id="tplAdj">
+        <div class="row g-2 mb-2 align-items-center adj-row">
+          <div class="col-6 col-sm-3">
+            <select name="adj_kind" class="form-select form-select-sm bg-dark text-light border-secondary">
+              <option value="discount">Descuento</option>
+              <option value="surcharge">Recargo</option>
+            </select>
+          </div>
+          <div class="col-6 col-sm-3">
+            <select name="adj_mode" class="form-select form-select-sm bg-dark text-light border-secondary">
+              <option value="fixed">Valor fijo $</option>
+              <option value="percentage">Porcentaje %</option>
+            </select>
+          </div>
+          <div class="col-5 col-sm-2">
+            <input type="number" name="adj_value" min="1" step="1" placeholder="Valor"
+                   class="form-control form-control-sm bg-dark text-light border-secondary">
+          </div>
+          <div class="col-6 col-sm-3">
+            <input type="text" name="adj_desc" maxlength="200" placeholder="Motivo (opcional)"
+                   class="form-control form-control-sm bg-dark text-light border-secondary">
+          </div>
+          <div class="col-1 text-end">
+            <button type="button" class="btn btn-sm btn-outline-danger px-2"
+                    title="Quitar" onclick="this.closest('.adj-row').remove(); updatePrice();">&times;</button>
+          </div>
+        </div>
+      </template>
+
+      <template id="tplPay">
+        <div class="row g-2 mb-2 align-items-center pay-row">
+          <div class="col-6 col-sm-3">
+            <input type="number" name="pay_amount" min="1" step="1" placeholder="Valor abonado"
+                   class="form-control form-control-sm bg-dark text-light border-secondary">
+          </div>
+          <div class="col-6 col-sm-3">
+            <input type="date" name="pay_date"
+                   class="form-control form-control-sm bg-dark text-light border-secondary">
+          </div>
+          <div class="col-11 col-sm-5">
+            <input type="text" name="pay_desc" maxlength="200" placeholder="Descripción (opcional)"
+                   class="form-control form-control-sm bg-dark text-light border-secondary">
+          </div>
+          <div class="col-1 text-end">
+            <button type="button" class="btn btn-sm btn-outline-danger px-2"
+                    title="Quitar" onclick="this.closest('.pay-row').remove(); updatePrice();">&times;</button>
+          </div>
+        </div>
+      </template>
 
       {# ---- Operarios ---- #}
       {% if operators_list %}
@@ -422,6 +474,34 @@
     });
   }
 
+  // --- Filas de descuentos/recargos y abonos ---
+  // Se exponen en window porque los botones las llaman desde onclick.
+  const pesos = n => "$" + Number(n || 0).toLocaleString("es-CO");
+
+  function fila(tplId, destinoId, valores) {
+    const nodo = document.getElementById(tplId).content.firstElementChild.cloneNode(true);
+    Object.entries(valores || {}).forEach(([campo, v]) => {
+      const input = nodo.querySelector('[name="' + campo + '"]');
+      if (input && v !== null && v !== undefined) input.value = v;
+    });
+    nodo.querySelectorAll("input, select").forEach(el => {
+      el.addEventListener(el.tagName === "SELECT" ? "change" : "input", updatePrice);
+    });
+    document.getElementById(destinoId).appendChild(nodo);
+    updatePrice();
+    return nodo;
+  }
+  window.addAdjRow = v => fila("tplAdj", "adjRows", v);
+  window.addPayRow = v => fila("tplPay", "payRows", v || { pay_date: "{{ today }}" });
+
+  function leerFilas(selector, campos) {
+    return Array.from(document.querySelectorAll(selector)).map(row => {
+      const o = {};
+      campos.forEach(c => { o[c.destino] = row.querySelector('[name="' + c.campo + '"]')?.value || ""; });
+      return o;
+    });
+  }
+
   // --- Calcular precio en tiempo real ---
   function updatePrice() {
     const vtId = vehicleSelect ? vehicleSelect.value : null;
@@ -446,21 +526,53 @@
         service_ids: serviceIds,
         vehicle_type_id: parseInt(vtId),
         agreement_id: agId ? parseInt(agId) : null,
-        booking_adjustment_type:  document.getElementById("booking_adjustment_type")?.value || null,
-        booking_adjustment_mode:  document.getElementById("booking_adjustment_mode")?.value || null,
-        booking_adjustment_value: parseInt(document.getElementById("booking_adjustment_value")?.value) || null,
+        adjustments: leerFilas(".adj-row", [
+          { campo: "adj_kind", destino: "kind" },
+          { campo: "adj_mode", destino: "mode" },
+          { campo: "adj_value", destino: "value" },
+        ]),
+        payments: leerFilas(".pay-row", [{ campo: "pay_amount", destino: "amount" }]),
       })
     })
     .then(r => r.json())
     .then(data => {
       if (!data.ok) return;
       if (priceBox) priceBox.style.display = "block";
-      if (priceLabel) {
-        priceLabel.textContent = "$" + Number(data.final_price).toLocaleString("es-CO");
+      if (priceLabel) priceLabel.textContent = pesos(data.final_price);
+
+      // d-none y no style.display: las utilidades de Bootstrap son !important
+      // y una fila en cero se quedaba visible.
+      const poner = (idFila, idValor, monto, prefijo) => {
+        const fila = document.getElementById(idFila);
+        if (!fila) return;
+        fila.classList.toggle("d-none", !monto);
+        const el = document.getElementById(idValor);
+        if (el) el.textContent = (monto && prefijo ? prefijo : "") + pesos(monto);
+      };
+      const lista = document.getElementById("sumLista");
+      if (lista) lista.textContent = pesos(data.base_price);
+      poner("rowConvenio", "sumConvenio", data.agreement_amount, "−");
+      poner("rowDesc", "sumDesc",
+            data.adjustments.filter(a => a.kind === "discount").reduce((s, a) => s + a.amount, 0), "−");
+      poner("rowRec", "sumRec",
+            data.adjustments.filter(a => a.kind === "surcharge").reduce((s, a) => s + a.amount, 0), "+");
+      poner("rowAbonado", "sumAbonado", data.paid, "−");
+
+      // El saldo solo aparece si hay abonos: sin abonos, saldo y total son lo
+      // mismo y repetir la cifra solo agrega ruido.
+      const filaSaldo = document.getElementById("rowSaldo");
+      const saldo = document.getElementById("sumSaldo");
+      if (filaSaldo && saldo) {
+        filaSaldo.classList.toggle("d-none", !data.paid);
+        saldo.textContent = data.balance < 0
+          ? pesos(Math.abs(data.balance)) + " a favor"
+          : pesos(data.balance);
+        saldo.className = "fs-6 fw-bold " + (data.balance > 0 ? "text-warning" : "text-success");
       }
     })
     .catch(() => {});
   }
+  window.updatePrice = updatePrice;
 
   checkboxes.forEach(c => c.addEventListener("change", updatePrice));
 
@@ -480,21 +592,17 @@
   if (vehicleSelect) vehicleSelect.addEventListener("change", updatePrice);
   if (agreementSel)  agreementSel.addEventListener("change", updatePrice);
 
-  // Mostrar/ocultar campos de ajuste
-  function toggleAdjustmentFields() {
-    const type = document.getElementById("booking_adjustment_type").value;
-    const show = type !== "";
-    document.getElementById("adjustmentModeCol").style.display  = show ? "block" : "none";
-    document.getElementById("adjustmentValueCol").style.display = show ? "block" : "none";
-    updatePrice();
-  }
-  document.getElementById("booking_adjustment_type")?.addEventListener("change", toggleAdjustmentFields);
-  document.getElementById("booking_adjustment_mode")?.addEventListener("change", updatePrice);
-  document.getElementById("booking_adjustment_value")?.addEventListener("input", updatePrice);
-
-  // Trigger inicial en edición
+  // Al editar se repueblan las filas que ya tiene la cita.
   {% if is_edit %}
-  toggleAdjustmentFields();
+  {% for aj in appointment.adjustments %}
+  addAdjRow({ adj_kind: "{{ aj.kind }}", adj_mode: "{{ aj.mode }}",
+              adj_value: "{{ aj.value }}", adj_desc: {{ (aj.description or '') | tojson }} });
+  {% endfor %}
+  {% for ab in appointment.payments %}
+  addPayRow({ pay_amount: "{{ ab.amount }}",
+              pay_date: "{{ ab.paid_on.isoformat() if ab.paid_on else '' }}",
+              pay_desc: {{ (ab.description or '') | tojson }} });
+  {% endfor %}
   updatePrice();
   {% endif %}
 })();

@@ -515,6 +515,18 @@ class Appointment(db.Model):
         "AppointmentOperator", cascade="all, delete-orphan", lazy="joined"
     )
 
+    # Descuentos/recargos y abonos, cada uno en su tabla. Van por separado a
+    # propósito: los primeros cambian cuánto vale el servicio, los segundos
+    # solo cuánto falta por cobrar.
+    adjustments = db.relationship(
+        "AppointmentAdjustment", cascade="all, delete-orphan",
+        order_by="AppointmentAdjustment.id", lazy="selectin"
+    )
+    payments = db.relationship(
+        "AppointmentPayment", cascade="all, delete-orphan",
+        order_by="AppointmentPayment.paid_on, AppointmentPayment.id", lazy="selectin"
+    )
+
     def __repr__(self):
         return f"<Appointment {self.customer_name} - {self.services}>"
 
@@ -738,6 +750,43 @@ class AppointmentOperator(db.Model):
 
     def __repr__(self):
         return f"<AppointmentOperator appt={self.appointment_id} user={self.user_id}>"
+
+
+class AppointmentAdjustment(db.Model):
+    """Un descuento o recargo de una cita. Son varios por cita: antes cabía uno
+    solo y todo lo demás terminaba embutido donde no era."""
+    __tablename__ = "appointment_adjustments"
+    id             = db.Column(db.Integer, primary_key=True)
+    appointment_id = db.Column(db.Integer, db.ForeignKey("appointments.id"),
+                               nullable=False, index=True)
+    kind        = db.Column(db.String(20), nullable=False)                    # discount | surcharge
+    mode        = db.Column(db.String(20), nullable=False, default="fixed")   # fixed | percentage
+    value       = db.Column(db.Integer, nullable=False, default=0)
+    description = db.Column(db.String(200), nullable=True)
+    created_at  = db.Column(db.DateTime, default=datetime.utcnow)
+
+    def __repr__(self):
+        return f"<AppointmentAdjustment appt={self.appointment_id} {self.kind} {self.value}>"
+
+
+class AppointmentPayment(db.Model):
+    """Un abono: plata que el cliente ya entregó a cuenta del servicio.
+
+    OJO — esto NO es un descuento. Un abono no cambia lo que vale el servicio,
+    solo lo que falta por cobrar. Registrarlo como descuento (que es como se
+    venía haciendo) hacía que la analítica viera ingresos más bajos de los
+    reales y descuentos que nunca se otorgaron."""
+    __tablename__ = "appointment_payments"
+    id             = db.Column(db.Integer, primary_key=True)
+    appointment_id = db.Column(db.Integer, db.ForeignKey("appointments.id"),
+                               nullable=False, index=True)
+    amount      = db.Column(db.Integer, nullable=False, default=0)
+    paid_on     = db.Column(db.Date, nullable=False, default=date.today)
+    description = db.Column(db.String(200), nullable=True)
+    created_at  = db.Column(db.DateTime, default=datetime.utcnow)
+
+    def __repr__(self):
+        return f"<AppointmentPayment appt={self.appointment_id} {self.amount}>"
 
 
 class Expense(db.Model):
@@ -1537,43 +1586,150 @@ def apply_agreement_discount_split(service_ids: list[int], vehicle_type_id: int,
 # -----------------------
 # HELPER: Calcular valor estimado de una cita (precio base + convenio, sin ajustes manuales)
 # -----------------------
-def calculate_estimated_amount_for_appointment(appt: Appointment) -> int:
-    """
-    Calcula el valor estimado de una cita:
-    - Precio real por servicios + tipo de vehículo
-    - Aplica convenio si existe
-    - Aplica ajuste al crear (booking_adjustment) si existe
-    """
-    if not appt.vehicle_type_id:
-        return 0
+def apply_adjustments(subtotal: int, adjustments) -> tuple[int, list]:
+    """Aplica una lista de descuentos/recargos sobre el subtotal.
 
-    service_names = [s.strip() for s in appt.services.split(",") if s.strip()]
+    Los porcentajes se calculan SIEMPRE sobre el subtotal (el valor después del
+    convenio), nunca en cascada sobre el resultado del ajuste anterior. Así el
+    orden en que se monten no cambia el total, que es lo que uno puede
+    explicarle a un cliente sin hacer cuentas raras.
+
+    Devuelve (total, detalle) donde detalle trae el monto en pesos que terminó
+    pesando cada línea, ya resuelto el porcentaje.
+    """
+    total = subtotal
+    detalle = []
+    for aj in adjustments or []:
+        valor = int(getattr(aj, "value", 0) or 0)
+        if valor <= 0:
+            continue
+        kind = getattr(aj, "kind", None)
+        if kind not in ("discount", "surcharge"):
+            continue
+        if getattr(aj, "mode", "fixed") == "percentage":
+            monto = int(round(subtotal * (valor / 100)))
+        else:
+            monto = valor
+        total = (total - monto) if kind == "discount" else (total + monto)
+        detalle.append({
+            "id": getattr(aj, "id", None),
+            "kind": kind,
+            "mode": getattr(aj, "mode", "fixed") or "fixed",
+            "value": valor,
+            "amount": monto,
+            "description": getattr(aj, "description", None) or "",
+        })
+    # Un recargo puede subir el total, pero ningún combo de descuentos debería
+    # dejar el servicio en negativo.
+    return max(total, 0), detalle
+
+
+def appointment_money(appt: Appointment) -> dict:
+    """Todo el desglose de plata de una cita, en un solo lugar.
+
+    La distinción que importa:
+      total  = lo que vale el servicio  → es lo único que mira la analítica
+      abonado= lo que el cliente ya entregó
+      saldo  = lo que falta por cobrar  → no afecta ingresos
+
+    El abono se llevaba antes como descuento para poder ver el saldo, y eso
+    hacía dos daños a la vez: rebajaba el ingreso reportado e inventaba un
+    descuento que nunca se otorgó.
+    """
+    vacio = {"lista": 0, "convenio": 0, "subtotal": 0, "ajustes": [],
+             "descuentos": 0, "recargos": 0, "total": 0,
+             "abonos": [], "abonado": 0, "saldo": 0}
+    if not appt.vehicle_type_id:
+        return vacio
+
+    service_names = [s.strip() for s in (appt.services or "").split(",") if s.strip()]
     services = Service.query.filter(Service.name.in_(service_names)).all()
     service_ids = [s.id for s in services]
 
-    base_price = calculate_real_price(
-        service_ids=service_ids,
-        vehicle_type_id=appt.vehicle_type_id
-    )
+    lista = calculate_real_price(service_ids=service_ids, vehicle_type_id=appt.vehicle_type_id)
+    subtotal, _ = apply_agreement_discount_split(service_ids, appt.vehicle_type_id, appt.agreement)
 
-    after_agreement, _ = apply_agreement_discount_split(service_ids, appt.vehicle_type_id, appt.agreement)
+    total, detalle = apply_adjustments(subtotal, appt.adjustments)
 
-    # Aplicar ajuste al crear (booking adjustment)
-    b_type  = getattr(appt, "booking_adjustment_type", None)
-    b_mode  = getattr(appt, "booking_adjustment_mode", None)
-    b_value = int(getattr(appt, "booking_adjustment_value", None) or 0)
+    abonos = [{"id": p.id, "amount": int(p.amount or 0),
+               "paid_on": p.paid_on.isoformat() if p.paid_on else None,
+               "description": p.description or ""}
+              for p in (appt.payments or [])]
+    abonado = sum(a["amount"] for a in abonos)
 
-    if b_type and b_value > 0:
-        if b_mode == "percentage":
-            b_amount = int(round(after_agreement * (b_value / 100)))
-        else:
-            b_amount = b_value
-        if b_type == "discount":
-            after_agreement = max(after_agreement - b_amount, 0)
-        elif b_type == "surcharge":
-            after_agreement = after_agreement + b_amount
+    return {
+        "lista": lista,
+        "convenio": max(lista - subtotal, 0),
+        "subtotal": subtotal,
+        "ajustes": detalle,
+        "descuentos": sum(d["amount"] for d in detalle if d["kind"] == "discount"),
+        "recargos": sum(d["amount"] for d in detalle if d["kind"] == "surcharge"),
+        "total": total,
+        "abonos": abonos,
+        "abonado": abonado,
+        # Puede quedar en negativo si abonaron de más: es un saldo a favor y hay
+        # que poder verlo, no esconderlo en un cero.
+        "saldo": total - abonado,
+    }
 
-    return after_agreement
+
+def calculate_estimated_amount_for_appointment(appt: Appointment) -> int:
+    """Lo que vale el servicio: precio de lista, menos convenio, más/menos los
+    ajustes. Los abonos NO entran acá — este es el número que usa la analítica."""
+    return appointment_money(appt)["total"]
+
+
+def _int_o_cero(valor) -> int:
+    """Los campos de plata llegan del formulario como texto y a veces con
+    puntos de miles pegados por el navegador."""
+    try:
+        return int(str(valor).replace(".", "").replace(",", "").strip() or 0)
+    except (TypeError, ValueError):
+        return 0
+
+
+def sync_appointment_adjustments(appt: Appointment, form):
+    """Reemplaza los descuentos/recargos de la cita por los que trae el
+    formulario. Las filas llegan como listas paralelas (adj_kind[i] va con
+    adj_value[i]); una fila sin valor se ignora, que es como el usuario
+    'borra' una línea dejándola vacía."""
+    kinds  = form.getlist("adj_kind")
+    modes  = form.getlist("adj_mode")
+    values = form.getlist("adj_value")
+    descs  = form.getlist("adj_desc")
+
+    appt.adjustments.clear()
+    for i, kind in enumerate(kinds):
+        valor = _int_o_cero(values[i] if i < len(values) else 0)
+        if kind not in ("discount", "surcharge") or valor <= 0:
+            continue
+        modo = modes[i] if i < len(modes) else "fixed"
+        appt.adjustments.append(AppointmentAdjustment(
+            kind=kind,
+            mode=modo if modo in ("fixed", "percentage") else "fixed",
+            value=valor,
+            description=(descs[i].strip()[:200] if i < len(descs) and descs[i] else None),
+        ))
+
+
+def sync_appointment_payments(appt: Appointment, form):
+    """Igual que los ajustes, pero para los abonos. Un abono sin fecha se toma
+    como de hoy: es más útil que rechazar el registro."""
+    amounts = form.getlist("pay_amount")
+    dates   = form.getlist("pay_date")
+    descs   = form.getlist("pay_desc")
+
+    appt.payments.clear()
+    for i, bruto in enumerate(amounts):
+        monto = _int_o_cero(bruto)
+        if monto <= 0:
+            continue
+        fecha = _parse_date(dates[i]) if i < len(dates) else None
+        appt.payments.append(AppointmentPayment(
+            amount=monto,
+            paid_on=fecha or bogota_now().date(),
+            description=(descs[i].strip()[:200] if i < len(descs) and descs[i] else None),
+        ))
 
 # -----------------------
 # HELPER: Verificar si la cita ya fue cerrada (ServiceSale existe para appointment_id)
@@ -1849,14 +2005,6 @@ def new_appointment():
             agreement_id=agreement_id
         )
 
-        booking_adjustment_type  = request.form.get("booking_adjustment_type") or None
-        booking_adjustment_mode  = request.form.get("booking_adjustment_mode") or None
-        booking_adjustment_value = request.form.get("booking_adjustment_value")
-        try:
-            booking_adjustment_value = int(booking_adjustment_value) if booking_adjustment_value else None
-        except Exception:
-            booking_adjustment_value = None
-
         appt = Appointment(
             customer_name=customer_name,
             plate=plate,
@@ -1868,10 +2016,9 @@ def new_appointment():
             vehicle_type_id=int(vehicle_type_id),
             status="scheduled",
             agreement_id=agreement_id,
-            booking_adjustment_type=booking_adjustment_type,
-            booking_adjustment_mode=booking_adjustment_mode,
-            booking_adjustment_value=booking_adjustment_value,
         )
+        sync_appointment_adjustments(appt, request.form)
+        sync_appointment_payments(appt, request.form)
         db.session.add(appt)
         db.session.flush()
 
@@ -2173,14 +2320,15 @@ def appointments_list():
     """Lista simple en tabla de las próximas citas."""
     appointments = Appointment.query.order_by(Appointment.start_datetime.asc()).all()
     agreements   = Agreement.query.filter_by(is_active=True).order_by(Agreement.name).all()
-    estimated_prices = {
-        a.id: calculate_estimated_amount_for_appointment(a) for a in appointments
-    }
+    # Un solo cálculo por cita: de acá salen tanto el valor como el saldo, que
+    # es lo que sirve para saber a quién hay que cobrarle.
+    plata = {a.id: appointment_money(a) for a in appointments}
     return render_template(
         "appointments_list.html",
         appointments=appointments,
         agreements=agreements,
-        estimated_prices=estimated_prices,
+        estimated_prices={k: v["total"] for k, v in plata.items()},
+        plata=plata,
     )
 
 
@@ -2279,11 +2427,9 @@ def edit_appointment(appointment_id):
         # Asignar nueva hora final
         appointment.end_datetime = appointment.start_datetime + timedelta(minutes=total_duration)
 
-        # Guardar ajuste al crear
-        appointment.booking_adjustment_type  = request.form.get("booking_adjustment_type") or None
-        appointment.booking_adjustment_mode  = request.form.get("booking_adjustment_mode") or None
-        bav = request.form.get("booking_adjustment_value")
-        appointment.booking_adjustment_value = int(bav) if bav else None
+        # Descuentos/recargos y abonos: se reemplazan por lo que traiga el form.
+        sync_appointment_adjustments(appointment, request.form)
+        sync_appointment_payments(appointment, request.form)
 
         # Guardar/actualizar datos del cliente por placa (si hay placa)
         upsert_client_from_appointment(
@@ -2504,15 +2650,21 @@ def _transacciones_citas(vehicle_type: str = ""):
         if vehicle_type and (not a.vehicle_type or a.vehicle_type.name != vehicle_type):
             continue
         venta = ventas.get(a.id)
-        cobrado = (venta.final_amount if venta else calculate_estimated_amount_for_appointment(a)) or 0
-        # Valor de lista, sin convenio ni ajustes: la diferencia contra lo cobrado
-        # es lo que se dejó de facturar.
+        # Descuento y recargo se llevan por separado, no como la resta
+        # lista − cobrado: con un recargo esa resta da negativo y hace
+        # desaparecer los descuentos que sí se otorgaron.
         if venta:
+            cobrado = venta.final_amount or 0
             lista = venta.base_amount or cobrado
+            dif = lista - cobrado
+            descuento, recargo = max(dif, 0), max(-dif, 0)
         else:
-            nombres = [x.strip() for x in (a.services or "").split(",") if x.strip()]
-            ids = [x.id for x in Service.query.filter(Service.name.in_(nombres)).all()]
-            lista = calculate_real_price(ids, a.vehicle_type_id) if (ids and a.vehicle_type_id) else cobrado
+            m = appointment_money(a)
+            cobrado = m["total"]
+            lista = m["lista"] or cobrado
+            # El convenio también es plata que se dejó de facturar.
+            descuento = m["convenio"] + m["descuentos"]
+            recargo = m["recargos"]
         # Un diagnóstico no es una venta: es gratis y es un paso del embudo. Si
         # entrara acá inflaría los clientes nuevos y hundiría el ticket promedio.
         nombres = {x.strip().lower() for x in (a.services or "").split(",") if x.strip()}
@@ -2522,6 +2674,8 @@ def _transacciones_citas(vehicle_type: str = ""):
             "placa": a.plate,
             "monto": cobrado,
             "lista": lista or cobrado,
+            "descuento": descuento,
+            "recargo": recargo,
             "servicios": a.services or "",
             "pago": venta.payment_method if venta else None,
             "es_diagnostico": es_diag,
@@ -2673,6 +2827,8 @@ def _kpis_rentabilidad(date_from, date_to, vehicle_type: str = ""):
                  if date_from <= t["fecha"] <= date_to]
     ingresos = sum(t["monto"] for t in servicios)
     bruto = sum(t["lista"] for t in servicios)
+    descuentos = sum(t["descuento"] for t in servicios)
+    recargos = sum(t["recargo"] for t in servicios)
 
     gastos_rows = Expense.query.filter(
         Expense.is_void == False,
@@ -2690,9 +2846,12 @@ def _kpis_rentabilidad(date_from, date_to, vehicle_type: str = ""):
         "gastos": gastos,
         "margen": margen,
         "margen_pct": (margen / ingresos * 100) if ingresos else 0,
-        # Lo que se dejó de cobrar entre convenios, promociones y ajustes al cierre.
-        "descuentos": max(bruto - ingresos, 0),
-        "descuentos_pct": ((bruto - ingresos) / bruto * 100) if bruto else 0,
+        # Lo que se dejó de cobrar entre convenios, promociones y descuentos.
+        # Se suma descuento por descuento: restar lista − cobrado mezclaba los
+        # recargos y hacía ver menos descuento del que se otorgó.
+        "descuentos": descuentos,
+        "descuentos_pct": (descuentos / bruto * 100) if bruto else 0,
+        "recargos": recargos,
         "gastos_por_categoria": sorted(por_categoria.items(), key=lambda x: x[1], reverse=True)[:8],
     }
 
@@ -3559,7 +3718,8 @@ def api_events():
 @app.route("/appointment/<int:appointment_id>/json")
 def appointment_json(appointment_id):
     appt = Appointment.query.get_or_404(appointment_id)
-    estimated_amount = calculate_estimated_amount_for_appointment(appt)
+    plata = appointment_money(appt)
+    estimated_amount = plata["total"]
 
     operators = [
         {"id": ao.user_id, "username": ao.user.username}
@@ -3583,9 +3743,7 @@ def appointment_json(appointment_id):
         "end": appt.end_datetime.strftime("%Y-%m-%d %H:%M"),
         "estimated_amount": estimated_amount,
         "status": appt.status,
-        "booking_adjustment_type":  getattr(appt, "booking_adjustment_type", None),
-        "booking_adjustment_mode":  getattr(appt, "booking_adjustment_mode", None),
-        "booking_adjustment_value": getattr(appt, "booking_adjustment_value", None),
+        "money": plata,
         "operators": operators,
         "work_status": appt.work_status or "pending",
         "work_started_at": appt.work_started_at.strftime("%Y-%m-%d %H:%M") if appt.work_started_at else None,
@@ -3733,30 +3891,34 @@ def api_estimate_price():
 
     agreement = Agreement.query.get(agreement_id) if agreement_id else None
 
-    final_price, _ = apply_agreement_discount_split(service_ids, vehicle_type_id, agreement)
+    subtotal, _ = apply_agreement_discount_split(service_ids, vehicle_type_id, agreement)
 
-    # Ajuste al crear (booking adjustment)
-    b_type  = data.get("booking_adjustment_type")
-    b_mode  = data.get("booking_adjustment_mode")
-    b_value = int(data.get("booking_adjustment_value") or 0)
+    # Los ajustes llegan como los tenga el formulario en pantalla, sin guardar
+    # nada: es una simulación para que el precio se vea mientras se arma la cita.
+    class _Aj:
+        def __init__(self, d):
+            self.id = None
+            self.kind = d.get("kind")
+            self.mode = d.get("mode") or "fixed"
+            self.value = _int_o_cero(d.get("value"))
+            self.description = d.get("description") or ""
 
-    if b_type and b_value > 0:
-        if b_mode == "percentage":
-            b_amount = int(round(final_price * (b_value / 100)))
-        else:
-            b_amount = b_value
-        if b_type == "discount":
-            final_price = max(final_price - b_amount, 0)
-        elif b_type == "surcharge":
-            final_price = final_price + b_amount
+    ajustes = [_Aj(a) for a in (data.get("adjustments") or []) if isinstance(a, dict)]
+    final_price, detalle = apply_adjustments(subtotal, ajustes)
 
-    discount_amount = base_price - final_price
+    abonado = sum(_int_o_cero(a.get("amount")) for a in (data.get("payments") or [])
+                  if isinstance(a, dict))
 
     return jsonify({
         "ok": True,
         "base_price": base_price,
-        "discount_amount": discount_amount,
-        "final_price": final_price
+        "agreement_amount": max(base_price - subtotal, 0),
+        "subtotal": subtotal,
+        "adjustments": detalle,
+        "discount_amount": base_price - final_price,   # se mantiene por compatibilidad
+        "final_price": final_price,
+        "paid": abonado,
+        "balance": final_price - abonado,
     })
 
 @app.route("/appointments/<int:appointment_id>/close", methods=["POST"])
@@ -3792,22 +3954,9 @@ def close_appointment(appointment_id):
         vehicle_type_id=appt.vehicle_type_id
     )
 
-    base_amount, _ = apply_agreement_discount_split(service_ids, appt.vehicle_type_id, appt.agreement)
-
-    # Aplicar ajuste hecho al crear la cita (booking adjustment)
-    b_type  = getattr(appt, "booking_adjustment_type", None)
-    b_mode  = getattr(appt, "booking_adjustment_mode", None)
-    b_value = int(getattr(appt, "booking_adjustment_value", None) or 0)
-
-    if b_type and b_value > 0:
-        if b_mode == "percentage":
-            b_amount = int(round(base_amount * (b_value / 100)))
-        else:
-            b_amount = b_value
-        if b_type == "discount":
-            base_amount = max(base_amount - b_amount, 0)
-        elif b_type == "surcharge":
-            base_amount = base_amount + b_amount
+    # Convenio + los descuentos/recargos montados en la cita
+    subtotal, _ = apply_agreement_discount_split(service_ids, appt.vehicle_type_id, appt.agreement)
+    base_amount, _ = apply_adjustments(subtotal, appt.adjustments)
 
     # Ajuste manual al cierre (descuento/recargo)
     adjustment_type = data.get("adjustment_type")  # discount | surcharge | None
@@ -4013,6 +4162,43 @@ def ensure_payroll_schema():
                 db.session.execute(text(f"ALTER TABLE users ADD COLUMN {col} {definition}"))
                 db.session.commit()
 
+def migrate_booking_adjustments_to_rows():
+    """El ajuste al crear la cita era uno solo y vivía en tres columnas de
+    `appointments`. Ahora son filas en `appointment_adjustments`, tantas como
+    haga falta.
+
+    Se copia el viejo a una fila y se limpia la columna de origen: así la
+    migración no vuelve a correr sobre la misma cita en el siguiente arranque,
+    ni resucita un ajuste que alguien borró a mano.
+
+    Lo que NO se puede hacer acá es adivinar cuáles de esos descuentos eran en
+    realidad abonos. Se migran tal cual, con el mismo total de siempre, y el
+    equipo los reclasifica desde la cita."""
+    with app.app_context():
+        pendientes = Appointment.query.filter(
+            Appointment.booking_adjustment_type.isnot(None),
+            Appointment.booking_adjustment_value.isnot(None),
+        ).all()
+        migradas = 0
+        for a in pendientes:
+            valor = int(a.booking_adjustment_value or 0)
+            if valor > 0 and a.booking_adjustment_type in ("discount", "surcharge"):
+                db.session.add(AppointmentAdjustment(
+                    appointment_id=a.id,
+                    kind=a.booking_adjustment_type,
+                    mode=a.booking_adjustment_mode or "fixed",
+                    value=valor,
+                    description="Ajuste registrado antes del cambio a varios",
+                ))
+                migradas += 1
+            a.booking_adjustment_type = None
+            a.booking_adjustment_mode = None
+            a.booking_adjustment_value = None
+        if pendientes:
+            db.session.commit()
+            app.logger.info("[Migración] %s ajustes de cita pasados a tabla propia.", migradas)
+
+
 with app.app_context():
     db.create_all()
     ensure_service_sales_schema()
@@ -4020,6 +4206,7 @@ with app.app_context():
     ensure_clients_agreement_schema()
     ensure_appointments_close_schema()
     ensure_payroll_schema()
+    migrate_booking_adjustments_to_rows()
     # --- Normalización defensiva de convenios (migración suave) ---
     normalize_agreements_discount_type()
     seed_services()

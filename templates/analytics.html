@@ -278,7 +278,10 @@
     <div class="an-card {{ semaforo('descuentos_pct', fin.descuentos_pct) }}">
       <div class="an-k">Descuentos otorgados</div>
       <div class="an-v">{{ money(fin.descuentos) }}</div>
-      <div class="an-sub">{{ '%.1f'|format(fin.descuentos_pct) }}% del valor de lista · convenios, promos y ajustes</div>
+      <div class="an-sub">
+        {{ '%.1f'|format(fin.descuentos_pct) }}% del valor de lista · convenios y descuentos
+        {% if fin.recargos %}<br>Recargos cobrados aparte: {{ money(fin.recargos) }}{% endif %}
+      </div>
     </div>
   </div>
 

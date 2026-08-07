@@ -186,6 +186,32 @@ document.addEventListener('DOMContentLoaded', function() {
             ? `<span class="ms-2 text-muted small">(${data.work_duration_minutes} min reales)</span>`
             : "";
 
+          // Desglose de plata. El valor del servicio y el saldo son cosas
+          // distintas: el abono no rebaja lo que vale el trabajo.
+          const m = data.money || {};
+          const pesos = n => "$" + Number(n || 0).toLocaleString("es-CO");
+          const lineaAjuste = a =>
+            `<span class="badge ${a.kind === 'discount' ? 'bg-warning text-dark' : 'bg-info text-dark'} me-1">
+               ${a.kind === 'discount' ? 'Descuento' : 'Recargo'}
+               ${a.mode === 'percentage' ? a.value + '%' : pesos(a.value)}
+               ${a.description ? '· ' + a.description : ''}
+             </span>`;
+          const ajustesHtml = (m.ajustes || []).length
+            ? `<p><b>Ajustes:</b> ${m.ajustes.map(lineaAjuste).join("")}</p>` : "";
+          const abonosHtml = (m.abonos || []).length
+            ? `<p><b>Abonos:</b><br>${m.abonos.map(a =>
+                `<span class="text-muted small">${a.paid_on || ''} · ${pesos(a.amount)}${
+                  a.description ? ' · ' + a.description : ''}</span>`).join("<br>")}</p>`
+            : "";
+          const saldoHtml = m.abonado
+            ? `<p><b>Abonado:</b> <span class="fw-semibold">${pesos(m.abonado)}</span></p>
+               <p><b>Saldo pendiente:</b>
+                 <span class="fw-bold ${m.saldo > 0 ? 'text-warning' : 'text-success'}">
+                   ${m.saldo < 0 ? pesos(Math.abs(m.saldo)) + ' a favor' : pesos(m.saldo)}
+                 </span>
+               </p>`
+            : "";
+
           document.getElementById("modalBodyContent").innerHTML = `
   <p><b>Cliente:</b> ${data.customer_name}</p>
   <p><b>Placa:</b> ${data.plate || 'Sin placa'}</p>
@@ -195,20 +221,15 @@ document.addEventListener('DOMContentLoaded', function() {
   <p><b>Fin:</b> ${data.end}</p>
   <p><b>Notas:</b> ${data.notes || 'Sin notas'}</p>
   <p><b>Operarios:</b> ${operatorsHtml}</p>
-  ${data.booking_adjustment_type ? `
-  <p><b>Ajuste al agendar:</b>
-    <span class="badge ${data.booking_adjustment_type === 'discount' ? 'bg-warning text-dark' : 'bg-info text-dark'}">
-      ${data.booking_adjustment_type === 'discount' ? 'Descuento' : 'Recargo'}
-      ${data.booking_adjustment_value}
-      ${data.booking_adjustment_mode === 'percentage' ? '%' : '($' + Number(data.booking_adjustment_value).toLocaleString('es-CO') + ')'}
-    </span>
-  </p>` : ''}
+  ${ajustesHtml}
   <p>
-    <b>Valor estimado:</b>
+    <b>Valor del servicio:</b>
     <span class="fw-semibold">
       $${Number(data.estimated_amount || 0).toLocaleString("es-CO")}
     </span>
   </p>
+  ${abonosHtml}
+  ${saldoHtml}
   <p>
     <b>Estado:</b>
     ${
