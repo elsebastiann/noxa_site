@@ -512,7 +512,10 @@
 <nav class="navbar navbar-expand-lg mb-0"
      style="background:rgba(10,12,15,0.95);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border-bottom:1px solid var(--border);">
   <div class="container-fluid px-3">
-    <a class="navbar-brand" href="{{ url_for('calendar_view') }}" style="padding:0;">
+    {# El logo lleva a la portada de cada rol: para marketing la agenda no existe. #}
+    <a class="navbar-brand"
+       href="{{ url_for('whatsapp_inbox') if current_user and current_user.role == 'marketing' else url_for('calendar_view') }}"
+       style="padding:0;">
       <img src="{{ url_for('static', filename='img/logotipo.png') }}" alt="Agenda Detailing" class="navbar-logo"
         onerror="this.style.display='none';this.insertAdjacentHTML('afterend','<span class=\'navbar-brand-text\'>Agenda</span>');">
     </a>
@@ -659,7 +662,9 @@
   <a href="{{ url_for('change_password') }}"><i class="bi bi-key-fill"></i>Cambiar contraseña</a>
   {% endif %}
 
-  {# ── Operaciones ── #}
+  {# ── Operaciones ──
+     Marketing solo ve lo que puede abrir: mostrarle enlaces que el servidor le
+     va a rebotar es ruido. #}
   <hr>
   <div class="bn-group-label">Operaciones</div>
   {% if not current_user or current_user.role != 'operario' %}
@@ -671,10 +676,9 @@
   <a href="{{ url_for('expenses_new') }}"><i class="bi bi-cash-stack"></i>Gastos</a>
   <a href="{{ url_for('sales_list') }}"><i class="bi bi-graph-up-arrow"></i>Ingresos</a>
   <a href="{{ url_for('dashboard_gerencial') }}"><i class="bi bi-speedometer2"></i>Tablero gerencial</a>
-  <a href="{{ url_for('analytics_dashboard') }}"><i class="bi bi-bar-chart-line"></i>Analítica</a>
-  {% endif %}
   <a href="{{ url_for('appointments_list') }}"><i class="bi bi-card-list"></i>Citas</a>
   <a href="{{ url_for('parking_list') }}"><i class="bi bi-p-square"></i>Parqueaderos</a>
+  {% endif %}
 
   {# ── Configuración ── #}
   {% if not current_user or current_user.role not in ('operario', 'marketing') %}
@@ -715,10 +719,23 @@
 </div>
 
 <nav class="bottom-nav">
+  {% if current_user and current_user.role == 'marketing' %}
+  {# La barra de abajo es el acceso rápido: solo tiene sentido con lo que la
+     agencia realmente puede abrir. Sin Agenda ni "+ Nueva". #}
+  <a class="bn-item" href="{{ url_for('whatsapp_inbox') }}">
+    <i class="bi bi-whatsapp"></i><span>Mensajes</span>
+  </a>
+  <a class="bn-item" href="{{ url_for('notifications_list') }}">
+    <i class="bi bi-bell"></i><span>Alertas</span>
+  </a>
+  <a class="bn-item" href="{{ url_for('analytics_dashboard') }}">
+    <i class="bi bi-bar-chart-line"></i><span>Analítica</span>
+  </a>
+  {% else %}
   <a class="bn-item" href="{{ url_for('calendar_view') }}">
     <i class="bi bi-calendar3"></i><span>Agenda</span>
   </a>
-  {% if not current_user or current_user.role not in ('operario', 'marketing') %}
+  {% if not current_user or current_user.role != 'operario' %}
   <a class="bn-item" href="{{ url_for('quality_errors_list') }}">
     <i class="bi bi-exclamation-triangle-fill"></i><span>Errores</span>
   </a>
@@ -730,6 +747,7 @@
   <a class="bn-item" href="{{ url_for('whatsapp_inbox') }}">
     <i class="bi bi-whatsapp"></i><span>Mensajes</span>
   </a>
+  {% endif %}
   {% endif %}
   <button class="bn-item" onclick="toggleBnMenu()">
     <i class="bi bi-grid-3x3-gap"></i><span>Más</span>

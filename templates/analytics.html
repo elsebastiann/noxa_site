@@ -74,6 +74,10 @@
   .an-switch button { background:transparent; border:none; padding:9px 13px; font-size:.8rem;
                       font-weight:600; color:var(--text2); cursor:pointer; white-space:nowrap; }
   .an-switch button.active { background:var(--accent); color:#0a0c0f; }
+  .an-switch-sm button { padding:5px 10px; font-size:.72rem; }
+  .an-panel-head { display:flex; justify-content:space-between; align-items:center;
+                   gap:10px; flex-wrap:wrap; margin-bottom:12px; }
+  .an-panel-head h3 { margin:0; }
 
   .an-modal { position:fixed; inset:0; z-index:1060; background:rgba(0,0,0,.6);
               display:flex; align-items:center; justify-content:center; padding:20px; }
@@ -289,7 +293,16 @@
 
   <div class="an-charts">
     <div class="an-panel">
-      <h3>Ingresos por mes</h3>
+      <div class="an-panel-head">
+        <h3 id="tituloIngresos">Ingresos por semana</h3>
+        <div class="an-switch an-switch-sm" id="anGranularidad">
+          <button type="button" data-g="dia">Día</button>
+          <button type="button" data-g="semana">Semana</button>
+          <button type="button" data-g="mes">Mes</button>
+          <button type="button" data-g="trimestre">Trimestre</button>
+          <button type="button" data-g="ano">Año</button>
+        </div>
+      </div>
       <canvas id="chartIngresos" height="200"></canvas>
     </div>
   </div>
@@ -653,24 +666,120 @@
       }), 'hora', horas.map(h => h[0]));
       });
 
-      registrar('resumen', () => {
-      conDetalle(new Chart(document.getElementById('chartIngresos'), {
-        type: 'line',
-        data: { labels: etiquetas,
-                datasets: [{ data: serie.map(m => m.ingresos), borderColor: acento,
-                             backgroundColor: 'rgba(212,180,108,0.14)', fill: true, tension: 0.3,
-                             pointRadius: 3 }] },
-        options: {
-          ...comun,
-          scales: {
-            ...comun.scales,
-            y: { ...comun.scales.y,
-                 ticks: { color: texto2,
-                          callback: v => ejeMoneda(v) } }
-          }
+      // ── Ingresos con granularidad elegible ──────────────────────────────
+      // La serie diaria es el grano fino; acá se agrupa. Filtrar un solo mes y
+      // ver un único punto no dice nada: por eso el default es semana, que es
+      // el ritmo real con el que se mira un taller.
+      const serieDia = {{ data.serie_dia | tojson }};
+      const RANGO = ['{{ date_from.isoformat() }}', '{{ date_to.isoformat() }}'];
+      const GRAN_KEY = 'noxa_gran_ingresos';
+      const TITULOS = { dia: 'Ingresos por día', semana: 'Ingresos por semana',
+                        mes: 'Ingresos por mes', trimestre: 'Ingresos por trimestre',
+                        ano: 'Ingresos por año' };
+      const MESES = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+
+      // Se construye la fecha por partes: new Date('2026-08-07') se interpreta
+      // como UTC y en Bogotá cae el día anterior.
+      const aFecha = s => { const p = s.split('-').map(Number); return new Date(p[0], p[1]-1, p[2]); };
+      const aIso = d => d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0')
+                                        + '-' + String(d.getDate()).padStart(2,'0');
+
+      function inicioBucket(d, g) {
+        const x = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+        if (g === 'dia') return x;
+        if (g === 'semana') { x.setDate(x.getDate() - ((x.getDay() + 6) % 7)); return x; }  // lunes
+        if (g === 'mes') return new Date(x.getFullYear(), x.getMonth(), 1);
+        if (g === 'trimestre') return new Date(x.getFullYear(), Math.floor(x.getMonth()/3)*3, 1);
+        return new Date(x.getFullYear(), 0, 1);
+      }
+      function siguienteBucket(d, g) {
+        const x = new Date(d);
+        if (g === 'dia') x.setDate(x.getDate() + 1);
+        else if (g === 'semana') x.setDate(x.getDate() + 7);
+        else if (g === 'mes') x.setMonth(x.getMonth() + 1);
+        else if (g === 'trimestre') x.setMonth(x.getMonth() + 3);
+        else x.setFullYear(x.getFullYear() + 1);
+        return x;
+      }
+      function etiquetaBucket(d, g) {
+        if (g === 'dia' || g === 'semana') return d.getDate() + ' ' + MESES[d.getMonth()];
+        if (g === 'mes') return MESES[d.getMonth()] + ' ' + d.getFullYear();
+        if (g === 'trimestre') return 'T' + (Math.floor(d.getMonth()/3) + 1) + ' ' + d.getFullYear();
+        return String(d.getFullYear());
+      }
+
+      function agrupar(g) {
+        const acum = new Map();
+        serieDia.forEach(x => {
+          const k = aIso(inicioBucket(aFecha(x.fecha), g));
+          acum.set(k, (acum.get(k) || 0) + x.ingresos);
+        });
+        // Los baldes vacíos también van: un día sin ventas es un cero, no un hueco.
+        const ini = aFecha(RANGO[0]);
+        const fin = aFecha(RANGO[1]);
+        const out = [];
+        let cur = inicioBucket(ini, g);
+        while (cur <= fin && out.length < 1200) {
+          const sig = siguienteBucket(cur, g);
+          const cierre = new Date(sig); cierre.setDate(cierre.getDate() - 1);
+          // El primer y el último balde casi nunca caen completos dentro del
+          // filtro (una semana rara vez arranca el día 1). Se recortan al rango
+          // para no rotular un periodo con fechas que el usuario no pidió.
+          const desde = cur < ini ? ini : cur;
+          const hasta = cierre > fin ? fin : cierre;
+          out.push({
+            etiqueta: etiquetaBucket(g === 'dia' || g === 'semana' ? desde : cur, g),
+            valor: acum.get(aIso(cur)) || 0,
+            clave: aIso(desde) + '..' + aIso(hasta),
+            rango: aIso(desde) === aIso(hasta) ? aIso(desde) : aIso(desde) + ' → ' + aIso(hasta),
+          });
+          cur = sig;
         }
-      }), 'mes', serie.map(m => m.mes));
-      });
+        return out;
+      }
+
+      let chartIngresos = null;
+      function dibujarIngresos() {
+        const g = localStorage.getItem(GRAN_KEY) || 'semana';
+        const datos = agrupar(g);
+        document.getElementById('tituloIngresos').textContent = TITULOS[g];
+        document.querySelectorAll('#anGranularidad button').forEach(b =>
+          b.classList.toggle('active', b.dataset.g === g));
+        if (chartIngresos) chartIngresos.destroy();
+        chartIngresos = new Chart(document.getElementById('chartIngresos'), {
+          type: 'line',
+          data: { labels: datos.map(b => b.etiqueta),
+                  datasets: [{ data: datos.map(b => b.valor), borderColor: acento,
+                               backgroundColor: 'rgba(212,180,108,0.14)', fill: true, tension: 0.3,
+                               // Con muchos puntos los círculos tapan la línea.
+                               pointRadius: datos.length > 60 ? 0 : 3 }] },
+          options: {
+            ...comun,
+            plugins: {
+              legend: { display: false },
+              // "12 ene" en vista semanal no dice hasta dónde llega: el tooltip sí.
+              tooltip: { callbacks: { title: it => datos[it[0].dataIndex].rango } }
+            },
+            scales: {
+              ...comun.scales,
+              x: { ...comun.scales.x,
+                   ticks: { color: texto2, autoSkip: true, maxRotation: 0, maxTicksLimit: 14 } },
+              y: { ...comun.scales.y,
+                   ticks: { color: texto2, callback: v => ejeMoneda(v) } }
+            }
+          }
+        });
+        conDetalle(chartIngresos, 'mes', datos.map(b => b.clave));
+      }
+      registrar('resumen', dibujarIngresos);
+
+      document.querySelectorAll('#anGranularidad button').forEach(b =>
+        b.addEventListener('click', () => {
+          localStorage.setItem(GRAN_KEY, b.dataset.g);
+          // Si la pestaña aún no se ha abierto la gráfica no existe: se dibujará
+          // sola con la preferencia recién guardada.
+          if (chartIngresos) dibujarIngresos();
+        }));
 
       // Formato de cifras. El valor exacto vive en data-v y acá solo se decide
       // cómo mostrarlo, así cambiar de modo no recarga nada. La preferencia se

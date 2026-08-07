@@ -2577,6 +2577,20 @@ def _analytics_data(date_from, date_to, vehicle_type: str = ""):
     meses_orden = sorted(serie.keys())
     nuevos_total = sum(serie[m]["nuevos"] for m in meses_orden)
 
+    # Serie DIARIA: es el grano más fino que existe, y desde acá el navegador
+    # arma día / semana / mes / trimestre / año sin volver a pedirle nada al
+    # servidor. Solo van los días con movimiento; los vacíos los rellena el
+    # front, que ya sabe el rango. Ojo: acá no van "clientes únicos" porque
+    # sumar días no da únicos — para eso está la serie mensual.
+    por_dia = {}
+    for v in ventas:
+        d = por_dia.setdefault(v["fecha"], {"ingresos": 0, "visitas": 0, "nuevos": 0})
+        d["ingresos"] += v["monto"]
+        d["visitas"] += 1
+    for placa, fecha in primera_compra.items():
+        if fecha in por_dia:
+            por_dia[fecha]["nuevos"] += 1
+
     ticket = (ingresos / visitas) if visitas else 0
     visitas_por_cliente = (visitas / clientes) if clientes else 0
     # Proyección a 12 meses: se asume que el ritmo observado se mantiene. Es un
@@ -2625,6 +2639,9 @@ def _analytics_data(date_from, date_to, vehicle_type: str = ""):
                 "clientes": len(serie[m]["placas"]),
             }
             for m in meses_orden
+        ],
+        "serie_dia": [
+            {"fecha": f.isoformat(), **por_dia[f]} for f in sorted(por_dia)
         ],
         "top_servicios": top_servicios,
     }
@@ -2990,20 +3007,30 @@ def analytics_detalle():
     en_rango = [t for t in todas if date_from <= t["fecha"] <= date_to]
     facturables = [t for t in en_rango if not t["es_diagnostico"]]
 
+    def _en_clave(fecha) -> bool:
+        """La clave puede ser un mes ("2026-08") o un rango ("2026-08-03..2026-08-09"),
+        según la granularidad con la que el usuario esté mirando la gráfica."""
+        if ".." in clave:
+            desde, hasta = clave.split("..", 1)
+            return desde <= fecha.isoformat() <= hasta
+        return fecha.strftime("%Y-%m") == clave
+
+    periodo = "del periodo" if ".." in clave else "del mes"
+
     if tipo == "mes":
-        filas = [t for t in facturables if t["fecha"].strftime("%Y-%m") == clave]
-        titulo = "Servicios del mes"
+        filas = [t for t in facturables if _en_clave(t["fecha"])]
+        titulo = "Servicios " + periodo
     elif tipo == "diagnosticos":
-        filas = [t for t in en_rango if t["es_diagnostico"] and t["fecha"].strftime("%Y-%m") == clave]
-        titulo = "Diagnósticos del mes"
+        filas = [t for t in en_rango if t["es_diagnostico"] and _en_clave(t["fecha"])]
+        titulo = "Diagnósticos " + periodo
     elif tipo == "nuevos":
         # Solo la primera visita de cada placa, que es lo que la barra cuenta.
         primera = {}
         for t in [x for x in todas if not x["es_diagnostico"] and x["placa"]]:
             if t["placa"] not in primera or t["fecha"] < primera[t["placa"]]["fecha"]:
                 primera[t["placa"]] = t
-        filas = [t for t in primera.values() if t["fecha"].strftime("%Y-%m") == clave]
-        titulo = "Clientes nuevos del mes"
+        filas = [t for t in primera.values() if _en_clave(t["fecha"])]
+        titulo = "Clientes nuevos " + periodo
     elif tipo in ("dia", "hora"):
         ini, fin = _rango(date_from, date_to)
         citas = Appointment.query.filter(
