@@ -1,7 +1,7 @@
 # Mariana — base de conocimiento actual, análisis del documento de plantillas y plan
 
-> Documento de trabajo. Fecha: 2026-08-03.
-> Fuente de verdad del prompt: `app.py` → `NOXA_SYSTEM_PROMPT` (línea ~4185).
+> Documento de trabajo. Fecha: 2026-08-03. Verificado contra `app.py` en producción: 2026-08-08 (ver nota al final de PARTE 2.C).
+> Fuente de verdad del prompt: `app.py` → `NOXA_SYSTEM_PROMPT` (línea ~5372 al 2026-08-08; el archivo crece, los números de línea de este doc se corren — usar `graphify query`/`grep` para ubicar el actual).
 > Fuente analizada: `~/Downloads/Plantillas WP NOXA.docx`.
 
 ---
@@ -12,14 +12,16 @@
 
 | Pieza | Ubicación | Qué hace |
 |---|---|---|
-| `NOXA_SYSTEM_PROMPT` | `app.py:4185–4472` | Toda la base de conocimiento del bot |
-| `_call_claude()` | `app.py:4495` | Llama a `claude-sonnet-5`, `max_tokens=600`, prompt cacheado + `extra_system_text` por turno |
-| `_build_message_history()` | `app.py:4475` | Historial completo de la conversación (sin truncar) |
-| `get_claude_reply()` | `app.py:4578` | Respuesta a mensaje entrante; inyecta imagen si viene foto |
-| `generate_followup_message()` | `app.py:4610` | Mensaje de reactivación de lead frío |
-| `_generate_and_send_reply()` | `app.py:4890` | Parsea marcadores, manda los chunks a Twilio |
-| `_job_whatsapp_followup()` | `app.py:5344` | Job cada 30 min que dispara los seguimientos |
-| `_FOLLOWUP_STAGES` | `app.py:5337` | Cadencia actual: 24h / 72h / 7d |
+| `NOXA_SYSTEM_PROMPT` | `app.py:5372` | Toda la base de conocimiento del bot |
+| `_call_claude()` | `app.py:5864` | Llama a `claude-sonnet-5`, `max_tokens=600`, prompt cacheado + `extra_system_text` por turno |
+| `_build_message_history()` | `app.py:5844` | Historial completo de la conversación (sin truncar) |
+| `get_claude_reply()` | `app.py:6233` | Respuesta a mensaje entrante; inyecta imagen si viene foto, disponibilidad real y promociones vigentes |
+| `generate_followup_message()` | `app.py:6309` | Mensaje de reactivación de lead frío |
+| `_generate_and_send_reply()` | `app.py:6898` | Parsea marcadores (`[ESCALAR:]`, `[META:]`, `[NOMBRE:]`, `[AGENDAR:]`, `[REAGENDAR:]`, `[PROMO:]`), manda los chunks a Twilio |
+| `_job_whatsapp_followup()` | `app.py:7637` | Job cada 30 min que dispara los seguimientos |
+| `_FOLLOWUP_STAGES` | `app.py:7624` | Cadencia actual: 24h / 2d / 5d / 14d (4 etapas, ver C10 en PARTE 2.C) |
+| `_format_promotions_for_prompt()` | `app.py:6134` | Bloque de promociones vigentes inyectado en cada turno (ver Sección 19) |
+| `book_diagnostic_from_bot()` | `app.py:6472` | Crea la cita real cuando Mariana emite `[AGENDAR:]` — ver 1.3 y PARTE 4.3 |
 
 ### 1.2 Las 18 secciones del prompt
 
@@ -41,14 +43,23 @@
 16. **LÍMITES** — No inventar servicios/precios/garantías. Sí puede ver fotos. Notas de voz llegan transcritas (Whisper) y pueden traer errores.
 17. **ESCALAMIENTO A HUMANO** — 6 casos: pago completo, descuento, garantía/contrato/queja, factura, pide humano, vehículo premium con intención clara. Marcador `[ESCALAR: razón]` + pausa el bot + avisa al admin.
 18. **MARCADORES INTERNOS** — `[META: estado=...; servicios=...]` en **cada** turno (estados: En proceso / Diagnóstico agendado / Servicio agendado; tags: Cerámico / PPF o wrap / Otro servicio) y `[NOMBRE: ...]` cuando el cliente da su nombre real.
+19. **PROMOCIONES** — Panel de administración: `/promotions` (`templates/promotions.html`), modelo `Promotion` (`app.py:1040`). Cada turno recibe, vía `_format_promotions_for_prompt()` (`app.py:6134`), la lista de promociones **activas** (`is_active` y dentro de vigencia — propiedad `.vigente`). Reglas para Mariana:
+    - **Cuándo ofrecerlas**: apenas el cliente pregunta por un servicio que tiene promoción vigente, se la menciona de una — **no espera a que dude, objete el precio o pida descuento**. Sí la vuelve a sacar en esos momentos como refuerzo, pero esa no es la condición para ofrecerla la primera vez.
+    - **Cuándo NO**: en el saludo, antes de saber qué servicio le interesa al cliente.
+    - Mencionar la promoción no adelanta el precio — sigue la regla de oro (explicar el servicio antes de la cifra).
+    - **Nunca inventa promociones** que no estén en la lista activa ni cambia sus condiciones (monto, vigencia, términos).
+    - Puede mandar la imagen de apoyo de una promoción con el marcador `[PROMO: <id>]` (una vez por promoción, siempre acompañado de texto explicando — nunca la imagen sola). Si `PROMO_IMAGES_ENABLED` está apagado, explica la promoción solo en texto.
+    - **Las promociones no son descuentos** y no reemplazan la prohibición de ofrecer descuento por su cuenta (ver METODOLOGÍA DE VENTA / manejo de objeción de precio, `app.py:5493`) — una promoción es un beneficio ya cargado y aprobado por el negocio, un descuento inventado en la conversación no.
 
 ### 1.3 Lo que Mariana NO puede hacer hoy
 
-- **No agenda.** El prompt dice explícitamente: *"No inventes disponibilidad exacta ni confirmes horarios — dile que un asesor le confirma el cupo"* (línea 4310). El `[META: estado=Diagnóstico agendado]` es solo una etiqueta del CRM, **no crea una cita** en la agenda.
-- **No conoce la disponibilidad real** de la agenda.
-- **No pide placa** en ningún momento.
-- **No manda fotos** ni ningún archivo — solo texto.
-- **No tiene seguimiento post-servicio** (existe recordatorio 24h antes, cerámico a 3 meses y reactivación a 3 semanas, pero no el de 7 días post-entrega).
+*(Actualizado 2026-08-08 — la versión original de esta lista, de 2026-08-03, quedó desactualizada por lo implementado en PARTE 4; se corrige aquí para que no induzca a error.)*
+
+- **Sí agenda diagnósticos reales.** Vía el marcador `[AGENDAR: nombre=...; vehiculo=...; placa=...; fecha=...; hora=...]`, validado y creado en `book_diagnostic_from_bot()` (`app.py:6472`), llamado desde `_generate_and_send_reply()`. El `[META: estado=Diagnóstico agendado]` sigue existiendo pero la cita real en la agenda manda sobre esa etiqueta. También puede reagendar (`[REAGENDAR:]`). Ver PARTE 3 (plan original) y PARTE 4.3 (qué quedó implementado).
+- **Sí conoce la disponibilidad real** de la agenda — `_format_availability_for_prompt()` (`app.py:6178`) se inyecta en cada turno.
+- **Sí pide placa** — es uno de los datos obligatorios del marcador `[AGENDAR:]`.
+- **Sí tiene seguimiento post-servicio** a 7 días — `_job_post_service_followup()` (`app.py:7581`), corre además de los recordatorios pre-cita y las reactivaciones de lead frío.
+- **No manda fotos** ni ningún archivo — solo texto. (Esto sigue sin cambiar. Única excepción: puede mandar la imagen de una promoción vía `[PROMO: <id>]`, que es un archivo fijo cargado por el admin, no algo que ella elige o genera.)
 
 ---
 
@@ -99,9 +110,30 @@
 | C11 | Primer intento de reactivación **solo entre 9am y 12pm** | El job corre 9am–6pm para todas las etapas | **Gana el documento** para la etapa A. Requiere cambio de código. |
 | C12 | "sin pagarte algo que no vale la pena" | — | Error de redacción del documento; se corrige a "sin que pagues por algo que no necesita". |
 
+### 2.D — Verificación contra el código en producción (2026-08-08)
+
+Las 12 contradicciones de la tabla anterior se revisaron una por una contra el `app.py` actual (no solo contra lo que dice PARTE 4, que podía haber quedado desfasada). **Las 12 están implementadas** — ninguna sigue abierta:
+
+| # | Verificado en | Nota |
+|---|---|---|
+| C1 (menú) | `app.py:5348–5394` | Lo manda el código como texto fijo tras el saludo, con la excepción `[SIN_MENU]` si el cliente ya dijo qué necesita. |
+| C2 (Diana/Mariana) | `app.py:6389, 6716` | "Diana" solo aparece como destinataria de los avisos de escalamiento — la asesora sigue siendo Mariana. |
+| C3–C5 (lambonería/"súper"/"mejor opción") | `app.py:5435–5450` | Todas siguen en la lista de expresiones y palabras vetadas. |
+| C6 (una pregunta por turno) | `app.py:5554, 5603` | Regla dura, explícita en CIERRE y en AGENDAMIENTO. |
+| C7 (foto "está bien") | `app.py:5653` | Nunca confirma que el carro está bien; redirige al valor de lo presencial — tal cual se decidió. |
+| C8 (polarizado) | `app.py:5755, 7797` | Con precios reales cargados (Nanocerámica HD/Spectra/Ultraoptic) y manejo especial de agendamiento (ver 1.3). |
+| C9 (15–20 min) | `app.py:5586, 5634` | Consistente en todo el prompt. |
+| C10 (4 etapas de seguimiento) | `app.py:7624` (`_FOLLOWUP_STAGES`) | 24h / 2d / 5d / 14d, con ángulo distinto cada una. |
+| C11 (primer intento 9am–12pm) | `app.py:7634, 7674` (`_FIRST_FOLLOWUP_LAST_HOUR = 12`) | Solo aplica a la primera etapa, como se decidió. |
+| C12 (redacción) | `app.py:5587` | "sin pagar por algo que no necesita" — corregido. |
+
+No quedan contradicciones pendientes de este análisis. Si aparece contenido nuevo para comparar (otro documento de plantillas, un cambio de política), abrir una PARTE 2.C nueva en vez de reabrir esta.
+
 ---
 
 ## PARTE 3 — Plan: que Mariana agende diagnósticos de verdad
+
+> ✅ **Implementado** (ver PARTE 4.3 y Sección 1.3 actualizada). Esta sección queda como registro del diseño original; la arquitectura descrita abajo coincide con lo que hay hoy en producción.
 
 ### 3.1 Objetivo
 
