@@ -1,0 +1,167 @@
+{
+  ".mcp.json": {
+    "mtime": 1785291573.980057,
+    "ast_hash": "6a154e5d1de0dbe70ce2a0e44214647f",
+    "semantic_hash": "6a154e5d1de0dbe70ce2a0e44214647f"
+  },
+  "mockup-v2 copy/js/script.js": {
+    "mtime": 1785289274.0862308,
+    "ast_hash": "c5e26d82b0e60b651eb166de11c9d317",
+    "semantic_hash": "c5e26d82b0e60b651eb166de11c9d317"
+  },
+  "mockup-v2/js/script.js": {
+    "mtime": 1785802690.629078,
+    "ast_hash": "b5aa115072373cfdfd3986be9698c19f",
+    "semantic_hash": "b5aa115072373cfdfd3986be9698c19f"
+  },
+  "mockup-v2 copy/video/hero/hero PREV.mp4": {
+    "mtime": 1785210655.212408,
+    "ast_hash": "c28785627f79e3c4fda338cc8157d293",
+    "semantic_hash": "c28785627f79e3c4fda338cc8157d293"
+  },
+  "mockup-v2 copy/video/hero/hero.mp4": {
+    "mtime": 1785213025.8929305,
+    "ast_hash": "386d3043316077bc33e39f6ed86984d8",
+    "semantic_hash": "386d3043316077bc33e39f6ed86984d8"
+  },
+  "mockup-v2 copy/video/services/coating-7h.mp4": {
+    "mtime": 1785204840.7234576,
+    "ast_hash": "45a2acc471908c3b1244b6f639ccc126",
+    "semantic_hash": "45a2acc471908c3b1244b6f639ccc126"
+  },
+  "mockup-v2 copy/video/services/coating-9h.mp4": {
+    "mtime": 1785204843.8380768,
+    "ast_hash": "df791b4693cfb57cf2bf3c319341a7bd",
+    "semantic_hash": "df791b4693cfb57cf2bf3c319341a7bd"
+  },
+  "mockup-v2 copy/video/services/detallado-ext.mp4": {
+    "mtime": 1785207148.055193,
+    "ast_hash": "7b2c9e6f4596cff463763024db371ea6",
+    "semantic_hash": "7b2c9e6f4596cff463763024db371ea6"
+  },
+  "mockup-v2 copy/video/services/detallado-int.mp4": {
+    "mtime": 1785207376.5889146,
+    "ast_hash": "c4239b5791bb97555bc20feb5c34a326",
+    "semantic_hash": "c4239b5791bb97555bc20feb5c34a326"
+  },
+  "mockup-v2 copy/video/services/detallado-llanta.mp4": {
+    "mtime": 1785207614.3030996,
+    "ast_hash": "06d15ad491d119df23f028740cd1f7de",
+    "semantic_hash": "06d15ad491d119df23f028740cd1f7de"
+  },
+  "mockup-v2 copy/video/services/polichado.mp4": {
+    "mtime": 1785206520.7153103,
+    "ast_hash": "4f94dfc1c7c0e69c6c4d5fb272ba5dc8",
+    "semantic_hash": "4f94dfc1c7c0e69c6c4d5fb272ba5dc8"
+  },
+  "mockup-v2 copy/video/services/porcelanizado.mp4": {
+    "mtime": 1785206604.2637362,
+    "ast_hash": "c9201ac20a8e37fbf47a2b4d4763b633",
+    "semantic_hash": "c9201ac20a8e37fbf47a2b4d4763b633"
+  },
+  "mockup-v2 copy/video/services/wash-chasis.mp4": {
+    "mtime": 1785208989.0901704,
+    "ast_hash": "e2c83324f7eecc78312e71d5c17429a4",
+    "semantic_hash": "e2c83324f7eecc78312e71d5c17429a4"
+  },
+  "mockup-v2 copy/video/services/wash-essential.mp4": {
+    "mtime": 1785208711.7186463,
+    "ast_hash": "6874b0ebd018bc5780774efb0b19a875",
+    "semantic_hash": "6874b0ebd018bc5780774efb0b19a875"
+  },
+  "mockup-v2 copy/video/services/wash-motor.mp4": {
+    "mtime": 1785207979.5347323,
+    "ast_hash": "79ab9d7f2f64719bd5068819deeae9d1",
+    "semantic_hash": "79ab9d7f2f64719bd5068819deeae9d1"
+  },
+  "mockup-v2 copy/video/services/wash-shine.mp4": {
+    "mtime": 1785208845.7432551,
+    "ast_hash": "ddf25e7001f24fb4aabb5b2ea094124f",
+    "semantic_hash": "ddf25e7001f24fb4aabb5b2ea094124f"
+  },
+  "mockup-v2 copy/video/services/wrap.mp4": {
+    "mtime": 1785206883.0832663,
+    "ast_hash": "ef21956ca4f07d13fe5c46ebd46c7a91",
+    "semantic_hash": "ef21956ca4f07d13fe5c46ebd46c7a91"
+  },
+  "mockup-v2/video/hero/hero.mp4": {
+    "mtime": 1785472425.0571373,
+    "ast_hash": "74e512e075b53004c0f26ae50834d765",
+    "semantic_hash": "74e512e075b53004c0f26ae50834d765"
+  },
+  "mockup-v2/video/services/.originals-backup/coating-7h.mp4": {
+    "mtime": 1785328078.6986659,
+    "ast_hash": "45a2acc471908c3b1244b6f639ccc126",
+    "semantic_hash": "45a2acc471908c3b1244b6f639ccc126"
+  },
+  "mockup-v2/video/services/.originals-backup/coating-9h.mp4": {
+    "mtime": 1785328078.7119865,
+    "ast_hash": "df791b4693cfb57cf2bf3c319341a7bd",
+    "semantic_hash": "df791b4693cfb57cf2bf3c319341a7bd"
+  },
+  "mockup-v2/video/services/coating-7h.mp4": {
+    "mtime": 1785471436.4733083,
+    "ast_hash": "bfd279b94969b57d63de4b81054b4349",
+    "semantic_hash": "bfd279b94969b57d63de4b81054b4349"
+  },
+  "mockup-v2/video/services/coating-9h.mp4": {
+    "mtime": 1785328103.2357204,
+    "ast_hash": "0237871e20cf6d582fb13349fbfab543",
+    "semantic_hash": "0237871e20cf6d582fb13349fbfab543"
+  },
+  "mockup-v2/video/services/detallado-ext.mp4": {
+    "mtime": 1785525730.1127553,
+    "ast_hash": "33d9b8184d3dd3430262a1386e526a8e",
+    "semantic_hash": "33d9b8184d3dd3430262a1386e526a8e"
+  },
+  "mockup-v2/video/services/detallado-int.mp4": {
+    "mtime": 1785471605.8301494,
+    "ast_hash": "c5cd05785d1ac8ae52a0f258030a656c",
+    "semantic_hash": "c5cd05785d1ac8ae52a0f258030a656c"
+  },
+  "mockup-v2/video/services/detallado-llanta.mp4": {
+    "mtime": 1785471636.733371,
+    "ast_hash": "381937e236c14a25e1dd46d16f8dd8a0",
+    "semantic_hash": "381937e236c14a25e1dd46d16f8dd8a0"
+  },
+  "mockup-v2/video/services/polichado.mp4": {
+    "mtime": 1785471675.0367002,
+    "ast_hash": "412eb09619f2c893f59d5a30cd5590b1",
+    "semantic_hash": "412eb09619f2c893f59d5a30cd5590b1"
+  },
+  "mockup-v2/video/services/porcelanizado.mp4": {
+    "mtime": 1785471731.6368678,
+    "ast_hash": "d4dfe3116781589c7e8732b851b33629",
+    "semantic_hash": "d4dfe3116781589c7e8732b851b33629"
+  },
+  "mockup-v2/video/services/ppf.mp4": {
+    "mtime": 1785526578.124742,
+    "ast_hash": "51c5879e8a8ceec4c50d1ef33abfce2f",
+    "semantic_hash": "51c5879e8a8ceec4c50d1ef33abfce2f"
+  },
+  "mockup-v2/video/services/wash-chasis.mp4": {
+    "mtime": 1785471937.6737893,
+    "ast_hash": "f09dbb096a37e80ab0982a7e51c996a9",
+    "semantic_hash": "f09dbb096a37e80ab0982a7e51c996a9"
+  },
+  "mockup-v2/video/services/wash-essential.mp4": {
+    "mtime": 1785471939.223421,
+    "ast_hash": "86d8b3289c61308fa7410a009a497882",
+    "semantic_hash": "86d8b3289c61308fa7410a009a497882"
+  },
+  "mockup-v2/video/services/wash-motor.mp4": {
+    "mtime": 1785472181.0834866,
+    "ast_hash": "669e0259d1ec3a403691f3713ca42bc7",
+    "semantic_hash": "669e0259d1ec3a403691f3713ca42bc7"
+  },
+  "mockup-v2/video/services/wash-shine.mp4": {
+    "mtime": 1785472181.6058626,
+    "ast_hash": "a98030686c87961a45f1260f4d956290",
+    "semantic_hash": "a98030686c87961a45f1260f4d956290"
+  },
+  "mockup-v2/video/services/wrap.mp4": {
+    "mtime": 1785472183.0482526,
+    "ast_hash": "ca6f85a14180e9baa082a0bbc9dbb548",
+    "semantic_hash": "ca6f85a14180e9baa082a0bbc9dbb548"
+  }
+}
