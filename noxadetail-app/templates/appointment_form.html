@@ -1,0 +1,682 @@
+{# appointment_form.html
+   Usado por: new_appointment.html y edit_appointment.html
+   Variables disponibles:
+     - services        : lista de Service activos
+     - vehicle_types   : lista de VehicleType activos
+     - agreements      : lista de Agreement activos
+     - today           : string ISO de la fecha (para el input date)
+     - appointment     : objeto Appointment (solo en modo edición)
+     - mode            : "edit" | None
+#}
+
+{% set is_edit = (mode is defined and mode == "edit") %}
+
+<style>
+  .svc-group { margin-bottom: 4px; border-bottom: 1px solid var(--border); }
+  .svc-group:last-child { margin-bottom: 0; }
+  .svc-group-title {
+    display: flex; align-items: center; gap: 8px; cursor: pointer; list-style: none;
+    font-size: .68rem; font-weight: 800; letter-spacing: .8px; text-transform: uppercase;
+    color: var(--accent-dk); padding: 9px 2px;
+  }
+  .svc-group-title::-webkit-details-marker { display: none; }
+  /* Flecha propia, para que gire al abrir sin depender del marcador nativo. */
+  .svc-group-title::before {
+    content: "›"; font-size: 1.05rem; line-height: 1; color: var(--text3);
+    transition: transform .15s; display: inline-block;
+  }
+  .svc-group[open] > .svc-group-title::before { transform: rotate(90deg); }
+  /* base.html pinta todo <span> con --text2, y eso le gana al color heredado
+     del summary: hay que fijarlo en el span del nombre. */
+  .svc-group-title > span:first-of-type { color: var(--accent-dk); }
+  .svc-group-title:hover,
+  .svc-group-title:hover > span:first-of-type { color: var(--accent); }
+  .svc-count {
+    margin-left: auto; background: var(--accent-bg); color: var(--accent);
+    border-radius: 999px; padding: 1px 8px; font-size: .68rem; font-weight: 700;
+  }
+  .svc-group .row { padding-bottom: 10px; }
+</style>
+
+<div class="row justify-content-center">
+  <div class="col-lg-8">
+
+    <form method="POST"
+          action="{{ url_for('edit_appointment', appointment_id=appointment.id) if is_edit else url_for('new_appointment') }}">
+
+      {# ---- Fecha y hora ---- #}
+      <div class="row g-3 mb-3">
+        <div class="col-sm-6">
+          <label class="form-label">Fecha *</label>
+          <input type="date"
+                 name="date"
+                 class="form-control bg-dark text-light border-secondary"
+                 value="{{ today }}"
+                 required>
+        </div>
+        <div class="col-sm-6">
+          <label class="form-label">Hora de inicio *</label>
+          <input type="time"
+                 name="start_time"
+                 class="form-control bg-dark text-light border-secondary"
+                 value="{{ appointment.start_datetime.strftime('%H:%M') if is_edit else '' }}"
+                 required>
+        </div>
+      </div>
+
+      {# ---- Datos del cliente ---- #}
+      <div class="row g-3 mb-3">
+        <div class="col-sm-3">
+          <label class="form-label">Placa</label>
+          <input type="text"
+                 name="plate"
+                 id="plate"
+                 class="form-control bg-dark text-light border-secondary"
+                 placeholder="Ej: ABC123"
+                 value="{{ appointment.plate or '' if is_edit else '' }}"
+                 autocomplete="off"
+                 list="platesSuggestions"
+                 style="text-transform: uppercase;">
+          <datalist id="platesSuggestions"></datalist>
+        </div>
+        <div class="col-sm-6">
+          <label class="form-label">Nombre del cliente</label>
+          <input type="text"
+                 name="customer_name"
+                 id="customer_name"
+                 class="form-control bg-dark text-light border-secondary"
+                 placeholder="Nombre completo"
+                 value="{{ appointment.customer_name or '' if is_edit else '' }}"
+                 autocomplete="off"
+                 list="namesSuggestions">
+          <datalist id="namesSuggestions"></datalist>
+        </div>
+        <div class="col-sm-3">
+          <label class="form-label">Teléfono</label>
+          <input type="text"
+                 name="phone"
+                 id="phone"
+                 class="form-control bg-dark text-light border-secondary"
+                 placeholder="Ej: 3001234567"
+                 value="{{ appointment.phone or '' if is_edit else '' }}">
+        </div>
+      </div>
+
+      {# ---- Tipo de vehículo ---- #}
+      <div class="mb-3">
+        <label class="form-label">Tipo de vehículo *</label>
+        <select name="vehicle_type_id"
+                id="vehicle_type_id"
+                class="form-select bg-dark text-light border-secondary"
+                required>
+          <option value="">— Selecciona —</option>
+          {% for vt in vehicle_types %}
+            <option value="{{ vt.id }}"
+              {% if is_edit and appointment.vehicle_type_id == vt.id %}selected{% endif %}>
+              {{ vt.name }}
+            </option>
+          {% endfor %}
+        </select>
+      </div>
+
+      {# ---- Servicios ---- #}
+      <div class="mb-3">
+        <label class="form-label">Servicios * <small class="text-secondary">(selecciona uno o más)</small></label>
+        {% set selected_services = appointment.services.split(', ') if is_edit else [] %}
+        {% for categoria, svcs in agrupar_servicios(services) %}
+          {# Se abre sola si trae algo marcado: colapsada escondería la selección. #}
+          {% set marcados = svcs | selectattr('name', 'in', selected_services) | list | length if is_edit else 0 %}
+          <details class="svc-group"{% if marcados %} open{% endif %}>
+            <summary class="svc-group-title">
+              <span>{{ categoria }}</span>
+              <span class="svc-count"{% if not marcados %} hidden{% endif %}>{{ marcados }}</span>
+            </summary>
+            <div class="row g-2 pt-2">
+              {% for svc in svcs %}
+                <div class="col-sm-4 col-6">
+                  <div class="form-check">
+                    <input class="form-check-input service-checkbox"
+                           type="checkbox"
+                           name="service_ids"
+                           id="svc_{{ svc.id }}"
+                           value="{{ svc.id }}"
+                           {% if is_edit and svc.name in selected_services %}checked{% endif %}>
+                    <label class="form-check-label" for="svc_{{ svc.id }}">
+                      {{ svc.name }}
+                    </label>
+                  </div>
+                </div>
+              {% endfor %}
+            </div>
+          </details>
+        {% endfor %}
+      </div>
+
+      {# ---- Convenio ---- #}
+      <div class="mb-3">
+        <label class="form-label">Convenio <small class="text-secondary">(opcional)</small></label>
+        <select name="agreement_id"
+                id="agreement_id"
+                class="form-select bg-dark text-light border-secondary"
+                onchange="toggleNewAgreementForm()">
+          <option value="">— Sin convenio —</option>
+          {% for ag in agreements %}
+            <option value="{{ ag.id }}"
+              {% if is_edit and appointment.agreement_id == ag.id %}selected{% endif %}>
+              {{ ag.name }}
+              ({% if ag.discount_type == 'percentage' %}{{ ag.value }}%{% else %}${{ "{:,}".format(ag.value) }}{% endif %})
+            </option>
+          {% endfor %}
+          <option value="__new__">+ Crear nuevo convenio...</option>
+        </select>
+
+        <div id="newAgreementForm"
+             class="mt-2 p-3 rounded border border-secondary"
+             style="display:none;">
+          <div class="row g-2 align-items-end">
+            <div class="col-sm-4">
+              <label class="form-label small">Nombre</label>
+              <input type="text" id="newAgName"
+                     class="form-control form-control-sm bg-dark text-light border-secondary"
+                     placeholder="Ej: Empresa XYZ">
+            </div>
+            <div class="col-sm-3">
+              <label class="form-label small">Tipo</label>
+              <select id="newAgType"
+                      class="form-select form-select-sm bg-dark text-light border-secondary">
+                <option value="percentage">Porcentaje %</option>
+                <option value="absolute">Valor fijo $</option>
+              </select>
+            </div>
+            <div class="col-sm-2">
+              <label class="form-label small">Valor</label>
+              <input type="number" id="newAgValue"
+                     class="form-control form-control-sm bg-dark text-light border-secondary"
+                     min="1" placeholder="Ej: 10">
+            </div>
+            <div class="col-sm-3">
+              <button type="button"
+                      class="btn btn-sm btn-primary w-100"
+                      onclick="saveNewAgreement()">
+                Guardar convenio
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {# ---- Descuentos y recargos (varios) ---- #}
+      <div class="mb-3">
+        <label class="form-label">
+          Descuentos y recargos <small class="text-secondary">(opcional, los que necesites)</small>
+        </label>
+        <div id="adjRows"></div>
+        <button type="button" class="btn btn-sm btn-outline-secondary" onclick="addAdjRow()">
+          + Agregar descuento o recargo
+        </button>
+        <div class="form-text">
+          Un porcentaje puede ir sobre el precio de lista o sobre el subtotal ya con el
+          convenio aplicado. Ninguno se encadena con el anterior, así que el orden de las
+          líneas no cambia el total.
+        </div>
+      </div>
+
+      {# ---- Abonos (varios) ---- #}
+      <div class="mb-3">
+        <label class="form-label">
+          Abonos <small class="text-secondary">(opcional, los que necesites)</small>
+        </label>
+        <div id="payRows"></div>
+        <button type="button" class="btn btn-sm btn-outline-secondary" onclick="addPayRow()">
+          + Agregar abono
+        </button>
+        <div class="form-text">
+          Un abono no rebaja el valor del servicio: solo el saldo que falta por cobrar.
+        </div>
+      </div>
+
+      {# ---- Resumen de plata (calculado en tiempo real) ---- #}
+      <div class="mb-3 p-3 rounded border border-secondary" id="pricePreviewBox" style="display:none;">
+        <div class="d-flex justify-content-between small text-secondary mb-1">
+          <span>Precio de lista</span><span id="sumLista">$0</span>
+        </div>
+        <div class="d-flex justify-content-between small text-secondary mb-1 d-none" id="rowConvenio">
+          <span>Convenio</span><span id="sumConvenio">$0</span>
+        </div>
+        <div class="d-flex justify-content-between small text-secondary mb-1 d-none" id="rowDesc">
+          <span>Descuentos</span><span id="sumDesc">$0</span>
+        </div>
+        <div class="d-flex justify-content-between small text-secondary mb-1 d-none" id="rowRec">
+          <span>Recargos</span><span id="sumRec">$0</span>
+        </div>
+        <hr class="my-2" style="border-color:var(--border);">
+        <div class="d-flex justify-content-between align-items-center">
+          <span class="text-secondary">Valor del servicio</span>
+          <span class="fs-5 fw-bold text-success" id="pricePreview">$0</span>
+        </div>
+        <div class="d-flex justify-content-between small text-secondary mt-2 d-none" id="rowAbonado">
+          <span>Abonado</span><span id="sumAbonado">$0</span>
+        </div>
+        <div class="d-flex justify-content-between align-items-center mt-1 d-none" id="rowSaldo">
+          <span class="text-secondary">Saldo pendiente</span>
+          <span class="fs-6 fw-bold" id="sumSaldo">$0</span>
+        </div>
+      </div>
+
+      {# Plantillas de fila: se clonan al agregar. #}
+      <template id="tplAdj">
+        <div class="row g-2 mb-2 align-items-center adj-row">
+          <div class="col-6 col-sm-2">
+            <select name="adj_kind" class="form-select form-select-sm bg-dark text-light border-secondary">
+              <option value="discount">Descuento</option>
+              <option value="surcharge">Recargo</option>
+            </select>
+          </div>
+          <div class="col-6 col-sm-2">
+            <select name="adj_mode" class="form-select form-select-sm bg-dark text-light border-secondary">
+              <option value="fixed">Valor fijo $</option>
+              <option value="percentage">Porcentaje %</option>
+            </select>
+          </div>
+          {# Solo tiene sentido en porcentaje: sobre un valor fijo la base da igual. #}
+          <div class="col-6 col-sm-2 adj-base-col d-none">
+            <select name="adj_base" class="form-select form-select-sm bg-dark text-light border-secondary"
+                    title="Sobre qué valor se calcula el porcentaje">
+              <option value="lista">Sobre lista</option>
+              <option value="subtotal">Sobre subtotal</option>
+            </select>
+          </div>
+          <div class="col-5 col-sm-2">
+            <input type="number" name="adj_value" min="1" step="1" placeholder="Valor"
+                   class="form-control form-control-sm bg-dark text-light border-secondary">
+          </div>
+          <div class="col-6 col-sm-3">
+            <input type="text" name="adj_desc" maxlength="200" placeholder="Motivo (opcional)"
+                   class="form-control form-control-sm bg-dark text-light border-secondary">
+          </div>
+          <div class="col-1 text-end">
+            <button type="button" class="btn btn-sm btn-outline-danger px-2"
+                    title="Quitar" onclick="this.closest('.adj-row').remove(); updatePrice();">&times;</button>
+          </div>
+        </div>
+      </template>
+
+      <template id="tplPay">
+        <div class="row g-2 mb-2 align-items-center pay-row">
+          <div class="col-6 col-sm-3">
+            <input type="number" name="pay_amount" min="1" step="1" placeholder="Valor abonado"
+                   class="form-control form-control-sm bg-dark text-light border-secondary">
+          </div>
+          <div class="col-6 col-sm-3">
+            <input type="date" name="pay_date"
+                   class="form-control form-control-sm bg-dark text-light border-secondary">
+          </div>
+          <div class="col-11 col-sm-5">
+            <input type="text" name="pay_desc" maxlength="200" placeholder="Descripción (opcional)"
+                   class="form-control form-control-sm bg-dark text-light border-secondary">
+          </div>
+          <div class="col-1 text-end">
+            <button type="button" class="btn btn-sm btn-outline-danger px-2"
+                    title="Quitar" onclick="this.closest('.pay-row').remove(); updatePrice();">&times;</button>
+          </div>
+        </div>
+      </template>
+
+      {# ---- Operarios ---- #}
+      {% if operators_list %}
+      <div class="mb-3">
+        <label class="form-label">Operarios <small class="text-secondary">(opcional)</small></label>
+        <div class="row g-2">
+          {% set assigned_ids = appointment.operator_assignments | map(attribute='user_id') | list if is_edit else [] %}
+          {% for op in operators_list %}
+            <div class="col-sm-4 col-6">
+              <div class="form-check">
+                <input class="form-check-input"
+                       type="checkbox"
+                       name="operator_ids"
+                       id="op_{{ op.id }}"
+                       value="{{ op.id }}"
+                       {% if op.id in assigned_ids %}checked{% endif %}>
+                <label class="form-check-label" for="op_{{ op.id }}">
+                  {{ op.username }}
+                  <span class="badge bg-secondary ms-1" style="font-size:0.65rem;">{{ op.role }}</span>
+                </label>
+              </div>
+            </div>
+          {% endfor %}
+        </div>
+      </div>
+      {% endif %}
+
+      {# ---- Notas ---- #}
+      <div class="mb-4">
+        <label class="form-label">Notas</label>
+        <textarea name="notes"
+                  class="form-control bg-dark text-light border-secondary"
+                  rows="2"
+                  placeholder="Observaciones adicionales...">{{ appointment.notes or '' if is_edit else '' }}</textarea>
+      </div>
+
+      {# ---- Botones ---- #}
+      <div class="d-flex gap-2">
+        <button type="submit" class="btn btn-primary">
+          {{ "Guardar cambios" if is_edit else "Crear cita" }}
+        </button>
+        <a href="{{ url_for('calendar_view') }}" class="btn btn-outline-secondary">
+          Cancelar
+        </a>
+      </div>
+
+    </form>
+  </div>
+</div>
+
+{# ---- JS ---- #}
+<script>
+(function () {
+  const plateInput    = document.getElementById("plate");
+  const nameInput     = document.getElementById("customer_name");
+  const phoneInput    = document.getElementById("phone");
+  const vehicleSelect = document.getElementById("vehicle_type_id");
+  const agreementSel  = document.getElementById("agreement_id");
+  const checkboxes    = document.querySelectorAll(".service-checkbox");
+  const priceBox      = document.getElementById("pricePreviewBox");
+  const priceLabel    = document.getElementById("pricePreview");
+
+  // --- Autocompletar por nombre ---
+  let nameTimer = null;
+  if (nameInput) {
+    nameInput.addEventListener("input", function () {
+      clearTimeout(nameTimer);
+      const val = this.value.trim();
+
+      // Sugerencias desde 2 caracteres
+      if (val.length >= 2) {
+        fetch(`/api/clients/names?q=${encodeURIComponent(val)}`)
+          .then(r => r.json())
+          .then(names => {
+            const dl = document.getElementById("namesSuggestions");
+            dl.innerHTML = "";
+            names.forEach(n => {
+              const opt = document.createElement("option");
+              opt.value = n;
+              dl.appendChild(opt);
+            });
+          })
+          .catch(() => {});
+      }
+
+      // Autocompletar campos al escribir nombre completo (debounce)
+      if (val.length < 2) return;
+      nameTimer = setTimeout(() => {
+        fetch(`/api/clients/by-name?name=${encodeURIComponent(val)}`)
+          .then(r => r.json())
+          .then(data => {
+            if (!data.found) return;
+            if (phoneInput && !phoneInput.value) phoneInput.value = data.phone || "";
+            if (vehicleSelect && !vehicleSelect.value && data.vehicle_type_id) {
+              vehicleSelect.value = data.vehicle_type_id;
+              vehicleSelect.dispatchEvent(new Event("change"));
+            }
+            if (agreementSel && !agreementSel.value && data.agreement_id) {
+              agreementSel.value = data.agreement_id;
+            }
+            // Llenar sugerencias de placas con las del cliente
+            const plateDl = document.getElementById("platesSuggestions");
+            plateDl.innerHTML = "";
+            (data.plates || []).forEach(p => {
+              const opt = document.createElement("option");
+              opt.value = p;
+              plateDl.appendChild(opt);
+            });
+            // Si solo tiene una placa, autocompletar el campo
+            if (data.plates && data.plates.length === 1 && plateInput && !plateInput.value) {
+              plateInput.value = data.plates[0];
+            }
+            updatePrice();
+          })
+          .catch(() => {});
+      }, 400);
+    });
+  }
+
+  // --- Autocompletar por placa ---
+  let plateTimer = null;
+  if (plateInput) {
+    plateInput.addEventListener("input", function () {
+      clearTimeout(plateTimer);
+      const val = this.value.trim();
+
+      // Sugerencias desde 2 caracteres
+      if (val.length >= 2) {
+        fetch(`/api/clients/plates?q=${encodeURIComponent(val)}`)
+          .then(r => r.json())
+          .then(plates => {
+            const dl = document.getElementById("platesSuggestions");
+            dl.innerHTML = "";
+            plates.forEach(p => {
+              const opt = document.createElement("option");
+              opt.value = p;
+              dl.appendChild(opt);
+            });
+          })
+          .catch(() => {});
+      }
+
+      // Autocompletar campos desde 3 caracteres
+      if (val.length < 3) return;
+      plateTimer = setTimeout(() => {
+        fetch(`/api/clients/by-plate?plate=${encodeURIComponent(val)}`)
+          .then(r => r.json())
+          .then(data => {
+            if (!data.found) return;
+            if (nameInput && !nameInput.value) nameInput.value = data.full_name || "";
+            if (phoneInput && !phoneInput.value) phoneInput.value = data.phone || "";
+            if (vehicleSelect && !vehicleSelect.value && data.vehicle_type_id) {
+              vehicleSelect.value = data.vehicle_type_id;
+              vehicleSelect.dispatchEvent(new Event("change"));
+            }
+            if (agreementSel && !agreementSel.value && data.agreement_id) {
+              agreementSel.value = data.agreement_id;
+            }
+            updatePrice();
+          })
+          .catch(() => {});
+      }, 400);
+    });
+  }
+
+  // --- Filas de descuentos/recargos y abonos ---
+  // Se exponen en window porque los botones las llaman desde onclick.
+  const pesos = n => "$" + Number(n || 0).toLocaleString("es-CO");
+
+  // La base del porcentaje solo se pregunta cuando el ajuste ES un porcentaje.
+  function sincronizarBase(row) {
+    const col = row.querySelector(".adj-base-col");
+    if (!col) return;
+    const esPct = row.querySelector('[name="adj_mode"]')?.value === "percentage";
+    col.classList.toggle("d-none", !esPct);
+  }
+
+  function fila(tplId, destinoId, valores) {
+    const nodo = document.getElementById(tplId).content.firstElementChild.cloneNode(true);
+    Object.entries(valores || {}).forEach(([campo, v]) => {
+      const input = nodo.querySelector('[name="' + campo + '"]');
+      if (input && v !== null && v !== undefined) input.value = v;
+    });
+    nodo.querySelectorAll("input, select").forEach(el => {
+      el.addEventListener(el.tagName === "SELECT" ? "change" : "input", () => {
+        sincronizarBase(nodo);
+        updatePrice();
+      });
+    });
+    document.getElementById(destinoId).appendChild(nodo);
+    sincronizarBase(nodo);
+    updatePrice();
+    return nodo;
+  }
+  window.addAdjRow = v => fila("tplAdj", "adjRows", v);
+  window.addPayRow = v => fila("tplPay", "payRows", v || { pay_date: "{{ today }}" });
+
+  function leerFilas(selector, campos) {
+    return Array.from(document.querySelectorAll(selector)).map(row => {
+      const o = {};
+      campos.forEach(c => { o[c.destino] = row.querySelector('[name="' + c.campo + '"]')?.value || ""; });
+      return o;
+    });
+  }
+
+  // --- Calcular precio en tiempo real ---
+  function updatePrice() {
+    const vtId = vehicleSelect ? vehicleSelect.value : null;
+    const agId = agreementSel ? agreementSel.value : null;
+
+    // Si está en "__new__" no calcular precio todavía
+    if (agId === "__new__") return;
+
+    const serviceIds = Array.from(checkboxes)
+      .filter(c => c.checked)
+      .map(c => parseInt(c.value));
+
+    if (!vtId || serviceIds.length === 0) {
+      if (priceBox) priceBox.style.display = "none";
+      return;
+    }
+
+    fetch("/api/estimate-price", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        service_ids: serviceIds,
+        vehicle_type_id: parseInt(vtId),
+        agreement_id: agId ? parseInt(agId) : null,
+        adjustments: leerFilas(".adj-row", [
+          { campo: "adj_kind", destino: "kind" },
+          { campo: "adj_mode", destino: "mode" },
+          { campo: "adj_base", destino: "base" },
+          { campo: "adj_value", destino: "value" },
+        ]),
+        payments: leerFilas(".pay-row", [{ campo: "pay_amount", destino: "amount" }]),
+      })
+    })
+    .then(r => r.json())
+    .then(data => {
+      if (!data.ok) return;
+      if (priceBox) priceBox.style.display = "block";
+      if (priceLabel) priceLabel.textContent = pesos(data.final_price);
+
+      // d-none y no style.display: las utilidades de Bootstrap son !important
+      // y una fila en cero se quedaba visible.
+      const poner = (idFila, idValor, monto, prefijo) => {
+        const fila = document.getElementById(idFila);
+        if (!fila) return;
+        fila.classList.toggle("d-none", !monto);
+        const el = document.getElementById(idValor);
+        if (el) el.textContent = (monto && prefijo ? prefijo : "") + pesos(monto);
+      };
+      const lista = document.getElementById("sumLista");
+      if (lista) lista.textContent = pesos(data.base_price);
+      poner("rowConvenio", "sumConvenio", data.agreement_amount, "−");
+      poner("rowDesc", "sumDesc",
+            data.adjustments.filter(a => a.kind === "discount").reduce((s, a) => s + a.amount, 0), "−");
+      poner("rowRec", "sumRec",
+            data.adjustments.filter(a => a.kind === "surcharge").reduce((s, a) => s + a.amount, 0), "+");
+      poner("rowAbonado", "sumAbonado", data.paid, "−");
+
+      // El saldo solo aparece si hay abonos: sin abonos, saldo y total son lo
+      // mismo y repetir la cifra solo agrega ruido.
+      const filaSaldo = document.getElementById("rowSaldo");
+      const saldo = document.getElementById("sumSaldo");
+      if (filaSaldo && saldo) {
+        filaSaldo.classList.toggle("d-none", !data.paid);
+        saldo.textContent = data.balance < 0
+          ? pesos(Math.abs(data.balance)) + " a favor"
+          : pesos(data.balance);
+        saldo.className = "fs-6 fw-bold " + (data.balance > 0 ? "text-warning" : "text-success");
+      }
+    })
+    .catch(() => {});
+  }
+  window.updatePrice = updatePrice;
+
+  checkboxes.forEach(c => c.addEventListener("change", updatePrice));
+
+  // Contador por categoría: con los grupos colapsados es la única señal de qué
+  // quedó seleccionado adentro.
+  function updateGroupCounts() {
+    document.querySelectorAll(".svc-group").forEach(group => {
+      const n = group.querySelectorAll(".service-checkbox:checked").length;
+      const badge = group.querySelector(".svc-count");
+      if (!badge) return;
+      badge.textContent = n;
+      badge.hidden = n === 0;
+    });
+  }
+  checkboxes.forEach(c => c.addEventListener("change", updateGroupCounts));
+  updateGroupCounts();
+  if (vehicleSelect) vehicleSelect.addEventListener("change", updatePrice);
+  if (agreementSel)  agreementSel.addEventListener("change", updatePrice);
+
+  // Al editar se repueblan las filas que ya tiene la cita.
+  {% if is_edit %}
+  {% for aj in appointment.adjustments %}
+  addAdjRow({ adj_kind: "{{ aj.kind }}", adj_mode: "{{ aj.mode }}",
+              adj_base: "{{ aj.base or 'lista' }}",
+              adj_value: "{{ aj.value }}", adj_desc: {{ (aj.description or '') | tojson }} });
+  {% endfor %}
+  {% for ab in appointment.payments %}
+  addPayRow({ pay_amount: "{{ ab.amount }}",
+              pay_date: "{{ ab.paid_on.isoformat() if ab.paid_on else '' }}",
+              pay_desc: {{ (ab.description or '') | tojson }} });
+  {% endfor %}
+  updatePrice();
+  {% endif %}
+})();
+
+function toggleNewAgreementForm() {
+  const sel  = document.getElementById("agreement_id");
+  const form = document.getElementById("newAgreementForm");
+  form.style.display = sel.value === "__new__" ? "block" : "none";
+}
+
+function saveNewAgreement() {
+  const name  = document.getElementById("newAgName").value.trim();
+  const type  = document.getElementById("newAgType").value;
+  const value = document.getElementById("newAgValue").value;
+
+  if (!name || !value) {
+    alert("Completa nombre y valor del convenio.");
+    return;
+  }
+
+  fetch("/api/agreements/quick-create", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ name, discount_type: type, discount_value: value })
+  })
+  .then(r => r.json())
+  .then(data => {
+    if (!data.ok) { alert(data.error || "Error al crear convenio."); return; }
+
+    // Insertar la nueva opción antes de "__new__" y seleccionarla
+    const sel = document.getElementById("agreement_id");
+    const opt = document.createElement("option");
+    opt.value = data.agreement.id;
+    opt.textContent = data.agreement.name +
+      (data.agreement.discount_type === "percentage"
+        ? ` (${data.agreement.value}%)`
+        : ` ($${Number(data.agreement.value).toLocaleString("es-CO")})`);
+
+    const newOpt = sel.querySelector("option[value='__new__']");
+    sel.insertBefore(opt, newOpt);
+    sel.value = data.agreement.id;
+    sel.dispatchEvent(new Event("change"));
+
+    // Ocultar y limpiar el formulario
+    document.getElementById("newAgreementForm").style.display = "none";
+    document.getElementById("newAgName").value  = "";
+    document.getElementById("newAgValue").value = "";
+  })
+  .catch(() => alert("Error de red al crear convenio."));
+}
+</script>

@@ -1,0 +1,212 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="container mt-4">
+
+  <h2 class="mb-3">Detalle de servicios</h2>
+
+  <!-- Formulario nueva combinación -->
+  <form method="POST" action="{{ url_for('service_prices_new') }}" class="row g-2 mb-4">
+    <div class="col-12 col-md-3">
+      <select name="service_id" class="form-select" required>
+        <option value="">Servicio</option>
+        {% for s in services %}
+          <option value="{{ s.id }}">{{ s.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <div class="col-12 col-md-3">
+      <select name="vehicle_type_id" class="form-select" required>
+        <option value="">Tipo de vehículo</option>
+        {% for vt in vehicle_types %}
+          <option value="{{ vt.id }}">{{ vt.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <div class="col-6 col-md-2">
+      <input type="number"
+             name="price"
+             class="form-control"
+             placeholder="Precio"
+             min="0"
+             step="1"
+             inputmode="numeric"
+             pattern="[0-9]*"
+             required>
+    </div>
+
+    <div class="col-6 col-md-2">
+      <input type="number"
+             name="duration_minutes"
+             class="form-control"
+             placeholder="Duración (min)"
+             min="1"
+             step="1"
+             inputmode="numeric"
+             pattern="[0-9]*"
+             required>
+    </div>
+
+    <div class="col-12 col-md-2">
+      <button type="submit" class="btn btn-primary w-100">
+        Guardar
+      </button>
+    </div>
+  </form>
+
+  <!-- Tabla de combinaciones -->
+  <div class="table-responsive">
+    <table class="table table-dark table-hover align-middle">
+      <thead>
+        <tr>
+          <th>Servicio</th>
+          <th>Tipo de vehículo</th>
+          <th class="text-end">Precio</th>
+          <th class="text-center">Duración (min)</th>
+          <th class="text-center">Estado</th>
+          <th class="text-center">Acción</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for sp in service_prices %}
+        <tr>
+          <td>{{ sp.service.name }}</td>
+          <td>{{ sp.vehicle_type.name }}</td>
+          <td class="text-end">
+            <span class="editable-cell"
+                  data-id="{{ sp.id }}"
+                  data-field="price"
+                  data-value="{{ sp.price }}">
+              $ {{ "{:,}".format(sp.price).replace(",", ".") }}
+            </span>
+          </td>
+          <td class="text-center">
+            <span class="editable-cell"
+                  data-id="{{ sp.id }}"
+                  data-field="duration_minutes"
+                  data-value="{{ sp.duration_minutes }}">
+              {{ sp.duration_minutes }}
+            </span>
+          </td>
+          <td class="text-center">
+            {% if sp.is_active %}
+              <span class="badge bg-success">Activo</span>
+            {% else %}
+              <span class="badge bg-secondary">Inactivo</span>
+            {% endif %}
+          </td>
+          <td class="text-center">
+            <form method="POST"
+                  action="{{ url_for('service_prices_toggle', price_id=sp.id) }}">
+              {% if sp.is_active %}
+                <button type="submit" class="btn btn-sm btn-outline-warning">
+                  Desactivar
+                </button>
+              {% else %}
+                <button type="submit" class="btn btn-sm btn-outline-success">
+                  Activar
+                </button>
+              {% endif %}
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+</div>
+
+<style>
+.editable-cell {
+  cursor: pointer;
+  border-bottom: 1px dashed rgba(255,255,255,0.3);
+  padding: 2px 4px;
+  border-radius: 3px;
+  transition: background 0.15s;
+}
+.editable-cell:hover {
+  background: rgba(255,255,255,0.08);
+}
+.editable-input {
+  width: 90px;
+  background: #2c2c2c;
+  color: #fff;
+  border: 1px solid #6c757d;
+  border-radius: 4px;
+  padding: 2px 6px;
+  font-size: 0.9rem;
+  text-align: right;
+}
+</style>
+
+<script>
+document.querySelectorAll('.editable-cell').forEach(function(cell) {
+  cell.addEventListener('click', function() {
+    if (cell.querySelector('input')) return;
+
+    const field = cell.dataset.field;
+    const id = cell.dataset.id;
+    const currentValue = cell.dataset.value;
+    const originalText = cell.textContent.trim();
+
+    const input = document.createElement('input');
+    input.type = 'number';
+    input.value = currentValue;
+    input.min = 0;
+    input.step = 1;
+    input.className = 'editable-input';
+    cell.textContent = '';
+    cell.appendChild(input);
+    input.focus();
+    input.select();
+
+    function save() {
+      const newValue = parseInt(input.value);
+      if (isNaN(newValue) || newValue < 0) {
+        cell.textContent = originalText;
+        cell.dataset.value = currentValue;
+        return;
+      }
+
+      const body = {};
+      body[field] = newValue;
+
+      fetch('/service-prices/' + id + '/update', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      })
+      .then(r => r.json())
+      .then(data => {
+        if (data.ok) {
+          cell.dataset.value = data[field];
+          if (field === 'price') {
+            cell.textContent = '$ ' + data.price.toLocaleString('es-CL');
+          } else {
+            cell.textContent = data.duration_minutes;
+          }
+        } else {
+          cell.textContent = originalText;
+        }
+      })
+      .catch(function() {
+        cell.textContent = originalText;
+      });
+    }
+
+    input.addEventListener('blur', save);
+    input.addEventListener('keydown', function(e) {
+      if (e.key === 'Enter') { input.blur(); }
+      if (e.key === 'Escape') {
+        cell.textContent = originalText;
+        cell.dataset.value = currentValue;
+      }
+    });
+  });
+});
+</script>
+
+{% endblock %}

@@ -1,0 +1,147 @@
+{% extends "base.html" %}
+
+{% block extra_head %}
+<!-- DataTables CSS -->
+<link rel="stylesheet"
+      href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css">
+{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+  <h2 class="mb-0">Gastos</h2>
+  <div class="d-flex gap-2">
+    <a class="btn btn-outline-light btn-sm" href="{{ url_for('expenses_new') }}">+ Nuevo gasto</a>
+    <a class="btn btn-outline-success btn-sm"
+       href="{{ url_for('expenses_export', **filters) }}">Exportar CSV</a>
+  </div>
+</div>
+
+<form class="card bg-secondary border-0 mt-3 p-3" method="get" action="{{ url_for('expenses_list') }}">
+  <div class="row g-2 align-items-end">
+    <div class="col-12 col-md-3">
+      <label class="form-label mb-1">Buscar (texto)</label>
+      <input class="form-control" name="q" value="{{ filters.q }}" placeholder="Descripción, proveedor, recibo...">
+    </div>
+
+    <div class="col-6 col-md-2">
+      <label class="form-label mb-1">Desde</label>
+      <input type="date" class="form-control" name="from" value="{{ filters['from'] }}">
+    </div>
+
+    <div class="col-6 col-md-2">
+      <label class="form-label mb-1">Hasta</label>
+      <input type="date" class="form-control" name="to" value="{{ filters.to }}">
+    </div>
+
+    <div class="col-6 col-md-2">
+      <label class="form-label mb-1">Categoría</label>
+      <select class="form-select" name="category">
+        <option value="">Todas</option>
+        {% for c in categories %}
+          <option value="{{ c }}" {% if filters.category == c %}selected{% endif %}>{{ c }}</option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <div class="col-6 col-md-2">
+      <label class="form-label mb-1">Pago</label>
+      <select class="form-select" name="payment_method">
+        <option value="">Todos</option>
+        {% for pm in payment_methods %}
+          <option value="{{ pm }}" {% if filters.payment_method == pm %}selected{% endif %}>{{ pm }}</option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <div class="col-12 col-md-1 d-grid">
+      <button class="btn btn-dark">Filtrar</button>
+    </div>
+  </div>
+</form>
+
+<div class="d-flex justify-content-end mb-2">
+  <a href="{{ url_for('expense_categories_list') }}"
+     class="btn btn-outline-secondary btn-sm">
+    <i class="bi bi-tags me-1"></i>Gestionar categorías
+  </a>
+</div>
+
+<table id="expensesTable" class="table table-dark table-striped table-sm align-middle mt-3">
+  <thead>
+    <tr>
+      <th>Fecha gasto</th>
+      <th>Registrado (timestamp)</th>
+      <th>Monto</th>
+      <th>Categoría</th>
+      <th>Método</th>
+      <th>Proveedor</th>
+      <th>Descripción</th>
+      <th>Recibo</th>
+      <th>Notas</th>
+      <th>Acciones</th>
+    </tr>
+  </thead>
+
+  <tbody>
+    {% for e in expenses %}
+      <tr class="{% if e.is_void %}table-secondary text-muted{% endif %}">
+        <td>{{ e.expense_date.strftime("%Y-%m-%d") }}</td>
+        <td>{{ e.created_at.strftime("%Y-%m-%d %H:%M:%S") }}</td>
+        <td>${{ "{:,.0f}".format(e.amount) }}</td>
+        <td>
+          {{ e.category }}
+          {% if e.is_void %}
+            <span class="badge bg-secondary ms-1">ANULADO</span>
+          {% endif %}
+        </td>
+        <td>{{ e.payment_method }}</td>
+        <td>{{ e.vendor or "-" }}</td>
+        <td>{{ e.description }}</td>
+        <td>{{ e.receipt or "-" }}</td>
+        <td>{{ e.notes or "-" }}</td>
+        <td class="d-flex gap-2">
+          <a class="btn btn-sm btn-outline-info" href="{{ url_for('expenses_edit', expense_id=e.id) }}">Editar</a>
+          <form method="post"
+                action="{{ url_for('expenses_toggle_void', expense_id=e.id) }}"
+                style="display:inline">
+
+            {% if e.is_void %}
+              <button class="btn btn-sm btn-outline-success"
+                      onclick="return confirm('¿Deseas reactivar este gasto?')">
+                Reactivar
+              </button>
+            {% else %}
+              <button class="btn btn-sm btn-outline-warning"
+                      onclick="return confirm('¿Deseas anular este gasto?')">
+                Anular
+              </button>
+            {% endif %}
+          </form>
+        </td>
+      </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}
+
+{% block extra_scripts %}
+<!-- DataTables JS -->
+<script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
+
+<script>
+$(document).ready(function() {
+  $('#expensesTable').DataTable({
+    pageLength: 50,
+    order: [[1, 'desc']],
+    language: {
+      search: 'Buscar en tabla:',
+      lengthMenu: 'Mostrar _MENU_ registros',
+      info: 'Mostrando _START_ a _END_ de _TOTAL_ gastos',
+      paginate: { previous: 'Anterior', next: 'Siguiente' }
+    }
+  });
+});
+</script>
+{% endblock %}

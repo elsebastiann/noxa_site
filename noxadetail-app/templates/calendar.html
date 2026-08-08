@@ -1,0 +1,380 @@
+{% extends "base.html" %}
+
+{% block extra_head %}
+<link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/main.min.css" rel="stylesheet">
+
+<style>
+  html, body { height: 100%; margin: 0; padding: 0; }
+
+  #calendar-container {
+    height: calc(100vh - 68px);
+    width: 100%; max-width: 1400px; margin: 0 auto;
+  }
+
+  #calendar {
+    height: 100% !important; width: 100%;
+    background-color: #ffffff;
+    border-radius: 12px;
+    padding: 6px 10px 10px;
+    overflow: visible !important;
+    border: 1px solid #e4dbd0;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06), 0 4px 12px rgba(0,0,0,0.04);
+  }
+
+  /* Eventos */
+  .fc-event-title, .fc-event-main, .fc-event { color: #fff !important; }
+  .fc-event { line-height: 1.25; border-radius: 6px !important; border: none !important; }
+  /* El texto nunca debe desbordar el cajón: la cita de al lado queda ilegible. */
+  .fc-event, .fc-event-main, .fc-timegrid-event-harness { overflow: hidden; }
+
+  .ev-box {
+    height: 100%; overflow: hidden; padding: 3px 5px;
+    font-size: 11px; line-height: 1.2; color: #000; font-weight: 600;
+  }
+  /* Las cuatro líneas fijas ocupan una sola línea y se cortan con puntos. */
+  .ev-linea { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .ev-servicio, .ev-saldo { font-weight: 500; }
+  /* Las notas sí envuelven: se quedan con el alto que sobre. El número de
+     líneas lo fija el JS según lo que quepa, y -webkit-line-clamp pone los
+     puntos suspensivos solo. */
+  .ev-notas {
+    white-space: normal; font-weight: 400; opacity: .8;
+    display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2;
+    overflow: hidden;
+  }
+
+  /* Día actual — dorado cálido sutil */
+  .fc-timegrid-col.fc-day-today,
+  .fc-daygrid-day.fc-day-today,
+  .fc .fc-highlight,
+  .fc .fc-day-today {
+    background-color: rgba(212,180,108,0.1) !important;
+  }
+
+  /* Encabezados y horas */
+  .fc .fc-col-header-cell-cushion {
+    color: #b0a898 !important; font-weight: 600 !important;
+    text-decoration: none !important; font-size: 0.72rem !important;
+    text-transform: uppercase; letter-spacing: 0.4px;
+  }
+  .fc .fc-daygrid-day-number,
+  .fc .fc-timegrid-axis-cushion {
+    color: #b0a898 !important; font-weight: 400 !important; font-size: 0.7rem !important;
+  }
+  .fc .fc-timegrid-slot { border-color: #f0ebe4 !important; }
+  .fc .fc-col-header   { border-color: #e4dbd0 !important; }
+
+  /* ── Toolbar ── */
+  .fc-header-toolbar {
+    display: grid !important;
+    grid-template-columns: auto 1fr auto;
+    align-items: center;
+    gap: 4px; margin-bottom: 8px !important; padding: 0 2px;
+  }
+  .fc-toolbar-chunk:first-child { display: flex; gap: 2px; justify-content: flex-start; }
+  .fc-toolbar-chunk:last-child  { display: flex; gap: 2px; justify-content: flex-end; }
+
+  .fc-toolbar-title {
+    font-size: 0.82rem; font-weight: 700;
+    color: #1a1a1a; text-align: center; line-height: 1.2;
+  }
+  /* Cuál de las dos agendas se está viendo. Va en el centro del toolbar, que
+     ya estaba vacío, para no moverle el alto al calendario. */
+  .fc-toolbar-chunk:nth-child(2) { display: flex; justify-content: center; }
+  .ag-titulo {
+    font-size: 0.78rem; font-weight: 700; color: #1a1a1a;
+    letter-spacing: 0.3px;
+  }
+
+  .fc .fc-button {
+    background: transparent !important; border: none !important;
+    box-shadow: none !important; color: #b0a898 !important;
+    font-size: 0.68rem !important; font-weight: 600 !important;
+    padding: 3px 8px !important; border-radius: 6px !important;
+    line-height: 1.4 !important;
+    transition: color 0.15s, background 0.15s !important;
+    text-transform: uppercase; letter-spacing: 0.3px;
+  }
+  .fc .fc-button:hover, .fc .fc-button:focus {
+    color: #1a1a1a !important; background: #f5efe6 !important; outline: none !important;
+  }
+  .fc .fc-button-active,
+  .fc .fc-button-primary:not(:disabled).fc-button-active {
+    color: #b8963e !important; background: rgba(212,180,108,0.12) !important;
+  }
+  .fc .fc-icon { font-size: 0.85rem !important; }
+
+  @media (max-width: 991.98px) {
+    #calendar-container { height: calc(100vh - 124px); }
+    .fc-toolbar-title { font-size: 0.74rem; }
+    .fc .fc-button { font-size: 0.62rem !important; padding: 2px 5px !important; }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div id="calendar-container">
+  <div id="calendar"></div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/locales-all.global.min.js"></script>
+
+<script>
+        // Borrar una cita es irreversible, así que pide una palabra clave que solo
+        // tiene la administración. La validación de verdad está en el servidor:
+        // esto es la reja, no la cerradura.
+        function pedirClaveEliminar(form) {
+          const clave = prompt(
+            "Eliminar esta cita es permanente.\n\nEscribe la palabra clave de administración para confirmar:"
+          );
+          if (clave === null) return false;           // canceló
+          if (!clave.trim()) return false;
+          form.querySelector('input[name="clave"]').value = clave.trim();
+          return true;
+        }
+
+
+// Ajusta el contenido de un cajón al alto que realmente tiene.
+//
+// El ancho lo resuelve el CSS (cada línea corta con puntos suspensivos). Acá
+// solo se decide CUÁNTAS líneas caben: una cita de media hora no da para las
+// cinco, y antes el texto se salía y tapaba la cita de al lado.
+function ajustarCajon(el) {
+  const box = el.querySelector('.ev-box');
+  if (!box || !box.clientHeight) return;
+
+  // Se oculta, no se borra: esto se vuelve a correr al cambiar el tamaño de la
+  // ventana, y si el cajón creció las líneas tienen que poder volver.
+  const lineas = [...box.children];
+  lineas.forEach(l => { l.style.display = ''; });
+
+  const cabe = () => box.scrollHeight <= box.clientHeight + 1;
+
+  // Las notas se quedan con el alto que sobre. Se prueba de más a menos
+  // líneas en vez de calcular a mano, así el padding y la fuente reales
+  // entran en la cuenta sin tener que suponerlos.
+  const notas = box.querySelector('.ev-notas');
+  if (notas) {
+    for (let n = 6; n >= 1; n--) {
+      notas.style.webkitLineClamp = String(n);
+      if (cabe()) break;
+      if (n === 1) notas.style.display = 'none';
+    }
+  }
+
+  // Si ni las líneas fijas caben, se van cayendo de abajo hacia arriba: el
+  // nombre del cliente es lo último que se pierde.
+  for (let i = lineas.length - 1; i > 0 && !cabe(); i--) {
+    lineas[i].style.display = 'none';
+  }
+}
+
+const AGENDA_TITULO = {{ ('Diagnósticos' if modo == 'diagnosticos' else 'Citas') | tojson }};
+
+document.addEventListener('DOMContentLoaded', function() {
+  var calendarEl = document.getElementById('calendar');
+
+  var calendar = new FullCalendar.Calendar(calendarEl, {
+    headerToolbar: {
+      left: 'prev,next today',
+      center: '',
+      right: 'timeGridDay,timeGridWeek'
+    },
+    initialView: window.innerWidth < 768 ? 'timeGridDay' : 'timeGridWeek',
+    locale: 'es',
+    views: {
+      timeGridDay: {
+        buttonText: 'Día',
+        slotEventOverlap: false
+      },
+      timeGridWeek: {
+        buttonText: 'Semana',
+        slotEventOverlap: true
+      }
+    },
+    dayHeaderFormat: { weekday: 'short', day: 'numeric' },
+    slotMinTime: '08:00:00',
+    slotMaxTime: '19:00:00',
+    nowIndicator: true,
+    allDaySlot: false,
+    expandRows: true,
+    height: '100%',
+    handleWindowResize: true,
+
+    // Orden de prioridad dentro del cajón. Lo de más abajo es lo primero que
+    // se recorta cuando la cita es corta y no hay alto para todo.
+    eventContent: function(info) {
+      const L = info.event.extendedProps?.lineas || {};
+      const box = document.createElement("div");
+      box.className = "ev-box";
+      [["nombre", L.nombre], ["placa", L.placa], ["servicio", L.servicio],
+       ["saldo", L.saldo], ["notas", L.notas]].forEach(([clase, texto]) => {
+        if (!texto) return;
+        const linea = document.createElement("div");
+        linea.className = "ev-linea ev-" + clase;
+        linea.textContent = texto;
+        box.appendChild(linea);
+      });
+      return { domNodes: [box] };
+    },
+
+    eventDidMount: function(info) {
+      // En el mount el cajón todavía no tiene su alto definitivo: FullCalendar
+      // lo posiciona después, y midiendo acá sale 0. Un ResizeObserver dispara
+      // cuando el alto ya es real, y otra vez si cambia (ventana, vista, otra
+      // cita que se le pone al lado).
+      if (window.ResizeObserver) {
+        new ResizeObserver(() => ajustarCajon(info.el)).observe(info.el);
+      } else {
+        requestAnimationFrame(() => ajustarCajon(info.el));
+      }
+    },
+
+    eventClick: function(info) {
+      let id = info.event.id;
+
+      fetch(`/appointment/${id}/json`)
+        .then(res => res.json())
+        .then(data => {
+
+          // Helpers
+          const operatorsHtml = data.operators && data.operators.length
+            ? data.operators.map(o => `<span class="badge bg-secondary me-1">${o.username}</span>`).join("")
+            : '<span class="text-muted">—</span>';
+
+          const workStatusBadge = {
+            pending:     "<span class='badge bg-secondary'>Pendiente</span>",
+            in_progress: "<span class='badge bg-primary'>En curso</span>",
+            paused:      "<span class='badge bg-warning text-dark'>Pausado</span>",
+            done:        "<span class='badge bg-info text-dark'>Terminado</span>",
+          }[data.work_status] || "";
+
+          const workDurationHtml = data.work_duration_minutes !== null && data.work_duration_minutes !== undefined
+            ? `<span class="ms-2 text-muted small">(${data.work_duration_minutes} min reales)</span>`
+            : "";
+
+          // Desglose de plata. El valor del servicio y el saldo son cosas
+          // distintas: el abono no rebaja lo que vale el trabajo.
+          const m = data.money || {};
+          const pesos = n => "$" + Number(n || 0).toLocaleString("es-CO");
+          const lineaAjuste = a =>
+            `<span class="badge ${a.kind === 'discount' ? 'bg-warning text-dark' : 'bg-info text-dark'} me-1">
+               ${a.kind === 'discount' ? 'Descuento' : 'Recargo'}
+               ${a.mode === 'percentage' ? a.value + '%' : pesos(a.value)}
+               ${a.mode === 'percentage'
+                  ? (a.base === 'subtotal' ? 'sobre subtotal' : 'sobre lista') : ''}
+               = ${pesos(a.amount)}
+               ${a.description ? '· ' + a.description : ''}
+             </span>`;
+          const ajustesHtml = (m.ajustes || []).length
+            ? `<p><b>Ajustes:</b> ${m.ajustes.map(lineaAjuste).join("")}</p>` : "";
+          const abonosHtml = (m.abonos || []).length
+            ? `<p><b>Abonos:</b><br>${m.abonos.map(a =>
+                `<span class="text-muted small">${a.paid_on || ''} · ${pesos(a.amount)}${
+                  a.description ? ' · ' + a.description : ''}</span>`).join("<br>")}</p>`
+            : "";
+          const saldoHtml = m.abonado
+            ? `<p><b>Abonado:</b> <span class="fw-semibold">${pesos(m.abonado)}</span></p>
+               <p><b>Saldo pendiente:</b>
+                 <span class="fw-bold ${m.saldo > 0 ? 'text-warning' : 'text-success'}">
+                   ${m.saldo < 0 ? pesos(Math.abs(m.saldo)) + ' a favor' : pesos(m.saldo)}
+                 </span>
+               </p>`
+            : "";
+
+          document.getElementById("modalBodyContent").innerHTML = `
+  <p><b>Cliente:</b> ${data.customer_name}</p>
+  <p><b>Placa:</b> ${data.plate || 'Sin placa'}</p>
+  <p><b>Teléfono:</b> ${data.phone || 'No registrado'}</p>
+  <p><b>Servicios:</b> ${data.services}</p>
+  <p><b>Inicio:</b> ${data.start}</p>
+  <p><b>Fin:</b> ${data.end}</p>
+  <p><b>Notas:</b> ${data.notes || 'Sin notas'}</p>
+  <p><b>Operarios:</b> ${operatorsHtml}</p>
+  ${ajustesHtml}
+  <p>
+    <b>Valor del servicio:</b>
+    <span class="fw-semibold">
+      $${Number(data.estimated_amount || 0).toLocaleString("es-CO")}
+    </span>
+  </p>
+  ${abonosHtml}
+  ${saldoHtml}
+  <p>
+    <b>Estado:</b>
+    ${
+      data.status === "completed"
+        ? "<span class='badge bg-success'>Finalizado</span>"
+        : data.status === "cancelled"
+          ? "<span class='badge bg-danger'>Cancelado</span>"
+          : "<span class='badge bg-secondary'>Agendado</span>"
+    }
+  </p>
+  <p><b>Trabajo:</b> ${workStatusBadge}${workDurationHtml}</p>
+
+  <div class="d-flex gap-2 mt-2 flex-wrap">
+
+    ${
+      data.status === "scheduled"
+        ? `
+          <a href="/appointment/${data.id}/edit"
+             class="btn btn-outline-primary">
+            Editar cita
+          </a>
+
+          <form method="POST"
+                action="/appointments/${data.id}/delete"
+                onsubmit="return pedirClaveEliminar(this);">
+            <input type="hidden" name="clave">
+            <button type="submit" class="btn btn-outline-danger">
+              Eliminar cita
+            </button>
+          </form>
+          `
+        : `
+          <button class="btn btn-outline-secondary" disabled>
+            Editar cita
+          </button>
+          <button class="btn btn-outline-secondary" disabled>
+            Eliminar cita
+          </button>
+          `
+    }
+
+
+
+  </div>
+
+
+`;
+
+          let modal = new bootstrap.Modal(document.getElementById("appointmentModal"));
+          modal.show();
+        });
+    },
+
+    // El toolbar deja el centro vacío; ahí va el nombre de la agenda. Se pone
+    // en datesSet porque FullCalendar reconstruye el toolbar al cambiar de vista.
+    datesSet: function() {
+      const centro = calendarEl.querySelector('.fc-toolbar-chunk:nth-child(2)');
+      if (centro && !centro.querySelector('.ag-titulo')) {
+        const t = document.createElement('span');
+        t.className = 'ag-titulo';
+        t.textContent = AGENDA_TITULO;
+        centro.appendChild(t);
+      }
+    },
+
+    events: '/api/events?modo={{ modo | default("citas") }}',
+    displayEventTime: false,
+    eventColor: null,
+});
+
+  calendar.render();
+});
+
+</script>
+{% endblock %}

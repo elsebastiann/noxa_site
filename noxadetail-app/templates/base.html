@@ -1,0 +1,851 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <title>Agenda Detailing</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0a0c0f">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+
+  <style>
+    /* ═══════════════════════════════════════════
+       SISTEMA DE DISEÑO — AGENDA DETAILING
+       Tema: Carbón + Dorado — fondo oscuro, acento dorado
+    ═══════════════════════════════════════════ */
+    :root {
+      color-scheme: dark;
+      --bg:        #0a0c0f;
+      --bg2:       #0d1013;
+      --surface:   #111318;
+      --surface2:  #1a1d23;
+      --border:    #272b35;
+      --border2:   rgba(212,180,108,0.25);
+      --text:      #f3f5f7;
+      --text2:     #728297;
+      --text3:     #4c5666;
+      --accent:    #d4b46c;
+      --accent-dk: #c4a050;
+      --accent-bg: rgba(212,180,108,0.10);
+      --ink:       #f3f5f7;
+      --radius:    12px;
+      --radius-sm: 8px;
+      --shadow:    0 1px 3px rgba(0,0,0,0.4), 0 4px 12px rgba(0,0,0,0.25);
+      --shadow-sm: 0 1px 2px rgba(0,0,0,0.3);
+    }
+
+    *, *::before, *::after { box-sizing: border-box; }
+
+    html, body {
+      margin: 0; padding: 0;
+      background-color: var(--bg) !important;
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      -webkit-font-smoothing: antialiased;
+      font-size: 15px;
+    }
+
+    .container-fluid, .container { background: transparent !important; }
+
+    /* ── TIPOGRAFÍA ── */
+    h1, h2, h3, h4, h5, h6 { color: var(--text); font-weight: 700; letter-spacing: -0.3px; }
+    h2 { font-size: 1.15rem; }
+    h4 { font-size: 1rem; }
+    p, span, td, li { color: var(--text2); }
+
+    /* ── NAVBAR DESKTOP ── */
+    .navbar-logo { height: 36px; width: auto; display: block; }
+    .navbar-brand-text { font-weight: 800; color: var(--ink); font-size: 1.1rem; }
+
+    .nav-link-custom {
+      color: var(--text2);
+      text-decoration: none;
+      font-size: 0.82rem;
+      font-weight: 600;
+      padding: 6px 12px;
+      border-radius: var(--radius-sm);
+      transition: color 0.15s, background 0.15s;
+      letter-spacing: 0.1px;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    .nav-link-custom:hover { color: var(--ink); background: var(--bg2); }
+    .nav-link-accent {
+      color: #0a0c0f !important;
+      background: var(--accent) !important;
+      font-weight: 700;
+    }
+    .nav-link-accent:hover {
+      background: var(--accent-dk) !important;
+      color: #fff !important;
+    }
+
+    .dropdown-item-custom {
+      display: flex; align-items: center; gap: 10px;
+      padding: 9px 14px;
+      color: var(--text2);
+      text-decoration: none;
+      font-size: 0.82rem;
+      font-weight: 500;
+      transition: color 0.12s, background 0.12s;
+      border-radius: 8px;
+      margin: 1px 5px;
+    }
+    .dropdown-item-custom i { color: var(--accent-dk); font-size: 0.9rem; width: 16px; text-align: center; }
+    .dropdown-item-custom:hover { color: var(--ink); background: var(--bg); }
+    .dropdown-group-label {
+      padding: 10px 19px 3px;
+      font-size: 0.62rem;
+      font-weight: 800;
+      letter-spacing: 0.8px;
+      text-transform: uppercase;
+      color: var(--text3);
+    }
+
+    /* ── BOTONES ── */
+    .btn {
+      font-size: 0.82rem !important;
+      font-weight: 600 !important;
+      border-radius: var(--radius-sm) !important;
+      padding: 8px 16px !important;
+      transition: all 0.15s !important;
+      box-shadow: none !important;
+      letter-spacing: 0.1px;
+      border: none !important;
+    }
+    /* Primario: dorado */
+    .btn-primary {
+      background: var(--accent) !important;
+      color: #0a0c0f !important;
+    }
+    .btn-primary:hover, .btn-primary:focus, .btn-primary:active {
+      background: var(--accent-dk) !important;
+      color: #0a0c0f !important;
+    }
+    .btn-outline-primary {
+      background: transparent !important;
+      border: 1.5px solid var(--accent) !important;
+      color: var(--accent) !important;
+    }
+    .btn-outline-primary:hover {
+      background: var(--accent) !important;
+      color: #0a0c0f !important;
+    }
+    /* Acento dorado */
+    .btn-accent {
+      background: var(--accent) !important;
+      color: #0a0c0f !important;
+      font-weight: 700 !important;
+    }
+    .btn-accent:hover { background: var(--accent-dk) !important; color: #fff !important; }
+    /* Secundario: suave */
+    .btn-secondary, .btn-outline-secondary {
+      background: var(--bg2) !important;
+      border: 1px solid var(--border) !important;
+      color: var(--text2) !important;
+    }
+    .btn-secondary:hover, .btn-outline-secondary:hover {
+      background: var(--border) !important;
+      color: var(--ink) !important;
+    }
+    /* Peligro */
+    .btn-danger, .btn-outline-danger {
+      background: rgba(192,57,43,0.15) !important;
+      border: 1px solid rgba(192,57,43,0.4) !important;
+      color: #e07060 !important;
+    }
+    .btn-danger:hover, .btn-outline-danger:hover {
+      background: rgba(192,57,43,0.28) !important;
+    }
+    /* Éxito */
+    .btn-success, .btn-outline-success {
+      background: rgba(30,126,52,0.15) !important;
+      border: 1px solid rgba(30,126,52,0.4) !important;
+      color: #4caf6e !important;
+    }
+    .btn-success:hover, .btn-outline-success:hover { background: rgba(30,126,52,0.28) !important; }
+    /* Legados */
+    .btn-dark {
+      background: var(--bg2) !important;
+      border: 1px solid var(--border) !important;
+      color: var(--text) !important;
+    }
+    .btn-dark:hover { background: var(--border) !important; color: var(--ink) !important; }
+    .btn-outline-light {
+      background: transparent !important;
+      border: 1px solid var(--border) !important;
+      color: var(--text2) !important;
+    }
+    .btn-outline-light:hover { background: var(--bg2) !important; color: var(--ink) !important; }
+    .btn-sm { padding: 5px 12px !important; font-size: 0.75rem !important; }
+
+    /* ── FORM CONTROLS ── */
+    .form-control, .form-select {
+      background-color: var(--surface) !important;
+      border: 1.5px solid var(--border) !important;
+      color: var(--text) !important;
+      border-radius: var(--radius-sm) !important;
+      box-shadow: none !important;
+      font-size: 0.85rem !important;
+      padding: 9px 13px !important;
+      transition: border-color 0.15s !important;
+    }
+    .form-control:focus, .form-select:focus {
+      border-color: var(--accent) !important;
+      box-shadow: 0 0 0 3px rgba(212,180,108,0.15) !important;
+      outline: none !important;
+      background-color: var(--surface) !important;
+    }
+    .form-control::placeholder { color: var(--text3) !important; }
+    .form-control-sm, .form-select-sm { padding: 6px 10px !important; font-size: 0.78rem !important; }
+    textarea.form-control { resize: vertical; min-height: 80px; }
+    input[type="date"], input[type="time"] { color-scheme: dark; }
+
+    .form-label {
+      color: var(--text2) !important;
+      font-size: 0.74rem !important;
+      font-weight: 600 !important;
+      margin-bottom: 5px !important;
+      letter-spacing: 0.3px;
+      text-transform: uppercase;
+    }
+    .form-text { color: var(--text3) !important; font-size: 0.72rem !important; }
+
+    /* Secciones / cards */
+    .card, .bg-secondary:not(.badge) {
+      background: var(--surface) !important;
+      border: 1px solid var(--border) !important;
+      color: var(--text) !important;
+      border-radius: var(--radius) !important;
+      box-shadow: var(--shadow) !important;
+    }
+    .card-body { background: transparent !important; }
+    form.rounded.border, .p-3.rounded.border {
+      background: var(--surface) !important;
+      border: 1px solid var(--border) !important;
+      border-radius: var(--radius) !important;
+      box-shadow: var(--shadow) !important;
+    }
+    .border, .border-secondary { border-color: var(--border) !important; }
+    .bg-dark { background-color: var(--bg) !important; }
+
+    /* ── TABLAS ── */
+    .table-dark {
+      --bs-table-bg: var(--surface) !important;
+      --bs-table-hover-bg: var(--bg) !important;
+      --bs-table-border-color: var(--border) !important;
+      color: var(--text) !important;
+      font-size: 0.83rem;
+    }
+    .table-dark thead th {
+      background: var(--bg2) !important;
+      color: var(--text3) !important;
+      font-weight: 700 !important;
+      font-size: 0.68rem !important;
+      text-transform: uppercase !important;
+      letter-spacing: 0.6px !important;
+      border-bottom: 1px solid var(--border) !important;
+      padding: 11px 14px !important;
+    }
+    .table-dark td {
+      padding: 11px 14px !important;
+      vertical-align: middle !important;
+      color: var(--text) !important;
+      border-color: var(--border) !important;
+    }
+    .table-dark tbody tr:hover td { background: var(--bg) !important; }
+    .table-responsive { border-radius: var(--radius); overflow: hidden; border: 1px solid var(--border); box-shadow: var(--shadow-sm); }
+
+    /* ── BADGES ── */
+    .badge.bg-success   { background: rgba(30,126,52,0.20) !important; color: #4caf6e !important; font-weight: 600; }
+    .badge.bg-danger    { background: rgba(192,57,43,0.20) !important; color: #e07060 !important; font-weight: 600; }
+    .badge.bg-secondary { background: var(--bg2) !important; color: var(--text2) !important; font-weight: 600; }
+    .badge.bg-warning   { background: rgba(212,180,108,0.18) !important; color: var(--accent-dk) !important; font-weight: 600; }
+    .badge.bg-info      { background: rgba(12,110,168,0.20) !important; color: #5bb8f5 !important; font-weight: 600; }
+
+    /* helpers */
+    .text-success   { color: var(--accent) !important; font-weight: 700; }
+    .text-secondary { color: var(--text2) !important; }
+    .text-muted     { color: var(--text3) !important; }
+    .fw-bold        { color: var(--text) !important; }
+
+    /* Alerts */
+    .alert {
+      border-radius: var(--radius) !important;
+      font-size: 0.83rem;
+      border: 1px solid var(--border) !important;
+      background: var(--surface) !important;
+      color: var(--text) !important;
+    }
+
+    /* ── MOBILE LOGO BAR ── */
+    .mobile-logo-bar { display: none; }
+
+    /* ── BOTTOM NAV — solo móvil ── */
+    @media (max-width: 991.98px) {
+      body { padding-bottom: 74px; padding-top: 0; }
+      nav.navbar { display: none !important; }
+      .container-fluid > *:first-child { margin-top: 0 !important; }
+
+      /* Logo bar */
+      .mobile-logo-bar {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        padding: 10px 0 8px;
+        background: rgba(10,12,15,0.92);
+        backdrop-filter: saturate(180%) blur(20px);
+        -webkit-backdrop-filter: saturate(180%) blur(20px);
+        position: sticky;
+        top: 0;
+        z-index: 200;
+        border-bottom: 1px solid var(--border);
+      }
+      .mobile-logo-bar img { height: 30px; width: auto; }
+
+      #mobile-date-label {
+        position: absolute;
+        right: 16px;
+        font-size: 0.72rem;
+        font-weight: 700;
+        color: var(--accent-dk);
+        letter-spacing: 0.3px;
+      }
+
+      /* Bottom bar */
+      .bottom-nav {
+        display: flex;
+        position: fixed;
+        bottom: 0; left: 0; right: 0;
+        height: 62px;
+        background: rgba(10,12,15,0.95);
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
+        border-top: 1px solid var(--border);
+        z-index: 1050;
+        align-items: stretch;
+        padding-bottom: env(safe-area-inset-bottom);
+      }
+
+      .bottom-nav .bn-item {
+        flex: 1;
+        display: flex; flex-direction: column;
+        align-items: center; justify-content: center;
+        gap: 3px;
+        color: var(--text2);
+        text-decoration: none;
+        font-size: 9.5px;
+        font-weight: 600;
+        cursor: pointer;
+        background: none; border: none; padding: 0;
+        -webkit-tap-highlight-color: transparent;
+        transition: color 0.15s;
+        letter-spacing: 0.2px;
+      }
+      .bottom-nav .bn-item i { font-size: 20px; line-height: 1; }
+      .bottom-nav .bn-item:active, .bottom-nav .bn-item.active,
+      .bottom-nav .bn-item:hover { color: var(--accent); }
+
+      /* Botón + central — dorado, se distingue como acción principal */
+      .bottom-nav .bn-item.bn-primary i {
+        background: var(--accent);
+        color: #0a0c0f;
+        border-radius: 50%;
+        width: 40px; height: 40px;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 22px;
+        box-shadow: 0 3px 12px rgba(212,180,108,0.35);
+      }
+      .bottom-nav .bn-item.bn-primary { color: var(--text2); }
+      .bottom-nav .bn-item.bn-primary:hover i { background: var(--accent-dk); }
+
+      /* Panel "más" */
+      .bn-more-menu {
+        position: fixed;
+        bottom: 62px; left: 0; right: 0;
+        max-height: calc(100dvh - 62px - 20px);
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+        background: var(--surface);
+        border-top: 1px solid var(--border);
+        border-radius: 20px 20px 0 0;
+        padding: 6px 0 16px;
+        z-index: 1049;
+        transform: translateY(100%);
+        opacity: 0;
+        pointer-events: none;
+        transition: transform 0.26s cubic-bezier(0.32,0.72,0,1), opacity 0.26s ease;
+        box-shadow: 0 -4px 20px rgba(0,0,0,0.08);
+      }
+      .bn-more-menu.show { transform: translateY(0); opacity: 1; pointer-events: auto; }
+
+      .bn-more-menu::before {
+        content: '';
+        display: block;
+        width: 36px; height: 4px;
+        background: var(--border);
+        border-radius: 2px;
+        margin: 8px auto 10px;
+      }
+
+      .bn-more-menu a {
+        display: flex; align-items: center; gap: 14px;
+        padding: 11px 22px;
+        color: var(--text2);
+        text-decoration: none;
+        font-size: 0.88rem;
+        font-weight: 600;
+        transition: background 0.12s, color 0.12s;
+      }
+      .bn-more-menu a i { font-size: 18px; color: var(--accent-dk); width: 22px; text-align: center; }
+      .bn-more-menu a:active, .bn-more-menu a:hover { background: var(--bg); color: var(--ink); }
+      .bn-more-menu hr { border-color: var(--border); margin: 4px 22px; }
+      .bn-group-label {
+        padding: 14px 22px 4px;
+        font-size: 0.65rem;
+        font-weight: 800;
+        letter-spacing: 0.8px;
+        text-transform: uppercase;
+        color: var(--text3);
+      }
+
+      /* Overlay */
+      .bn-overlay {
+        position: fixed; inset: 0; z-index: 1048;
+        background: rgba(26,26,26,0.3);
+        opacity: 0; pointer-events: none;
+        transition: opacity 0.26s ease;
+        backdrop-filter: blur(2px);
+      }
+      .bn-overlay.show { opacity: 1; pointer-events: auto; }
+    }
+
+    @media (min-width: 992px) {
+      .bottom-nav, .bn-more-menu, .bn-overlay, .mobile-logo-bar { display: none !important; }
+    }
+
+    /* ── NAVBAR Z-INDEX (por encima de eventos de calendario) ── */
+    nav.navbar { position: relative; z-index: 1040; }
+    nav.navbar .dropdown-menu { z-index: 1041; }
+    /* ── Campanita de notificaciones ── */
+    .notif-badge {
+      position:absolute; top:-2px; right:-4px; min-width:17px; height:17px; padding:0 4px;
+      border-radius:9px; background:#ef5350; color:#fff; font-size:.65rem; font-weight:700;
+      line-height:17px; text-align:center;
+    }
+    .notif-panel {
+      background:var(--surface); border:1px solid var(--border); border-radius:14px;
+      width:min(380px, calc(100vw - 24px)); box-shadow:0 8px 24px rgba(0,0,0,0.18); overflow:hidden;
+    }
+    .notif-head {
+      display:flex; align-items:center; justify-content:space-between; gap:10px;
+      padding:12px 14px; border-bottom:1px solid var(--border); font-size:.9rem;
+    }
+    .notif-linkbtn {
+      background:none; border:none; padding:0; color:var(--accent);
+      font-size:.76rem; font-weight:600; cursor:pointer;
+    }
+    .notif-linkbtn:hover { text-decoration:underline; }
+    #notifList { max-height:min(60vh, 440px); overflow-y:auto; }
+    .notif-item {
+      display:flex; gap:10px; padding:11px 14px; border-bottom:1px solid var(--border);
+      cursor:pointer; text-decoration:none; color:inherit;
+    }
+    .notif-item:hover { background:var(--bg2); }
+    .notif-item.unread { background:rgba(74,158,255,0.06); }
+    .notif-dot { width:8px; height:8px; border-radius:50%; margin-top:6px; flex:0 0 8px; }
+    .notif-item.read .notif-dot { opacity:.28; }
+    .notif-title { font-size:.84rem; font-weight:600; line-height:1.35; }
+    .notif-body  { font-size:.78rem; color:var(--text2); line-height:1.4; margin-top:2px; white-space:pre-line; }
+    .notif-when  { font-size:.7rem; color:var(--text3); margin-top:3px; }
+    .notif-empty { padding:26px 14px; text-align:center; color:var(--text2); font-size:.82rem; }
+    .notif-foot {
+      display:block; padding:10px; text-align:center; font-size:.8rem; font-weight:600;
+      color:var(--accent); text-decoration:none; border-top:1px solid var(--border);
+    }
+    .notif-foot:hover { background:var(--bg2); }
+  </style>
+
+  {% block extra_head %}{% endblock %}
+</head>
+
+<body>
+
+<!-- Logo + fecha — solo móvil -->
+<div class="mobile-logo-bar" style="position:relative;">
+  <img
+    src="{{ url_for('static', filename='img/logotipo.png') }}"
+    alt="Agenda Detailing"
+    onerror="this.style.display='none';this.insertAdjacentHTML('afterend','<span style=\'color:#f3f5f7;font-weight:800;font-size:17px\'>Agenda</span>');"
+  >
+  <span id="mobile-date-label"></span>
+</div>
+<script>
+  (function(){
+    var now = new Date();
+    var label = now.toLocaleDateString('es-CO',{month:'short',day:'numeric'});
+    label = label.charAt(0).toUpperCase()+label.slice(1);
+    var el = document.getElementById('mobile-date-label');
+    if(el) el.textContent = label;
+  })();
+</script>
+
+<!-- Modal detalles de cita -->
+<div class="modal fade" id="appointmentModal" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content" style="background:var(--surface);border:1px solid var(--border);color:var(--text);border-radius:var(--radius);box-shadow:0 8px 32px rgba(0,0,0,0.12);">
+      <div class="modal-header" style="border-bottom:1px solid var(--border);padding:14px 18px;">
+        <h5 class="modal-title" style="color:var(--ink);font-size:0.95rem;font-weight:700;">Detalles de la Cita</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body" id="modalBodyContent" style="padding:16px 18px;color:var(--text);">Cargando...</div>
+      <div class="modal-footer" style="border-top:1px solid var(--border);padding:10px 18px;">
+        <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Cerrar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Navbar desktop -->
+<nav class="navbar navbar-expand-lg mb-0"
+     style="background:rgba(10,12,15,0.95);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border-bottom:1px solid var(--border);">
+  <div class="container-fluid px-3">
+    {# El logo lleva a la portada de cada rol: para marketing la agenda no existe. #}
+    <a class="navbar-brand"
+       href="{{ url_for('whatsapp_inbox') if current_user and current_user.role == 'marketing' else url_for('calendar_view') }}"
+       style="padding:0;">
+      <img src="{{ url_for('static', filename='img/logotipo.png') }}" alt="Agenda Detailing" class="navbar-logo"
+        onerror="this.style.display='none';this.insertAdjacentHTML('afterend','<span class=\'navbar-brand-text\'>Agenda</span>');">
+    </a>
+    <button class="navbar-toggler border-0 p-1" type="button"
+            data-bs-toggle="collapse" data-bs-target="#navbarContent"
+            style="color:var(--text2);">
+      <i class="bi bi-list" style="font-size:1.5rem;"></i>
+    </button>
+    <div class="collapse navbar-collapse justify-content-end" id="navbarContent">
+      <div class="d-flex flex-column flex-lg-row align-items-lg-center gap-1 py-2 py-lg-0">
+        {% if not current_user or current_user.role not in ('operario', 'marketing') %}
+        {# Dos agendas con la misma pantalla: las citas que facturan y los
+           diagnósticos, que se leen distinto. #}
+        <div class="dropdown">
+          <button class="nav-link-custom border-0 bg-transparent dropdown-toggle"
+                  type="button" data-bs-toggle="dropdown" aria-expanded="false">Agenda</button>
+          <ul class="dropdown-menu py-2"
+              style="background:var(--surface);border:1px solid var(--border);border-radius:14px;min-width:190px;box-shadow:0 8px 24px rgba(0,0,0,0.15);">
+            <li><a class="dropdown-item-custom" href="{{ url_for('calendar_view') }}"><i class="bi bi-calendar3"></i>Citas</a></li>
+            <li><a class="dropdown-item-custom" href="{{ url_for('calendar_diagnosticos') }}"><i class="bi bi-clipboard-pulse"></i>Diagnósticos</a></li>
+          </ul>
+        </div>
+        {% endif %}
+        {% if not current_user or current_user.role != 'operario' %}
+        <a class="nav-link-custom" href="{{ url_for('whatsapp_inbox') }}">Mensajes</a>
+        {% endif %}
+        {% if not current_user or current_user.role not in ('operario', 'marketing') %}
+        <a class="nav-link-custom" href="{{ url_for('quality_errors_list') }}">Errores</a>
+        <a class="nav-link-custom nav-link-accent" href="{{ url_for('new_appointment') }}">+ Nueva</a>
+        {% endif %}
+        {% if current_user and current_user.role != 'operario' %}
+        <div class="dropdown" id="notifWrap">
+          <button class="nav-link-custom border-0 bg-transparent position-relative d-flex align-items-center"
+                  type="button" data-bs-toggle="dropdown" data-bs-auto-close="outside"
+                  aria-expanded="false" aria-label="Notificaciones" title="Notificaciones">
+            <i class="bi bi-bell" style="font-size:1.15rem;"></i>
+            <span id="notifBadge" class="notif-badge" hidden>0</span>
+          </button>
+          <div class="dropdown-menu dropdown-menu-end p-0 notif-panel">
+            <div class="notif-head">
+              <span style="font-weight:700;">Notificaciones</span>
+              <button type="button" id="notifMarkAll" class="notif-linkbtn">Marcar todas leídas</button>
+            </div>
+            <div id="notifList"><div class="notif-empty">Cargando…</div></div>
+            <a href="{{ url_for('notifications_list') }}" class="notif-foot">Ver todas</a>
+          </div>
+        </div>
+        {% endif %}
+        {% if not current_user or current_user.role not in ('operario', 'marketing') %}
+        <a class="nav-link-custom" href="{{ url_for('expenses_new') }}">Gastos</a>
+        {% endif %}
+        <div class="dropdown">
+          <button class="nav-link-custom border-0 bg-transparent dropdown-toggle"
+                  type="button" data-bs-toggle="dropdown" aria-expanded="false">Más</button>
+          <ul class="dropdown-menu dropdown-menu-end py-2"
+              style="background:var(--surface);border:1px solid var(--border);border-radius:14px;min-width:220px;box-shadow:0 8px 24px rgba(0,0,0,0.1);">
+            {# ── Operaciones ── #}
+            <li><div class="dropdown-group-label">Operaciones</div></li>
+            {% if not current_user or current_user.role not in ('operario', 'marketing') %}
+            <li><a class="dropdown-item-custom" href="{{ url_for('sales_list') }}"><i class="bi bi-graph-up-arrow"></i>Ingresos</a></li>
+            <li><a class="dropdown-item-custom" href="{{ url_for('dashboard_gerencial') }}"><i class="bi bi-speedometer2"></i>Tablero gerencial</a></li>
+            {% endif %}
+            {% if not current_user or current_user.role != 'operario' %}
+            <li><a class="dropdown-item-custom" href="{{ url_for('analytics_dashboard') }}"><i class="bi bi-bar-chart-line"></i>Analítica</a></li>
+            {% endif %}
+            {% if not current_user or current_user.role not in ('operario', 'marketing') %}
+            <li><a class="dropdown-item-custom" href="{{ url_for('appointments_list') }}"><i class="bi bi-card-list"></i>Listado de citas</a></li>
+            <li><a class="dropdown-item-custom" href="{{ url_for('parking_list') }}"><i class="bi bi-p-square"></i>Parqueaderos</a></li>
+            {% endif %}
+            {# ── Configuración ── #}
+            {% if not current_user or current_user.role not in ('operario', 'marketing') %}
+            <li><hr style="border-color:var(--border);margin:6px 14px;"></li>
+            <li><div class="dropdown-group-label">Configuración</div></li>
+            <li><a class="dropdown-item-custom" href="{{ url_for('promotions_list') }}"><i class="bi bi-megaphone"></i>Promociones</a></li>
+            <li><a class="dropdown-item-custom" href="{{ url_for('services_view') }}"><i class="bi bi-tools"></i>Servicios</a></li>
+            <li><a class="dropdown-item-custom" href="{{ url_for('service_prices_list') }}"><i class="bi bi-tag"></i>Detalle de servicios</a></li>
+            <li><a class="dropdown-item-custom" href="{{ url_for('vehicle_types_list') }}"><i class="bi bi-car-front"></i>Tipos de vehículo</a></li>
+            <li><a class="dropdown-item-custom" href="{{ url_for('payment_methods_list') }}"><i class="bi bi-credit-card"></i>Medios de pago</a></li>
+            <li><a class="dropdown-item-custom" href="{{ url_for('agreements_list') }}"><i class="bi bi-handshake"></i>Convenios</a></li>
+            <li><a class="dropdown-item-custom" href="{{ url_for('expense_categories_list') }}"><i class="bi bi-tags"></i>Categorías de gastos</a></li>
+            {% endif %}
+            {# ── Administración ── #}
+            {% if current_user and current_user.role == 'admin' %}
+            <li><hr style="border-color:var(--border);margin:6px 14px;"></li>
+            <li><div class="dropdown-group-label">Administración</div></li>
+            <li><a class="dropdown-item-custom" href="{{ url_for('users_list') }}"><i class="bi bi-people-fill"></i>Usuarios</a></li>
+            <li><a class="dropdown-item-custom" href="{{ url_for('payroll_list') }}"><i class="bi bi-cash-coin"></i>Nómina</a></li>
+            <li><a class="dropdown-item-custom" href="{{ url_for('quality_errors_list') }}"><i class="bi bi-exclamation-triangle-fill"></i>Errores calidad</a></li>
+            <li><a class="dropdown-item-custom" href="{{ url_for('vales_list') }}"><i class="bi bi-receipt"></i>Vales</a></li>
+            {% endif %}
+          </ul>
+        </div>
+        {% if current_user %}
+        <div class="dropdown">
+          <button class="nav-link-custom border-0 bg-transparent dropdown-toggle d-flex align-items-center gap-1"
+                  type="button" data-bs-toggle="dropdown" aria-expanded="false">
+            <i class="bi bi-person-circle" style="font-size:1rem;"></i>
+            <span>{{ current_user.username }}</span>
+            <span style="font-size:0.68rem;padding:2px 7px;border-radius:20px;background:var(--accent-bg);color:var(--accent-dk);font-weight:700;text-transform:uppercase;letter-spacing:0.3px;">{{ current_user.role }}</span>
+          </button>
+          <ul class="dropdown-menu dropdown-menu-end py-2"
+              style="background:var(--surface);border:1px solid var(--border);border-radius:14px;min-width:180px;box-shadow:0 8px 24px rgba(0,0,0,0.15);">
+            <li>
+              <a class="dropdown-item-custom" href="{{ url_for('change_password') }}">
+                <i class="bi bi-key-fill"></i>Cambiar contraseña
+              </a>
+            </li>
+            <li><hr style="border-color:var(--border);margin:4px 14px;"></li>
+            <li>
+              <form method="POST" action="{{ url_for('logout') }}" class="m-0">
+                <button type="submit" class="dropdown-item-custom w-100 text-start border-0 bg-transparent" style="color:#e07060;">
+                  <i class="bi bi-box-arrow-right" style="color:#e07060;"></i>Cerrar sesión
+                </button>
+              </form>
+            </li>
+          </ul>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</nav>
+
+<div class="container-fluid px-3 px-lg-4 pt-3">
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      {% for category, message in messages %}
+        <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+          {{ message }}
+          <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+      {% endfor %}
+    {% endif %}
+  {% endwith %}
+  {% block content %}{% endblock %}
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+{% block extra_scripts %}{% endblock %}
+
+<div class="bn-overlay" id="bnOverlay" onclick="closeBnMenu()"></div>
+
+<div class="bn-more-menu" id="bnMoreMenu">
+
+  {# ── Info de usuario ── #}
+  {% if current_user %}
+  <div style="padding:10px 22px 6px;display:flex;align-items:center;gap:10px;">
+    <i class="bi bi-person-circle" style="font-size:1.4rem;color:var(--accent);"></i>
+    <div>
+      <div style="font-weight:700;font-size:0.88rem;color:var(--text);">{{ current_user.username }}</div>
+      <div style="font-size:0.7rem;font-weight:700;text-transform:uppercase;letter-spacing:0.4px;color:var(--accent-dk);">{{ current_user.role }}</div>
+    </div>
+  </div>
+  <a href="{{ url_for('change_password') }}"><i class="bi bi-key-fill"></i>Cambiar contraseña</a>
+  {% endif %}
+
+  {# ── Operaciones ──
+     Marketing solo ve lo que puede abrir: mostrarle enlaces que el servidor le
+     va a rebotar es ruido. #}
+  <hr>
+  <div class="bn-group-label">Operaciones</div>
+  {# Abajo el botón "Agenda" lleva a las citas; los diagnósticos entran por acá. #}
+  {% if not current_user or current_user.role != 'marketing' %}
+  <a href="{{ url_for('calendar_diagnosticos') }}"><i class="bi bi-clipboard-pulse"></i>Diagnósticos</a>
+  {% endif %}
+  {% if not current_user or current_user.role != 'operario' %}
+  <a href="{{ url_for('whatsapp_inbox') }}"><i class="bi bi-whatsapp"></i>Mensajes</a>
+  <a href="{{ url_for('notifications_list') }}"><i class="bi bi-bell"></i>Notificaciones</a>
+  <a href="{{ url_for('analytics_dashboard') }}"><i class="bi bi-bar-chart-line"></i>Analítica</a>
+  {% endif %}
+  {% if not current_user or current_user.role not in ('operario', 'marketing') %}
+  <a href="{{ url_for('expenses_new') }}"><i class="bi bi-cash-stack"></i>Gastos</a>
+  <a href="{{ url_for('sales_list') }}"><i class="bi bi-graph-up-arrow"></i>Ingresos</a>
+  <a href="{{ url_for('dashboard_gerencial') }}"><i class="bi bi-speedometer2"></i>Tablero gerencial</a>
+  <a href="{{ url_for('appointments_list') }}"><i class="bi bi-card-list"></i>Listado de citas</a>
+  <a href="{{ url_for('parking_list') }}"><i class="bi bi-p-square"></i>Parqueaderos</a>
+  {% endif %}
+
+  {# ── Configuración ── #}
+  {% if not current_user or current_user.role not in ('operario', 'marketing') %}
+  <hr>
+  <div class="bn-group-label">Configuración</div>
+  <a href="{{ url_for('promotions_list') }}"><i class="bi bi-megaphone"></i>Promociones</a>
+  <a href="{{ url_for('services_view') }}"><i class="bi bi-tools"></i>Servicios</a>
+  <a href="{{ url_for('service_prices_list') }}"><i class="bi bi-tag"></i>Detalle de servicios</a>
+  <a href="{{ url_for('vehicle_types_list') }}"><i class="bi bi-car-front"></i>Tipos de vehículo</a>
+  <a href="{{ url_for('payment_methods_list') }}"><i class="bi bi-credit-card"></i>Medios de pago</a>
+  <a href="{{ url_for('agreements_list') }}"><i class="bi bi-handshake"></i>Convenios</a>
+  <a href="{{ url_for('expense_categories_list') }}"><i class="bi bi-tags"></i>Categorías de gastos</a>
+  {% endif %}
+
+  {# ── Administración (solo admin) ── #}
+  {% if current_user and current_user.role == 'admin' %}
+  <hr>
+  <div class="bn-group-label">Administración</div>
+  <a href="{{ url_for('users_list') }}"><i class="bi bi-people-fill"></i>Usuarios</a>
+  <a href="{{ url_for('payroll_list') }}"><i class="bi bi-cash-coin"></i>Nómina</a>
+  <a href="{{ url_for('vales_list') }}"><i class="bi bi-receipt"></i>Vales</a>
+  {% endif %}
+
+  {# ── Cerrar sesión ── #}
+  <hr>
+  {% if current_user %}
+  <form method="POST" action="{{ url_for('logout') }}" style="margin:0;">
+    <button type="submit"
+            style="display:flex;align-items:center;gap:14px;padding:12px 22px;width:100%;
+                   background:none;border:none;color:#e07060;font-size:0.88rem;font-weight:600;
+                   cursor:pointer;text-align:left;">
+      <i class="bi bi-box-arrow-right" style="font-size:18px;width:22px;text-align:center;color:#e07060;"></i>
+      Cerrar sesión
+    </button>
+  </form>
+  {% endif %}
+
+</div>
+
+<nav class="bottom-nav">
+  {% if current_user and current_user.role == 'marketing' %}
+  {# La barra de abajo es el acceso rápido: solo tiene sentido con lo que la
+     agencia realmente puede abrir. Sin Agenda ni "+ Nueva". #}
+  <a class="bn-item" href="{{ url_for('whatsapp_inbox') }}">
+    <i class="bi bi-whatsapp"></i><span>Mensajes</span>
+  </a>
+  <a class="bn-item" href="{{ url_for('notifications_list') }}">
+    <i class="bi bi-bell"></i><span>Alertas</span>
+  </a>
+  <a class="bn-item" href="{{ url_for('analytics_dashboard') }}">
+    <i class="bi bi-bar-chart-line"></i><span>Analítica</span>
+  </a>
+  {% else %}
+  <a class="bn-item" href="{{ url_for('calendar_view') }}">
+    <i class="bi bi-calendar3"></i><span>Agenda</span>
+  </a>
+  {% if not current_user or current_user.role != 'operario' %}
+  <a class="bn-item" href="{{ url_for('quality_errors_list') }}">
+    <i class="bi bi-exclamation-triangle-fill"></i><span>Errores</span>
+  </a>
+  {% endif %}
+  <a class="bn-item bn-primary" href="{{ url_for('new_appointment') }}">
+    <i class="bi bi-plus"></i><span>Nueva</span>
+  </a>
+  {% if not current_user or current_user.role != 'operario' %}
+  <a class="bn-item" href="{{ url_for('whatsapp_inbox') }}">
+    <i class="bi bi-whatsapp"></i><span>Mensajes</span>
+  </a>
+  {% endif %}
+  {% endif %}
+  <button class="bn-item" onclick="toggleBnMenu()">
+    <i class="bi bi-grid-3x3-gap"></i><span>Más</span>
+  </button>
+</nav>
+
+<script>
+  function toggleBnMenu(){
+    var m=document.getElementById('bnMoreMenu'),o=document.getElementById('bnOverlay');
+    var open=m.classList.contains('show');
+    m.classList.toggle('show',!open); o.classList.toggle('show',!open);
+  }
+  function closeBnMenu(){
+    document.getElementById('bnMoreMenu').classList.remove('show');
+    document.getElementById('bnOverlay').classList.remove('show');
+  }
+</script>
+
+{% if current_user and current_user.role != 'operario' %}
+<script>
+(function(){
+  var wrap = document.getElementById('notifWrap');
+  if (!wrap) return;
+  var badge = document.getElementById('notifBadge');
+  var list  = document.getElementById('notifList');
+
+  function esc(s){
+    return String(s || '').replace(/[&<>"']/g, function(c){
+      return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];
+    });
+  }
+
+  function render(items){
+    if (!items.length){
+      list.innerHTML = '<div class="notif-empty">Sin notificaciones por ahora.</div>';
+      return;
+    }
+    list.innerHTML = items.map(function(n){
+      // Sin url la alerta es informativa: se marca leída pero no navega.
+      return '<a class="notif-item ' + (n.is_read ? 'read' : 'unread') + '"'
+           + ' data-id="' + n.id + '" data-url="' + esc(n.url) + '" href="' + (esc(n.url) || '#') + '">'
+           + '<span class="notif-dot" style="background:' + esc(n.color) + '"></span>'
+           + '<span style="min-width:0;">'
+           +   '<span class="notif-title">' + esc(n.title) + '</span>'
+           +   (n.body ? '<div class="notif-body">' + esc(n.body) + '</div>' : '')
+           +   '<div class="notif-when">' + esc(n.when) + '</div>'
+           + '</span></a>';
+    }).join('');
+  }
+
+  function refresh(){
+    fetch('/api/notifications', {headers:{'X-Requested-With':'fetch'}})
+      .then(function(r){ return r.ok ? r.json() : null; })
+      .then(function(d){
+        if (!d) return;
+        badge.hidden = d.unread === 0;
+        badge.textContent = d.unread > 9 ? '9+' : d.unread;
+        render(d.items);
+      })
+      .catch(function(){ /* sin red: se reintenta en el siguiente ciclo */ });
+  }
+
+  list.addEventListener('click', function(ev){
+    var item = ev.target.closest('.notif-item');
+    if (!item) return;
+    var url = item.getAttribute('data-url');
+    if (!url) ev.preventDefault();  // informativa: no navega
+    fetch('/notifications/' + item.getAttribute('data-id') + '/read', {method:'POST'})
+      .then(function(){ if (!url) refresh(); });
+  });
+
+  document.getElementById('notifMarkAll').addEventListener('click', function(){
+    fetch('/notifications/read-all', {method:'POST'}).then(refresh);
+  });
+
+  refresh();
+  setInterval(refresh, 30000);
+  // Al volver a la pestaña se refresca de una, sin esperar el ciclo de 30s.
+  document.addEventListener('visibilitychange', function(){
+    if (!document.hidden) refresh();
+  });
+})();
+</script>
+{% endif %}
+
+</body>
+</html>

@@ -1,0 +1,898 @@
+{# El valor exacto viaja en data-v; el JS decide si mostrarlo abreviado o
+   completo, así el interruptor no obliga a recargar la página. #}
+{% macro money(valor) -%}
+<span class="money" data-v="{{ valor | round | int }}">${{ '{:,.0f}'.format(valor).replace(',', '.') }}</span>
+{%- endmacro %}
+
+{% extends "base.html" %}
+
+{% block extra_head %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<style>
+  .an-filters { display:flex; gap:12px; align-items:flex-end; flex-wrap:wrap;
+                background:var(--surface); border:1px solid var(--border);
+                border-radius:var(--radius); padding:14px 16px; margin:16px 0 18px; }
+  .an-label { display:block; font-size:.7rem; color:var(--text2); text-transform:uppercase;
+              letter-spacing:.05em; font-weight:700; margin-bottom:5px; }
+  .an-warn { background:rgba(224,168,0,.10); border:1px solid rgba(224,168,0,.35);
+             color:#e0a800; border-radius:var(--radius); padding:11px 15px;
+             font-size:.82rem; line-height:1.5; margin-bottom:18px; }
+  .an-grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(215px,1fr)); gap:12px; margin-bottom:20px; }
+  .an-card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:15px 17px; }
+  .an-card.hero { border-color:var(--border2); background:linear-gradient(180deg, var(--accent-bg), transparent); }
+  .an-k { font-size:.7rem; color:var(--text2); text-transform:uppercase; letter-spacing:.05em; font-weight:700; }
+  .an-v { font-size:1.65rem; font-weight:700; color:var(--text); margin-top:6px; line-height:1.1; }
+  .an-card.hero .an-v { color:var(--accent); }
+  .an-sub { font-size:.74rem; color:var(--text3); margin-top:5px; line-height:1.4; }
+  .an-charts { display:grid; grid-template-columns:repeat(auto-fit, minmax(340px,1fr)); gap:14px; margin-bottom:20px; }
+  .an-panel { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:16px; }
+  .an-panel h3 { font-size:.85rem; margin:0 0 12px; color:var(--text); }
+  .an-wrap { overflow-x:auto; border:1px solid var(--border); border-radius:var(--radius); }
+  table.an { width:100%; border-collapse:collapse; font-size:.84rem; min-width:560px; }
+  table.an th { background:var(--surface2); color:var(--text2); text-align:left; padding:9px 12px; font-weight:600; white-space:nowrap; }
+  table.an td { padding:9px 12px; border-top:1px solid var(--border); white-space:nowrap; }
+  table.an td.num, table.an th.num { text-align:right; }
+  .an-empty { padding:40px; text-align:center; color:var(--text2); }
+
+  /* Franja de KPIs: pegada arriba para que el titular no se pierda al bajar. */
+  .an-kpis { position:sticky; top:0; z-index:5; display:grid; gap:1px; background:var(--border);
+             grid-template-columns:repeat(auto-fit, minmax(160px,1fr));
+             border:1px solid var(--border); border-radius:var(--radius); overflow:hidden; margin-bottom:14px; }
+  .an-kpi { background:var(--surface); padding:12px 15px; display:flex; flex-direction:column; gap:2px; }
+  .an-kpi .k { font-size:.66rem; color:var(--text2); text-transform:uppercase; letter-spacing:.05em; font-weight:700; }
+  .an-kpi .v { font-size:1.3rem; font-weight:700; color:var(--text); line-height:1.15; }
+  .an-kpi .v.ok   { color:#66bb6a; }
+  .an-kpi .v.warn { color:#e0a800; }
+  .an-kpi .v.bad  { color:#ef5350; }
+  .an-kpi .s { font-size:.7rem; color:var(--text3); }
+
+  /* Pestañas: una pregunta a la vez, en vez de todo compitiendo. */
+  .an-tabs { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:18px;
+             border-bottom:1px solid var(--border); padding-bottom:10px; }
+  .an-tab-btn { display:flex; flex-direction:column; align-items:flex-start; gap:1px;
+                background:transparent; border:1px solid transparent; border-radius:var(--radius-sm);
+                padding:8px 14px; cursor:pointer; color:var(--text2); font-size:.86rem; font-weight:600; }
+  .an-tab-btn small { font-size:.68rem; font-weight:500; color:var(--text3); }
+  .an-tab-btn:hover { background:var(--bg2); color:var(--text); }
+  .an-tab-btn.active { background:var(--accent-bg); border-color:var(--border2); color:var(--accent); }
+  .an-tab-btn.active small { color:var(--accent-dk); }
+  .an-pane { display:none; }
+  .an-pane.active { display:block; }
+  .an-pane > .an-sec:first-child { margin-top:6px; }
+
+  .an-metodo { margin-bottom:14px; border:1px solid var(--border); border-radius:var(--radius);
+               background:var(--surface); }
+  .an-metodo > summary { cursor:pointer; padding:10px 15px; font-size:.8rem; font-weight:600;
+                         color:var(--text2); list-style:none; }
+  .an-metodo > summary::-webkit-details-marker { display:none; }
+  .an-metodo > summary::before { content:"› "; color:var(--text3); }
+  .an-metodo[open] > summary::before { content:"⌄ "; }
+  .an-metodo > summary:hover { color:var(--accent); }
+  .an-metodo .an-warn { margin:0 12px 12px; }
+
+  .an-switch { display:inline-flex; border:1.5px solid var(--border); border-radius:var(--radius-sm); overflow:hidden; }
+  .an-switch button { background:transparent; border:none; padding:9px 13px; font-size:.8rem;
+                      font-weight:600; color:var(--text2); cursor:pointer; white-space:nowrap; }
+  .an-switch button.active { background:var(--accent); color:#0a0c0f; }
+  .an-switch-sm button { padding:5px 10px; font-size:.72rem; }
+  .an-panel-head { display:flex; justify-content:space-between; align-items:center;
+                   gap:10px; flex-wrap:wrap; margin-bottom:12px; }
+  .an-panel-head h3 { margin:0; }
+
+  .an-modal { position:fixed; inset:0; z-index:1060; background:rgba(0,0,0,.6);
+              display:flex; align-items:center; justify-content:center; padding:20px; }
+  .an-modal[hidden] { display:none; }
+  .an-modal-box { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+                  width:min(760px, 100%); max-height:82vh; display:flex; flex-direction:column; }
+  .an-modal-head { display:flex; justify-content:space-between; align-items:flex-start; gap:14px;
+                   padding:15px 18px; border-bottom:1px solid var(--border); }
+  .an-modal-body { overflow:auto; padding:0 4px 4px; }
+  canvas { cursor:pointer; }
+  .an-sec { margin:26px 0 12px; display:flex; align-items:baseline; gap:10px; }
+  .an-sec h3 { font-size:1rem; margin:0; color:var(--text); }
+  .an-sec span { font-size:.76rem; color:var(--text3); }
+  .an-card.ok   .an-v { color:#66bb6a; }
+  .an-card.warn .an-v { color:#e0a800; }
+  .an-card.bad  .an-v { color:#ef5350; }
+  /* El color pisa el dorado de las tarjetas destacadas: el estado manda. */
+  .an-card.hero.ok .an-v   { color:#66bb6a; }
+  .an-card.hero.warn .an-v { color:#e0a800; }
+  .an-card.hero.bad .an-v  { color:#ef5350; }
+  /* Las cifras de dinero van dentro de <span class="money">, y base.html pinta
+     todo <span> de gris. Esa regla le gana al color HEREDADO del contenedor, así
+     que el número salía apagado aunque la tarjeta tuviera estado. */
+  .an-v .money, .an-kpi .v .money { color:inherit; }
+  /* Punto en la esquina: el estado se capta sin leer la cifra. */
+  .an-card { position:relative; }
+  .an-card.ok::after, .an-card.warn::after, .an-card.bad::after {
+    content:""; position:absolute; top:13px; right:13px; width:9px; height:9px; border-radius:50%;
+  }
+  .an-card.ok::after   { background:#66bb6a; }
+  .an-card.warn::after { background:#e0a800; }
+  .an-card.bad::after  { background:#ef5350; }
+  .an-leyenda { display:flex; gap:16px; flex-wrap:wrap; font-size:.72rem; color:var(--text3); margin:-4px 0 14px; }
+  .an-leyenda span { display:flex; align-items:center; gap:6px; }
+  .an-leyenda i { width:9px; height:9px; border-radius:50%; display:inline-block; }
+  .an-bars { display:flex; flex-direction:column; gap:7px; }
+  .an-bar-row { display:grid; grid-template-columns:minmax(90px,34%) 1fr auto; gap:10px; align-items:center; font-size:.8rem; }
+  .an-bar-row .lbl { color:var(--text2); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  /* display:block es necesario: en un span inline el ancho no aplica y la barra
+     quedaba invisible. */
+  .an-bar-track { display:block; width:100%; height:8px; border-radius:6px; background:var(--bg2); }
+  .an-bar { display:block; height:8px; border-radius:6px; background:var(--accent); min-width:2px; }
+  .an-bar-row .val { color:var(--text); font-weight:600; white-space:nowrap; }
+  .an-funnel { display:flex; flex-direction:column; gap:8px; }
+  .an-step { display:flex; justify-content:space-between; align-items:center; padding:10px 14px;
+             border:1px solid var(--border); border-radius:var(--radius-sm); background:var(--bg2); }
+  .an-step b { color:var(--text); font-size:1.05rem; }
+</style>
+{% endblock %}
+
+{% macro barras(items, formato='num') -%}
+  {% set maximo = (items | map(attribute=1) | max) if items else 0 %}
+  <div class="an-bars">
+    {% for etiqueta, valor in items %}
+      <div class="an-bar-row">
+        <span class="lbl" title="{{ etiqueta }}">{{ etiqueta }}</span>
+        <span class="an-bar-track"><span class="an-bar" style="width: {{ (valor / maximo * 100) if maximo else 0 }}%;"></span></span>
+        <span class="val">
+          {%- if formato == 'money' -%}{{ money(valor) }}
+          {%- else -%}{{ valor }}{%- endif -%}
+        </span>
+      </div>
+    {% endfor %}
+  </div>
+{%- endmacro %}
+
+{% block content %}
+<div class="an-modal" id="anModal" hidden>
+  <div class="an-modal-box">
+    <div class="an-modal-head">
+      <div>
+        <strong id="anModalTitulo">Detalle</strong>
+        <div class="an-sub" id="anModalResumen"></div>
+      </div>
+      <button type="button" class="btn btn-sm btn-outline-secondary" id="anModalCerrar">Cerrar</button>
+    </div>
+    <div class="an-modal-body" id="anModalCuerpo"></div>
+  </div>
+</div>
+
+<h2 style="margin-top:16px;">Analítica</h2>
+
+<form class="an-filters" method="GET">
+  <div>
+    <label class="an-label" for="from">Desde</label>
+    <input class="form-control" type="date" id="from" name="from" value="{{ date_from.isoformat() }}">
+  </div>
+  <div>
+    <label class="an-label" for="to">Hasta</label>
+    <input class="form-control" type="date" id="to" name="to" value="{{ date_to.isoformat() }}">
+  </div>
+  <div>
+    <label class="an-label" for="vehicle_type">Tipo de vehículo</label>
+    <select class="form-select" id="vehicle_type" name="vehicle_type">
+      <option value="">Todos</option>
+      {% for t in tipos %}
+        <option value="{{ t }}" {% if t == vehicle_type %}selected{% endif %}>{{ t }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div>
+    <label class="an-label">Cifras</label>
+    <div class="an-switch" id="anFormato">
+      <button type="button" data-fmt="corto">Abreviadas</button>
+      <button type="button" data-fmt="largo">Exactas</button>
+    </div>
+  </div>
+  <button type="submit" class="btn btn-warning">Aplicar</button>
+  <a href="{{ url_for('analytics_dashboard') }}" class="btn btn-outline-secondary">Limpiar</a>
+</form>
+
+{% if data.visitas or diag.total %}
+
+<details class="an-metodo">
+  <summary>Cómo se calculan estas cifras</summary>
+  <div class="an-warn">
+    <strong>Cómo leer esto:</strong> toda cita agendada cuenta como servicio prestado y como venta,
+    salvo los diagnósticos: son gratis, no suman ingreso ni cuentan como cliente nuevo, y tienen su
+    propia sección.
+    El monto sale del precio del servicio según el tipo de vehículo, con el convenio y los ajustes
+    que se hayan aplicado al agendar. El periodo seleccionado cubre <strong>{{ data.meses }} meses</strong>.
+    Las cifras anuales son una <strong>proyección a ritmo actual</strong> (lo observado llevado a 12 meses),
+    no un dato histórico — asumen que los clientes siguen volviendo al mismo ritmo, algo que todavía no se
+    ha podido observar durante un año completo. Un "cliente" es una <strong>placa</strong>: un mismo dueño
+    con dos carros cuenta como dos.
+  </div>
+</details>
+
+{# Franja fija: las cifras que contestan "¿cómo va el negocio?" sin importar en
+   qué pestaña esté el usuario. #}
+<div class="an-kpis">
+  {% if puede_ver_finanzas() %}
+  <div class="an-kpi">
+    <span class="k">Ingresos</span>
+    <span class="v">{{ money(fin.ingresos) }}</span>
+  </div>
+  {% endif %}
+  {% if puede_ver_finanzas() %}
+  <div class="an-kpi">
+    <span class="k">Margen</span>
+    <span class="v {{ semaforo('margen_pct', fin.margen_pct) }}">{{ money(fin.margen) }}</span>
+    <span class="s">{{ '%.0f'|format(fin.margen_pct) }}% sobre ingresos</span>
+  </div>
+  {% endif %}
+  <div class="an-kpi">
+    <span class="k">Servicios</span>
+    <span class="v">{{ data.visitas }}</span>
+    <span class="s">{{ data.clientes }} clientes</span>
+  </div>
+  <div class="an-kpi">
+    <span class="k">Clientes nuevos / mes</span>
+    <span class="v">{{ '%.1f'|format(data.nuevos_por_mes) }}</span>
+  </div>
+  <div class="an-kpi">
+    <span class="k">Conversión diagnósticos</span>
+    <span class="v {{ semaforo('conversion_diag', diag.conversion) }}">{{ '%.0f'|format(diag.conversion) }}%</span>
+    <span class="s">{{ diag.total }} en el periodo</span>
+  </div>
+</div>
+
+<div class="an-leyenda">
+  <span><i style="background:#66bb6a"></i> En meta</span>
+  <span><i style="background:#e0a800"></i> Para vigilar</span>
+  <span><i style="background:#ef5350"></i> Fuera de meta</span>
+</div>
+
+<nav class="an-tabs" id="anTabs">
+{% if puede_ver_finanzas() %}
+  <button type="button" class="an-tab-btn" data-target="resumen">Resumen<small>cómo va el negocio</small></button>
+{% endif %}
+  <button type="button" class="an-tab-btn" data-target="comercial">Comercial<small>leads y diagnósticos</small></button>
+  <button type="button" class="an-tab-btn" data-target="clientes">Clientes<small>captación y recurrencia</small></button>
+{% if puede_ver_finanzas() %}
+  <button type="button" class="an-tab-btn" data-target="operacion">Operación<small>capacidad y equipo</small></button>
+{% endif %}
+  <button type="button" class="an-tab-btn" data-target="servicios">Servicios<small>qué se vende</small></button>
+</nav>
+
+{% if puede_ver_finanzas() %}
+<section class="an-pane" data-pane="resumen">
+<div class="an-sec"><h3>Resultado del negocio</h3><span>ingresos contra gastos reales del periodo</span></div>
+  <div class="an-grid">
+    <div class="an-card">
+      <div class="an-k">Ingresos</div>
+      <div class="an-v">{{ money(fin.ingresos) }}</div>
+      <div class="an-sub">Toda cita agendada cuenta como servicio prestado</div>
+    </div>
+    <div class="an-card">
+      <div class="an-k">Gastos</div>
+      <div class="an-v">{{ money(fin.gastos) }}</div>
+      <div class="an-sub">Registrados en el módulo de gastos</div>
+    </div>
+    <div class="an-card {{ semaforo('margen_pct', fin.margen_pct) }}">
+      <div class="an-k">Margen</div>
+      <div class="an-v">{{ money(fin.margen) }}</div>
+      <div class="an-sub">{{ '%.1f'|format(fin.margen_pct) }}% sobre ingresos</div>
+    </div>
+    <div class="an-card {{ semaforo('descuentos_pct', fin.descuentos_pct) }}">
+      <div class="an-k">Descuentos otorgados</div>
+      <div class="an-v">{{ money(fin.descuentos) }}</div>
+      <div class="an-sub">
+        {{ '%.1f'|format(fin.descuentos_pct) }}% del valor de lista · convenios y descuentos
+        {% if fin.recargos %}<br>Recargos cobrados aparte: {{ money(fin.recargos) }}{% endif %}
+      </div>
+    </div>
+  </div>
+
+  {% if fin.gastos_por_categoria %}
+    <div class="an-panel" style="margin-bottom:20px;">
+      <h3>En qué se va la plata</h3>
+      {{ barras(fin.gastos_por_categoria, 'money') }}
+    </div>
+  {% endif %}
+
+  
+
+  <div class="an-charts">
+    <div class="an-panel">
+      <div class="an-panel-head">
+        <h3 id="tituloIngresos">Ingresos por semana</h3>
+        <div class="an-switch an-switch-sm" id="anGranularidad">
+          <button type="button" data-g="dia">Día</button>
+          <button type="button" data-g="semana">Semana</button>
+          <button type="button" data-g="mes">Mes</button>
+          <button type="button" data-g="trimestre">Trimestre</button>
+          <button type="button" data-g="ano">Año</button>
+        </div>
+      </div>
+      <canvas id="chartIngresos" height="200"></canvas>
+    </div>
+  </div>
+</section>
+{% endif %}
+
+<section class="an-pane" data-pane="comercial">
+{% if diag.total %}
+  <div class="an-sec"><h3>Diagnósticos</h3><span>la puerta de entrada: gratis, solo vale si termina en servicio</span></div>
+  <div class="an-grid">
+    <div class="an-card hero">
+      <div class="an-k">Diagnósticos por mes</div>
+      <div class="an-v">{{ '%.1f'|format(diag.por_mes) }}</div>
+      <div class="an-sub">{{ diag.total }} en el periodo</div>
+    </div>
+    <div class="an-card hero {{ semaforo('conversion_diag', diag.conversion) }}">
+      <div class="an-k">Conversión a servicio</div>
+      <div class="an-v">{{ '%.0f'|format(diag.conversion) }}%</div>
+      <div class="an-sub">{{ diag.convertidos }} de {{ diag.total }} terminaron agendando algo que factura</div>
+    </div>
+    <div class="an-card">
+      <div class="an-k">Tardan en decidirse</div>
+      <div class="an-v">{{ '%.0f'|format(diag.dias_promedio) }} días</div>
+      <div class="an-sub">Del diagnóstico al primer servicio</div>
+    </div>
+    <div class="an-card">
+      <div class="an-k">Valor por diagnóstico</div>
+      <div class="an-v">{{ money(diag.valor_por_diagnostico) }}</div>
+      <div class="an-sub">{{ money(diag.valor_generado) }} facturados en total · incluye los que no convirtieron</div>
+    </div>
+    <div class="an-card {{ semaforo('diag_frios', diag.pendientes_frios) }}">
+      <div class="an-k">Perdidos por seguir</div>
+      <div class="an-v">{{ diag.pendientes_frios }}</div>
+      <div class="an-sub">Diagnósticos de hace más de 30 días que nunca agendaron</div>
+    </div>
+    <div class="an-card">
+      <div class="an-k">Todavía vivos</div>
+      <div class="an-v">{{ diag.pendientes_recientes }}</div>
+      <div class="an-sub">Menos de 30 días, aún pueden convertir</div>
+    </div>
+  </div>
+
+  {% if diag.serie %}
+    <div class="an-panel" style="margin-bottom:20px;">
+      <h3>Diagnósticos y conversión por mes</h3>
+      <canvas id="chartDiag" height="190"></canvas>
+      <div class="an-wrap" style="margin-top:14px;">
+        <table class="an">
+          <thead><tr><th>Mes</th><th class="num">Diagnósticos</th><th class="num">Convirtieron</th><th class="num">Tasa</th></tr></thead>
+          <tbody>
+            {% for m in diag.serie %}
+              <tr>
+                <td>{{ m.etiqueta }}</td>
+                <td class="num">{{ m.total }}</td>
+                <td class="num">{{ m.convertidos }}</td>
+                <td class="num">{{ '%.0f'|format(m.convertidos / m.total * 100 if m.total else 0) }}%</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  {% endif %}
+
+{% endif %}
+
+
+<div class="an-sec"><h3>Embudo comercial</h3><span>de conversación de WhatsApp a cita</span></div>
+  <div class="an-charts">
+    <div class="an-panel">
+      <h3>Conversión de leads</h3>
+      <div class="an-funnel">
+        <div class="an-step"><span>Leads que escribieron</span><b>{{ embudo.leads }}</b></div>
+        <div class="an-step"><span>Llegaron a agendar</span><b>{{ embudo.con_cita }}</b></div>
+        <div class="an-step"><span>Tasa de conversión</span><b>{{ '%.1f'|format(embudo.conversion) }}%</b></div>
+        <div class="an-step"><span>Citas creadas por Mariana</span><b>{{ embudo.agendadas_bot }}</b></div>
+      </div>
+      {% if embudo.por_estado %}
+        <h3 style="margin-top:16px;">Estado actual de los leads</h3>
+        {{ barras(embudo.por_estado) }}
+      {% endif %}
+    </div>
+    <div class="an-panel">
+      <h3>Qué servicio les interesa</h3>
+      {% if embudo.interes %}{{ barras(embudo.interes) }}
+      {% else %}<div class="an-sub">Sin interés registrado todavía.</div>{% endif %}
+    </div>
+  </div>
+
+  
+</section>
+
+<section class="an-pane" data-pane="clientes">
+<div class="an-sec"><h3>Clientes</h3><span>captación, recurrencia y valor</span></div>
+  <div class="an-grid">
+    <div class="an-card hero">
+      <div class="an-k">Clientes nuevos por mes</div>
+      <div class="an-v">{{ '%.1f'|format(data.nuevos_por_mes) }}</div>
+      <div class="an-sub">{{ data.nuevos_total }} clientes nuevos en {{ data.meses }} meses</div>
+    </div>
+    <div class="an-card hero">
+      <div class="an-k">Gasto anual por cliente</div>
+      <div class="an-v">{{ money(data.gasto_anual) }}</div>
+      <div class="an-sub">Proyección: ticket promedio × {{ '%.1f'|format(data.visitas_ano) }} visitas al año</div>
+    </div>
+    <div class="an-card">
+      <div class="an-k">Ticket promedio</div>
+      <div class="an-v">{{ money(data.ticket) }}</div>
+      <div class="an-sub">Dato observado, sin proyectar</div>
+    </div>
+    <div class="an-card">
+      <div class="an-k">Visitas por cliente</div>
+      <div class="an-v">{{ '%.2f'|format(data.visitas_por_cliente) }}</div>
+      <div class="an-sub">En el periodo · {{ '%.1f'|format(data.visitas_ano) }} proyectadas al año</div>
+    </div>
+    {% if puede_ver_finanzas() %}
+    <div class="an-card">
+      <div class="an-k">Ingresos del periodo</div>
+      <div class="an-v">{{ money(data.ingresos) }}</div>
+      <div class="an-sub">{{ data.visitas }} servicio{{ "" if data.visitas == 1 else "s" }} prestado{{ "" if data.visitas == 1 else "s" }}</div>
+    </div>
+    {% endif %}
+    <div class="an-card">
+      <div class="an-k">Clientes atendidos</div>
+      <div class="an-v">{{ data.clientes }}</div>
+      <div class="an-sub">{{ cli.nuevos }} nuevos · {{ cli.recurrentes }} que ya habían venido</div>
+    </div>
+    <div class="an-card {{ semaforo('recompra', cli.recompra_pct) }}">
+      <div class="an-k">Tasa de recompra</div>
+      <div class="an-v">{{ '%.0f'|format(cli.recompra_pct) }}%</div>
+      <div class="an-sub">De todos los clientes históricos, los que volvieron al menos una vez</div>
+    </div>
+    <div class="an-card">
+      <div class="an-k">Cada cuánto vuelven</div>
+      <div class="an-v">{{ '%.0f'|format(cli.dias_entre_visitas) }} días</div>
+      <div class="an-sub">Promedio entre visitas de quienes repiten</div>
+    </div>
+  </div>
+
+  <div class="an-charts">
+    <div class="an-panel">
+      <h3>Clientes nuevos por mes</h3>
+      <canvas id="chartNuevos" height="200"></canvas>
+    </div>
+
+  </div>
+
+  <div class="an-panel" style="margin-bottom:20px;">
+    <h3>Detalle mensual</h3>
+    <div class="an-wrap">
+      <table class="an">
+        <thead>
+          <tr>
+            <th>Mes</th>
+            <th class="num">Clientes nuevos</th>
+            <th class="num">Clientes atendidos</th>
+            <th class="num">Servicios</th>
+            <th class="num">Ingresos</th>
+            <th class="num">Ticket promedio</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for m in data.serie %}
+            <tr>
+              <td>{{ m.etiqueta }}</td>
+              <td class="num">{{ m.nuevos }}</td>
+              <td class="num">{{ m.clientes }}</td>
+              <td class="num">{{ m.visitas }}</td>
+              <td class="num">{{ money(m.ingresos) }}</td>
+              <td class="num">{{ money((m.ingresos / m.visitas) if m.visitas else 0) }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  {% if cli.top %}
+    <div class="an-panel" style="margin-bottom:20px;">
+      <h3>Clientes que más facturaron en el periodo</h3>
+      <div class="an-wrap">
+        <table class="an">
+          <thead><tr><th>Placa</th><th class="num">Facturado</th></tr></thead>
+          <tbody>
+            {% for placa, monto in cli.top %}
+              <tr>
+                <td>{{ placa }}</td>
+                <td class="num">{{ money(monto) }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  {% endif %}
+
+  
+</section>
+
+{% if puede_ver_finanzas() %}
+<section class="an-pane" data-pane="operacion">
+<div class="an-sec"><h3>Operación</h3><span>capacidad, cumplimiento y equipo</span></div>
+  <div class="an-grid">
+    <div class="an-card">
+      <div class="an-k">Citas del periodo</div>
+      <div class="an-v">{{ oper.total }}</div>
+      <div class="an-sub">{% for e, n in oper.por_estado %}{{ e }}: {{ n }}{% if not loop.last %} · {% endif %}{% endfor %}</div>
+    </div>
+    <div class="an-card {{ semaforo('cancelacion', oper.cancelacion_pct) }}">
+      <div class="an-k">Tasa de cancelación</div>
+      <div class="an-v">{{ '%.1f'|format(oper.cancelacion_pct) }}%</div>
+      <div class="an-sub">{{ oper.canceladas }} cita{{ '' if oper.canceladas == 1 else 's' }} cancelada{{ '' if oper.canceladas == 1 else 's' }}</div>
+    </div>
+    <div class="an-card">
+      <div class="an-k">Estimado vs. real</div>
+      <div class="an-v">{{ '%+.0f'|format(oper.desvio_pct) }}%</div>
+      <div class="an-sub">
+        {% if oper.cronometradas %}
+          {{ '%.0f'|format(oper.estimado_prom) }} min estimados vs {{ '%.0f'|format(oper.real_prom) }} reales
+          · {{ oper.cronometradas }} cita{{ '' if oper.cronometradas == 1 else 's' }} cronometrada{{ '' if oper.cronometradas == 1 else 's' }}
+        {% else %}Sin citas cronometradas en el periodo{% endif %}
+      </div>
+    </div>
+    <div class="an-card {{ 'bad' if oper.errores_calidad else '' }}">
+      <div class="an-k">Errores de calidad</div>
+      <div class="an-v">{{ oper.errores_calidad }}</div>
+      <div class="an-sub">Registrados en el periodo</div>
+    </div>
+  </div>
+
+  <div class="an-charts">
+    <div class="an-panel">
+      <h3>Demanda por día de la semana</h3>
+      <canvas id="chartDias" height="190"></canvas>
+    </div>
+    <div class="an-panel">
+      <h3>Demanda por hora de llegada</h3>
+      <canvas id="chartHoras" height="190"></canvas>
+    </div>
+  </div>
+
+  {% if oper.operarios %}
+    <div class="an-panel" style="margin-bottom:20px;">
+      <h3>Carga por operario</h3>
+      {{ barras(oper.operarios) }}
+    </div>
+  {% endif %}
+
+  
+</section>
+{% endif %}
+
+<section class="an-pane" data-pane="servicios">
+<div class="an-sec"><h3>Servicios</h3><span>qué se vende y cuánto pesa</span></div>
+  {% if data.mix_servicios %}
+    <div class="an-panel" style="margin-bottom:20px;">
+      <h3>Ingresos por servicio</h3>
+      {{ barras(data.mix_servicios, 'money') }}
+      <div class="an-sub" style="margin-top:10px;">
+        Una venta con varios servicios suma su monto completo en cada uno, porque no hay forma
+        de saber cuánto aportó cada servicio por separado. Sirve para comparar peso relativo,
+        no para sumar: el total de estas barras es mayor que los ingresos reales.
+      </div>
+    </div>
+  {% endif %}
+
+  {% if data.top_servicios %}
+  <div class="an-panel">
+    <h3>Servicios más vendidos</h3>
+    <div class="an-wrap">
+      <table class="an">
+        <thead><tr><th>Servicio</th><th class="num">Ventas que lo incluyen</th></tr></thead>
+        <tbody>
+          {% for nombre, veces in data.top_servicios %}
+            <tr><td>{{ nombre }}</td><td class="num">{{ veces }}</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {% endif %}
+
+
+</section>
+  <script>
+    (function () {
+      const serie = {{ data.serie | tojson }};
+      const etiquetas = serie.map(m => m.etiqueta);
+      // Cada gráfica se registra con la pestaña a la que pertenece y se crea
+      // recién cuando esa pestaña se muestra: dentro de un contenedor con
+      // display:none, Chart.js mide 0x0 y sale en blanco.
+      const pendientes = {};
+      function registrar(pane, fn) { (pendientes[pane] = pendientes[pane] || []).push(fn); }
+      window.__anDibujar = function (pane) {
+        (pendientes[pane] || []).forEach(fn => fn());
+        pendientes[pane] = [];
+      };
+
+      const css = getComputedStyle(document.documentElement);
+      const acento = css.getPropertyValue('--accent').trim();
+      const texto2 = css.getPropertyValue('--text2').trim();
+      const borde  = css.getPropertyValue('--border').trim();
+
+      const comun = {
+        responsive: true,
+        plugins: { legend: { display: false } },
+        scales: {
+          x: { ticks: { color: texto2 }, grid: { color: borde } },
+          y: { beginAtZero: true, ticks: { color: texto2 }, grid: { color: borde } }
+        }
+      };
+
+      registrar('clientes', () => {
+      conDetalle(new Chart(document.getElementById('chartNuevos'), {
+        type: 'bar',
+        data: { labels: etiquetas,
+                datasets: [{ data: serie.map(m => m.nuevos), backgroundColor: acento, borderRadius: 4 }] },
+        options: comun
+      }), 'nuevos', serie.map(m => m.mes));
+      });
+
+      const serieDiag = {{ diag.serie | tojson }};
+      if (serieDiag.length) {
+        registrar('comercial', () => {
+        conDetalle(new Chart(document.getElementById('chartDiag'), {
+          type: 'bar',
+          data: {
+            labels: serieDiag.map(m => m.etiqueta),
+            datasets: [
+              { label: 'Convirtieron', data: serieDiag.map(m => m.convertidos), backgroundColor: acento, borderRadius: 4 },
+              { label: 'Sin convertir', data: serieDiag.map(m => m.total - m.convertidos),
+                backgroundColor: 'rgba(114,130,151,0.45)', borderRadius: 4 }
+            ]
+          },
+          options: {
+            ...comun,
+            plugins: { legend: { display: true, labels: { color: texto2, boxWidth: 12 } } },
+            scales: { x: { ...comun.scales.x, stacked: true }, y: { ...comun.scales.y, stacked: true } }
+          }
+        }), 'diagnosticos', serieDiag.map(m => m.mes));
+        });
+      }
+
+      const dias = {{ oper.por_dia | tojson }};
+      registrar('operacion', () => {
+      conDetalle(new Chart(document.getElementById('chartDias'), {
+        type: 'bar',
+        data: { labels: ['Lun','Mar','Mié','Jue','Vie','Sáb'],
+                datasets: [{ data: dias, backgroundColor: acento, borderRadius: 4 }] },
+        options: comun
+      }), 'dia', [0,1,2,3,4,5]);
+      });
+
+      const horas = {{ oper.por_hora | tojson }};
+      registrar('operacion', () => {
+      conDetalle(new Chart(document.getElementById('chartHoras'), {
+        type: 'bar',
+        data: { labels: horas.map(h => h[0] + ':00'),
+                datasets: [{ data: horas.map(h => h[1]), backgroundColor: acento, borderRadius: 4 }] },
+        options: comun
+      }), 'hora', horas.map(h => h[0]));
+      });
+
+      // ── Ingresos con granularidad elegible ──────────────────────────────
+      // La serie diaria es el grano fino; acá se agrupa. Filtrar un solo mes y
+      // ver un único punto no dice nada: por eso el default es semana, que es
+      // el ritmo real con el que se mira un taller.
+      const serieDia = {{ data.serie_dia | tojson }};
+      const RANGO = ['{{ date_from.isoformat() }}', '{{ date_to.isoformat() }}'];
+      const GRAN_KEY = 'noxa_gran_ingresos';
+      const TITULOS = { dia: 'Ingresos por día', semana: 'Ingresos por semana',
+                        mes: 'Ingresos por mes', trimestre: 'Ingresos por trimestre',
+                        ano: 'Ingresos por año' };
+      const MESES = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+
+      // Se construye la fecha por partes: new Date('2026-08-07') se interpreta
+      // como UTC y en Bogotá cae el día anterior.
+      const aFecha = s => { const p = s.split('-').map(Number); return new Date(p[0], p[1]-1, p[2]); };
+      const aIso = d => d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0')
+                                        + '-' + String(d.getDate()).padStart(2,'0');
+
+      function inicioBucket(d, g) {
+        const x = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+        if (g === 'dia') return x;
+        if (g === 'semana') { x.setDate(x.getDate() - ((x.getDay() + 6) % 7)); return x; }  // lunes
+        if (g === 'mes') return new Date(x.getFullYear(), x.getMonth(), 1);
+        if (g === 'trimestre') return new Date(x.getFullYear(), Math.floor(x.getMonth()/3)*3, 1);
+        return new Date(x.getFullYear(), 0, 1);
+      }
+      function siguienteBucket(d, g) {
+        const x = new Date(d);
+        if (g === 'dia') x.setDate(x.getDate() + 1);
+        else if (g === 'semana') x.setDate(x.getDate() + 7);
+        else if (g === 'mes') x.setMonth(x.getMonth() + 1);
+        else if (g === 'trimestre') x.setMonth(x.getMonth() + 3);
+        else x.setFullYear(x.getFullYear() + 1);
+        return x;
+      }
+      function etiquetaBucket(d, g) {
+        if (g === 'dia' || g === 'semana') return d.getDate() + ' ' + MESES[d.getMonth()];
+        if (g === 'mes') return MESES[d.getMonth()] + ' ' + d.getFullYear();
+        if (g === 'trimestre') return 'T' + (Math.floor(d.getMonth()/3) + 1) + ' ' + d.getFullYear();
+        return String(d.getFullYear());
+      }
+
+      function agrupar(g) {
+        const acum = new Map();
+        serieDia.forEach(x => {
+          const k = aIso(inicioBucket(aFecha(x.fecha), g));
+          acum.set(k, (acum.get(k) || 0) + x.ingresos);
+        });
+        // Los baldes vacíos también van: un día sin ventas es un cero, no un hueco.
+        const ini = aFecha(RANGO[0]);
+        const fin = aFecha(RANGO[1]);
+        const out = [];
+        let cur = inicioBucket(ini, g);
+        while (cur <= fin && out.length < 1200) {
+          const sig = siguienteBucket(cur, g);
+          const cierre = new Date(sig); cierre.setDate(cierre.getDate() - 1);
+          // El primer y el último balde casi nunca caen completos dentro del
+          // filtro (una semana rara vez arranca el día 1). Se recortan al rango
+          // para no rotular un periodo con fechas que el usuario no pidió.
+          const desde = cur < ini ? ini : cur;
+          const hasta = cierre > fin ? fin : cierre;
+          out.push({
+            etiqueta: etiquetaBucket(g === 'dia' || g === 'semana' ? desde : cur, g),
+            valor: acum.get(aIso(cur)) || 0,
+            clave: aIso(desde) + '..' + aIso(hasta),
+            rango: aIso(desde) === aIso(hasta) ? aIso(desde) : aIso(desde) + ' → ' + aIso(hasta),
+          });
+          cur = sig;
+        }
+        return out;
+      }
+
+      let chartIngresos = null;
+      function dibujarIngresos() {
+        const g = localStorage.getItem(GRAN_KEY) || 'semana';
+        const datos = agrupar(g);
+        document.getElementById('tituloIngresos').textContent = TITULOS[g];
+        document.querySelectorAll('#anGranularidad button').forEach(b =>
+          b.classList.toggle('active', b.dataset.g === g));
+        if (chartIngresos) chartIngresos.destroy();
+        chartIngresos = new Chart(document.getElementById('chartIngresos'), {
+          type: 'line',
+          data: { labels: datos.map(b => b.etiqueta),
+                  datasets: [{ data: datos.map(b => b.valor), borderColor: acento,
+                               backgroundColor: 'rgba(212,180,108,0.14)', fill: true, tension: 0.3,
+                               // Con muchos puntos los círculos tapan la línea.
+                               pointRadius: datos.length > 60 ? 0 : 3 }] },
+          options: {
+            ...comun,
+            plugins: {
+              legend: { display: false },
+              // "12 ene" en vista semanal no dice hasta dónde llega: el tooltip sí.
+              tooltip: { callbacks: { title: it => datos[it[0].dataIndex].rango } }
+            },
+            scales: {
+              ...comun.scales,
+              x: { ...comun.scales.x,
+                   ticks: { color: texto2, autoSkip: true, maxRotation: 0, maxTicksLimit: 14 } },
+              y: { ...comun.scales.y,
+                   ticks: { color: texto2, callback: v => ejeMoneda(v) } }
+            }
+          }
+        });
+        conDetalle(chartIngresos, 'mes', datos.map(b => b.clave));
+      }
+      registrar('resumen', dibujarIngresos);
+
+      document.querySelectorAll('#anGranularidad button').forEach(b =>
+        b.addEventListener('click', () => {
+          localStorage.setItem(GRAN_KEY, b.dataset.g);
+          // Si la pestaña aún no se ha abierto la gráfica no existe: se dibujará
+          // sola con la preferencia recién guardada.
+          if (chartIngresos) dibujarIngresos();
+        }));
+
+      // Formato de cifras. El valor exacto vive en data-v y acá solo se decide
+      // cómo mostrarlo, así cambiar de modo no recarga nada. La preferencia se
+      // guarda porque es del usuario, no del reporte.
+      const FMT_KEY = 'noxa_fmt_cifras';
+      function abreviar(n) {
+        const signo = n < 0 ? '-' : '';
+        const a = Math.abs(n);
+        if (a >= 1000000) return signo + '$' + (a / 1000000).toFixed(a >= 10000000 ? 0 : 1).replace('.', ',') + ' MM';
+        if (a >= 1000)    return signo + '$' + Math.round(a / 1000) + ' K';
+        return signo + '$' + a.toLocaleString('es-CO');
+      }
+      function pintarCifras(modo) {
+        document.querySelectorAll('.money').forEach(el => {
+          const v = Number(el.dataset.v || 0);
+          el.textContent = modo === 'corto' ? abreviar(v) : (v < 0 ? '-$' : '$') + Math.abs(v).toLocaleString('es-CO');
+          el.title = (v < 0 ? '-$' : '$') + Math.abs(v).toLocaleString('es-CO');
+        });
+        document.querySelectorAll('#anFormato button').forEach(b =>
+          b.classList.toggle('active', b.dataset.fmt === modo));
+        localStorage.setItem(FMT_KEY, modo);
+        window.__anFmt = modo;
+      }
+      document.querySelectorAll('#anFormato button').forEach(b =>
+        b.addEventListener('click', () => { pintarCifras(b.dataset.fmt); redibujarEjes(); }));
+      pintarCifras(localStorage.getItem(FMT_KEY) || 'corto');
+
+      // Los ejes de las gráficas de dinero siguen el mismo modo.
+      function ejeMoneda(v) {
+        return window.__anFmt === 'corto' ? abreviar(v) : '$' + Number(v).toLocaleString('es-CO');
+      }
+      function redibujarEjes() {
+        // Chart.instances desapareció en Chart.js 4: se recorren los canvas.
+        document.querySelectorAll('canvas').forEach(c => {
+          const ch = Chart.getChart(c);
+          if (ch) ch.update('none');
+        });
+      }
+
+      // Detalle al hacer clic en una gráfica.
+      const modal = document.getElementById('anModal');
+      document.getElementById('anModalCerrar').addEventListener('click', () => modal.hidden = true);
+      modal.addEventListener('click', e => { if (e.target === modal) modal.hidden = true; });
+      document.addEventListener('keydown', e => { if (e.key === 'Escape') modal.hidden = true; });
+
+      const PARAMS = new URLSearchParams({
+        from: '{{ date_from.isoformat() }}', to: '{{ date_to.isoformat() }}',
+        vehicle_type: '{{ vehicle_type }}'
+      });
+
+      async function abrirDetalle(tipo, clave) {
+        document.getElementById('anModalTitulo').textContent = 'Cargando…';
+        document.getElementById('anModalResumen').textContent = '';
+        document.getElementById('anModalCuerpo').innerHTML = '';
+        modal.hidden = false;
+        const q = new URLSearchParams(PARAMS); q.set('tipo', tipo); q.set('clave', clave);
+        const d = await (await fetch('/api/analytics/detalle?' + q)).json();
+        if (!d.ok) { document.getElementById('anModalTitulo').textContent = 'No se pudo cargar'; return; }
+        document.getElementById('anModalTitulo').textContent = d.titulo;
+        const money = v => window.__anFmt === 'corto' ? abreviar(v) : '$' + Number(v).toLocaleString('es-CO');
+        document.getElementById('anModalResumen').textContent =
+          d.total + (d.total === 1 ? ' registro' : ' registros') + (d.suma ? ' · ' + money(d.suma) : '');
+        const esc = t => String(t == null ? '' : t).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+        document.getElementById('anModalCuerpo').innerHTML = d.filas.length ? (
+          '<div class="an-wrap" style="border:none;"><table class="an"><thead><tr>' +
+          '<th>Fecha</th><th>Placa</th><th>Cliente</th><th>Servicios</th><th class="num">Valor</th>' +
+          '</tr></thead><tbody>' +
+          d.filas.map(f => '<tr><td>' + esc(f.fecha) + '</td><td>' + esc(f.placa) + '</td><td>' +
+            esc(f.cliente) + '</td><td>' + esc(f.servicios) + '</td><td class="num">' +
+            (f.monto ? money(f.monto) : '—') + '</td></tr>').join('') +
+          '</tbody></table></div>' +
+          (d.total > d.filas.length ? '<div class="an-sub" style="padding:10px 14px;">Mostrando los ' +
+            d.filas.length + ' más recientes de ' + d.total + '.</div>' : '')
+        ) : '<div class="an-empty">Sin registros.</div>';
+      }
+
+      // Cada gráfica declara qué representa cada punto, para poder abrirlo.
+      function conDetalle(chart, tipo, claves) {
+        // 'index' sin intersect: basta con hacer clic en la columna, no exactamente
+        // sobre la barra. Con barras bajas acertar el pixel era imposible.
+        chart.canvas.onclick = ev => {
+          const p = chart.getElementsAtEventForMode(ev, 'index', { intersect: false }, true);
+          if (p.length && claves[p[0].index] !== undefined) abrirDetalle(tipo, claves[p[0].index]);
+        };
+      }
+
+      // Pestañas. La elegida queda en el hash para que sobreviva a un refresco
+      // y se pueda compartir el enlace ya en la vista correcta.
+      const botones = document.querySelectorAll('.an-tab-btn');
+      const paneles = document.querySelectorAll('.an-pane');
+      function mostrar(nombre) {
+        let encontrado = false;
+        paneles.forEach(p => {
+          const activo = p.dataset.pane === nombre;
+          p.classList.toggle('active', activo);
+          if (activo) encontrado = true;
+        });
+        if (!encontrado) return mostrar(porDefecto);
+        botones.forEach(b => b.classList.toggle('active', b.dataset.target === nombre));
+        window.__anDibujar(nombre);
+        history.replaceState(null, '', '#' + nombre);
+      }
+      botones.forEach(b => b.addEventListener('click', () => mostrar(b.dataset.target)));
+      // Marketing no tiene la pestaña Resumen: se arranca en la primera que exista.
+      const porDefecto = document.querySelector('.an-tab-btn') ?
+        document.querySelector('.an-tab-btn').dataset.target : 'comercial';
+      mostrar((location.hash || '#' + porDefecto).slice(1));
+    })();
+  </script>
+{% else %}
+  <div class="an-empty">No hay citas en este periodo.</div>
+{% endif %}
+{% endblock %}

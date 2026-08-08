@@ -1,0 +1,236 @@
+{% extends "base.html" %}
+
+{#
+  Tablero gerencial: se lee en 30 segundos y contesta "¿vamos bien?".
+  Cada cifra va contra el periodo anterior de la misma duración, porque un
+  número suelto no dice nada — la dirección sí.
+#}
+
+{% macro money(valor) -%}
+<span class="money" data-v="{{ valor | round | int }}">${{ '{:,.0f}'.format(valor).replace(',', '.') }}</span>
+{%- endmacro %}
+
+{# mejor='alto' cuando subir es bueno; 'bajo' cuando subir es malo #}
+{% macro delta(v, mejor='alto') -%}
+  {%- if v is none -%}
+    <span class="ge-delta nula">sin base previa</span>
+  {%- else -%}
+    {% set bueno = (v >= 0) if mejor == 'alto' else (v <= 0) %}
+    <span class="ge-delta {{ 'up' if bueno else 'down' }}">
+      {{ '▲' if v >= 0 else '▼' }} {{ '%.0f'|format(v | abs) }}%
+    </span>
+  {%- endif -%}
+{%- endmacro %}
+
+{% block extra_head %}
+<style>
+  .ge-head { display:flex; justify-content:space-between; align-items:flex-end; gap:16px; flex-wrap:wrap; margin-top:16px; }
+  .ge-filtros { display:flex; gap:10px; align-items:flex-end; flex-wrap:wrap; }
+  .ge-label { display:block; font-size:.68rem; color:var(--text2); text-transform:uppercase;
+              letter-spacing:.05em; font-weight:700; margin-bottom:4px; }
+  .ge-vs { font-size:.78rem; color:var(--text3); margin:10px 0 18px; }
+
+  .ge-grid { display:grid; gap:12px; grid-template-columns:repeat(auto-fit, minmax(230px,1fr)); margin-bottom:22px; }
+  .ge-card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:16px 18px; }
+  .ge-card.hero { border-color:var(--border2); background:linear-gradient(180deg, var(--accent-bg), transparent); }
+  .ge-k { font-size:.7rem; color:var(--text2); text-transform:uppercase; letter-spacing:.05em; font-weight:700; }
+  .ge-v { font-size:1.75rem; font-weight:700; color:var(--text); margin:7px 0 4px; line-height:1.1; }
+  .ge-v.ok { color:#66bb6a; } .ge-v.warn { color:#e0a800; } .ge-v.bad { color:#ef5350; }
+  /* Mismo motivo que en Analítica: el <span> de la cifra hereda, no se pinta solo. */
+  .ge-v .money { color:inherit; }
+  /* Punto de color en la esquina: se ve el estado sin tener que leer la cifra. */
+  .ge-card { position:relative; }
+  .ge-card.est-ok::after, .ge-card.est-warn::after, .ge-card.est-bad::after {
+    content:""; position:absolute; top:14px; right:14px; width:9px; height:9px; border-radius:50%;
+  }
+  .ge-card.est-ok::after   { background:#66bb6a; }
+  .ge-card.est-warn::after { background:#e0a800; }
+  .ge-card.est-bad::after  { background:#ef5350; }
+  .ge-leyenda { display:flex; gap:16px; flex-wrap:wrap; font-size:.73rem; color:var(--text3); margin-bottom:16px; }
+  .ge-leyenda span { display:flex; align-items:center; gap:6px; }
+  .ge-leyenda i { width:9px; height:9px; border-radius:50%; display:inline-block; }
+  .ge-foot { display:flex; align-items:center; gap:8px; flex-wrap:wrap; font-size:.73rem; color:var(--text3); }
+  .ge-delta { font-weight:700; }
+  .ge-delta.up { color:#66bb6a; } .ge-delta.down { color:#ef5350; } .ge-delta.nula { color:var(--text3); font-weight:500; }
+
+  .ge-sec { margin:24px 0 12px; display:flex; align-items:baseline; gap:10px; }
+  .ge-sec h3 { font-size:.95rem; margin:0; color:var(--text); }
+  .ge-sec span { font-size:.75rem; color:var(--text3); }
+
+  .ge-alertas { display:flex; flex-direction:column; gap:8px; margin-bottom:20px; }
+  .ge-alerta { display:flex; gap:10px; align-items:flex-start; padding:12px 15px; border-radius:var(--radius);
+               font-size:.84rem; line-height:1.45; border:1px solid; }
+  .ge-alerta.mal  { background:rgba(239,83,80,.08);  border-color:rgba(239,83,80,.35);  color:#ef8078; }
+  .ge-alerta.ojo  { background:rgba(224,168,0,.08);  border-color:rgba(224,168,0,.35);  color:#e0a800; }
+  .ge-alerta.bien { background:rgba(102,187,106,.08); border-color:rgba(102,187,106,.3); color:#7bc97f; }
+  .ge-alerta b { color:inherit; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="ge-head">
+  <h2 style="margin:0;">Tablero gerencial</h2>
+  <form class="ge-filtros" method="GET">
+    <div>
+      <label class="ge-label" for="from">Desde</label>
+      <input class="form-control" type="date" id="from" name="from" value="{{ date_from.isoformat() }}">
+    </div>
+    <div>
+      <label class="ge-label" for="to">Hasta</label>
+      <input class="form-control" type="date" id="to" name="to" value="{{ date_to.isoformat() }}">
+    </div>
+    <button type="submit" class="btn btn-warning">Aplicar</button>
+    <a href="{{ url_for('analytics_dashboard') }}" class="btn btn-outline-secondary">Ver detalle</a>
+  </form>
+</div>
+
+<div class="ge-vs">
+  Comparando <strong>{{ date_from.strftime('%d/%m/%Y') }} — {{ date_to.strftime('%d/%m/%Y') }}</strong>
+  ({{ g.dias }} días) contra los {{ g.dias }} días anteriores:
+  {{ g.periodo_previo[0].strftime('%d/%m/%Y') }} — {{ g.periodo_previo[1].strftime('%d/%m/%Y') }}.
+</div>
+
+<div class="ge-leyenda">
+  <span><i style="background:#66bb6a"></i> En meta</span>
+  <span><i style="background:#e0a800"></i> Para vigilar</span>
+  <span><i style="background:#ef5350"></i> Fuera de meta</span>
+</div>
+
+{# ── Alertas: lo que exige una decisión, arriba de todo ── #}
+<div class="ge-alertas">
+  {% if g.actual.margen < 0 %}
+    <div class="ge-alerta mal">
+      El negocio está <b>perdiendo plata</b> en este periodo: {{ money(g.actual.gastos) }} de gastos
+      contra {{ money(g.actual.ingresos) }} de ingresos.
+    </div>
+  {% endif %}
+  {% if g.actual.diag_frios %}
+    <div class="ge-alerta ojo">
+      Hay <b>{{ g.actual.diag_frios }} diagnóstico{{ '' if g.actual.diag_frios == 1 else 's' }}</b>
+      de hace más de 30 días que nunca agendaron. Son clientes que ya vinieron y se enfriaron.
+    </div>
+  {% endif %}
+  {% if g.actual.cancelacion > 15 %}
+    <div class="ge-alerta ojo">
+      La cancelación va en <b>{{ '%.0f'|format(g.actual.cancelacion) }}%</b>, alta para la operación.
+    </div>
+  {% endif %}
+  {% if g.var.ingresos is not none and g.var.ingresos >= 10 %}
+    <div class="ge-alerta bien">
+      Los ingresos crecieron <b>{{ '%.0f'|format(g.var.ingresos) }}%</b> contra el periodo anterior.
+    </div>
+  {% endif %}
+</div>
+
+<div class="ge-sec"><h3>Resultado</h3><span>lo que queda después de gastos</span></div>
+<div class="ge-grid">
+  <div class="ge-card hero">
+    <div class="ge-k">Ingresos</div>
+    <div class="ge-v">{{ money(g.actual.ingresos) }}</div>
+    <div class="ge-foot">{{ delta(g.var.ingresos) }} <span>vs. {{ money(g.previo.ingresos) }}</span></div>
+  </div>
+  {% set e = semaforo('margen_pct', g.actual.margen_pct) %}
+  <div class="ge-card hero est-{{ e }}">
+    <div class="ge-k">Margen</div>
+    <div class="ge-v {{ e }}">{{ money(g.actual.margen) }}</div>
+    <div class="ge-foot">{{ delta(g.var.margen) }} <span>{{ '%.0f'|format(g.actual.margen_pct) }}% sobre ingresos</span></div>
+  </div>
+  <div class="ge-card">
+    <div class="ge-k">Gastos</div>
+    <div class="ge-v">{{ money(g.actual.gastos) }}</div>
+    <div class="ge-foot">{{ delta(g.var.gastos, 'bajo') }} <span>vs. {{ money(g.previo.gastos) }}</span></div>
+  </div>
+  <div class="ge-card">
+    <div class="ge-k">Ticket promedio</div>
+    <div class="ge-v">{{ money(g.actual.ticket) }}</div>
+    <div class="ge-foot">{{ delta(g.var.ticket) }} <span>vs. {{ money(g.previo.ticket) }}</span></div>
+  </div>
+</div>
+
+<div class="ge-sec"><h3>Demanda</h3><span>cuánto entra por la puerta</span></div>
+<div class="ge-grid">
+  <div class="ge-card">
+    <div class="ge-k">Servicios prestados</div>
+    <div class="ge-v">{{ g.actual.servicios }}</div>
+    <div class="ge-foot">{{ delta(g.var.servicios) }} <span>vs. {{ g.previo.servicios }}</span></div>
+  </div>
+  <div class="ge-card">
+    <div class="ge-k">Clientes atendidos</div>
+    <div class="ge-v">{{ g.actual.clientes }}</div>
+    <div class="ge-foot">{{ delta(g.var.clientes) }} <span>vs. {{ g.previo.clientes }}</span></div>
+  </div>
+  <div class="ge-card">
+    <div class="ge-k">Clientes nuevos / mes</div>
+    <div class="ge-v">{{ '%.1f'|format(g.actual.nuevos_mes) }}</div>
+    <div class="ge-foot">{{ delta(g.var.nuevos_mes) }} <span>vs. {{ '%.1f'|format(g.previo.nuevos_mes) }}</span></div>
+  </div>
+  {% set e = semaforo('recompra', g.actual.recompra) %}
+  <div class="ge-card est-{{ e }}">
+    <div class="ge-k">Tasa de recompra</div>
+    <div class="ge-v {{ e }}">{{ '%.0f'|format(g.actual.recompra) }}%</div>
+    <div class="ge-foot"><span>Clientes históricos que volvieron al menos una vez</span></div>
+  </div>
+</div>
+
+<div class="ge-sec"><h3>Comercial</h3><span>qué tan bien se convierte lo que llega</span></div>
+<div class="ge-grid">
+  <div class="ge-card">
+    <div class="ge-k">Leads que escribieron</div>
+    <div class="ge-v">{{ g.actual.leads }}</div>
+    <div class="ge-foot">{{ delta(g.var.leads) }} <span>vs. {{ g.previo.leads }}</span></div>
+  </div>
+  {% set e = semaforo('conversion_leads', g.actual.conversion_leads) %}
+  <div class="ge-card est-{{ e }}">
+    <div class="ge-k">Conversión de leads</div>
+    <div class="ge-v {{ e }}">{{ '%.0f'|format(g.actual.conversion_leads) }}%</div>
+    <div class="ge-foot">{{ delta(g.var.conversion_leads) }} <span>llegaron a agendar</span></div>
+  </div>
+  <div class="ge-card">
+    <div class="ge-k">Diagnósticos hechos</div>
+    <div class="ge-v">{{ g.actual.diagnosticos }}</div>
+    <div class="ge-foot">{{ delta(g.var.diagnosticos) }} <span>vs. {{ g.previo.diagnosticos }}</span></div>
+  </div>
+  {% set e = semaforo('conversion_diag', g.actual.conversion_diag) %}
+  <div class="ge-card hero est-{{ e }}">
+    <div class="ge-k">Conversión de diagnósticos</div>
+    <div class="ge-v {{ e }}">{{ '%.0f'|format(g.actual.conversion_diag) }}%</div>
+    <div class="ge-foot">{{ delta(g.var.conversion_diag) }} <span>terminaron agendando servicio</span></div>
+  </div>
+</div>
+
+<div class="ge-sec"><h3>Operación</h3><span>qué tan limpia va la agenda</span></div>
+<div class="ge-grid">
+  {% set e = semaforo('cancelacion', g.actual.cancelacion) %}
+  <div class="ge-card est-{{ e }}">
+    <div class="ge-k">Tasa de cancelación</div>
+    <div class="ge-v {{ e }}">{{ '%.1f'|format(g.actual.cancelacion) }}%</div>
+    <div class="ge-foot">{{ delta(g.var.cancelacion, 'bajo') }} <span>vs. {{ '%.1f'|format(g.previo.cancelacion) }}%</span></div>
+  </div>
+  {% set e = semaforo('diag_frios', g.actual.diag_frios) %}
+  <div class="ge-card est-{{ e }}">
+    <div class="ge-k">Diagnósticos sin seguimiento</div>
+    <div class="ge-v {{ e }}">{{ g.actual.diag_frios }}</div>
+    <div class="ge-foot"><span>Más de 30 días sin agendar nada</span></div>
+  </div>
+</div>
+
+<script>
+  // Mismo criterio que en Analítica: abreviado por defecto, con el valor exacto
+  // disponible en el tooltip.
+  (function () {
+    const modo = localStorage.getItem('noxa_fmt_cifras') || 'corto';
+    function abreviar(n) {
+      const signo = n < 0 ? '-' : '';
+      const a = Math.abs(n);
+      if (a >= 1000000) return signo + '$' + (a / 1000000).toFixed(a >= 10000000 ? 0 : 1).replace('.', ',') + ' MM';
+      if (a >= 1000)    return signo + '$' + Math.round(a / 1000) + ' K';
+      return signo + '$' + a.toLocaleString('es-CO');
+    }
+    document.querySelectorAll('.money').forEach(el => {
+      const v = Number(el.dataset.v || 0);
+      el.textContent = modo === 'corto' ? abreviar(v) : (v < 0 ? '-$' : '$') + Math.abs(v).toLocaleString('es-CO');
+      el.title = (v < 0 ? '-$' : '$') + Math.abs(v).toLocaleString('es-CO');
+    });
+  })();
+</script>
+{% endblock %}

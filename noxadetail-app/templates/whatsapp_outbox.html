@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+
+{% macro status_class(s) -%}
+  {%- if s in ('delivered', 'read') -%}ob-ok
+  {%- elif s in ('undelivered', 'failed', 'rejected_local') -%}ob-fail
+  {%- else -%}ob-pend
+  {%- endif -%}
+{%- endmacro %}
+
+{% block extra_head %}
+<style>
+  .ob-head { display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap; margin-top:16px; }
+  .ob-note { color:var(--text2); font-size:.85rem; max-width:70ch; line-height:1.5; margin:8px 0 20px; }
+  .ob-cards { display:grid; grid-template-columns:repeat(auto-fill, minmax(220px,1fr)); gap:12px; margin-bottom:24px; }
+  .ob-card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:14px 16px; }
+  .ob-card .k { font-size:.78rem; color:var(--text2); text-transform:uppercase; letter-spacing:.04em; word-break:break-word; }
+  .ob-card .n { font-size:1.5rem; font-weight:600; margin-top:6px; }
+  .ob-card .sub { font-size:.8rem; color:var(--text3); margin-top:2px; }
+  .ob-card.warn { border-color:rgba(239,83,80,0.45); }
+  .ob-card.warn .n { color:#ef5350; }
+  .ob-wrap { overflow-x:auto; border:1px solid var(--border); border-radius:var(--radius); }
+  table.ob { width:100%; border-collapse:collapse; font-size:.85rem; min-width:820px; }
+  table.ob th { background:var(--surface2); color:var(--text2); text-align:left; padding:10px 12px; font-weight:600; white-space:nowrap; }
+  table.ob td { padding:10px 12px; border-top:1px solid var(--border); vertical-align:top; }
+  .pill { display:inline-block; padding:2px 9px; border-radius:999px; font-size:.75rem; font-weight:600; white-space:nowrap; }
+  .ob-ok   { background:rgba(102,187,106,0.15); color:#66bb6a; }
+  .ob-fail { background:rgba(239,83,80,0.15);  color:#ef5350; }
+  .ob-pend { background:rgba(212,180,108,0.12); color:var(--accent); }
+  .ob-kind { color:var(--text2); font-family:ui-monospace, SFMono-Regular, Menlo, monospace; font-size:.78rem; }
+  .ob-body { color:var(--text2); max-width:42ch; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .ob-err  { color:#ef5350; font-size:.78rem; }
+  .ob-empty { padding:32px; text-align:center; color:var(--text2); }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="ob-head">
+  <h2 style="margin:0;">Bandeja de salida — WhatsApp</h2>
+  <div>
+    <a class="btn btn-sm {{ 'btn-warning' if solo_fallidos else 'btn-outline-secondary' }}"
+       href="{{ url_for('whatsapp_outbox', fallidos=1) }}">Solo fallidos</a>
+    <a class="btn btn-sm {{ 'btn-outline-secondary' if solo_fallidos else 'btn-warning' }}"
+       href="{{ url_for('whatsapp_outbox') }}">Todos</a>
+  </div>
+</div>
+
+<p class="ob-note">
+  Estado <strong>real</strong> de entrega según WhatsApp, no según Twilio. Un mensaje puede salir
+  sin error y aun así quedar <em>undelivered</em>: el caso típico es el código
+  <strong>63016</strong>, que significa que se intentó mandar texto libre fuera de la ventana de
+  24 horas y hace falta una plantilla aprobada por Meta.
+</p>
+
+{% if resumen %}
+<div class="ob-cards">
+  {% for r in resumen %}
+    <div class="ob-card {{ 'warn' if r.fallidos else '' }}">
+      <div class="k">{{ r.kind }}</div>
+      <div class="n">{{ r.fallidos }}<span style="font-size:.9rem;color:var(--text3);"> / {{ r.total }}</span></div>
+      <div class="sub">fallidos · {{ r.entregados }} entregados · últimos 30 días</div>
+    </div>
+  {% endfor %}
+</div>
+{% endif %}
+
+<div class="ob-wrap">
+  <table class="ob">
+    <thead>
+      <tr>
+        <th>Fecha</th><th>Tipo</th><th>Para</th><th>Estado</th><th>Contenido</th>
+      </tr>
+    </thead>
+    <tbody>
+    {% for m in mensajes %}
+      <tr>
+        <td style="white-space:nowrap;">{{ m.created_at | hora_bogota }}</td>
+        <td><span class="ob-kind">{{ m.kind }}</span></td>
+        <td style="white-space:nowrap;">{{ m.to_phone }}</td>
+        <td>
+          <span class="pill {{ status_class(m.status) }}">{{ m.status }}</span>
+          {% if m.error_code %}<div class="ob-err">código {{ m.error_code }}</div>{% endif %}
+          {% if m.error_message %}<div class="ob-err">{{ m.error_message }}</div>{% endif %}
+        </td>
+        <td>
+          {% if m.template_sid %}<span class="ob-kind">plantilla</span> {% endif %}
+          <span class="ob-body">{{ (m.body or '—')[:120] }}</span>
+        </td>
+      </tr>
+    {% else %}
+      <tr><td colspan="5" class="ob-empty">
+        {% if solo_fallidos %}Ningún envío fallido registrado.
+        {% else %}Todavía no hay envíos registrados. La tabla se llena desde el próximo mensaje que salga.{% endif %}
+      </td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

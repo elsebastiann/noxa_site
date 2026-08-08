@@ -1,0 +1,369 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="container mt-4" style="max-width:980px;">
+
+  <div class="d-flex align-items-center justify-content-between mb-4">
+    <h2 class="mb-0">Gestión de usuarios</h2>
+    <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#modalNewUser">
+      <i class="bi bi-person-plus-fill me-1"></i>Nuevo usuario
+    </button>
+  </div>
+
+  <!-- Tabla de usuarios -->
+  <div class="table-responsive">
+    <table class="table table-dark table-hover align-middle">
+      <thead>
+        <tr>
+          <th>Usuario</th>
+          <th class="text-center">Rol</th>
+          <th class="text-center">Estado</th>
+          <th class="text-end">Salario</th>
+          <th class="text-center">F. Ingreso</th>
+          <th class="text-center">Período prueba</th>
+          <th class="text-center">Acciones</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for u in users %}
+        <tr>
+          <td class="fw-bold">{{ u.username }}</td>
+          <td class="text-center">
+            {% if u.role == 'admin' %}
+              <span class="badge bg-warning">Admin</span>
+            {% elif u.role == 'lider' %}
+              <span class="badge bg-info">Líder</span>
+            {% else %}
+              <span class="badge bg-secondary">Operario</span>
+            {% endif %}
+          </td>
+          <td class="text-center">
+            {% if u.is_active %}
+              <span class="badge bg-success">Activo</span>
+            {% else %}
+              <span class="badge bg-danger">Inactivo</span>
+            {% endif %}
+          </td>
+          <td class="text-end">
+            {% if u.role == 'operario' %}
+            <span class="editable-salary" data-id="{{ u.id }}" data-value="{{ u.salary or 0 }}"
+                  style="cursor:pointer;border-bottom:1px dashed rgba(255,255,255,0.3);padding:2px 4px;">
+              {% if u.salary %}
+                $ {{ "{:,}".format(u.salary).replace(",", ".") }}
+              {% else %}
+                <span class="text-muted">—</span>
+              {% endif %}
+            </span>
+            {% else %}—{% endif %}
+          </td>
+          <td class="text-center" style="font-size:0.82rem;">
+            {% if u.role == 'operario' %}
+              <span class="editable-hire-date" data-id="{{ u.id }}"
+                    data-value="{{ u.hire_date.isoformat() if u.hire_date else '' }}"
+                    style="cursor:pointer;border-bottom:1px dashed rgba(255,255,255,0.3);padding:2px 4px;white-space:nowrap;">
+                {% if u.hire_date %}
+                  {{ u.hire_date.strftime('%d/%m/%Y') }}
+                {% else %}
+                  <span class="text-muted">—</span>
+                {% endif %}
+              </span>
+            {% else %}
+              <span class="text-muted">—</span>
+            {% endif %}
+          </td>
+          <td class="text-center" id="trial-cell-{{ u.id }}">
+            {% if u.role == 'operario' %}
+              {% if u.hire_date %}
+                {% if u.in_trial %}
+                  {% set days_left = 30 - (today - u.hire_date).days %}
+                  <span class="badge bg-warning text-dark" title="Fin de prueba: {{ u.trial_end_date.strftime('%d/%m/%Y') }}">
+                    En prueba · {{ days_left }}d
+                  </span>
+                {% else %}
+                  <span class="badge bg-success">Confirmado</span>
+                {% endif %}
+              {% else %}
+                <span class="text-muted" style="font-size:0.78rem;">Sin fecha</span>
+              {% endif %}
+            {% else %}
+              —
+            {% endif %}
+          </td>
+          <td class="text-center">
+            <div class="d-flex gap-2 justify-content-center">
+              <!-- Editar -->
+              <button class="btn btn-sm btn-outline-secondary"
+                      data-bs-toggle="modal"
+                      data-bs-target="#modalEditUser"
+                      data-id="{{ u.id }}"
+                      data-username="{{ u.username }}"
+                      data-role="{{ u.role }}"
+                      data-hire="{{ u.hire_date.isoformat() if u.hire_date else '' }}"
+                      data-must-change="{{ '1' if u.must_change_password else '' }}">
+                <i class="bi bi-pencil"></i>
+              </button>
+              <!-- Activar / Desactivar -->
+              {% if u.id != current_user.id %}
+              <form method="POST" action="{{ url_for('users_toggle', user_id=u.id) }}" class="m-0">
+                {% if u.is_active %}
+                  <button type="submit" class="btn btn-sm btn-outline-danger"
+                          title="Desactivar">
+                    <i class="bi bi-person-x"></i>
+                  </button>
+                {% else %}
+                  <button type="submit" class="btn btn-sm btn-outline-success"
+                          title="Activar">
+                    <i class="bi bi-person-check"></i>
+                  </button>
+                {% endif %}
+              </form>
+              {% endif %}
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <p class="text-muted" style="font-size:0.78rem;">
+    <i class="bi bi-info-circle me-1"></i>
+    Durante el período de prueba (primeros 30 días desde fecha de ingreso) el salario se reduce en
+    $100.000 y no aplican bonos de calidad ni extras.
+  </p>
+</div>
+
+{# ── Modal: Nuevo usuario ── #}
+<div class="modal fade" id="modalNewUser" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content" style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);">
+      <div class="modal-header" style="border-bottom:1px solid var(--border);">
+        <h5 class="modal-title" style="font-size:0.95rem;">Nuevo usuario</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <form method="POST" action="{{ url_for('users_new') }}">
+        <div class="modal-body" style="display:flex;flex-direction:column;gap:14px;">
+          <div>
+            <label class="form-label">Usuario *</label>
+            <input type="text" name="username" class="form-control"
+                   placeholder="Ej: juan.perez" required autocomplete="off">
+          </div>
+          <div>
+            <label class="form-label">Contraseña *</label>
+            <input type="password" name="password" class="form-control"
+                   placeholder="Mínimo 6 caracteres" required>
+          </div>
+          <div>
+            <label class="form-label">Rol *</label>
+            <select name="role" class="form-select">
+              <option value="operario">Operario</option>
+              <option value="marketing">Agencia de marketing</option>
+              <option value="lider">Líder</option>
+              <option value="admin">Admin</option>
+            </select>
+          </div>
+          <div class="campo-ingreso" data-solo-operario>
+            <label class="form-label">Fecha de ingreso</label>
+            <input type="date" name="hire_date" class="form-control"
+                   value="{{ today.isoformat() }}">
+            <small class="text-muted">Los primeros 30 días son período de prueba (–$100.000, sin bonos).</small>
+          </div>
+          <div class="form-check">
+            <input class="form-check-input" type="checkbox" name="must_change_password"
+                   id="newMustChange" value="1" checked>
+            <label class="form-check-label" for="newMustChange" style="font-size:.85rem;">
+              Debe cambiar la contraseña en el próximo ingreso
+            </label>
+          </div>
+        </div>
+        <div class="modal-footer" style="border-top:1px solid var(--border);">
+          <button type="button" class="btn btn-outline-secondary btn-sm"
+                  data-bs-dismiss="modal">Cancelar</button>
+          <button type="submit" class="btn btn-primary btn-sm">Crear usuario</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+{# ── Modal: Editar usuario ── #}
+<div class="modal fade" id="modalEditUser" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content" style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);">
+      <div class="modal-header" style="border-bottom:1px solid var(--border);">
+        <h5 class="modal-title" style="font-size:0.95rem;">Editar usuario</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <form method="POST" id="editUserForm" action="">
+        <div class="modal-body" style="display:flex;flex-direction:column;gap:14px;">
+          <div>
+            <label class="form-label">Usuario *</label>
+            <input type="text" name="username" id="editUsername" class="form-control" required>
+          </div>
+          <div>
+            <label class="form-label">Nueva contraseña <small class="text-muted">(dejar vacío para no cambiar)</small></label>
+            <input type="password" name="password" class="form-control"
+                   placeholder="••••••••" autocomplete="new-password">
+          </div>
+          <div>
+            <label class="form-label">Rol *</label>
+            <select name="role" id="editRole" class="form-select">
+              <option value="operario">Operario</option>
+              <option value="marketing">Agencia de marketing</option>
+              <option value="lider">Líder</option>
+              <option value="admin">Admin</option>
+            </select>
+          </div>
+          <div class="campo-ingreso" data-solo-operario>
+            <label class="form-label">Fecha de ingreso</label>
+            <input type="date" name="hire_date" id="editHireDate" class="form-control">
+            <small class="text-muted">Los primeros 30 días son período de prueba automático.</small>
+          </div>
+          <div class="form-check">
+            <input class="form-check-input" type="checkbox" name="must_change_password"
+                   id="editMustChange" value="1">
+            <label class="form-check-label" for="editMustChange" style="font-size:.85rem;">
+              Debe cambiar la contraseña en el próximo ingreso
+            </label>
+          </div>
+        </div>
+        <div class="modal-footer" style="border-top:1px solid var(--border);">
+          <button type="button" class="btn btn-outline-secondary btn-sm"
+                  data-bs-dismiss="modal">Cancelar</button>
+          <button type="submit" class="btn btn-primary btn-sm">Guardar cambios</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script>
+  // Modal edición usuario
+  document.getElementById('modalEditUser').addEventListener('show.bs.modal', function (e) {
+    const btn = e.relatedTarget;
+    document.getElementById('editUsername').value  = btn.getAttribute('data-username');
+    document.getElementById('editRole').value      = btn.getAttribute('data-role');
+    document.getElementById('editMustChange').checked = btn.getAttribute('data-must-change') === '1';
+    sincronizarCampoIngreso(document.getElementById('editRole'));
+    document.getElementById('editHireDate').value  = btn.getAttribute('data-hire') || '';
+    document.getElementById('editUserForm').action = `/users/${btn.getAttribute('data-id')}/edit`;
+  });
+
+  // Edición inline de salario
+  document.querySelectorAll('.editable-salary').forEach(cell => {
+    cell.addEventListener('click', function() {
+      if (cell.querySelector('input')) return;
+      const id  = cell.dataset.id;
+      const val = cell.dataset.value;
+      const orig = cell.innerHTML;
+      const input = document.createElement('input');
+      input.type = 'number'; input.value = val; input.min = 0; input.step = 50000;
+      input.className = 'form-control form-control-sm text-end';
+      input.style.width = '130px';
+      cell.innerHTML = ''; cell.appendChild(input);
+      input.focus(); input.select();
+      function save() {
+        const newVal = parseInt(input.value) || 0;
+        fetch(`/users/${id}/salary`, {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({salary: newVal})
+        }).then(r => r.json()).then(d => {
+          if (d.ok) {
+            cell.dataset.value = newVal;
+            cell.innerHTML = newVal > 0
+              ? '$ ' + newVal.toLocaleString('es-CL')
+              : '<span class="text-muted">—</span>';
+          } else { cell.innerHTML = orig; }
+        });
+      }
+      input.addEventListener('blur', save);
+      input.addEventListener('keydown', e => {
+        if (e.key === 'Enter') input.blur();
+        if (e.key === 'Escape') { cell.innerHTML = orig; }
+      });
+    });
+  });
+
+  // Edición inline de fecha de ingreso
+  document.querySelectorAll('.editable-hire-date').forEach(cell => {
+    cell.addEventListener('click', function() {
+      if (cell.querySelector('input')) return;
+      const id   = cell.dataset.id;
+      const val  = cell.dataset.value;
+      const orig = cell.innerHTML;
+      const input = document.createElement('input');
+      input.type = 'date'; input.value = val;
+      input.className = 'form-control form-control-sm';
+      input.style.width = '140px';
+      cell.innerHTML = ''; cell.appendChild(input);
+      input.focus();
+      function save() {
+        const newVal = input.value; // YYYY-MM-DD o vacío
+        fetch(`/users/${id}/salary`, {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({hire_date: newVal || null})
+        }).then(r => r.json()).then(d => {
+          if (d.ok) {
+            cell.dataset.value = newVal;
+            if (newVal) {
+              const [y, m, day] = newVal.split('-');
+              cell.innerHTML = `${day}/${m}/${y}`;
+            } else {
+              cell.innerHTML = '<span class="text-muted">—</span>';
+            }
+            // Actualizar badge de período de prueba
+            const trialCell = document.getElementById(`trial-cell-${id}`);
+            if (trialCell) {
+              if (d.in_trial && newVal) {
+                const end = d.trial_end ? d.trial_end.split('-') : null;
+                const endStr = end ? `${end[2]}/${end[1]}/${end[0]}` : '';
+                trialCell.innerHTML = `<span class="badge bg-warning text-dark" title="Fin de prueba: ${endStr}">En prueba</span>`;
+              } else if (!d.in_trial && newVal) {
+                trialCell.innerHTML = `<span class="badge bg-success">Confirmado</span>`;
+              } else {
+                trialCell.innerHTML = `<span class="text-muted" style="font-size:0.78rem;">Sin fecha</span>`;
+              }
+            }
+          } else { cell.innerHTML = orig; }
+        });
+      }
+      input.addEventListener('blur', save);
+      input.addEventListener('keydown', e => {
+        if (e.key === 'Enter') input.blur();
+        if (e.key === 'Escape') { cell.innerHTML = orig; }
+      });
+    });
+  });
+</script>
+
+<script>
+  // La fecha de ingreso solo aplica a operarios: alimenta el período de prueba y
+  // la nómina, que no existen para los demás roles.
+  function sincronizarCampoIngreso(select) {
+    const campo = select.closest('form').querySelector('[data-solo-operario]');
+    if (!campo) return;
+    const input = campo.querySelector('input');
+    // Se recuerda el valor original para devolverlo si vuelven a Operario: al
+    // ocultar el campo hay que limpiarlo, pero perder la fecha por haber mirado
+    // otro rol obliga a escribirla de nuevo sin motivo.
+    if (input && input.dataset.previo === undefined) input.dataset.previo = input.value;
+
+    const esOperario = select.value === 'operario';
+    campo.style.display = esOperario ? '' : 'none';
+    if (!input) return;
+    if (esOperario) {
+      if (!input.value) input.value = input.dataset.previo || '';
+    } else {
+      if (input.value) input.dataset.previo = input.value;
+      input.value = '';
+    }
+  }
+  document.querySelectorAll('form select[name="role"]').forEach(sel => {
+    sel.addEventListener('change', () => sincronizarCampoIngreso(sel));
+    sincronizarCampoIngreso(sel);
+  });
+</script>
+
+{% endblock %}
