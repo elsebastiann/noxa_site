@@ -76,10 +76,15 @@ TPL_AVISO_ADMIN     = os.environ.get("TWILIO_TPL_AVISO_ADMIN", "")
 # que cada etapa necesita la suya. El orden calza con _FOLLOWUP_STAGES.
 TPL_REACTIVACION = {
     "reactivacion_suave":  os.environ.get("TWILIO_TPL_REACTIVACION_1", ""),
-    "ancla_de_valor":      os.environ.get("TWILIO_TPL_REACTIVACION_2", ""),
     "check_in_breve":      os.environ.get("TWILIO_TPL_REACTIVACION_3", ""),
     "ultima_oportunidad":  os.environ.get("TWILIO_TPL_REACTIVACION_4", ""),
 }
+# El segundo intento se bifurca ("plantilla C o D según el caso" en el SOP): a
+# quien ya recibió una cotización se le reencuadra el valor, y a quien nunca
+# preguntó precio se le ofrece el diagnóstico gratuito como puerta de entrada.
+# Hablarle del costo a alguien que nunca lo preguntó suena a excusa inventada.
+TPL_REACTIVACION_2_COTIZADO   = os.environ.get("TWILIO_TPL_REACTIVACION_2A", "")
+TPL_REACTIVACION_2_SIN_COTIZAR = os.environ.get("TWILIO_TPL_REACTIVACION_2B", "")
 
 # Tier del socio -> nombre exacto del convenio (Agreement.name) en producción.
 TIER_AGREEMENT_NAMES = {
@@ -7775,6 +7780,30 @@ _FOLLOWUP_STAGES = [
 _FIRST_FOLLOWUP_LAST_HOUR = 12
 
 
+_PRECIO_RE = re.compile(r"\$\s?\d{1,3}(?:\.\d{3})+")
+
+
+def _ya_se_cotizo(conversation: "Conversation") -> bool:
+    """¿Mariana ya le dio un precio a este cliente?
+
+    Se mira el historial en vez de llevar un flag aparte porque así funciona
+    también con las conversaciones que ya existían. Los precios siempre salen
+    formateados como $1.099.000 (ver _format_prices_for_prompt), así que basta
+    con buscar ese patrón en lo que mandamos nosotros."""
+    return any(
+        m.direction == "out" and _PRECIO_RE.search(m.body or "")
+        for m in conversation.messages
+    )
+
+
+def _tpl_reactivacion_para(stage: str, conversation: "Conversation") -> str:
+    """SID de la plantilla que le toca a esta etapa de reactivación."""
+    if stage == "ancla_de_valor":
+        return (TPL_REACTIVACION_2_COTIZADO if _ya_se_cotizo(conversation)
+                else TPL_REACTIVACION_2_SIN_COTIZAR)
+    return TPL_REACTIVACION.get(stage, "")
+
+
 def _ventana_24h_abierta(conversation: "Conversation") -> bool:
     """¿Se le puede escribir texto libre a este cliente ahora mismo?
 
@@ -7838,7 +7867,7 @@ def _job_whatsapp_followup():
             # toque, pero es eso o que el mensaje no llegue (63016). Si el
             # cliente responde a la plantilla, la ventana se reabre y Mariana
             # retoma la conversación normal desde el webhook.
-            tpl_sid = "" if _ventana_24h_abierta(conv) else TPL_REACTIVACION.get(stage, "")
+            tpl_sid = "" if _ventana_24h_abierta(conv) else _tpl_reactivacion_para(stage, conv)
             nombre = conv.profile_name or "cliente"
 
             if tpl_sid:
