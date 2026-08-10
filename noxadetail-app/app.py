@@ -6225,6 +6225,28 @@ def _format_promotions_for_prompt() -> str:
     )
 
 
+_DIAS_ES = ("lunes", "martes", "miércoles", "jueves", "viernes", "sábado", "domingo")
+_MESES_ES = ("enero", "febrero", "marzo", "abril", "mayo", "junio", "julio",
+             "agosto", "septiembre", "octubre", "noviembre", "diciembre")
+
+
+def _fecha_hoy_para_prompt() -> str:
+    """Qué día es hoy, en hora de Bogotá y en español.
+
+    El modelo no tiene reloj: si no se lo decimos, calcula "mañana" o "el
+    miércoles" contra una fecha inventada. Se escribe con nombres en español a
+    propósito — con strftime salían en inglés y el modelo los traducía a mano,
+    que es otra oportunidad de equivocarse."""
+    ahora = datetime.now(_BOGOTA)
+    return (
+        f"FECHA Y HORA ACTUAL (Bogotá): hoy es {_DIAS_ES[ahora.weekday()]} "
+        f"{ahora.day} de {_MESES_ES[ahora.month - 1]} de {ahora.year}, "
+        f"{ahora.strftime('%I:%M %p').lstrip('0').lower()}. "
+        "Cuando hables de fechas ('mañana', 'el miércoles', 'esta semana') "
+        "calcúlalas contra esta fecha, nunca contra lo que aparezca en el historial."
+    )
+
+
 def _format_availability_for_prompt() -> str:
     """Bloque de disponibilidad que Mariana ve en cada turno."""
     try:
@@ -6345,6 +6367,7 @@ def get_claude_reply(conversation: "Conversation", media_url: str | None = None,
             "[AGENDAR: ...]. Sin eso la cita queda sin forma de contactarlo."
         )
 
+    profile_line += "\n\n" + _fecha_hoy_para_prompt()
     precios = _format_prices_for_prompt()
     if precios:
         profile_line += "\n\n" + precios
@@ -6370,6 +6393,12 @@ def generate_followup_message(conversation: "Conversation", stage: str) -> str:
         if conversation.profile_name else
         "Nombre de perfil de WhatsApp del cliente: no disponible."
     )
+    # Sin la fecha de hoy, el modelo lee una cita del historial y calcula mal a
+    # cuántos días queda: le mandó "tu diagnóstico de mañana miércoles" a un
+    # cliente cuya cita era en dos días (visto en producción el 2026-08-10). En
+    # las respuestas normales esto no pasa porque el bloque de disponibilidad ya
+    # trae fechas reales, pero acá no se inyecta.
+    profile_line += "\n\n" + _fecha_hoy_para_prompt()
 
     chunks = _call_claude(messages, profile_line)
     return chunks[0]
@@ -7841,6 +7870,11 @@ def _job_whatsapp_followup():
         candidatas = Conversation.query.filter(
             Conversation.bot_active == True,
             Conversation.followup_count < len(_FOLLOWUP_STAGES),
+            # Al que ya agendó no hay que reactivarlo: ya convirtió. Sin este
+            # filtro le llegaba un "te escribo para retomar" a alguien con cita
+            # confirmada, y Claude terminaba improvisando un recordatorio que no
+            # le tocaba dar (visto en producción el 2026-08-10).
+            Conversation.status.notin_(("Diagnóstico agendado", "Servicio agendado")),
         ).all()
         for conv in candidatas:
             last_msg = (
