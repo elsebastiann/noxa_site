@@ -1,0 +1,212 @@
+{
+  "app.py": {
+    "mtime": 1786330222.3555558,
+    "ast_hash": "347cc05d10da7fd5828910f89827856b",
+    "semantic_hash": ""
+  },
+  "migrate_prices.py": {
+    "mtime": 1786228381.3762305,
+    "ast_hash": "b46ca8aacf448093f75b8ac84f1d7775",
+    "semantic_hash": ""
+  },
+  "railway.json": {
+    "mtime": 1786228381.3763807,
+    "ast_hash": "e8826dfd9c8d20fdfda4509f4371152a",
+    "semantic_hash": ""
+  },
+  "tests/conftest.py": {
+    "mtime": 1786228381.388628,
+    "ast_hash": "cc574da48d3a6e1eb0db0ecc73f954ec",
+    "semantic_hash": ""
+  },
+  "tests/test_abonos_ajustes.py": {
+    "mtime": 1786228381.3888373,
+    "ast_hash": "49b4e938d72eecc934973fb0d851165e",
+    "semantic_hash": ""
+  },
+  "tests/test_agenda_cajon.py": {
+    "mtime": 1786228381.3894,
+    "ast_hash": "7add0b5fb92494bcc424adf4d5f264f7",
+    "semantic_hash": ""
+  },
+  "tests/test_payroll.py": {
+    "mtime": 1786228381.389577,
+    "ast_hash": "bc722db9350c08c1398e4fc936c9b42d",
+    "semantic_hash": ""
+  },
+  "CLAUDE.md": {
+    "mtime": 1786228479.6101303,
+    "ast_hash": "5e13c7319503af4b0953052564a899d3",
+    "semantic_hash": ""
+  },
+  "README.md": {
+    "mtime": 1786228381.3503907,
+    "ast_hash": "b202f176b4c5e7188020b35df932300e",
+    "semantic_hash": ""
+  },
+  "docs/mariana-base-conocimiento.md": {
+    "mtime": 1786228381.365846,
+    "ast_hash": "daf645698cfa6cce2c2ad13055467eeb",
+    "semantic_hash": ""
+  },
+  "requirements.txt": {
+    "mtime": 1786228381.3764951,
+    "ast_hash": "1156dab42f14ab2d5eb8bc0f5bdc5293",
+    "semantic_hash": ""
+  },
+  "templates/agreements.html": {
+    "mtime": 1786228381.3790529,
+    "ast_hash": "e20e819d610493c510dd2e074a4aa11f",
+    "semantic_hash": ""
+  },
+  "templates/analytics.html": {
+    "mtime": 1786228381.3792443,
+    "ast_hash": "873ffffe47cc466d9a6c6ec8b7509304",
+    "semantic_hash": ""
+  },
+  "templates/appointment_form.html": {
+    "mtime": 1786228381.379446,
+    "ast_hash": "b6756607a831170156280efdb43996ca",
+    "semantic_hash": ""
+  },
+  "templates/appointments_list.html": {
+    "mtime": 1786228381.3799815,
+    "ast_hash": "f55ce6fe65c4fe818de1f71c80c62179",
+    "semantic_hash": ""
+  },
+  "templates/base.html": {
+    "mtime": 1786228381.3801694,
+    "ast_hash": "3de44fff66fd4a262f610d80d5692c3b",
+    "semantic_hash": ""
+  },
+  "templates/calendar.html": {
+    "mtime": 1786228381.3807783,
+    "ast_hash": "506aff494ef2739a69969abf5e3d3c05",
+    "semantic_hash": ""
+  },
+  "templates/edit_appointment.html": {
+    "mtime": 1786228381.3811128,
+    "ast_hash": "e49f7d89a8fd86d54f53d3e053f8d5ee",
+    "semantic_hash": ""
+  },
+  "templates/expense_categories.html": {
+    "mtime": 1786228381.381315,
+    "ast_hash": "7cac8fa13b1225b74b88cdcd790d089f",
+    "semantic_hash": ""
+  },
+  "templates/expenses_edit.html": {
+    "mtime": 1786228381.3815389,
+    "ast_hash": "d4217dea29dd85832e23de72a38c6065",
+    "semantic_hash": ""
+  },
+  "templates/expenses_list.html": {
+    "mtime": 1786228381.3818736,
+    "ast_hash": "be8b7f55d20f8e577c70de94bcac1540",
+    "semantic_hash": ""
+  },
+  "templates/expenses_new.html": {
+    "mtime": 1786228381.3821714,
+    "ast_hash": "5673dc5dcba7272de432c75c78a7cf05",
+    "semantic_hash": ""
+  },
+  "templates/gerencial.html": {
+    "mtime": 1786228381.3824406,
+    "ast_hash": "d212d67500cdd8e568cdec6a245964e2",
+    "semantic_hash": ""
+  },
+  "templates/login.html": {
+    "mtime": 1786228381.382615,
+    "ast_hash": "7360a9d1b5212c24c53a1c4016a3c54c",
+    "semantic_hash": ""
+  },
+  "templates/new_appointment.html": {
+    "mtime": 1786228381.3827121,
+    "ast_hash": "4193b83d29e808a119f7479a57e8e0c5",
+    "semantic_hash": ""
+  },
+  "templates/notifications.html": {
+    "mtime": 1786228381.3829231,
+    "ast_hash": "c6c0a16d94a85c52ad41422b34726465",
+    "semantic_hash": ""
+  },
+  "templates/parking_list.html": {
+    "mtime": 1786228381.3830328,
+    "ast_hash": "99e0242622d75bfccc661aa55b9718fb",
+    "semantic_hash": ""
+  },
+  "templates/payment_methods.html": {
+    "mtime": 1786228381.3831596,
+    "ast_hash": "ec992f2068676886ad33a06541261a92",
+    "semantic_hash": ""
+  },
+  "templates/payroll_detail.html": {
+    "mtime": 1786228381.383407,
+    "ast_hash": "2a2e11cfe94c076107d673f37eb9cf33",
+    "semantic_hash": ""
+  },
+  "templates/payroll_list.html": {
+    "mtime": 1786228381.3835127,
+    "ast_hash": "692ac77ba27134f02a6be39bd59fcecc",
+    "semantic_hash": ""
+  },
+  "templates/promotions.html": {
+    "mtime": 1786228381.383699,
+    "ast_hash": "40e745660159efa386c8bba49571dff5",
+    "semantic_hash": ""
+  },
+  "templates/public_booking_mercedes.html": {
+    "mtime": 1786228381.3838477,
+    "ast_hash": "bd108000ad2f7c62d357e9b3edb7deab",
+    "semantic_hash": ""
+  },
+  "templates/quality_errors.html": {
+    "mtime": 1786228381.3840785,
+    "ast_hash": "6b51f589e5d5040236d650e8a0aa96ad",
+    "semantic_hash": ""
+  },
+  "templates/service_prices.html": {
+    "mtime": 1786228381.3843665,
+    "ast_hash": "bfe1a78385fd72935663a07cf0918d08",
+    "semantic_hash": ""
+  },
+  "templates/service_sales_list.html": {
+    "mtime": 1786228381.3844755,
+    "ast_hash": "f76bdf8d663798bd77baffde3c4225e9",
+    "semantic_hash": ""
+  },
+  "templates/services.html": {
+    "mtime": 1786228381.3845725,
+    "ast_hash": "84c63d6cfe0b6a146d97b92a177b854b",
+    "semantic_hash": ""
+  },
+  "templates/users.html": {
+    "mtime": 1786228381.3848867,
+    "ast_hash": "f0c474c73192c40fcf63e063639fdd2d",
+    "semantic_hash": ""
+  },
+  "templates/vales.html": {
+    "mtime": 1786228381.3849952,
+    "ast_hash": "2fe43132430ea66ad8482164614a93e8",
+    "semantic_hash": ""
+  },
+  "templates/vehicle_types.html": {
+    "mtime": 1786228381.3850806,
+    "ast_hash": "4862f511fc9f288f783f1fbc5ba82a1d",
+    "semantic_hash": ""
+  },
+  "templates/whatsapp.html": {
+    "mtime": 1786228381.3852105,
+    "ast_hash": "47d8388d4011059e9d9b9148cd0228e1",
+    "semantic_hash": ""
+  },
+  "templates/whatsapp_outbox.html": {
+    "mtime": 1786228381.3856328,
+    "ast_hash": "6a2a7d24407faabecb2aca114442d143",
+    "semantic_hash": ""
+  },
+  "static/img/logotipo.png": {
+    "mtime": 1786228381.377286,
+    "ast_hash": "1c475704c2a1eb961ac5be1fa2515365",
+    "semantic_hash": ""
+  }
+}

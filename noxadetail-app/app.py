@@ -58,6 +58,29 @@ def bogota_now() -> datetime:
 # DIAGNOSTIC_SERVICE_NAME.
 DIAGNOSTIC_SERVICE_NAME = os.environ.get("DIAGNOSTIC_SERVICE_NAME", "Diagnóstico")
 
+# ── Plantillas de WhatsApp aprobadas por Meta ────────────────────────────────
+# WhatsApp solo deja escribir texto libre dentro de las 24h siguientes al último
+# mensaje DEL CLIENTE. Todo lo que sale fuera de esa ventana (recordatorios,
+# reactivaciones, avisos al admin) necesita una plantilla aprobada, o WhatsApp lo
+# rechaza con 63016 y el mensaje se pierde sin que nadie se entere.
+#
+# Cada SID se pega como variable de entorno en Railway cuando Meta aprueba la
+# plantilla — no hace falta tocar código ni redesplegar a mano. Mientras el SID
+# esté vacío, el envío cae a texto libre: funciona si la ventana está abierta y,
+# si no, queda registrado como rechazado en la bandeja de salida.
+TPL_WEB_LEAD        = os.environ.get("TWILIO_WEB_LEAD_TEMPLATE_SID", "")
+TPL_RECORDATORIO    = os.environ.get("TWILIO_TPL_RECORDATORIO_CITA", "")
+TPL_AVISO_ADMIN     = os.environ.get("TWILIO_TPL_AVISO_ADMIN", "")
+# Una por etapa de reactivación: el ángulo del mensaje cambia en cada intento
+# (SOP de NOXA) y una plantilla no puede llevar texto variable arbitrario, así
+# que cada etapa necesita la suya. El orden calza con _FOLLOWUP_STAGES.
+TPL_REACTIVACION = {
+    "reactivacion_suave":  os.environ.get("TWILIO_TPL_REACTIVACION_1", ""),
+    "ancla_de_valor":      os.environ.get("TWILIO_TPL_REACTIVACION_2", ""),
+    "check_in_breve":      os.environ.get("TWILIO_TPL_REACTIVACION_3", ""),
+    "ultima_oportunidad":  os.environ.get("TWILIO_TPL_REACTIVACION_4", ""),
+}
+
 # Tier del socio -> nombre exacto del convenio (Agreement.name) en producción.
 TIER_AGREEMENT_NAMES = {
     "classic_star": "Club Mercedes-Benz",
@@ -507,8 +530,9 @@ class Appointment(db.Model):
     # Notificaciones WhatsApp
     notif_reminder_sent  = db.Column(db.Boolean, default=False)  # recordatorio al admin 30 min antes
     notif_client_sent    = db.Column(db.Boolean, default=False)  # recordatorio al cliente día anterior
-    notif_ceramic_sent   = db.Column(db.Boolean, default=False)  # seguimiento cerámico 3 meses
-    notif_reengagement_sent = db.Column(db.Boolean, default=False)  # reactivación 3 semanas sin volver
+    notif_ceramic_sent   = db.Column(db.Boolean, default=False)  # mantenimiento cerámico 3 meses (aviso al admin)
+    notif_ceramic_3sem_sent = db.Column(db.Boolean, default=False)  # lavada técnica gratuita 3 semanas (aviso al admin)
+    notif_reengagement_sent = db.Column(db.Boolean, default=False)  # cliente que no vuelve hace 3 semanas (aviso al admin)
     notif_post_service_sent = db.Column(db.Boolean, default=False)  # seguimiento 7 días post-entrega
 
     operator_assignments = db.relationship(
@@ -595,6 +619,7 @@ def ensure_appointment_notif_schema():
             ("notif_reminder_sent", "BOOLEAN DEFAULT 0"),
             ("notif_client_sent",   "BOOLEAN DEFAULT 0"),
             ("notif_ceramic_sent",  "BOOLEAN DEFAULT 0"),
+            ("notif_ceramic_3sem_sent", "BOOLEAN DEFAULT 0"),
             ("notif_reengagement_sent", "BOOLEAN DEFAULT 0"),
             ("notif_post_service_sent", "BOOLEAN DEFAULT 0"),
         ]:
@@ -5298,6 +5323,7 @@ def _log_outbound(
 def send_whatsapp(
     to: str, body: str, *, kind: str = "otro", ref_type=None, ref_id=None,
     media_url: str | None = None,
+    content_sid: str | None = None, content_variables: dict | None = None,
 ) -> tuple[bool, str]:
     """Envía un mensaje de WhatsApp via Twilio.
 
@@ -5306,40 +5332,59 @@ def send_whatsapp(
     de la ventana de 24h) y eso llega por el webhook /whatsapp/status, no por
     aquí. Para saber si de verdad llegó, consulta OutboundMessage.status.
 
+    `content_sid` manda una PLANTILLA aprobada por Meta en vez de texto libre.
+    Es obligatorio cuando han pasado más de 24h desde el último mensaje del
+    cliente: fuera de esa ventana WhatsApp rechaza el texto libre con 63016 y el
+    mensaje se pierde en silencio. `body` se sigue pasando porque es lo que queda
+    guardado en el panel para que un humano lea qué se envió — el contenido real
+    que WhatsApp entrega lo define la plantilla, no `body`.
+
+    Si `content_sid` viene vacío (plantilla todavía sin aprobar) cae a texto
+    libre: sirve mientras la ventana esté abierta y, si no lo está, queda el
+    rechazo registrado en OutboundMessage en vez de fallar sin rastro.
+
     `kind` / `ref_type` / `ref_id` sirven para poder rastrear después qué tipo de
     notificación está fallando y sobre qué cita o conversación."""
     account_sid = os.environ.get("TWILIO_ACCOUNT_SID", "")
     auth_token  = os.environ.get("TWILIO_AUTH_TOKEN", "")
     phone = _normalize_whatsapp_number(to)
+    _log_kw = dict(to_phone=phone, kind=kind, ref_type=ref_type, ref_id=ref_id, body=body)
+    if content_sid:
+        _log_kw["template_sid"] = content_sid
     if not account_sid or not auth_token:
         err = "Variables TWILIO_ACCOUNT_SID / TWILIO_AUTH_TOKEN no configuradas."
-        _log_outbound(to_phone=phone, kind=kind, ref_type=ref_type, ref_id=ref_id,
-                      body=body, status="rejected_local", error_message=err)
+        _log_outbound(status="rejected_local", error_message=err, **_log_kw)
         return False, err
     from_clean, from_err = _twilio_from_number()
     if from_err:
         app.logger.error(f"[WhatsApp] {from_err}")
-        _log_outbound(to_phone=phone, kind=kind, ref_type=ref_type, ref_id=ref_id,
-                      body=body, status="rejected_local", error_message=from_err)
+        _log_outbound(status="rejected_local", error_message=from_err, **_log_kw)
         return False, from_err
     try:
         from twilio.rest import Client as TwilioClient
         extra = {"media_url": [media_url]} if media_url else {}
+        if content_sid:
+            # content_variables van indexadas por posición ("1", "2", ...) y como
+            # strings: Twilio rechaza el payload si son ints.
+            extra["content_sid"] = content_sid
+            extra["content_variables"] = json.dumps(
+                {str(k): str(v) for k, v in (content_variables or {}).items()}
+            )
+        else:
+            extra["body"] = body
         msg = TwilioClient(account_sid, auth_token).messages.create(
             from_=f"whatsapp:{from_clean}",
             to=f"whatsapp:{phone}",
-            body=body,
             status_callback=_status_callback_url(),
             **extra,
         )
-        app.logger.info(f"[WhatsApp] Mensaje aceptado por Twilio para {phone} (sid={msg.sid}, kind={kind})")
-        _log_outbound(to_phone=phone, kind=kind, ref_type=ref_type, ref_id=ref_id,
-                      body=body, twilio_sid=msg.sid, status=msg.status or "queued")
+        via = f"plantilla {content_sid}" if content_sid else "texto libre"
+        app.logger.info(f"[WhatsApp] Mensaje aceptado por Twilio para {phone} ({via}, sid={msg.sid}, kind={kind})")
+        _log_outbound(twilio_sid=msg.sid, status=msg.status or "queued", **_log_kw)
         return True, ""
     except Exception as exc:
         app.logger.error(f"[WhatsApp] Error al enviar a {to}: {exc}")
-        _log_outbound(to_phone=phone, kind=kind, ref_type=ref_type, ref_id=ref_id,
-                      body=body, status="rejected_local", error_message=str(exc))
+        _log_outbound(status="rejected_local", error_message=str(exc), **_log_kw)
         return False, str(exc)
 
 
@@ -6348,6 +6393,42 @@ def _summarize_conversation_for_admin(conversation: "Conversation") -> str:
     )
     chunks = _call_claude(messages, profile_line)
     return chunks[0]
+
+
+def notify_admin_gestion_cliente(
+    *, motivo: str, accion: str, cliente: str, telefono: str,
+    kind: str, level: str = "info", url: str | None = None,
+    ref_type: str | None = None, ref_id: int | None = None,
+) -> tuple[bool, str]:
+    """Le avisa a Diana que hay un cliente que ella tiene que contactar.
+
+    Estos seguimientos (cerámico a 3 semanas y a 3 meses, cliente que no vuelve)
+    los escribe ella a mano a propósito: viniendo de una persona y no de un
+    automático se sienten mucho más cercanos, y es justo el momento en que el
+    cliente decide si vuelve.
+
+    Va por dos canales porque ninguno solo es confiable: la campanita nunca falla
+    pero solo se ve entrando al panel, y el WhatsApp sí llega al celular pero
+    depende de que la plantilla esté aprobada. Si el WhatsApp se cae, la
+    campanita ya dejó registro — el aviso no se pierde."""
+    push_notification(
+        kind=kind, level=level,
+        title=f"{motivo}: {cliente}",
+        body=f"{accion}\n📱 {telefono}",
+        url=url, ref_type=ref_type, ref_id=ref_id,
+    )
+
+    admin_phone = os.environ.get("ADMIN_WHATSAPP", "")
+    if not admin_phone:
+        app.logger.error("[WhatsApp] No se pudo avisar al admin: ADMIN_WHATSAPP no configurado.")
+        return False, "ADMIN_WHATSAPP no configurado"
+
+    resumen = f"Diana, {cliente} ({telefono}): {motivo}. {accion}"
+    return send_whatsapp(
+        admin_phone, resumen, kind=kind, ref_type=ref_type, ref_id=ref_id,
+        content_sid=TPL_AVISO_ADMIN,
+        content_variables={"1": cliente, "2": motivo, "3": accion, "4": telefono},
+    )
 
 
 def notify_admin_conversation_error(conversation: "Conversation", error: Exception) -> None:
@@ -7469,8 +7550,19 @@ def _job_client_reminder():
                 f"¿Nos confirmas que nos vemos? Si necesitas reagendar, por favor "
                 f"avísanos con tiempo. ¡Te esperamos! 🚗✨"
             )
-            ok, _ = send_whatsapp(appt.phone, msg, kind="cliente_recordatorio_cita",
-                                  ref_type="appointment", ref_id=appt.id)
+            # Va con plantilla: el cliente pudo haber agendado hace días, así que
+            # la ventana de 24h casi siempre está cerrada y el texto libre se
+            # perdería con 63016 — justo el recordatorio que más evita no-shows.
+            ok, _ = send_whatsapp(
+                appt.phone, msg, kind="cliente_recordatorio_cita",
+                ref_type="appointment", ref_id=appt.id,
+                content_sid=TPL_RECORDATORIO,
+                content_variables={
+                    "1": appt.customer_name or "cliente",
+                    "2": appt.start_datetime.strftime("%I:%M %p"),
+                    "3": appt.services or "tu servicio",
+                },
+            )
             if ok:
                 appt.notif_client_sent = True
                 db.session.commit()
@@ -7478,7 +7570,16 @@ def _job_client_reminder():
 
 # ── Job 3: Seguimiento cerámico — 3 meses después de la aplicación ────────────
 def _job_ceramic_followup():
-    """Corre diariamente a las 10 AM (Bogotá). Notifica a clientes cuyo cerámico cumple 90 días."""
+    """Corre diariamente a las 10 AM (Bogotá). A los 3 meses del cerámico le avisa
+    a Diana para que contacte al cliente y le agende el mantenimiento.
+
+    El aviso va al admin y no al cliente a propósito: la invitación al
+    mantenimiento la hace ella a mano, que se siente mucho más cercana que un
+    automático y convierte mejor.
+
+    El filtro `%ceramico%` también captura las citas de *mantenimiento* de
+    cerámico, así que el ciclo se reinicia solo: 3 meses después de cada
+    mantenimiento vuelve a avisar."""
     with app.app_context():
         today      = bogota_now().date()
         # Ventana de 90 ± 3 días para no perder citas si el job falla un día
@@ -7494,25 +7595,65 @@ def _job_ceramic_followup():
             Appointment.notif_ceramic_sent == False,
         ).all()
         for appt in citas:
-            msg = (
-                f"✨ Hola {appt.customer_name or 'cliente'}!\n\n"
-                f"Han pasado 3 meses desde que aplicamos el cerámico a tu vehículo 🚗\n\n"
-                f"Es el momento ideal para el *mantenimiento del recubrimiento* y "
-                f"asegurarte de conservar toda la protección.\n\n"
-                f"¡Escríbenos para agendar tu mantenimiento! 💎"
+            ok, _ = notify_admin_gestion_cliente(
+                motivo="Cumple 3 meses del cerámico",
+                accion="Contáctalo para agendar el mantenimiento del recubrimiento.",
+                cliente=appt.customer_name or "Cliente",
+                telefono=appt.phone,
+                kind="cliente_mantenimiento_ceramico", level="info",
+                url=f"/appointments/{appt.id}/edit",
+                ref_type="appointment", ref_id=appt.id,
             )
-            ok, _ = send_whatsapp(appt.phone, msg, kind="cliente_seguimiento_ceramico",
-                                  ref_type="appointment", ref_id=appt.id)
-            if ok:
-                appt.notif_ceramic_sent = True
-                db.session.commit()
+            # La campanita ya dejó registro aunque el WhatsApp falle, así que el
+            # aviso se marca como dado igual: reintentarlo mañana duplicaría la
+            # alerta en el panel.
+            appt.notif_ceramic_sent = True
+            db.session.commit()
+
+
+# ── Job 3a: Cerámico a 3 semanas — primera lavada técnica gratuita ───────────
+def _job_ceramic_3weeks():
+    """Corre diariamente a las 10 AM (Bogotá). A las 3 semanas del cerámico le
+    avisa a Diana para que le agende al cliente su primera lavada técnica
+    gratuita de seguimiento — es parte del servicio, no una venta nueva."""
+    with app.app_context():
+        today      = bogota_now().date()
+        # Ventana de 21 ± 3 días, igual criterio que el job de 3 meses.
+        target_ini = datetime.combine(today - timedelta(days=24), datetime.min.time())
+        target_fin = datetime.combine(today - timedelta(days=18), datetime.min.time())
+        citas = Appointment.query.filter(
+            Appointment.start_datetime >= target_ini,
+            Appointment.start_datetime <= target_fin,
+            Appointment.status == "completed",
+            Appointment.services.ilike("%ceramico%"),
+            Appointment.phone.isnot(None),
+            Appointment.phone != "",
+            Appointment.notif_ceramic_3sem_sent == False,
+        ).all()
+        for appt in citas:
+            notify_admin_gestion_cliente(
+                motivo="Cumple 3 semanas del cerámico",
+                accion="Agéndale su primera lavada técnica gratuita de seguimiento.",
+                cliente=appt.customer_name or "Cliente",
+                telefono=appt.phone,
+                kind="cliente_seguimiento_ceramico", level="info",
+                url=f"/appointments/{appt.id}/edit",
+                ref_type="appointment", ref_id=appt.id,
+            )
+            appt.notif_ceramic_3sem_sent = True
+            db.session.commit()
 
 
 # ── Job 3b: Reactivación — clientes que no han vuelto en 3 semanas ───────────
 def _job_reengagement_followup():
     """Corre diariamente a las 11 AM (Bogotá). Detecta clientes cuya última cita
-    completada fue hace ~3 semanas y no han vuelto a agendar, y les escribe para
-    saludarlos y preguntarles si quieren agendar."""
+    completada fue hace ~3 semanas y no han vuelto a agendar, y le avisa a Diana
+    para que sea ella quien los contacte.
+
+    Ojo: esto NO es lo mismo que la reactivación de leads (`_job_whatsapp_followup`),
+    que persigue a quien nunca compró. Acá el cliente ya compró y se está
+    enfriando, y por eso el mensaje lo escribe una persona: viniendo de Diana se
+    siente cercano, y viniendo de un automático se siente publicidad."""
     with app.app_context():
         today      = bogota_now().date()
         # Ventana de 21 ± 3 días para no perder clientes si el job falla un día
@@ -7564,17 +7705,17 @@ def _job_reengagement_followup():
                 db.session.commit()
                 continue
 
-            msg = (
-                f"👋 Hola {appt.customer_name or 'cliente'}!\n\n"
-                f"Notamos que no has vuelto por *NOXA Detail* desde hace un tiempo 🚗\n\n"
-                f"¿Quieres agendar una cita para darle mantenimiento a tu vehículo? "
-                f"Contamos con toda la disponibilidad para ti ✨"
+            notify_admin_gestion_cliente(
+                motivo="No vuelve hace 3 semanas",
+                accion="Escríbele tú para invitarlo a agendar mantenimiento.",
+                cliente=appt.customer_name or "Cliente",
+                telefono=appt.phone,
+                kind="cliente_no_vuelve", level="info",
+                url=f"/appointments/{appt.id}/edit",
+                ref_type="appointment", ref_id=appt.id,
             )
-            ok, _ = send_whatsapp(appt.phone, msg, kind="cliente_reactivacion",
-                                  ref_type="appointment", ref_id=appt.id)
-            if ok:
-                appt.notif_reengagement_sent = True
-                db.session.commit()
+            appt.notif_reengagement_sent = True
+            db.session.commit()
 
 
 # ── Job 3c: Seguimiento 7 días después del servicio ──────────────────────────
@@ -7634,6 +7775,23 @@ _FOLLOWUP_STAGES = [
 _FIRST_FOLLOWUP_LAST_HOUR = 12
 
 
+def _ventana_24h_abierta(conversation: "Conversation") -> bool:
+    """¿Se le puede escribir texto libre a este cliente ahora mismo?
+
+    WhatsApp solo lo permite dentro de las 24h siguientes al último mensaje que
+    mandó EL CLIENTE (los nuestros no cuentan, no reabren nada). Fuera de eso hay
+    que usar plantilla o el mensaje se rechaza con 63016."""
+    ultimo_entrante = (
+        Message.query
+        .filter_by(conversation_id=conversation.id, direction="in")
+        .order_by(Message.created_at.desc())
+        .first()
+    )
+    if not ultimo_entrante:
+        return False
+    return (datetime.utcnow() - ultimo_entrante.created_at) < timedelta(hours=24)
+
+
 def _job_whatsapp_followup():
     """Corre cada 30 minutos, solo dentro de horario de atención (lunes a sábado, 9am-6pm) —
     ese horario aplica solo para RETOMAR leads fríos, no para responder mensajes nuevos
@@ -7674,14 +7832,28 @@ def _job_whatsapp_followup():
             if conv.followup_count == 0 and now_bogota.hour >= _FIRST_FOLLOWUP_LAST_HOUR:
                 continue  # el primer intento espera a la franja de la mañana siguiente
 
-            try:
-                reply = generate_followup_message(conv, stage)
-            except Exception as exc:
-                app.logger.error(f"[Claude] Error generando seguimiento: {exc}")
-                continue
+            # Dentro de la ventana de 24h se puede escribir libre, así que lo
+            # redacta Claude y sale personalizado. Pasada la ventana solo entra
+            # una plantilla aprobada: se pierde la personalización del primer
+            # toque, pero es eso o que el mensaje no llegue (63016). Si el
+            # cliente responde a la plantilla, la ventana se reabre y Mariana
+            # retoma la conversación normal desde el webhook.
+            tpl_sid = "" if _ventana_24h_abierta(conv) else TPL_REACTIVACION.get(stage, "")
+            nombre = conv.profile_name or "cliente"
+
+            if tpl_sid:
+                reply = f"[Plantilla de reactivación: {stage}]"
+            else:
+                try:
+                    reply = generate_followup_message(conv, stage)
+                except Exception as exc:
+                    app.logger.error(f"[Claude] Error generando seguimiento: {exc}")
+                    continue
 
             ok, _ = send_whatsapp(conv.phone, reply, kind=f"lead_seguimiento_{stage}",
-                                  ref_type="conversation", ref_id=conv.id)
+                                  ref_type="conversation", ref_id=conv.id,
+                                  content_sid=tpl_sid,
+                                  content_variables={"1": nombre} if tpl_sid else None)
             if ok:
                 db.session.add(Message(conversation_id=conv.id, direction="out", body=reply))
                 conv.followup_count += 1
@@ -8093,11 +8265,14 @@ _scheduler.add_job(
     replace_existing=True,
 )
 _scheduler.add_job(
-    _job_post_service_followup,
-    CronTrigger(hour=10, minute=30, timezone=_BOGOTA),
-    id="post_service_followup",
+    _job_ceramic_3weeks,
+    CronTrigger(hour=10, minute=15, timezone=_BOGOTA),
+    id="ceramic_3weeks",
     replace_existing=True,
 )
+# El seguimiento a 7 días post-servicio queda desactivado por decisión del
+# negocio (2026-08-09). La función sigue en el código por si se retoma; para
+# reactivarlo basta con volver a registrar el job acá.
 _scheduler.add_job(
     _job_reengagement_followup,
     CronTrigger(hour=11, minute=0, timezone=_BOGOTA),
