@@ -152,6 +152,32 @@
         {% endfor %}
       </div>
 
+      {# ---- Plan prepagado ----
+         Solo aparece si la placa tiene un plan vigente con cupos. La cita
+         queda en $0 porque el cliente ya pagó el día que compró el plan. #}
+      <div class="mb-3 d-none" id="planBox">
+        <label class="form-label">
+          Plan de mantenimiento
+          <small class="text-secondary">(esta cita quedaría en $0)</small>
+        </label>
+        <div class="row g-2">
+          <div class="col-md-7">
+            <select name="client_plan_id" id="client_plan_id"
+                    class="form-select bg-dark text-light border-secondary">
+              <option value="">— No usar plan —</option>
+            </select>
+          </div>
+          <div class="col-md-5">
+            <select name="plan_service_kind" id="plan_service_kind"
+                    class="form-select bg-dark text-light border-secondary">
+              <option value="wash">Lavada premium</option>
+              <option value="maintenance">Mantenimiento</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-text" id="planHint"></div>
+      </div>
+
       {# ---- Convenio ---- #}
       <div class="mb-3">
         <label class="form-label">Convenio <small class="text-secondary">(opcional)</small></label>
@@ -679,4 +705,54 @@ function saveNewAgreement() {
   })
   .catch(() => alert("Error de red al crear convenio."));
 }
+
+// ---- Planes prepagados -------------------------------------------------
+// El bloque solo aparece si la placa trae un plan que se pueda usar: mostrarlo
+// vacío para todo el mundo invitaría a preguntarse por qué no hay nada.
+(function () {
+  const box   = document.getElementById("planBox");
+  const sel   = document.getElementById("client_plan_id");
+  const kind  = document.getElementById("plan_service_kind");
+  const hint  = document.getElementById("planHint");
+  const plate = document.getElementById("plate");
+  if (!box || !sel || !plate) return;
+
+  const planActual = {{ (appointment.client_plan_id if is_edit and appointment.client_plan_id else 0) | tojson }};
+  const kindActual = {{ (appointment.plan_service_kind if is_edit and appointment.plan_service_kind else "") | tojson }};
+
+  function pintarAyuda() {
+    const o = sel.selectedOptions[0];
+    hint.textContent = (sel.value && o) ? o.dataset.detalle || "" : "";
+  }
+
+  async function cargar() {
+    const valor = (plate.value || "").trim();
+    if (!valor) { box.classList.add("d-none"); return; }
+    try {
+      let url = `/api/plans/by-plate?plate=${encodeURIComponent(valor)}`;
+      if (planActual) url += `&current_id=${planActual}`;
+      const d = await (await fetch(url)).json();
+      if (!d.ok || !d.plans.length) { box.classList.add("d-none"); return; }
+
+      sel.innerHTML = '<option value="">— No usar plan —</option>';
+      d.plans.forEach(p => {
+        const opt = document.createElement("option");
+        opt.value = p.id;
+        opt.textContent = `${p.nombre} — ${p.wash} wash, ${p.maintenance} mant.`;
+        opt.dataset.detalle = `Vence el ${p.vence}. Al guardar se descuenta un servicio del plan.`;
+        sel.appendChild(opt);
+      });
+      if (planActual) { sel.value = planActual; if (kindActual) kind.value = kindActual; }
+      box.classList.remove("d-none");
+      pintarAyuda();
+    } catch (e) {
+      box.classList.add("d-none");  // sin planes visibles se cobra normal, que es el caso seguro
+    }
+  }
+
+  sel.addEventListener("change", pintarAyuda);
+  plate.addEventListener("change", cargar);
+  plate.addEventListener("blur", cargar);
+  cargar();
+})();
 </script>

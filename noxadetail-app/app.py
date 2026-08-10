@@ -5,6 +5,7 @@ from functools import wraps
 from flask_sqlalchemy import SQLAlchemy
 import os
 import uuid
+import calendar
 import csv
 import io
 import json
@@ -535,6 +536,12 @@ class Appointment(db.Model):
     # Notificaciones WhatsApp
     notif_reminder_sent  = db.Column(db.Boolean, default=False)  # recordatorio al admin 30 min antes
     notif_client_sent    = db.Column(db.Boolean, default=False)  # recordatorio al cliente día anterior
+    # Cuando la cita se paga con un plan prepagado: qué plan la cubre y qué cupo
+    # gasta. Con esto puesta, la cita vale $0 — el dinero entró el día que se
+    # vendió el plan, no hoy.
+    client_plan_id    = db.Column(db.Integer, db.ForeignKey("client_plans.id"), nullable=True)
+    plan_service_kind = db.Column(db.String(20), nullable=True)  # wash | maintenance
+
     notif_ceramic_sent   = db.Column(db.Boolean, default=False)  # mantenimiento cerámico 3 meses (aviso al admin)
     notif_ceramic_3sem_sent = db.Column(db.Boolean, default=False)  # lavada técnica gratuita 3 semanas (aviso al admin)
     notif_reengagement_sent = db.Column(db.Boolean, default=False)  # cliente que no vuelve hace 3 semanas (aviso al admin)
@@ -638,6 +645,26 @@ def ensure_appointment_notif_schema():
 
 ensure_appointment_notif_schema()
 
+
+def ensure_appointment_plan_schema():
+    """Columnas que vinculan una cita con el plan prepagado que la cubre."""
+    with app.app_context():
+        db.create_all()  # crea maintenance_plans / client_plans si no existen
+        for col, ddl in [
+            ("client_plan_id",    "INTEGER"),
+            ("plan_service_kind", "VARCHAR(20)"),
+        ]:
+            try:
+                db.session.execute(text(f"SELECT {col} FROM appointments LIMIT 1"))
+            except Exception:
+                db.session.execute(
+                    text(f"ALTER TABLE appointments ADD COLUMN {col} {ddl}")
+                )
+        db.session.commit()
+
+ensure_appointment_plan_schema()
+
+
 def ensure_appointment_source_schema():
     with app.app_context():
         try:
@@ -707,6 +734,100 @@ class ServiceSale(db.Model):
 
     def __repr__(self):
         return f"<ServiceSale {self.service_date} {self.final_amount} {self.status}>"
+
+
+class MaintenancePlan(db.Model):
+    """Catálogo de planes de mantenimiento de cerámico.
+
+    Cada plan es una bolsa prepagada: el cliente paga por adelantado una
+    cantidad de lavadas premium y de mantenimientos, con descuento por
+    comprarlos juntos, y los va consumiendo hasta agotarlos o hasta que el plan
+    vence."""
+    __tablename__ = "maintenance_plans"
+    id = db.Column(db.Integer, primary_key=True)
+
+    name              = db.Column(db.String(80), nullable=False, unique=True)
+    months            = db.Column(db.Integer, nullable=False)   # vigencia
+    discount_pct      = db.Column(db.Integer, nullable=False)   # 15 / 20 / 25
+    wash_count        = db.Column(db.Integer, nullable=False, default=0)
+    maintenance_count = db.Column(db.Integer, nullable=False, default=0)
+
+    is_active  = db.Column(db.Boolean, nullable=False, default=True)
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+
+    def __repr__(self):
+        return f"<MaintenancePlan {self.name} {self.months}m -{self.discount_pct}%>"
+
+
+class ClientPlan(db.Model):
+    """Un plan vendido, atado a una placa.
+
+    El saldo se guarda en columnas y no se deriva contando citas: una cita se
+    puede editar, cancelar o reasignar, y cuántos servicios le quedan al cliente
+    tiene que ser un hecho auditable, no el resultado de una consulta que cambia
+    sola. Cada movimiento del saldo pasa por consumir_cupo/devolver_cupo."""
+    __tablename__ = "client_plans"
+    id = db.Column(db.Integer, primary_key=True)
+
+    plan_id = db.Column(db.Integer, db.ForeignKey("maintenance_plans.id"), nullable=False)
+
+    customer_name   = db.Column(db.String(120), nullable=True)
+    phone           = db.Column(db.String(30), nullable=True)
+    plate           = db.Column(db.String(20), nullable=False)
+    vehicle_type_id = db.Column(db.Integer, db.ForeignKey("vehicle_types.id"), nullable=True)
+
+    sold_on    = db.Column(db.Date, nullable=False, default=lambda: bogota_now().date())
+    expires_on = db.Column(db.Date, nullable=False)
+    price_paid = db.Column(db.Integer, nullable=False, default=0)
+
+    wash_remaining        = db.Column(db.Integer, nullable=False, default=0)
+    maintenance_remaining = db.Column(db.Integer, nullable=False, default=0)
+
+    # El ingreso que generó esta venta, para poder rastrear la plata.
+    sale_id = db.Column(db.Integer, db.ForeignKey("service_sales.id"), nullable=True)
+
+    is_active  = db.Column(db.Boolean, nullable=False, default=True)
+    notes      = db.Column(db.Text, nullable=True)
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+
+    plan         = db.relationship("MaintenancePlan")
+    vehicle_type = db.relationship("VehicleType")
+    sale         = db.relationship("ServiceSale")
+
+    @property
+    def vencido(self) -> bool:
+        return bogota_now().date() > self.expires_on
+
+    @property
+    def vigente(self) -> bool:
+        return bool(self.is_active) and not self.vencido
+
+    def cupos_restantes(self, kind: str) -> int:
+        return self.wash_remaining if kind == "wash" else self.maintenance_remaining
+
+    def puede_consumir(self, kind: str) -> bool:
+        return self.vigente and self.cupos_restantes(kind) > 0
+
+    def consumir_cupo(self, kind: str) -> None:
+        if kind == "wash":
+            self.wash_remaining = max(self.wash_remaining - 1, 0)
+        else:
+            self.maintenance_remaining = max(self.maintenance_remaining - 1, 0)
+
+    def devolver_cupo(self, kind: str) -> None:
+        """Al cancelar o desmarcar una cita el cupo vuelve al cliente.
+
+        Se topea contra lo que trae el plan para que reabrir y guardar una cita
+        varias veces no termine regalando servicios que nunca compró."""
+        if kind == "wash":
+            self.wash_remaining = min(self.wash_remaining + 1, self.plan.wash_count)
+        else:
+            self.maintenance_remaining = min(
+                self.maintenance_remaining + 1, self.plan.maintenance_count
+            )
+
+    def __repr__(self):
+        return f"<ClientPlan {self.plate} {self.plan_id} w={self.wash_remaining} m={self.maintenance_remaining}>"
     
 # -----------------------
 # CLIENT MODEL
@@ -1287,6 +1408,73 @@ def seed_payment_methods():
     db.session.commit()
     print("Medios de pago iniciales creados.")
 
+
+# -----------------------
+# PLANES DE MANTENIMIENTO DE CERÁMICO
+# -----------------------
+# Nombres de los servicios que componen un plan. Van por variable de entorno con
+# el mismo criterio que DIAGNOSTIC_SERVICE_NAME: los ids difieren entre la BD
+# local y la de producción, y el nombre se puede corregir sin tocar código.
+PLAN_WASH_SERVICE_NAME = os.environ.get("PLAN_WASH_SERVICE_NAME", "Wash Premium")
+PLAN_MAINT_SERVICE_NAME = os.environ.get("PLAN_MAINT_SERVICE_NAME", "Mantenimiento")
+
+
+def seed_maintenance_plans():
+    if MaintenancePlan.query.count() > 0:
+        return
+
+    planes = [
+        # (nombre, meses, % dto, lavadas, mantenimientos)
+        ("Plan Trimestral", 3,  15, 2, 1),
+        ("Plan Semestral",  6,  20, 4, 2),
+        ("Plan Anual",      12, 25, 8, 4),
+    ]
+    for name, months, pct, wash, maint in planes:
+        db.session.add(MaintenancePlan(
+            name=name, months=months, discount_pct=pct,
+            wash_count=wash, maintenance_count=maint, is_active=True,
+        ))
+    db.session.commit()
+    print("Planes de mantenimiento iniciales creados.")
+
+
+def _servicio_por_nombre(nombre: str):
+    """Servicio activo por nombre exacto, sin distinguir mayúsculas ni espacios."""
+    if not nombre:
+        return None
+    return (Service.query
+            .filter(db.func.lower(Service.name) == nombre.strip().lower(),
+                    Service.is_active == True)  # noqa: E712
+            .first())
+
+
+def precio_sugerido_plan(plan: "MaintenancePlan", vehicle_type_id: int) -> int | None:
+    """Cuánto vale el plan para ese tipo de vehículo.
+
+    Es la suma de los servicios que incluye, a precio de lista, con el descuento
+    del plan aplicado. Devuelve None si falta cargar algún precio: en ese caso la
+    vista deja escribir el valor a mano en vez de trabar la venta o —peor—
+    cobrar de menos silenciosamente, que es lo que haría calculate_real_price()
+    al ignorar los servicios sin precio."""
+    if not vehicle_type_id:
+        return None
+
+    wash = _servicio_por_nombre(PLAN_WASH_SERVICE_NAME)
+    maint = _servicio_por_nombre(PLAN_MAINT_SERVICE_NAME)
+    if (plan.wash_count and not wash) or (plan.maintenance_count and not maint):
+        return None
+
+    total = 0
+    for servicio, cantidad in ((wash, plan.wash_count), (maint, plan.maintenance_count)):
+        if not cantidad:
+            continue
+        unitario = calculate_real_price([servicio.id], vehicle_type_id)
+        if not unitario:  # el servicio existe pero no tiene precio para este vehículo
+            return None
+        total += unitario * cantidad
+
+    return round(total * (100 - plan.discount_pct) / 100)
+
 # -----------------------
 # SEED INICIAL DE CONVENIOS
 # -----------------------
@@ -1690,6 +1878,12 @@ def appointment_money(appt: Appointment) -> dict:
     if not appt.vehicle_type_id:
         return vacio
 
+    # Cita cubierta por un plan prepagado: vale 0 porque ya se cobró el día que
+    # se vendió el plan (ese ingreso quedó como ServiceSale sin cita). Cobrarla
+    # otra vez acá contaría la misma plata dos veces en los ingresos.
+    if appt.client_plan_id:
+        return vacio
+
     service_names = [s.strip() for s in (appt.services or "").split(",") if s.strip()]
     services = Service.query.filter(Service.name.in_(service_names)).all()
     service_ids = [s.id for s in services]
@@ -1843,6 +2037,87 @@ def sync_appointment_payments(appt: Appointment, form):
             paid_on=fecha or bogota_now().date(),
             description=(descs[i].strip()[:200] if i < len(descs) and descs[i] else None),
         ))
+
+def planes_vigentes_para_placa(plate: str) -> list["ClientPlan"]:
+    """Planes que esa placa puede usar hoy: activos, sin vencer y con algún cupo."""
+    if not plate:
+        return []
+    planes = ClientPlan.query.filter(
+        ClientPlan.plate == normalize_plate(plate),
+        ClientPlan.is_active == True,  # noqa: E712
+    ).order_by(ClientPlan.expires_on).all()
+    return [p for p in planes
+            if p.vigente and (p.wash_remaining > 0 or p.maintenance_remaining > 0)]
+
+
+def sync_appointment_plan(appt: Appointment, form) -> str | None:
+    """Aplica (o quita) el plan que cubre esta cita, moviendo el saldo.
+
+    El saldo se mueve acá y en ningún otro lado. Como editar una cita reenvía el
+    formulario completo, lo primero es devolver el cupo anterior y recién
+    después cobrar el nuevo: si no, guardar dos veces la misma cita le comía dos
+    servicios al cliente.
+
+    Devuelve un mensaje de error si el plan pedido no se puede usar, o None si
+    todo salió bien."""
+    plan_id = (form.get("client_plan_id") or "").strip()
+    kind = (form.get("plan_service_kind") or "").strip()
+
+    anterior = appt.client_plan_id
+    kind_anterior = appt.plan_service_kind
+
+    # Sin plan pedido: se libera el que tuviera.
+    if not plan_id:
+        if anterior:
+            previo = ClientPlan.query.get(anterior)
+            if previo and kind_anterior:
+                previo.devolver_cupo(kind_anterior)
+        appt.client_plan_id = None
+        appt.plan_service_kind = None
+        return None
+
+    if kind not in ("wash", "maintenance"):
+        return "Elige qué servicio del plan se va a usar."
+
+    plan = ClientPlan.query.get(int(plan_id))
+    if not plan:
+        return "El plan seleccionado no existe."
+    if plan.plate != normalize_plate(appt.plate or ""):
+        return f"Ese plan es de la placa {plan.plate}, no de {appt.plate}."
+    if plan.vencido:
+        return f"El plan venció el {plan.expires_on.strftime('%d/%m/%Y')}."
+
+    # Reasignar dentro de la misma cita: se devuelve lo viejo antes de mirar el
+    # saldo, o un cambio de wash a mantenimiento parecería no tener cupo.
+    if anterior:
+        previo = ClientPlan.query.get(anterior)
+        if previo and kind_anterior:
+            previo.devolver_cupo(kind_anterior)
+
+    if not plan.puede_consumir(kind):
+        if anterior:  # deshacer la devolución: la cita se queda como estaba
+            previo = ClientPlan.query.get(anterior)
+            if previo and kind_anterior:
+                previo.consumir_cupo(kind_anterior)
+        etiqueta = "lavadas premium" if kind == "wash" else "mantenimientos"
+        return f"Al plan no le quedan {etiqueta}."
+
+    plan.consumir_cupo(kind)
+    appt.client_plan_id = plan.id
+    appt.plan_service_kind = kind
+    return None
+
+
+def liberar_plan_de_cita(appt: Appointment) -> None:
+    """Devuelve el cupo cuando la cita se cancela o se borra."""
+    if not appt.client_plan_id or not appt.plan_service_kind:
+        return
+    plan = ClientPlan.query.get(appt.client_plan_id)
+    if plan:
+        plan.devolver_cupo(appt.plan_service_kind)
+    appt.client_plan_id = None
+    appt.plan_service_kind = None
+
 
 # -----------------------
 # HELPER: Verificar si la cita ya fue cerrada (ServiceSale existe para appointment_id)
@@ -2141,6 +2416,11 @@ def new_appointment():
         )
         sync_appointment_adjustments(appt, request.form)
         sync_appointment_payments(appt, request.form)
+        error_plan = sync_appointment_plan(appt, request.form)
+        if error_plan:
+            db.session.rollback()
+            flash(error_plan, "danger")
+            return redirect(url_for("new_appointment"))
         db.session.add(appt)
         db.session.flush()
 
@@ -2475,6 +2755,10 @@ def delete_appointment(appointment_id):
         flash("Palabra clave incorrecta. La cita no se eliminó.", "danger")
         return redirect(url_for("calendar_view"))
 
+    # El cupo del plan vuelve al cliente: si se borra la cita, ese servicio
+    # nunca se prestó.
+    liberar_plan_de_cita(appt)
+
     db.session.delete(appt)
     db.session.commit()
     flash("Cita eliminada.", "success")
@@ -2552,6 +2836,11 @@ def edit_appointment(appointment_id):
         # Descuentos/recargos y abonos: se reemplazan por lo que traiga el form.
         sync_appointment_adjustments(appointment, request.form)
         sync_appointment_payments(appointment, request.form)
+        error_plan = sync_appointment_plan(appointment, request.form)
+        if error_plan:
+            db.session.rollback()
+            flash(error_plan, "danger")
+            return redirect(url_for("edit_appointment", appointment_id=appointment.id))
 
         # Guardar/actualizar datos del cliente por placa (si hay placa)
         upsert_client_from_appointment(
@@ -4120,6 +4409,12 @@ def close_appointment(appointment_id):
     # Actualizar el estado de la cita antes de crear la venta
     appt.status = status
 
+    # Si la cita iba por plan y se cancela, el cupo vuelve al cliente: no gastó
+    # el servicio. Al completarla no se toca nada — el cupo ya se descontó al
+    # agendar y el servicio efectivamente se prestó.
+    if status == "cancelled":
+        liberar_plan_de_cita(appt)
+
     sale = ServiceSale(
         appointment_id=appt.id,
         service_date=appt.start_datetime.date(),
@@ -4369,6 +4664,7 @@ with app.app_context():
     seed_payment_methods()
     seed_expense_categories()
     seed_agreements()
+    seed_maintenance_plans()
 
 @app.route("/seed-new-services")
 def seed_new_services():
@@ -4691,6 +4987,9 @@ OPERARIO_ENDPOINTS = {
     "parking_list", "parking_new", "parking_delete",
     "api_events", "api_client_by_plate", "api_client_plates",
     "api_client_names", "api_client_by_name", "api_estimate_price",
+    # El operario agenda citas, así que tiene que poder ver si la placa trae
+    # plan. Solo lee cupos y vencimiento — no expone plata ni el catálogo.
+    "api_plans_by_plate",
     "change_password",
 }
 
@@ -8304,6 +8603,179 @@ def test_whatsapp():
             "danger"
         )
     return redirect(url_for("calendar_view"))
+
+
+# -----------------------
+# PLANES DE MANTENIMIENTO — venta y seguimiento
+# -----------------------
+@app.route("/plans")
+def plans_list():
+    """Planes vendidos, con su saldo. Lo primero que se necesita saber es a
+    quién le queda algo por usar, así que los vigentes van arriba."""
+    if not puede_ver_finanzas():
+        flash("Acceso restringido.", "danger")
+        return redirect(url_for("calendar_view"))
+
+    vendidos = ClientPlan.query.order_by(ClientPlan.sold_on.desc()).all()
+    return render_template(
+        "plans.html",
+        vendidos=vendidos,
+        catalogo=MaintenancePlan.query.filter_by(is_active=True).order_by(MaintenancePlan.months).all(),
+        vehicle_types=VehicleType.query.filter_by(is_active=True).order_by(VehicleType.name).all(),
+        hoy=bogota_now().date(),
+    )
+
+
+@app.route("/api/plans/price")
+def api_plan_price():
+    """Precio sugerido para el combo plan × tipo de vehículo, para el formulario."""
+    if not puede_ver_finanzas():
+        return jsonify({"ok": False, "error": "Acceso restringido"}), 403
+    try:
+        plan = MaintenancePlan.query.get(int(request.args.get("plan_id", 0)))
+        vehicle_type_id = int(request.args.get("vehicle_type_id", 0))
+    except (TypeError, ValueError):
+        return jsonify({"ok": False, "error": "Parámetros inválidos"}), 400
+    if not plan:
+        return jsonify({"ok": False, "error": "Plan no encontrado"}), 404
+
+    precio = precio_sugerido_plan(plan, vehicle_type_id)
+    return jsonify({
+        "ok": True,
+        "price": precio,
+        "wash_count": plan.wash_count,
+        "maintenance_count": plan.maintenance_count,
+        "months": plan.months,
+    })
+
+
+@app.route("/api/plans/by-plate")
+def api_plans_by_plate():
+    """Planes que puede usar una placa, para el formulario de la cita.
+
+    Incluye el plan que ya tiene asignado la cita que se está editando aunque se
+    haya quedado sin cupos: si no, al reabrir esa cita el plan desaparecería del
+    selector y guardar la desvincularía sin querer."""
+    plate = request.args.get("plate", "")
+    planes = planes_vigentes_para_placa(plate)
+
+    actual_id = request.args.get("current_id")
+    if actual_id:
+        try:
+            actual = ClientPlan.query.get(int(actual_id))
+        except (TypeError, ValueError):
+            actual = None
+        if actual and actual.id not in {p.id for p in planes}:
+            planes.insert(0, actual)
+
+    return jsonify({"ok": True, "plans": [
+        {
+            "id": p.id,
+            "nombre": p.plan.name,
+            "wash": p.wash_remaining,
+            "maintenance": p.maintenance_remaining,
+            "vence": p.expires_on.strftime("%d/%m/%Y"),
+        }
+        for p in planes
+    ]})
+
+
+@app.route("/plans/sell", methods=["POST"])
+def plan_sell():
+    """Vende un plan y registra el ingreso.
+
+    La plata entra hoy, completa: es prepago. Se guarda como ServiceSale sin
+    cita —igual que el parqueadero— para que entre a los ingresos por el mismo
+    camino que todo lo demás. Las citas que después consuman el plan valen $0,
+    porque cobrarlas otra vez sería contar dos veces la misma venta."""
+    if not puede_ver_finanzas():
+        flash("Acceso restringido.", "danger")
+        return redirect(url_for("calendar_view"))
+
+    plate = normalize_plate(request.form.get("plate") or "")
+    customer_name = (request.form.get("customer_name") or "").strip() or None
+    phone = (request.form.get("phone") or "").strip() or None
+    notes = (request.form.get("notes") or "").strip() or None
+
+    if not plate:
+        flash("La placa es obligatoria: el plan se vende para un vehículo.", "danger")
+        return redirect(url_for("plans_list"))
+
+    try:
+        plan = MaintenancePlan.query.get(int(request.form.get("plan_id") or 0))
+        vehicle_type_id = int(request.form.get("vehicle_type_id") or 0)
+    except (TypeError, ValueError):
+        flash("Plan o tipo de vehículo inválido.", "danger")
+        return redirect(url_for("plans_list"))
+
+    if not plan or not vehicle_type_id:
+        flash("Elige el plan y el tipo de vehículo.", "danger")
+        return redirect(url_for("plans_list"))
+
+    precio = _int_o_cero(request.form.get("price_paid"))
+    if precio <= 0:
+        precio = precio_sugerido_plan(plan, vehicle_type_id) or 0
+    if precio <= 0:
+        flash("No se pudo calcular el precio: escríbelo a mano.", "danger")
+        return redirect(url_for("plans_list"))
+
+    sold_on = _parse_date(request.form.get("sold_on")) or bogota_now().date()
+    # timedelta no sabe de meses, y no hace falta traer dateutil solo para esto.
+    mes = sold_on.month - 1 + plan.months
+    expires_on = sold_on.replace(
+        year=sold_on.year + mes // 12,
+        month=mes % 12 + 1,
+        # Un plan vendido un 31 vence el 30 si ese mes no tiene 31.
+        day=min(sold_on.day, calendar.monthrange(sold_on.year + mes // 12, mes % 12 + 1)[1]),
+    )
+
+    vt = VehicleType.query.get(vehicle_type_id)
+    sale = ServiceSale(
+        appointment_id=None,
+        service_date=sold_on,
+        vehicle_type=vt.name if vt else "N/A",
+        plate=plate,
+        customer_name=customer_name,
+        services=plan.name,
+        base_amount=precio,
+        discount_amount=0,
+        final_amount=precio,
+        payment_method=(request.form.get("payment_method") or "").strip() or None,
+        status="completed",
+        notes=f"Venta de {plan.name} (vence {expires_on.strftime('%d/%m/%Y')})",
+    )
+    db.session.add(sale)
+    db.session.flush()
+
+    db.session.add(ClientPlan(
+        plan_id=plan.id, customer_name=customer_name, phone=phone, plate=plate,
+        vehicle_type_id=vehicle_type_id, sold_on=sold_on, expires_on=expires_on,
+        price_paid=precio,
+        wash_remaining=plan.wash_count,
+        maintenance_remaining=plan.maintenance_count,
+        sale_id=sale.id, notes=notes,
+    ))
+
+    upsert_client_from_appointment(
+        plate=plate, full_name=customer_name, phone=phone,
+        vehicle_type_id=vehicle_type_id, agreement_id=None,
+    )
+    db.session.commit()
+
+    flash(f"{plan.name} vendido a {plate} por ${precio:,.0f}".replace(",", "."), "success")
+    return redirect(url_for("plans_list"))
+
+
+@app.route("/plans/<int:plan_id>/toggle", methods=["POST"])
+def plan_toggle(plan_id):
+    """Desactiva un plan vendido (venta anulada, cliente que se fue)."""
+    if not puede_ver_finanzas():
+        flash("Acceso restringido.", "danger")
+        return redirect(url_for("calendar_view"))
+    cp = ClientPlan.query.get_or_404(plan_id)
+    cp.is_active = not cp.is_active
+    db.session.commit()
+    return redirect(url_for("plans_list"))
 
 
 @app.route("/backups")

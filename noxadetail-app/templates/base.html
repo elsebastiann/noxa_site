@@ -605,6 +605,7 @@
             <li><a class="dropdown-item-custom" href="{{ url_for('payroll_list') }}"><i class="bi bi-cash-coin"></i>Nómina</a></li>
             <li><a class="dropdown-item-custom" href="{{ url_for('quality_errors_list') }}"><i class="bi bi-exclamation-triangle-fill"></i>Errores calidad</a></li>
             <li><a class="dropdown-item-custom" href="{{ url_for('vales_list') }}"><i class="bi bi-receipt"></i>Vales</a></li>
+            <li><a class="dropdown-item-custom" href="{{ url_for('plans_list') }}"><i class="bi bi-award"></i>Planes</a></li>
             <li><a class="dropdown-item-custom" href="{{ url_for('whatsapp_outbox') }}"><i class="bi bi-send-check"></i>Bandeja de salida</a></li>
             <li><a class="dropdown-item-custom" href="{{ url_for('backups_list') }}"><i class="bi bi-hdd-fill"></i>Backups</a></li>
             {% endif %}
@@ -716,6 +717,7 @@
   <a href="{{ url_for('users_list') }}"><i class="bi bi-people-fill"></i>Usuarios</a>
   <a href="{{ url_for('payroll_list') }}"><i class="bi bi-cash-coin"></i>Nómina</a>
   <a href="{{ url_for('vales_list') }}"><i class="bi bi-receipt"></i>Vales</a>
+  <a href="{{ url_for('plans_list') }}"><i class="bi bi-award"></i>Planes</a>
   <a href="{{ url_for('whatsapp_outbox') }}"><i class="bi bi-send-check"></i>Bandeja de salida</a>
   <a href="{{ url_for('backups_list') }}"><i class="bi bi-hdd-fill"></i>Backups</a>
   {% endif %}

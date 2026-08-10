@@ -1,0 +1,176 @@
+{% extends "base.html" %}
+
+{% block extra_head %}
+<style>
+  .pl-note { color:var(--text2); font-size:.85rem; max-width:72ch; line-height:1.5; margin:8px 0 20px; }
+  .pl-form { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+             padding:18px 20px; margin-bottom:26px; }
+  .pl-grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(170px,1fr)); gap:14px; }
+  .pl-label { display:block; font-size:.78rem; color:var(--text2); margin-bottom:5px;
+              text-transform:uppercase; letter-spacing:.04em; }
+  .pl-hint { font-size:.78rem; color:var(--text3); margin-top:6px; min-height:1em; }
+  .pl-wrap { overflow-x:auto; border:1px solid var(--border); border-radius:var(--radius); }
+  table.pl { width:100%; border-collapse:collapse; font-size:.86rem; min-width:860px; }
+  table.pl th { background:var(--surface2); color:var(--text2); text-align:left;
+                padding:10px 12px; font-weight:600; white-space:nowrap; }
+  table.pl td { padding:10px 12px; border-top:1px solid var(--border); vertical-align:middle; }
+  .pl-plate { font-family:ui-monospace, SFMono-Regular, Menlo, monospace; font-weight:600; }
+  .pill { display:inline-block; padding:2px 9px; border-radius:999px; font-size:.75rem;
+          font-weight:600; white-space:nowrap; }
+  .pl-ok   { background:rgba(102,187,106,0.15); color:#66bb6a; }
+  .pl-warn { background:rgba(212,180,108,0.14); color:var(--accent); }
+  .pl-off  { background:rgba(120,120,120,0.18); color:var(--text2); }
+  .pl-saldo { font-variant-numeric:tabular-nums; }
+  .pl-agotado { color:var(--text3); }
+  .pl-empty { padding:34px; text-align:center; color:var(--text2);
+              border:1px solid var(--border); border-radius:var(--radius); }
+</style>
+{% endblock %}
+
+{% block content %}
+<h2 style="margin-top:16px;">Planes de mantenimiento</h2>
+<p class="pl-note">
+  El cliente paga el plan completo por adelantado y va usando los servicios. Cada plan queda
+  atado a una placa. Al agendar una cita para esa placa vas a poder marcar que se cubre con el
+  plan: esa cita queda en $0 porque la plata ya entró el día de la venta.
+</p>
+
+<form class="pl-form" method="POST" action="{{ url_for('plan_sell') }}">
+  <h3 style="margin:0 0 14px; font-size:1rem;">Vender un plan</h3>
+  <div class="pl-grid">
+    <div>
+      <label class="pl-label" for="plan_id">Plan</label>
+      <select id="plan_id" name="plan_id" required>
+        <option value="">Elige…</option>
+        {% for p in catalogo %}
+          <option value="{{ p.id }}">{{ p.name }} — {{ p.wash_count }} wash + {{ p.maintenance_count }} mant. ({{ p.discount_pct }}% OFF)</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div>
+      <label class="pl-label" for="vehicle_type_id">Tipo de vehículo</label>
+      <select id="vehicle_type_id" name="vehicle_type_id" required>
+        <option value="">Elige…</option>
+        {% for vt in vehicle_types %}
+          <option value="{{ vt.id }}">{{ vt.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div>
+      <label class="pl-label" for="plate">Placa</label>
+      <input id="plate" name="plate" required placeholder="ABC123" style="text-transform:uppercase;">
+    </div>
+    <div>
+      <label class="pl-label" for="customer_name">Cliente</label>
+      <input id="customer_name" name="customer_name" placeholder="Nombre completo">
+    </div>
+    <div>
+      <label class="pl-label" for="phone">Celular</label>
+      <input id="phone" name="phone" placeholder="3001234567">
+    </div>
+    <div>
+      <label class="pl-label" for="price_paid">Precio cobrado</label>
+      <input id="price_paid" name="price_paid" inputmode="numeric" placeholder="Se calcula solo">
+      <div class="pl-hint" id="priceHint"></div>
+    </div>
+    <div>
+      <label class="pl-label" for="sold_on">Fecha de venta</label>
+      <input id="sold_on" name="sold_on" type="date" value="{{ hoy.isoformat() }}">
+    </div>
+    <div>
+      <label class="pl-label" for="payment_method">Medio de pago</label>
+      <input id="payment_method" name="payment_method" placeholder="Efectivo, transferencia…">
+    </div>
+  </div>
+  <div style="margin-top:14px;">
+    <label class="pl-label" for="notes">Notas</label>
+    <input id="notes" name="notes" placeholder="Opcional">
+  </div>
+  <button type="submit" class="btn" style="margin-top:16px;">Registrar venta</button>
+</form>
+
+<h3 style="font-size:1rem; margin-bottom:12px;">Planes vendidos</h3>
+{% if vendidos %}
+  <div class="pl-wrap">
+    <table class="pl">
+      <thead>
+        <tr>
+          <th>Placa</th><th>Cliente</th><th>Plan</th>
+          <th>Wash</th><th>Mant.</th>
+          <th>Vence</th><th>Pagó</th><th>Estado</th><th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for cp in vendidos %}
+          <tr>
+            <td class="pl-plate">{{ cp.plate }}</td>
+            <td>{{ cp.customer_name or '—' }}</td>
+            <td>{{ cp.plan.name }}</td>
+            <td class="pl-saldo {{ 'pl-agotado' if cp.wash_remaining == 0 }}">
+              {{ cp.wash_remaining }} / {{ cp.plan.wash_count }}
+            </td>
+            <td class="pl-saldo {{ 'pl-agotado' if cp.maintenance_remaining == 0 }}">
+              {{ cp.maintenance_remaining }} / {{ cp.plan.maintenance_count }}
+            </td>
+            <td>{{ cp.expires_on.strftime('%d/%m/%Y') }}</td>
+            <td class="pl-saldo">${{ '{:,.0f}'.format(cp.price_paid).replace(',', '.') }}</td>
+            <td>
+              {% if not cp.is_active %}
+                <span class="pill pl-off">Inactivo</span>
+              {% elif cp.vencido %}
+                <span class="pill pl-off">Vencido</span>
+              {% elif cp.wash_remaining == 0 and cp.maintenance_remaining == 0 %}
+                <span class="pill pl-warn">Agotado</span>
+              {% else %}
+                <span class="pill pl-ok">Vigente</span>
+              {% endif %}
+            </td>
+            <td>
+              <form method="POST" action="{{ url_for('plan_toggle', plan_id=cp.id) }}" style="margin:0;">
+                <button type="submit" class="btn btn-sm">
+                  {{ 'Activar' if not cp.is_active else 'Desactivar' }}
+                </button>
+              </form>
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+{% else %}
+  <div class="pl-empty">Todavía no se ha vendido ningún plan.</div>
+{% endif %}
+
+<script>
+  // Precio sugerido según plan + tipo de vehículo. Se deja editable a propósito:
+  // si algún servicio no tiene precio cargado no hay que trabar la venta.
+  (function () {
+    const plan = document.getElementById('plan_id');
+    const vt = document.getElementById('vehicle_type_id');
+    const precio = document.getElementById('price_paid');
+    const hint = document.getElementById('priceHint');
+    let tocadoAMano = false;
+
+    precio.addEventListener('input', () => { tocadoAMano = true; });
+
+    async function sugerir() {
+      if (!plan.value || !vt.value) { hint.textContent = ''; return; }
+      hint.textContent = 'Calculando…';
+      try {
+        const r = await fetch(`/api/plans/price?plan_id=${plan.value}&vehicle_type_id=${vt.value}`);
+        const d = await r.json();
+        if (d.ok && d.price) {
+          hint.textContent = `Sugerido: $${d.price.toLocaleString('es-CO')} · vence en ${d.months} meses`;
+          if (!tocadoAMano) precio.value = d.price;
+        } else {
+          hint.textContent = 'Sin precio cargado para ese vehículo: escríbelo a mano.';
+        }
+      } catch (e) {
+        hint.textContent = 'No se pudo calcular: escribe el precio a mano.';
+      }
+    }
+    plan.addEventListener('change', sugerir);
+    vt.addEventListener('change', sugerir);
+  })();
+</script>
+{% endblock %}

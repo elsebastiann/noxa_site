@@ -117,8 +117,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "datetime",
-      "community": 28,
-      "community_name": "datetime",
+      "community": 3,
+      "community_name": "make_user",
       "norm_label": "datetime"
     },
     {
@@ -410,8 +410,8 @@
       "_callable_class": true,
       "_origin": "ast",
       "id": "app_appointment",
-      "community": 20,
-      "community_name": "book_diagnostic_from_bot",
+      "community": 21,
+      "community_name": "new_appointment",
       "norm_label": "appointment"
     },
     {
@@ -422,8 +422,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_appointment_repr",
-      "community": 20,
-      "community_name": "book_diagnostic_from_bot",
+      "community": 21,
+      "community_name": "new_appointment",
       "norm_label": ".__repr__()"
     },
     {
@@ -507,8 +507,8 @@
       "_callable_class": true,
       "_origin": "ast",
       "id": "app_servicesale",
-      "community": 44,
-      "community_name": "parking_new",
+      "community": 31,
+      "community_name": "appointment_money",
       "norm_label": "servicesale"
     },
     {
@@ -519,8 +519,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_servicesale_repr",
-      "community": 44,
-      "community_name": "parking_new",
+      "community": 31,
+      "community_name": "appointment_money",
       "norm_label": ".__repr__()"
     },
     {
@@ -532,8 +532,8 @@
       "_callable_class": true,
       "_origin": "ast",
       "id": "app_client",
-      "community": 54,
-      "community_name": "upsert_client_from_appointment",
+      "community": 20,
+      "community_name": "normalize_plate",
       "norm_label": "client"
     },
     {
@@ -544,8 +544,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_client_repr",
-      "community": 54,
-      "community_name": "upsert_client_from_appointment",
+      "community": 20,
+      "community_name": "normalize_plate",
       "norm_label": ".__repr__()"
     },
     {
@@ -655,8 +655,8 @@
       "_callable_class": true,
       "_origin": "ast",
       "id": "app_appointmentadjustment",
-      "community": 24,
-      "community_name": "sync_appointment_adjustments",
+      "community": 4,
+      "community_name": "test_abonos_ajustes.py",
       "norm_label": "appointmentadjustment"
     },
     {
@@ -667,8 +667,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_appointmentadjustment_repr",
-      "community": 24,
-      "community_name": "sync_appointment_adjustments",
+      "community": 4,
+      "community_name": "test_abonos_ajustes.py",
       "norm_label": ".__repr__()"
     },
     {
@@ -680,8 +680,8 @@
       "_callable_class": true,
       "_origin": "ast",
       "id": "app_appointmentpayment",
-      "community": 43,
-      "community_name": "sync_appointment_payments",
+      "community": 4,
+      "community_name": "test_abonos_ajustes.py",
       "norm_label": "appointmentpayment"
     },
     {
@@ -692,8 +692,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_appointmentpayment_repr",
-      "community": 43,
-      "community_name": "sync_appointment_payments",
+      "community": 4,
+      "community_name": "test_abonos_ajustes.py",
       "norm_label": ".__repr__()"
     },
     {
@@ -755,8 +755,8 @@
       "_callable_class": true,
       "_origin": "ast",
       "id": "app_parking",
-      "community": 44,
-      "community_name": "parking_new",
+      "community": 18,
+      "community_name": "_parse_date",
       "norm_label": "parking"
     },
     {
@@ -767,8 +767,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_parking_repr",
-      "community": 44,
-      "community_name": "parking_new",
+      "community": 18,
+      "community_name": "_parse_date",
       "norm_label": ".__repr__()"
     },
     {
@@ -982,7 +982,7 @@
       "_origin": "ast",
       "id": "app_promotion",
       "community": 33,
-      "community_name": "Promotion",
+      "community_name": "promotions_list",
       "norm_label": "promotion"
     },
     {
@@ -994,7 +994,7 @@
       "_origin": "ast",
       "id": "app_promotion_vigente",
       "community": 33,
-      "community_name": "Promotion",
+      "community_name": "promotions_list",
       "norm_label": ".vigente()"
     },
     {
@@ -1006,7 +1006,7 @@
       "_origin": "ast",
       "id": "app_promotion_image_url",
       "community": 33,
-      "community_name": "Promotion",
+      "community_name": "promotions_list",
       "norm_label": ".image_url()"
     },
     {
@@ -1139,7 +1139,7 @@
       "_origin": "ast",
       "id": "app_normalize_plate",
       "community": 20,
-      "community_name": "book_diagnostic_from_bot",
+      "community_name": "normalize_plate",
       "norm_label": "normalize_plate()"
     },
     {
@@ -1150,8 +1150,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_upsert_client_from_appointment",
-      "community": 54,
-      "community_name": "upsert_client_from_appointment",
+      "community": 20,
+      "community_name": "normalize_plate",
       "norm_label": "upsert_client_from_appointment()"
     },
     {
@@ -1198,8 +1198,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_notify_admin_mercedes_benz_booking",
-      "community": 50,
-      "community_name": "send_whatsapp",
+      "community": 16,
+      "community_name": "api_public_mb_book",
       "norm_label": "notify_admin_mercedes_benz_booking()"
     },
     {
@@ -1210,8 +1210,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_day_business_end",
-      "community": 16,
-      "community_name": "api_public_mb_book",
+      "community": 6,
+      "community_name": "bogota_now",
       "norm_label": "_day_business_end()"
     },
     {
@@ -1222,8 +1222,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_appointment_capacity_profile",
-      "community": 16,
-      "community_name": "api_public_mb_book",
+      "community": 6,
+      "community_name": "bogota_now",
       "norm_label": "_appointment_capacity_profile()"
     },
     {
@@ -1234,8 +1234,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_get_available_slots",
-      "community": 16,
-      "community_name": "api_public_mb_book",
+      "community": 6,
+      "community_name": "bogota_now",
       "norm_label": "get_available_slots()"
     },
     {
@@ -1330,8 +1330,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_abreviar_servicio",
-      "community": 38,
-      "community_name": "api_events",
+      "community": 6,
+      "community_name": "bogota_now",
       "norm_label": "abreviar_servicio()"
     },
     {
@@ -1342,8 +1342,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_es_cita_de_diagnostico",
-      "community": 38,
-      "community_name": "api_events",
+      "community": 1,
+      "community_name": "analytics_dashboard",
       "norm_label": "es_cita_de_diagnostico()"
     },
     {
@@ -1354,8 +1354,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_nombre_servicio_diagnostico",
-      "community": 38,
-      "community_name": "api_events",
+      "community": 6,
+      "community_name": "bogota_now",
       "norm_label": "_nombre_servicio_diagnostico()"
     },
     {
@@ -1366,8 +1366,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_abreviar_servicios",
-      "community": 38,
-      "community_name": "api_events",
+      "community": 6,
+      "community_name": "bogota_now",
       "norm_label": "abreviar_servicios()"
     },
     {
@@ -1378,8 +1378,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_int_o_cero",
-      "community": 24,
-      "community_name": "sync_appointment_adjustments",
+      "community": 21,
+      "community_name": "new_appointment",
       "norm_label": "_int_o_cero()"
     },
     {
@@ -1390,8 +1390,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_sync_appointment_adjustments",
-      "community": 24,
-      "community_name": "sync_appointment_adjustments",
+      "community": 21,
+      "community_name": "new_appointment",
       "norm_label": "sync_appointment_adjustments()"
     },
     {
@@ -1402,8 +1402,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_sync_appointment_payments",
-      "community": 43,
-      "community_name": "sync_appointment_payments",
+      "community": 21,
+      "community_name": "new_appointment",
       "norm_label": "sync_appointment_payments()"
     },
     {
@@ -1558,7 +1558,7 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_calendar_view",
-      "community": 35,
+      "community": 28,
       "community_name": "Calendar View (FullCalendar)",
       "norm_label": "calendar_view()"
     },
@@ -1606,8 +1606,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_vehicle_coverage_matrix",
-      "community": 16,
-      "community_name": "api_public_mb_book",
+      "community": 7,
+      "community_name": "app.py",
       "norm_label": "_vehicle_coverage_matrix()"
     },
     {
@@ -1618,8 +1618,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_public_booking_mercedes",
-      "community": 16,
-      "community_name": "api_public_mb_book",
+      "community": 7,
+      "community_name": "app.py",
       "norm_label": "public_booking_mercedes()"
     },
     {
@@ -1679,7 +1679,7 @@
       "_origin": "ast",
       "id": "app_appointments_list",
       "community": 35,
-      "community_name": "Calendar View (FullCalendar)",
+      "community_name": "Appointments List (DataTable)",
       "norm_label": "appointments_list()"
     },
     {
@@ -1691,7 +1691,7 @@
       "_origin": "ast",
       "id": "app_delete_appointment",
       "community": 35,
-      "community_name": "Calendar View (FullCalendar)",
+      "community_name": "Appointments List (DataTable)",
       "norm_label": "delete_appointment()"
     },
     {
@@ -1714,8 +1714,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_services_view",
-      "community": 12,
-      "community_name": "Base Layout Template",
+      "community": 15,
+      "community_name": "Service",
       "norm_label": "services_view()"
     },
     {
@@ -1822,8 +1822,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_transacciones_citas",
-      "community": 38,
-      "community_name": "api_events",
+      "community": 1,
+      "community_name": "analytics_dashboard",
       "norm_label": "_transacciones_citas()"
     },
     {
@@ -1954,8 +1954,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_resumen_gerencial",
-      "community": 17,
-      "community_name": "_can_see_notifications",
+      "community": 18,
+      "community_name": "_parse_date",
       "norm_label": "_resumen_gerencial()"
     },
     {
@@ -1966,8 +1966,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_dashboard_gerencial",
-      "community": 17,
-      "community_name": "_can_see_notifications",
+      "community": 18,
+      "community_name": "_parse_date",
       "norm_label": "dashboard_gerencial()"
     },
     {
@@ -2050,8 +2050,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_expenses_export",
-      "community": 18,
-      "community_name": "_parse_date",
+      "community": 9,
+      "community_name": "Expenses List (DataTable)",
       "norm_label": "expenses_export()"
     },
     {
@@ -2122,8 +2122,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_api_events",
-      "community": 38,
-      "community_name": "api_events",
+      "community": 6,
+      "community_name": "bogota_now",
       "norm_label": "api_events()"
     },
     {
@@ -2147,7 +2147,7 @@
       "_origin": "ast",
       "id": "app_api_client_by_plate",
       "community": 20,
-      "community_name": "book_diagnostic_from_bot",
+      "community_name": "normalize_plate",
       "norm_label": "api_client_by_plate()"
     },
     {
@@ -2290,8 +2290,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_parking_new",
-      "community": 44,
-      "community_name": "parking_new",
+      "community": 18,
+      "community_name": "_parse_date",
       "norm_label": "parking_new()"
     },
     {
@@ -2338,8 +2338,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_migrate_booking_adjustments_to_rows",
-      "community": 24,
-      "community_name": "sync_appointment_adjustments",
+      "community": 4,
+      "community_name": "test_abonos_ajustes.py",
       "norm_label": "migrate_booking_adjustments_to_rows()"
     },
     {
@@ -2503,8 +2503,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "context_processor",
-      "community": 56,
-      "community_name": "inject_user",
+      "community": 7,
+      "community_name": "app.py",
       "norm_label": "context_processor"
     },
     {
@@ -2515,8 +2515,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_inject_user",
-      "community": 56,
-      "community_name": "inject_user",
+      "community": 7,
+      "community_name": "app.py",
       "norm_label": "inject_user()"
     },
     {
@@ -2766,8 +2766,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_normalize_whatsapp_number",
-      "community": 46,
-      "community_name": "_normalize_whatsapp_number",
+      "community": 49,
+      "community_name": "api_public_web_lead",
       "norm_label": "_normalize_whatsapp_number()"
     },
     {
@@ -2778,7 +2778,7 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_twilio_from_number",
-      "community": 50,
+      "community": 41,
       "community_name": "send_whatsapp",
       "norm_label": "_twilio_from_number()"
     },
@@ -2790,8 +2790,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_public_base_url",
-      "community": 53,
-      "community_name": "_status_callback_url",
+      "community": 19,
+      "community_name": "_send_whatsapp_opening_for_lead",
       "norm_label": "_public_base_url()"
     },
     {
@@ -2802,8 +2802,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_status_callback_url",
-      "community": 53,
-      "community_name": "_status_callback_url",
+      "community": 19,
+      "community_name": "_send_whatsapp_opening_for_lead",
       "norm_label": "_status_callback_url()"
     },
     {
@@ -2826,7 +2826,7 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_send_whatsapp",
-      "community": 50,
+      "community": 41,
       "community_name": "send_whatsapp",
       "norm_label": "send_whatsapp()"
     },
@@ -2898,8 +2898,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_fetch_twilio_media_base64",
-      "community": 55,
-      "community_name": "_fetch_twilio_media_base64",
+      "community": 7,
+      "community_name": "app.py",
       "norm_label": "_fetch_twilio_media_base64()"
     },
     {
@@ -2922,8 +2922,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_diagnostic_service",
-      "community": 38,
-      "community_name": "api_events",
+      "community": 6,
+      "community_name": "bogota_now",
       "norm_label": "_diagnostic_service()"
     },
     {
@@ -2934,8 +2934,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_availability_vehicle_type_id",
-      "community": 16,
-      "community_name": "api_public_mb_book",
+      "community": 6,
+      "community_name": "bogota_now",
       "norm_label": "_availability_vehicle_type_id()"
     },
     {
@@ -2946,8 +2946,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_diagnostic_availability",
-      "community": 16,
-      "community_name": "api_public_mb_book",
+      "community": 6,
+      "community_name": "bogota_now",
       "norm_label": "_diagnostic_availability()"
     },
     {
@@ -2970,8 +2970,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_slots_to_ranges",
-      "community": 16,
-      "community_name": "api_public_mb_book",
+      "community": 34,
+      "community_name": "_format_availability_for_prompt",
       "norm_label": "_slots_to_ranges()"
     },
     {
@@ -2994,8 +2994,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_fecha_hoy_para_prompt",
-      "community": 22,
-      "community_name": "get_claude_reply",
+      "community": 27,
+      "community_name": "_call_claude",
       "norm_label": "_fecha_hoy_para_prompt()"
     },
     {
@@ -3006,8 +3006,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_format_availability_for_prompt",
-      "community": 16,
-      "community_name": "api_public_mb_book",
+      "community": 34,
+      "community_name": "_format_availability_for_prompt",
       "norm_label": "_format_availability_for_prompt()"
     },
     {
@@ -3018,8 +3018,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_is_first_client_turn",
-      "community": 41,
-      "community_name": "_generate_and_send_reply",
+      "community": 22,
+      "community_name": "get_claude_reply",
       "norm_label": "is_first_client_turn()"
     },
     {
@@ -3113,8 +3113,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_clean_phone_or_default",
-      "community": 46,
-      "community_name": "_normalize_whatsapp_number",
+      "community": 6,
+      "community_name": "bogota_now",
       "norm_label": "_clean_phone_or_default()"
     },
     {
@@ -3126,7 +3126,7 @@
       "_origin": "ast",
       "id": "app_looks_like_welcome_menu",
       "community": 41,
-      "community_name": "_generate_and_send_reply",
+      "community_name": "send_whatsapp",
       "norm_label": "_looks_like_welcome_menu()"
     },
     {
@@ -3138,7 +3138,7 @@
       "_origin": "ast",
       "id": "app_parse_agendar_marker",
       "community": 41,
-      "community_name": "_generate_and_send_reply",
+      "community_name": "send_whatsapp",
       "norm_label": "_parse_agendar_marker()"
     },
     {
@@ -3149,8 +3149,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_book_diagnostic_from_bot",
-      "community": 20,
-      "community_name": "book_diagnostic_from_bot",
+      "community": 6,
+      "community_name": "bogota_now",
       "norm_label": "book_diagnostic_from_bot()"
     },
     {
@@ -3161,8 +3161,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_find_active_appointment_by_plate",
-      "community": 20,
-      "community_name": "book_diagnostic_from_bot",
+      "community": 6,
+      "community_name": "bogota_now",
       "norm_label": "_find_active_appointment_by_plate()"
     },
     {
@@ -3173,8 +3173,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_reschedule_diagnostic_from_bot",
-      "community": 20,
-      "community_name": "book_diagnostic_from_bot",
+      "community": 6,
+      "community_name": "bogota_now",
       "norm_label": "reschedule_diagnostic_from_bot()"
     },
     {
@@ -3185,8 +3185,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_notify_admin_bot_reschedule",
-      "community": 48,
-      "community_name": "push_notification",
+      "community": 41,
+      "community_name": "send_whatsapp",
       "norm_label": "notify_admin_bot_reschedule()"
     },
     {
@@ -3198,7 +3198,7 @@
       "_origin": "ast",
       "id": "app_notify_admin_bot_booking",
       "community": 41,
-      "community_name": "_generate_and_send_reply",
+      "community_name": "send_whatsapp",
       "norm_label": "notify_admin_bot_booking()"
     },
     {
@@ -3210,7 +3210,7 @@
       "_origin": "ast",
       "id": "app_notify_admin_escalation",
       "community": 41,
-      "community_name": "_generate_and_send_reply",
+      "community_name": "send_whatsapp",
       "norm_label": "notify_admin_escalation()"
     },
     {
@@ -3270,7 +3270,7 @@
       "_origin": "ast",
       "id": "app_generate_and_send_reply",
       "community": 41,
-      "community_name": "_generate_and_send_reply",
+      "community_name": "send_whatsapp",
       "norm_label": "_generate_and_send_reply()"
     },
     {
@@ -3281,8 +3281,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_validate_twilio_signature",
-      "community": 53,
-      "community_name": "_status_callback_url",
+      "community": 19,
+      "community_name": "_send_whatsapp_opening_for_lead",
       "norm_label": "_validate_twilio_signature()"
     },
     {
@@ -3293,8 +3293,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_whatsapp_status_webhook",
-      "community": 53,
-      "community_name": "_status_callback_url",
+      "community": 19,
+      "community_name": "_send_whatsapp_opening_for_lead",
       "norm_label": "whatsapp_status_webhook()"
     },
     {
@@ -3365,8 +3365,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_whatsapp_media",
-      "community": 17,
-      "community_name": "_can_see_notifications",
+      "community": 10,
+      "community_name": "whatsapp.html",
       "norm_label": "whatsapp_media()"
     },
     {
@@ -3485,8 +3485,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_job_post_service_followup",
-      "community": 38,
-      "community_name": "api_events",
+      "community": 6,
+      "community_name": "bogota_now",
       "norm_label": "_job_post_service_followup()"
     },
     {
@@ -3616,8 +3616,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_save_promo_image",
-      "community": 17,
-      "community_name": "_can_see_notifications",
+      "community": 33,
+      "community_name": "promotions_list",
       "norm_label": "_save_promo_image()"
     },
     {
@@ -3664,8 +3664,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_parse_fecha",
-      "community": 17,
-      "community_name": "_can_see_notifications",
+      "community": 33,
+      "community_name": "promotions_list",
       "norm_label": "_parse_fecha()"
     },
     {
@@ -3676,8 +3676,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_promotions_list",
-      "community": 17,
-      "community_name": "_can_see_notifications",
+      "community": 33,
+      "community_name": "promotions_list",
       "norm_label": "promotions_list()"
     },
     {
@@ -3784,9 +3784,93 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_test_whatsapp",
-      "community": 50,
+      "community": 41,
       "community_name": "send_whatsapp",
       "norm_label": "test_whatsapp()"
+    },
+    {
+      "label": "backups_list()",
+      "file_type": "code",
+      "source_file": "app.py",
+      "source_location": "L8310",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "app_backups_list",
+      "community": 24,
+      "community_name": "_job_backup_db",
+      "norm_label": "backups_list()"
+    },
+    {
+      "label": "backup_download()",
+      "file_type": "code",
+      "source_file": "app.py",
+      "source_location": "L8339",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "app_backup_download",
+      "community": 24,
+      "community_name": "_job_backup_db",
+      "norm_label": "backup_download()"
+    },
+    {
+      "label": "_s3_client()",
+      "file_type": "code",
+      "source_file": "app.py",
+      "source_location": "L8382",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "app_s3_client",
+      "community": 24,
+      "community_name": "_job_backup_db",
+      "norm_label": "_s3_client()"
+    },
+    {
+      "label": "_dump_sqlite_gz()",
+      "file_type": "code",
+      "source_file": "app.py",
+      "source_location": "L8400",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "app_dump_sqlite_gz",
+      "community": 24,
+      "community_name": "_job_backup_db",
+      "norm_label": "_dump_sqlite_gz()"
+    },
+    {
+      "label": "_backups_existentes()",
+      "file_type": "code",
+      "source_file": "app.py",
+      "source_location": "L8424",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "app_backups_existentes",
+      "community": 24,
+      "community_name": "_job_backup_db",
+      "norm_label": "_backups_existentes()"
+    },
+    {
+      "label": "_aplicar_retencion()",
+      "file_type": "code",
+      "source_file": "app.py",
+      "source_location": "L8433",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "app_aplicar_retencion",
+      "community": 24,
+      "community_name": "_job_backup_db",
+      "norm_label": "_aplicar_retencion()"
+    },
+    {
+      "label": "_job_backup_db()",
+      "file_type": "code",
+      "source_file": "app.py",
+      "source_location": "L8465",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "app_job_backup_db",
+      "community": 24,
+      "community_name": "_job_backup_db",
+      "norm_label": "_job_backup_db()"
     },
     {
       "label": "Ahora' en hora de Bogot\u00e1, naive \u2014 que es como se guardan start_datetime /\u2026",
@@ -3828,8 +3912,8 @@
       "source_location": "L786",
       "_origin": "ast",
       "id": "app_rationale_786",
-      "community": 24,
-      "community_name": "sync_appointment_adjustments",
+      "community": 4,
+      "community_name": "test_abonos_ajustes.py",
       "norm_label": "un descuento o recargo de una cita. son varios por cita: antes cabia uno solo y..."
     },
     {
@@ -3839,8 +3923,8 @@
       "source_location": "L808",
       "_origin": "ast",
       "id": "app_rationale_808",
-      "community": 43,
-      "community_name": "sync_appointment_payments",
+      "community": 4,
+      "community_name": "test_abonos_ajustes.py",
       "norm_label": "un abono: plata que el cliente ya entrego a cuenta del servicio. ojo \u2014 esto no..."
     },
     {
@@ -3939,7 +4023,7 @@
       "_origin": "ast",
       "id": "app_rationale_1071",
       "community": 33,
-      "community_name": "Promotion",
+      "community_name": "promotions_list",
       "norm_label": "promociones que el equipo monta a mano y mariana usa para cerrar. el texto va..."
     },
     {
@@ -3950,7 +4034,7 @@
       "_origin": "ast",
       "id": "app_rationale_1090",
       "community": 33,
-      "community_name": "Promotion",
+      "community_name": "promotions_list",
       "norm_label": "activa y dentro de fechas. las fechas vacias significan \"sin limite\"."
     },
     {
@@ -3961,7 +4045,7 @@
       "_origin": "ast",
       "id": "app_rationale_1102",
       "community": 33,
-      "community_name": "Promotion",
+      "community_name": "promotions_list",
       "norm_label": "url absoluta: twilio la descarga desde internet, no sirve una ruta local."
     },
     {
@@ -4016,7 +4100,7 @@
       "_origin": "ast",
       "id": "app_rationale_1319",
       "community": 20,
-      "community_name": "book_diagnostic_from_bot",
+      "community_name": "normalize_plate",
       "norm_label": "normaliza placa: trim, sin espacios internos, mayusculas."
     },
     {
@@ -4026,8 +4110,8 @@
       "source_location": "L1332",
       "_origin": "ast",
       "id": "app_rationale_1332",
-      "community": 54,
-      "community_name": "upsert_client_from_appointment",
+      "community": 20,
+      "community_name": "normalize_plate",
       "norm_label": "crea o actualiza el cliente por placa."
     },
     {
@@ -4070,8 +4154,8 @@
       "source_location": "L1438",
       "_origin": "ast",
       "id": "app_rationale_1438",
-      "community": 50,
-      "community_name": "send_whatsapp",
+      "community": 16,
+      "community_name": "api_public_mb_book",
       "norm_label": "avisa por whatsapp al admin cuando un socio del club mercedes-benz se..."
     },
     {
@@ -4081,8 +4165,8 @@
       "source_location": "L1471",
       "_origin": "ast",
       "id": "app_rationale_1471",
-      "community": 16,
-      "community_name": "api_public_mb_book",
+      "community": 6,
+      "community_name": "bogota_now",
       "norm_label": "para una cita existente, determina (es_solo_diagnostico, fin_ocupacion_cupo)...."
     },
     {
@@ -4092,8 +4176,8 @@
       "source_location": "L1495",
       "_origin": "ast",
       "id": "app_rationale_1495",
-      "community": 16,
-      "community_name": "api_public_mb_book",
+      "community": 6,
+      "community_name": "bogota_now",
       "norm_label": "devuelve (slots, total_minutes) para una fecha dada. cada slot es {\"start_iso\",..."
     },
     {
@@ -4169,8 +4253,8 @@
       "source_location": "L1750",
       "_origin": "ast",
       "id": "app_rationale_1750",
-      "community": 38,
-      "community_name": "api_events",
+      "community": 6,
+      "community_name": "bogota_now",
       "norm_label": "un nombre de servicio que quepa en el cajon de una cita."
     },
     {
@@ -4180,8 +4264,8 @@
       "source_location": "L1765",
       "_origin": "ast",
       "id": "app_rationale_1765",
-      "community": 38,
-      "community_name": "api_events",
+      "community": 1,
+      "community_name": "analytics_dashboard",
       "norm_label": "una cita es de diagnostico solo si no trae nada mas. si el cliente aprovecho y..."
     },
     {
@@ -4191,8 +4275,8 @@
       "source_location": "L1781",
       "_origin": "ast",
       "id": "app_rationale_1781",
-      "community": 38,
-      "community_name": "api_events",
+      "community": 6,
+      "community_name": "bogota_now",
       "norm_label": "varios servicios en una linea: los dos primeros y cuantos faltan."
     },
     {
@@ -4202,8 +4286,8 @@
       "source_location": "L1793",
       "_origin": "ast",
       "id": "app_rationale_1793",
-      "community": 24,
-      "community_name": "sync_appointment_adjustments",
+      "community": 21,
+      "community_name": "new_appointment",
       "norm_label": "los campos de plata llegan del formulario como texto y a veces con puntos de..."
     },
     {
@@ -4213,8 +4297,8 @@
       "source_location": "L1802",
       "_origin": "ast",
       "id": "app_rationale_1802",
-      "community": 24,
-      "community_name": "sync_appointment_adjustments",
+      "community": 21,
+      "community_name": "new_appointment",
       "norm_label": "reemplaza los descuentos/recargos de la cita por los que trae el formulario...."
     },
     {
@@ -4224,8 +4308,8 @@
       "source_location": "L1829",
       "_origin": "ast",
       "id": "app_rationale_1829",
-      "community": 43,
-      "community_name": "sync_appointment_payments",
+      "community": 21,
+      "community_name": "new_appointment",
       "norm_label": "igual que los ajustes, pero para los abonos. un abono sin fecha se toma como de..."
     },
     {
@@ -4235,7 +4319,7 @@
       "source_location": "L2040",
       "_origin": "ast",
       "id": "app_rationale_2040",
-      "community": 35,
+      "community": 28,
       "community_name": "Calendar View (FullCalendar)",
       "norm_label": "la agenda de siempre: todo lo que factura."
     },
@@ -4268,8 +4352,8 @@
       "source_location": "L2185",
       "_origin": "ast",
       "id": "app_rationale_2185",
-      "community": 16,
-      "community_name": "api_public_mb_book",
+      "community": 7,
+      "community_name": "app.py",
       "norm_label": "{service_id: [vehicle_type_id, ...]} solo con combinaciones que tienen precio..."
     },
     {
@@ -4280,7 +4364,7 @@
       "_origin": "ast",
       "id": "app_rationale_2442",
       "community": 35,
-      "community_name": "Calendar View (FullCalendar)",
+      "community_name": "Appointments List (DataTable)",
       "norm_label": "lista simple en tabla de las proximas citas."
     },
     {
@@ -4291,7 +4375,7 @@
       "_origin": "ast",
       "id": "app_rationale_2464",
       "community": 35,
-      "community_name": "Calendar View (FullCalendar)",
+      "community_name": "Appointments List (DataTable)",
       "norm_label": "borrar una cita es irreversible y se pierde el historial del cliente, asi que..."
     },
     {
@@ -4301,8 +4385,8 @@
       "source_location": "L2590",
       "_origin": "ast",
       "id": "app_rationale_2590",
-      "community": 12,
-      "community_name": "Base Layout Template",
+      "community": 15,
+      "community_name": "Service",
       "norm_label": "gestion simple de servicios: ver y agregar nuevos."
     },
     {
@@ -4334,8 +4418,8 @@
       "source_location": "L2752",
       "_origin": "ast",
       "id": "app_rationale_2752",
-      "community": 38,
-      "community_name": "api_events",
+      "community": 1,
+      "community_name": "analytics_dashboard",
       "norm_label": "toda cita agendada cuenta como servicio prestado \u2014 asi opera el negocio. el..."
     },
     {
@@ -4444,8 +4528,8 @@
       "source_location": "L3215",
       "_origin": "ast",
       "id": "app_rationale_3215",
-      "community": 17,
-      "community_name": "_can_see_notifications",
+      "community": 18,
+      "community_name": "_parse_date",
       "norm_label": "los pocos numeros que un dueno necesita para saber si el negocio va bien. cada..."
     },
     {
@@ -4488,8 +4572,8 @@
       "source_location": "L3626",
       "_origin": "ast",
       "id": "app_rationale_3626",
-      "community": 18,
-      "community_name": "_parse_date",
+      "community": 9,
+      "community_name": "Expenses List (DataTable)",
       "norm_label": "export csv por filtros (para google sheets / looker studio)."
     },
     {
@@ -4499,8 +4583,8 @@
       "source_location": "L3782",
       "_origin": "ast",
       "id": "app_rationale_3782",
-      "community": 38,
-      "community_name": "api_events",
+      "community": 6,
+      "community_name": "bogota_now",
       "norm_label": "devuelve las citas en formato json para fullcalendar. las lineas van sueltas y..."
     },
     {
@@ -4511,7 +4595,7 @@
       "_origin": "ast",
       "id": "app_rationale_3895",
       "community": 20,
-      "community_name": "book_diagnostic_from_bot",
+      "community_name": "normalize_plate",
       "norm_label": "devuelve datos de cliente por placa. uso: /api/clients/by-plate?plate=abc123"
     },
     {
@@ -4554,8 +4638,8 @@
       "source_location": "L4320",
       "_origin": "ast",
       "id": "app_rationale_4320",
-      "community": 24,
-      "community_name": "sync_appointment_adjustments",
+      "community": 4,
+      "community_name": "test_abonos_ajustes.py",
       "norm_label": "el ajuste al crear la cita era uno solo y vivia en tres columnas de..."
     },
     {
@@ -4587,8 +4671,8 @@
       "source_location": "L5257",
       "_origin": "ast",
       "id": "app_rationale_5257",
-      "community": 46,
-      "community_name": "_normalize_whatsapp_number",
+      "community": 49,
+      "community_name": "api_public_web_lead",
       "norm_label": "normaliza un numero al formato e.164 que usa twilio/whatsapp (+57 por defecto,..."
     },
     {
@@ -4598,7 +4682,7 @@
       "source_location": "L5282",
       "_origin": "ast",
       "id": "app_rationale_5282",
-      "community": 50,
+      "community": 41,
       "community_name": "send_whatsapp",
       "norm_label": "devuelve (numero_sin_prefijo, error). el sender de produccion de noxa es el..."
     },
@@ -4609,8 +4693,8 @@
       "source_location": "L5300",
       "_origin": "ast",
       "id": "app_rationale_5300",
-      "community": 53,
-      "community_name": "_status_callback_url",
+      "community": 19,
+      "community_name": "_send_whatsapp_opening_for_lead",
       "norm_label": "dominio publico de la app, para que twilio sepa a donde devolver los callbacks..."
     },
     {
@@ -4631,7 +4715,7 @@
       "source_location": "L5333",
       "_origin": "ast",
       "id": "app_rationale_5333",
-      "community": 50,
+      "community": 41,
       "community_name": "send_whatsapp",
       "norm_label": "envia un mensaje de whatsapp via twilio. ojo con el valor de retorno: `ok=true`..."
     },
@@ -4686,8 +4770,8 @@
       "source_location": "L6000",
       "_origin": "ast",
       "id": "app_rationale_6000",
-      "community": 55,
-      "community_name": "_fetch_twilio_media_base64",
+      "community": 7,
+      "community_name": "app.py",
       "norm_label": "descarga una imagen de un mensaje de whatsapp (requiere auth de twilio) y la..."
     },
     {
@@ -4708,8 +4792,8 @@
       "source_location": "L6058",
       "_origin": "ast",
       "id": "app_rationale_6058",
-      "community": 38,
-      "community_name": "api_events",
+      "community": 6,
+      "community_name": "bogota_now",
       "norm_label": "servicio con el que se agendan los diagnosticos. se busca por nombre..."
     },
     {
@@ -4719,8 +4803,8 @@
       "source_location": "L6077",
       "_origin": "ast",
       "id": "app_rationale_6077",
-      "community": 16,
-      "community_name": "api_public_mb_book",
+      "community": 6,
+      "community_name": "bogota_now",
       "norm_label": "el diagnostico dura lo mismo para cualquier vehiculo, asi que para calcular..."
     },
     {
@@ -4730,8 +4814,8 @@
       "source_location": "L6086",
       "_origin": "ast",
       "id": "app_rationale_6086",
-      "community": 16,
-      "community_name": "api_public_mb_book",
+      "community": 6,
+      "community_name": "bogota_now",
       "norm_label": "[(fecha, [horas libres]), ...] de los proximos dias habiles con cupo."
     },
     {
@@ -4752,8 +4836,8 @@
       "source_location": "L6162",
       "_origin": "ast",
       "id": "app_rationale_6162",
-      "community": 16,
-      "community_name": "api_public_mb_book",
+      "community": 34,
+      "community_name": "_format_availability_for_prompt",
       "norm_label": "convierte [\"09:00\",\"09:30\",\"11:00\"] en [(\"09:00\",\"09:30\"), (\"11:00\",\"11:00\")]...."
     },
     {
@@ -4774,8 +4858,8 @@
       "source_location": "L6234",
       "_origin": "ast",
       "id": "app_rationale_6234",
-      "community": 22,
-      "community_name": "get_claude_reply",
+      "community": 27,
+      "community_name": "_call_claude",
       "norm_label": "que dia es hoy, en hora de bogota y en espanol. el modelo no tiene reloj: si no..."
     },
     {
@@ -4785,8 +4869,8 @@
       "source_location": "L6251",
       "_origin": "ast",
       "id": "app_rationale_6251",
-      "community": 16,
-      "community_name": "api_public_mb_book",
+      "community": 34,
+      "community_name": "_format_availability_for_prompt",
       "norm_label": "bloque de disponibilidad que mariana ve en cada turno."
     },
     {
@@ -4796,8 +4880,8 @@
       "source_location": "L6293",
       "_origin": "ast",
       "id": "app_rationale_6293",
-      "community": 41,
-      "community_name": "_generate_and_send_reply",
+      "community": 22,
+      "community_name": "get_claude_reply",
       "norm_label": "true si mariana todavia no le ha respondido nada a este cliente. se mira si ya..."
     },
     {
@@ -4873,8 +4957,8 @@
       "source_location": "L6548",
       "_origin": "ast",
       "id": "app_rationale_6548",
-      "community": 46,
-      "community_name": "_normalize_whatsapp_number",
+      "community": 6,
+      "community_name": "bogota_now",
       "norm_label": "devuelve el celular normalizado solo si parece un telefono de verdad...."
     },
     {
@@ -4885,7 +4969,7 @@
       "_origin": "ast",
       "id": "app_rationale_6566",
       "community": 41,
-      "community_name": "_generate_and_send_reply",
+      "community_name": "send_whatsapp",
       "norm_label": "\u00bfeste mensaje es el modelo reescribiendo el menu de bienvenida? no se compara..."
     },
     {
@@ -4896,7 +4980,7 @@
       "_origin": "ast",
       "id": "app_rationale_6577",
       "community": 41,
-      "community_name": "_generate_and_send_reply",
+      "community_name": "send_whatsapp",
       "norm_label": "nombre=x; celular=y; ...\" -> dict. tolerante con el orden y los espacios."
     },
     {
@@ -4906,8 +4990,8 @@
       "source_location": "L6588",
       "_origin": "ast",
       "id": "app_rationale_6588",
-      "community": 20,
-      "community_name": "book_diagnostic_from_bot",
+      "community": 6,
+      "community_name": "bogota_now",
       "norm_label": "crea la cita de diagnostico que mariana cerro con el cliente. nunca confia en..."
     },
     {
@@ -4917,8 +5001,8 @@
       "source_location": "L6687",
       "_origin": "ast",
       "id": "app_rationale_6687",
-      "community": 20,
-      "community_name": "book_diagnostic_from_bot",
+      "community": 6,
+      "community_name": "bogota_now",
       "norm_label": "cita futura vigente de un vehiculo. la placa es la identidad real: el nombre..."
     },
     {
@@ -4928,8 +5012,8 @@
       "source_location": "L6705",
       "_origin": "ast",
       "id": "app_rationale_6705",
-      "community": 20,
-      "community_name": "book_diagnostic_from_bot",
+      "community": 6,
+      "community_name": "bogota_now",
       "norm_label": "mueve una cita existente a otra fecha/hora. se ubica por placa y se revalida el..."
     },
     {
@@ -4939,8 +5023,8 @@
       "source_location": "L6764",
       "_origin": "ast",
       "id": "app_rationale_6764",
-      "community": 48,
-      "community_name": "push_notification",
+      "community": 41,
+      "community_name": "send_whatsapp",
       "norm_label": "toda cita que mariana mueva queda registrada en la campanita, si o si."
     },
     {
@@ -4951,7 +5035,7 @@
       "_origin": "ast",
       "id": "app_rationale_6785",
       "community": 41,
-      "community_name": "_generate_and_send_reply",
+      "community_name": "send_whatsapp",
       "norm_label": "avisa al admin cuando mariana deja un diagnostico agendado sola."
     },
     {
@@ -4962,7 +5046,7 @@
       "_origin": "ast",
       "id": "app_rationale_6815",
       "community": 41,
-      "community_name": "_generate_and_send_reply",
+      "community_name": "send_whatsapp",
       "norm_label": "avisa al admin por whatsapp cuando mariana detecta una senal de negocio que..."
     },
     {
@@ -5006,7 +5090,7 @@
       "_origin": "ast",
       "id": "app_rationale_7015",
       "community": 41,
-      "community_name": "_generate_and_send_reply",
+      "community_name": "send_whatsapp",
       "norm_label": "genera la respuesta con claude y manda todos los mensajes. devuelve false si..."
     },
     {
@@ -5016,8 +5100,8 @@
       "source_location": "L7213",
       "_origin": "ast",
       "id": "app_rationale_7213",
-      "community": 53,
-      "community_name": "_status_callback_url",
+      "community": 19,
+      "community_name": "_send_whatsapp_opening_for_lead",
       "norm_label": "valida la firma de twilio contra la url exacta que nosotros le dimos como..."
     },
     {
@@ -5038,8 +5122,8 @@
       "source_location": "L7434",
       "_origin": "ast",
       "id": "app_rationale_7434",
-      "community": 17,
-      "community_name": "_can_see_notifications",
+      "community": 10,
+      "community_name": "whatsapp.html",
       "norm_label": "sirve una foto que mando un cliente. a diferencia de las promociones, esto si..."
     },
     {
@@ -5115,8 +5199,8 @@
       "source_location": "L7757",
       "_origin": "ast",
       "id": "app_rationale_7757",
-      "community": 38,
-      "community_name": "api_events",
+      "community": 6,
+      "community_name": "bogota_now",
       "norm_label": "corre diariamente a las 10:30 am (bogota). a los 7 dias de entregar el vehiculo..."
     },
     {
@@ -5225,8 +5309,8 @@
       "source_location": "L8009",
       "_origin": "ast",
       "id": "app_rationale_8009",
-      "community": 17,
-      "community_name": "_can_see_notifications",
+      "community": 33,
+      "community_name": "promotions_list",
       "norm_label": "guarda la imagen de apoyo y devuelve el nombre con el que quedo. el nombre..."
     },
     {
@@ -5285,6 +5369,83 @@
       "norm_label": "historial completo, para cuando la campanita se queda corta."
     },
     {
+      "label": "Los backups que hay, para poder bajarse uno y guardarlo fuera de Railway.",
+      "file_type": "rationale",
+      "source_file": "app.py",
+      "source_location": "L8311",
+      "_origin": "ast",
+      "id": "app_rationale_8311",
+      "community": 24,
+      "community_name": "_job_backup_db",
+      "norm_label": "los backups que hay, para poder bajarse uno y guardarlo fuera de railway."
+    },
+    {
+      "label": "Redirige a una URL temporal del bucket. El archivo no pasa por la app: se firma\u2026",
+      "file_type": "rationale",
+      "source_file": "app.py",
+      "source_location": "L8340",
+      "_origin": "ast",
+      "id": "app_rationale_8340",
+      "community": 24,
+      "community_name": "_job_backup_db",
+      "norm_label": "redirige a una url temporal del bucket. el archivo no pasa por la app: se firma..."
+    },
+    {
+      "label": "Cliente del bucket, o None si todav\u00eda no est\u00e1 configurado.",
+      "file_type": "rationale",
+      "source_file": "app.py",
+      "source_location": "L8383",
+      "_origin": "ast",
+      "id": "app_rationale_8383",
+      "community": 24,
+      "community_name": "_job_backup_db",
+      "norm_label": "cliente del bucket, o none si todavia no esta configurado."
+    },
+    {
+      "label": "Copia consistente de la base, comprimida. Se usa la API de backup de SQLite y\u2026",
+      "file_type": "rationale",
+      "source_file": "app.py",
+      "source_location": "L8401",
+      "_origin": "ast",
+      "id": "app_rationale_8401",
+      "community": 24,
+      "community_name": "_job_backup_db",
+      "norm_label": "copia consistente de la base, comprimida. se usa la api de backup de sqlite y..."
+    },
+    {
+      "label": "Backups en el bucket, del m\u00e1s nuevo al m\u00e1s viejo.",
+      "file_type": "rationale",
+      "source_file": "app.py",
+      "source_location": "L8425",
+      "_origin": "ast",
+      "id": "app_rationale_8425",
+      "community": 24,
+      "community_name": "_job_backup_db",
+      "norm_label": "backups en el bucket, del mas nuevo al mas viejo."
+    },
+    {
+      "label": "Borra los backups que ya no entran en la pol\u00edtica de retenci\u00f3n. Se conservan\u2026",
+      "file_type": "rationale",
+      "source_file": "app.py",
+      "source_location": "L8434",
+      "_origin": "ast",
+      "id": "app_rationale_8434",
+      "community": 24,
+      "community_name": "_job_backup_db",
+      "norm_label": "borra los backups que ya no entran en la politica de retencion. se conservan..."
+    },
+    {
+      "label": "Corre diariamente a las 3 AM (Bogot\u00e1), cuando no hay tr\u00e1fico.",
+      "file_type": "rationale",
+      "source_file": "app.py",
+      "source_location": "L8466",
+      "_origin": "ast",
+      "id": "app_rationale_8466",
+      "community": 24,
+      "community_name": "_job_backup_db",
+      "norm_label": "corre diariamente a las 3 am (bogota), cuando no hay trafico."
+    },
+    {
       "label": "migrate_prices.py",
       "file_type": "code",
       "source_file": "migrate_prices.py",
@@ -5313,8 +5474,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "tests_conftest",
-      "community": 42,
-      "community_name": "conftest.py",
+      "community": 3,
+      "community_name": "make_user",
       "norm_label": "conftest.py"
     },
     {
@@ -5324,8 +5485,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "tests_conftest_py_fixture",
-      "community": 42,
-      "community_name": "conftest.py",
+      "community": 3,
+      "community_name": "make_user",
       "norm_label": "fixture"
     },
     {
@@ -5336,8 +5497,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "tests_conftest_session_setup",
-      "community": 42,
-      "community_name": "conftest.py",
+      "community": 3,
+      "community_name": "make_user",
       "norm_label": "_session_setup()"
     },
     {
@@ -5348,8 +5509,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "tests_conftest_clean_db",
-      "community": 42,
-      "community_name": "conftest.py",
+      "community": 3,
+      "community_name": "make_user",
       "norm_label": "_clean_db()"
     },
     {
@@ -5360,8 +5521,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "tests_conftest_client",
-      "community": 42,
-      "community_name": "conftest.py",
+      "community": 3,
+      "community_name": "make_user",
       "norm_label": "client()"
     },
     {
@@ -5384,8 +5545,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "tests_conftest_login_as",
-      "community": 0,
-      "community_name": "login_as",
+      "community": 3,
+      "community_name": "make_user",
       "norm_label": "login_as()"
     },
     {
@@ -5395,8 +5556,8 @@
       "source_location": "L40",
       "_origin": "ast",
       "id": "tests_conftest_rationale_40",
-      "community": 42,
-      "community_name": "conftest.py",
+      "community": 3,
+      "community_name": "make_user",
       "norm_label": "cada test arranca con las tablas de nomina/usuarios vacias, y corre dentro de..."
     },
     {
@@ -5406,7 +5567,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "tests_test_abonos_ajustes",
-      "community": 32,
+      "community": 4,
       "community_name": "test_abonos_ajustes.py",
       "norm_label": "test_abonos_ajustes.py"
     },
@@ -5417,8 +5578,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "tests_test_abonos_ajustes_py_fixture",
-      "community": 45,
-      "community_name": "cita",
+      "community": 4,
+      "community_name": "test_abonos_ajustes.py",
       "norm_label": "fixture"
     },
     {
@@ -5429,8 +5590,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_abonos_ajustes_catalogo",
-      "community": 45,
-      "community_name": "cita",
+      "community": 4,
+      "community_name": "test_abonos_ajustes.py",
       "norm_label": "catalogo()"
     },
     {
@@ -5441,8 +5602,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_abonos_ajustes_cita",
-      "community": 45,
-      "community_name": "cita",
+      "community": 4,
+      "community_name": "test_abonos_ajustes.py",
       "norm_label": "cita()"
     },
     {
@@ -5454,7 +5615,7 @@
       "_origin": "ast",
       "id": "tests_test_abonos_ajustes_ajuste",
       "community": 4,
-      "community_name": "_ajuste",
+      "community_name": "test_abonos_ajustes.py",
       "norm_label": "_ajuste()"
     },
     {
@@ -5465,7 +5626,7 @@
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_abonos_ajustes_abono",
-      "community": 32,
+      "community": 4,
       "community_name": "test_abonos_ajustes.py",
       "norm_label": "_abono()"
     },
@@ -5478,7 +5639,7 @@
       "_callable_class": true,
       "_origin": "ast",
       "id": "tests_test_abonos_ajustes_testabonovsdescuento",
-      "community": 32,
+      "community": 4,
       "community_name": "test_abonos_ajustes.py",
       "norm_label": "testabonovsdescuento"
     },
@@ -5490,7 +5651,7 @@
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_abonos_ajustes_testabonovsdescuento_test_el_abono_no_baja_el_valor_del_servicio",
-      "community": 32,
+      "community": 4,
       "community_name": "test_abonos_ajustes.py",
       "norm_label": ".test_el_abono_no_baja_el_valor_del_servicio()"
     },
@@ -5502,7 +5663,7 @@
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_abonos_ajustes_testabonovsdescuento_test_el_descuento_si_baja_el_valor_del_servicio",
-      "community": 32,
+      "community": 4,
       "community_name": "test_abonos_ajustes.py",
       "norm_label": ".test_el_descuento_si_baja_el_valor_del_servicio()"
     },
@@ -5514,7 +5675,7 @@
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_abonos_ajustes_testabonovsdescuento_test_abonar_de_mas_deja_saldo_a_favor",
-      "community": 32,
+      "community": 4,
       "community_name": "test_abonos_ajustes.py",
       "norm_label": ".test_abonar_de_mas_deja_saldo_a_favor()"
     },
@@ -5528,7 +5689,7 @@
       "_origin": "ast",
       "id": "tests_test_abonos_ajustes_testvariosajustes",
       "community": 4,
-      "community_name": "_ajuste",
+      "community_name": "test_abonos_ajustes.py",
       "norm_label": "testvariosajustes"
     },
     {
@@ -5540,7 +5701,7 @@
       "_origin": "ast",
       "id": "tests_test_abonos_ajustes_testvariosajustes_test_se_acumulan_descuentos_y_recargos",
       "community": 4,
-      "community_name": "_ajuste",
+      "community_name": "test_abonos_ajustes.py",
       "norm_label": ".test_se_acumulan_descuentos_y_recargos()"
     },
     {
@@ -5552,7 +5713,7 @@
       "_origin": "ast",
       "id": "tests_test_abonos_ajustes_testvariosajustes_test_los_porcentajes_no_se_encadenan",
       "community": 4,
-      "community_name": "_ajuste",
+      "community_name": "test_abonos_ajustes.py",
       "norm_label": ".test_los_porcentajes_no_se_encadenan()"
     },
     {
@@ -5564,7 +5725,7 @@
       "_origin": "ast",
       "id": "tests_test_abonos_ajustes_testvariosajustes_test_el_orden_no_cambia_el_total",
       "community": 4,
-      "community_name": "_ajuste",
+      "community_name": "test_abonos_ajustes.py",
       "norm_label": ".test_el_orden_no_cambia_el_total()"
     },
     {
@@ -5576,7 +5737,7 @@
       "_origin": "ast",
       "id": "tests_test_abonos_ajustes_testvariosajustes_test_los_descuentos_no_dejan_el_total_en_negativo",
       "community": 4,
-      "community_name": "_ajuste",
+      "community_name": "test_abonos_ajustes.py",
       "norm_label": ".test_los_descuentos_no_dejan_el_total_en_negativo()"
     },
     {
@@ -5588,7 +5749,7 @@
       "_origin": "ast",
       "id": "tests_test_abonos_ajustes_testvariosajustes_test_se_ignoran_las_filas_vacias_o_invalidas",
       "community": 4,
-      "community_name": "_ajuste",
+      "community_name": "test_abonos_ajustes.py",
       "norm_label": ".test_se_ignoran_las_filas_vacias_o_invalidas()"
     },
     {
@@ -5601,7 +5762,7 @@
       "_origin": "ast",
       "id": "tests_test_abonos_ajustes_testbasedelporcentaje",
       "community": 4,
-      "community_name": "_ajuste",
+      "community_name": "test_abonos_ajustes.py",
       "norm_label": "testbasedelporcentaje"
     },
     {
@@ -5612,8 +5773,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_abonos_ajustes_testbasedelporcentaje_con_convenio",
-      "community": 45,
-      "community_name": "cita",
+      "community": 4,
+      "community_name": "test_abonos_ajustes.py",
       "norm_label": ".con_convenio()"
     },
     {
@@ -5625,7 +5786,7 @@
       "_origin": "ast",
       "id": "tests_test_abonos_ajustes_testbasedelporcentaje_test_sobre_lista_ignora_el_convenio",
       "community": 4,
-      "community_name": "_ajuste",
+      "community_name": "test_abonos_ajustes.py",
       "norm_label": ".test_sobre_lista_ignora_el_convenio()"
     },
     {
@@ -5637,7 +5798,7 @@
       "_origin": "ast",
       "id": "tests_test_abonos_ajustes_testbasedelporcentaje_test_sobre_subtotal_usa_el_valor_ya_con_convenio",
       "community": 4,
-      "community_name": "_ajuste",
+      "community_name": "test_abonos_ajustes.py",
       "norm_label": ".test_sobre_subtotal_usa_el_valor_ya_con_convenio()"
     },
     {
@@ -5649,7 +5810,7 @@
       "_origin": "ast",
       "id": "tests_test_abonos_ajustes_testbasedelporcentaje_test_las_dos_bases_dan_montos_distintos",
       "community": 4,
-      "community_name": "_ajuste",
+      "community_name": "test_abonos_ajustes.py",
       "norm_label": ".test_las_dos_bases_dan_montos_distintos()"
     },
     {
@@ -5661,7 +5822,7 @@
       "_origin": "ast",
       "id": "tests_test_abonos_ajustes_testbasedelporcentaje_test_en_valor_fijo_la_base_no_cambia_nada",
       "community": 4,
-      "community_name": "_ajuste",
+      "community_name": "test_abonos_ajustes.py",
       "norm_label": ".test_en_valor_fijo_la_base_no_cambia_nada()"
     },
     {
@@ -5673,7 +5834,7 @@
       "_origin": "ast",
       "id": "tests_test_abonos_ajustes_testbasedelporcentaje_test_sin_precio_de_lista_cae_al_subtotal",
       "community": 4,
-      "community_name": "_ajuste",
+      "community_name": "test_abonos_ajustes.py",
       "norm_label": ".test_sin_precio_de_lista_cae_al_subtotal()"
     },
     {
@@ -5685,7 +5846,7 @@
       "_origin": "ast",
       "id": "tests_test_abonos_ajustes_testbasedelporcentaje_test_el_detalle_reporta_la_base_solo_en_porcentaje",
       "community": 4,
-      "community_name": "_ajuste",
+      "community_name": "test_abonos_ajustes.py",
       "norm_label": ".test_el_detalle_reporta_la_base_solo_en_porcentaje()"
     },
     {
@@ -5697,8 +5858,8 @@
       "_callable_class": true,
       "_origin": "ast",
       "id": "tests_test_abonos_ajustes_testformulario",
-      "community": 34,
-      "community_name": "TestFormulario",
+      "community": 3,
+      "community_name": "make_user",
       "norm_label": "testformulario"
     },
     {
@@ -5709,8 +5870,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_abonos_ajustes_testformulario_post",
-      "community": 34,
-      "community_name": "TestFormulario",
+      "community": 3,
+      "community_name": "make_user",
       "norm_label": "._post()"
     },
     {
@@ -5721,8 +5882,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_abonos_ajustes_testformulario_test_guarda_varias_filas_de_cada_tipo",
-      "community": 34,
-      "community_name": "TestFormulario",
+      "community": 3,
+      "community_name": "make_user",
       "norm_label": ".test_guarda_varias_filas_de_cada_tipo()"
     },
     {
@@ -5733,8 +5894,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_abonos_ajustes_testformulario_test_sin_base_en_el_form_queda_sobre_lista",
-      "community": 34,
-      "community_name": "TestFormulario",
+      "community": 3,
+      "community_name": "make_user",
       "norm_label": ".test_sin_base_en_el_form_queda_sobre_lista()"
     },
     {
@@ -5745,8 +5906,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_abonos_ajustes_testformulario_test_una_base_inventada_cae_a_lista",
-      "community": 34,
-      "community_name": "TestFormulario",
+      "community": 3,
+      "community_name": "make_user",
       "norm_label": ".test_una_base_inventada_cae_a_lista()"
     },
     {
@@ -5757,8 +5918,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_abonos_ajustes_testformulario_test_una_fila_sin_valor_se_descarta",
-      "community": 34,
-      "community_name": "TestFormulario",
+      "community": 3,
+      "community_name": "make_user",
       "norm_label": ".test_una_fila_sin_valor_se_descarta()"
     },
     {
@@ -5769,8 +5930,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_abonos_ajustes_testformulario_test_un_abono_sin_fecha_queda_con_la_de_hoy",
-      "community": 34,
-      "community_name": "TestFormulario",
+      "community": 3,
+      "community_name": "make_user",
       "norm_label": ".test_un_abono_sin_fecha_queda_con_la_de_hoy()"
     },
     {
@@ -5781,8 +5942,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_abonos_ajustes_testformulario_test_editar_reemplaza_lo_que_habia",
-      "community": 34,
-      "community_name": "TestFormulario",
+      "community": 3,
+      "community_name": "make_user",
       "norm_label": ".test_editar_reemplaza_lo_que_habia()"
     },
     {
@@ -5794,7 +5955,7 @@
       "_callable_class": true,
       "_origin": "ast",
       "id": "tests_test_abonos_ajustes_testborrado",
-      "community": 32,
+      "community": 4,
       "community_name": "test_abonos_ajustes.py",
       "norm_label": "testborrado"
     },
@@ -5806,7 +5967,7 @@
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_abonos_ajustes_testborrado_test_borrar_la_cita_arrastra_ajustes_y_abonos",
-      "community": 32,
+      "community": 4,
       "community_name": "test_abonos_ajustes.py",
       "norm_label": ".test_borrar_la_cita_arrastra_ajustes_y_abonos()"
     },
@@ -5819,7 +5980,7 @@
       "_callable_class": true,
       "_origin": "ast",
       "id": "tests_test_abonos_ajustes_testanalitica",
-      "community": 32,
+      "community": 4,
       "community_name": "test_abonos_ajustes.py",
       "norm_label": "testanalitica"
     },
@@ -5831,7 +5992,7 @@
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_abonos_ajustes_testanalitica_test_el_abono_no_mueve_ingresos_ni_descuentos",
-      "community": 32,
+      "community": 4,
       "community_name": "test_abonos_ajustes.py",
       "norm_label": ".test_el_abono_no_mueve_ingresos_ni_descuentos()"
     },
@@ -5843,7 +6004,7 @@
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_abonos_ajustes_testanalitica_test_un_recargo_no_borra_los_descuentos_del_kpi",
-      "community": 32,
+      "community": 4,
       "community_name": "test_abonos_ajustes.py",
       "norm_label": ".test_un_recargo_no_borra_los_descuentos_del_kpi()"
     },
@@ -5856,8 +6017,8 @@
       "_callable_class": true,
       "_origin": "ast",
       "id": "tests_test_abonos_ajustes_testmigraciondelajusteviejo",
-      "community": 28,
-      "community_name": "datetime",
+      "community": 4,
+      "community_name": "test_abonos_ajustes.py",
       "norm_label": "testmigraciondelajusteviejo"
     },
     {
@@ -5868,8 +6029,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_abonos_ajustes_testmigraciondelajusteviejo_test_pasa_la_columna_vieja_a_una_fila_y_no_se_repite",
-      "community": 28,
-      "community_name": "datetime",
+      "community": 4,
+      "community_name": "test_abonos_ajustes.py",
       "norm_label": ".test_pasa_la_columna_vieja_a_una_fila_y_no_se_repite()"
     },
     {
@@ -5879,7 +6040,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "tests_test_abonos_ajustes_rationale_1",
-      "community": 32,
+      "community": 4,
       "community_name": "test_abonos_ajustes.py",
       "norm_label": "plata de una cita: descuentos/recargos contra abonos. la regla que estos tests..."
     },
@@ -5890,8 +6051,8 @@
       "source_location": "L19",
       "_origin": "ast",
       "id": "tests_test_abonos_ajustes_rationale_19",
-      "community": 45,
-      "community_name": "cita",
+      "community": 4,
+      "community_name": "test_abonos_ajustes.py",
       "norm_label": "un servicio con precio real para un tipo de vehiculo, del seed."
     },
     {
@@ -5902,7 +6063,7 @@
       "_origin": "ast",
       "id": "tests_test_abonos_ajustes_rationale_137",
       "community": 4,
-      "community_name": "_ajuste",
+      "community_name": "test_abonos_ajustes.py",
       "norm_label": "con convenio de por medio, un 10% sobre lista y un 10% sobre subtotal son plata..."
     },
     {
@@ -5913,7 +6074,7 @@
       "_origin": "ast",
       "id": "tests_test_abonos_ajustes_rationale_194",
       "community": 4,
-      "community_name": "_ajuste",
+      "community_name": "test_abonos_ajustes.py",
       "norm_label": "apply_adjustments se puede llamar sin lista (cierres viejos): en ese caso la..."
     },
     {
@@ -5923,8 +6084,8 @@
       "source_location": "L212",
       "_origin": "ast",
       "id": "tests_test_abonos_ajustes_rationale_212",
-      "community": 34,
-      "community_name": "TestFormulario",
+      "community": 3,
+      "community_name": "make_user",
       "norm_label": "el formulario manda listas paralelas; aca se prueba el parseo."
     },
     {
@@ -5934,8 +6095,8 @@
       "source_location": "L250",
       "_origin": "ast",
       "id": "tests_test_abonos_ajustes_rationale_250",
-      "community": 34,
-      "community_name": "TestFormulario",
+      "community": 3,
+      "community_name": "make_user",
       "norm_label": "el default acordado con la operacion: si nadie elige, es sobre lista."
     },
     {
@@ -5945,7 +6106,7 @@
       "source_location": "L343",
       "_origin": "ast",
       "id": "tests_test_abonos_ajustes_rationale_343",
-      "community": 32,
+      "community": 4,
       "community_name": "test_abonos_ajustes.py",
       "norm_label": "el bug que aparece si se calcula `lista \u2212 cobrado`: un recargo grande deja la..."
     },
@@ -5956,8 +6117,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "tests_test_agenda_cajon",
-      "community": 0,
-      "community_name": "login_as",
+      "community": 3,
+      "community_name": "make_user",
       "norm_label": "test_agenda_cajon.py"
     },
     {
@@ -6065,8 +6226,8 @@
       "_callable_class": true,
       "_origin": "ast",
       "id": "tests_test_agenda_cajon_testlineasdelevento",
-      "community": 28,
-      "community_name": "datetime",
+      "community": 3,
+      "community_name": "make_user",
       "norm_label": "testlineasdelevento"
     },
     {
@@ -6076,8 +6237,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "tests_test_agenda_cajon_py_fixture",
-      "community": 28,
-      "community_name": "datetime",
+      "community": 3,
+      "community_name": "make_user",
       "norm_label": "fixture"
     },
     {
@@ -6088,8 +6249,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_agenda_cajon_testlineasdelevento_cita",
-      "community": 28,
-      "community_name": "datetime",
+      "community": 3,
+      "community_name": "make_user",
       "norm_label": ".cita()"
     },
     {
@@ -6100,8 +6261,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_agenda_cajon_testlineasdelevento_lineas",
-      "community": 28,
-      "community_name": "datetime",
+      "community": 3,
+      "community_name": "make_user",
       "norm_label": "._lineas()"
     },
     {
@@ -6112,8 +6273,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_agenda_cajon_testlineasdelevento_test_manda_las_cinco_lineas",
-      "community": 28,
-      "community_name": "datetime",
+      "community": 3,
+      "community_name": "make_user",
       "norm_label": ".test_manda_las_cinco_lineas()"
     },
     {
@@ -6124,8 +6285,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_agenda_cajon_testlineasdelevento_test_las_notas_van_en_una_sola_linea",
-      "community": 28,
-      "community_name": "datetime",
+      "community": 3,
+      "community_name": "make_user",
       "norm_label": ".test_las_notas_van_en_una_sola_linea()"
     },
     {
@@ -6136,8 +6297,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_agenda_cajon_testlineasdelevento_test_sin_abonos_la_cifra_va_sola",
-      "community": 28,
-      "community_name": "datetime",
+      "community": 3,
+      "community_name": "make_user",
       "norm_label": ".test_sin_abonos_la_cifra_va_sola()"
     },
     {
@@ -6148,8 +6309,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_agenda_cajon_testlineasdelevento_test_con_abono_se_dice_que_es_un_saldo",
-      "community": 28,
-      "community_name": "datetime",
+      "community": 3,
+      "community_name": "make_user",
       "norm_label": ".test_con_abono_se_dice_que_es_un_saldo()"
     },
     {
@@ -6160,8 +6321,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_agenda_cajon_testlineasdelevento_test_si_abonaron_de_mas_dice_a_favor",
-      "community": 28,
-      "community_name": "datetime",
+      "community": 3,
+      "community_name": "make_user",
       "norm_label": ".test_si_abonaron_de_mas_dice_a_favor()"
     },
     {
@@ -6173,8 +6334,8 @@
       "_callable_class": true,
       "_origin": "ast",
       "id": "tests_test_agenda_cajon_testagendadediagnosticos",
-      "community": 0,
-      "community_name": "login_as",
+      "community": 3,
+      "community_name": "make_user",
       "norm_label": "testagendadediagnosticos"
     },
     {
@@ -6185,8 +6346,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_agenda_cajon_testagendadediagnosticos_escenario",
-      "community": 28,
-      "community_name": "datetime",
+      "community": 3,
+      "community_name": "make_user",
       "norm_label": ".escenario()"
     },
     {
@@ -6197,8 +6358,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_agenda_cajon_testagendadediagnosticos_placas",
-      "community": 0,
-      "community_name": "login_as",
+      "community": 3,
+      "community_name": "make_user",
       "norm_label": "._placas()"
     },
     {
@@ -6209,8 +6370,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_agenda_cajon_testagendadediagnosticos_test_cada_agenda_ve_lo_suyo",
-      "community": 0,
-      "community_name": "login_as",
+      "community": 3,
+      "community_name": "make_user",
       "norm_label": ".test_cada_agenda_ve_lo_suyo()"
     },
     {
@@ -6221,8 +6382,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_agenda_cajon_testagendadediagnosticos_test_una_cita_mixta_cuenta_como_cita",
-      "community": 0,
-      "community_name": "login_as",
+      "community": 3,
+      "community_name": "make_user",
       "norm_label": ".test_una_cita_mixta_cuenta_como_cita()"
     },
     {
@@ -6233,8 +6394,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_agenda_cajon_testagendadediagnosticos_test_sin_modo_se_asume_la_agenda_de_citas",
-      "community": 0,
-      "community_name": "login_as",
+      "community": 3,
+      "community_name": "make_user",
       "norm_label": ".test_sin_modo_se_asume_la_agenda_de_citas()"
     },
     {
@@ -6245,8 +6406,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_agenda_cajon_testagendadediagnosticos_test_en_diagnosticos_no_se_repite_la_palabra_diagnostico",
-      "community": 0,
-      "community_name": "login_as",
+      "community": 3,
+      "community_name": "make_user",
       "norm_label": ".test_en_diagnosticos_no_se_repite_la_palabra_diagnostico()"
     },
     {
@@ -6257,8 +6418,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_agenda_cajon_testagendadediagnosticos_test_un_diagnostico_gratis_no_muestra_cero",
-      "community": 0,
-      "community_name": "login_as",
+      "community": 3,
+      "community_name": "make_user",
       "norm_label": ".test_un_diagnostico_gratis_no_muestra_cero()"
     },
     {
@@ -6269,8 +6430,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_agenda_cajon_testagendadediagnosticos_test_marketing_no_entra_a_la_agenda",
-      "community": 0,
-      "community_name": "login_as",
+      "community": 3,
+      "community_name": "make_user",
       "norm_label": ".test_marketing_no_entra_a_la_agenda()"
     },
     {
@@ -6280,8 +6441,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "tests_test_agenda_cajon_rationale_1",
-      "community": 0,
-      "community_name": "login_as",
+      "community": 3,
+      "community_name": "make_user",
       "norm_label": "lo que va dentro del cajon de una cita en la agenda. el recorte por alto lo..."
     },
     {
@@ -6291,8 +6452,8 @@
       "source_location": "L121",
       "_origin": "ast",
       "id": "tests_test_agenda_cajon_rationale_121",
-      "community": 0,
-      "community_name": "login_as",
+      "community": 3,
+      "community_name": "make_user",
       "norm_label": "dos agendas con la misma pantalla: la que factura y la de diagnosticos."
     },
     {
@@ -6302,8 +6463,8 @@
       "source_location": "L177",
       "_origin": "ast",
       "id": "tests_test_agenda_cajon_rationale_177",
-      "community": 0,
-      "community_name": "login_as",
+      "community": 3,
+      "community_name": "make_user",
       "norm_label": "si el cliente aprovecho y agendo tambien un servicio, ya factura."
     },
     {
@@ -6313,9 +6474,249 @@
       "source_location": "L189",
       "_origin": "ast",
       "id": "tests_test_agenda_cajon_rationale_189",
-      "community": 0,
-      "community_name": "login_as",
+      "community": 3,
+      "community_name": "make_user",
       "norm_label": "todos los cajones dirian lo mismo; el renglon rinde mas con las notas."
+    },
+    {
+      "label": "test_backup.py",
+      "file_type": "code",
+      "source_file": "tests/test_backup.py",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "tests_test_backup",
+      "community": 0,
+      "community_name": "_S3Falso",
+      "norm_label": "test_backup.py"
+    },
+    {
+      "label": "TestDumpDeLaBase",
+      "file_type": "code",
+      "source_file": "tests/test_backup.py",
+      "source_location": "L18",
+      "_callable": true,
+      "_callable_class": true,
+      "_origin": "ast",
+      "id": "tests_test_backup_testdumpdelabase",
+      "community": 0,
+      "community_name": "_S3Falso",
+      "norm_label": "testdumpdelabase"
+    },
+    {
+      "label": ".test_la_copia_es_una_base_sqlite_valida()",
+      "file_type": "code",
+      "source_file": "tests/test_backup.py",
+      "source_location": "L19",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "tests_test_backup_testdumpdelabase_test_la_copia_es_una_base_sqlite_valida",
+      "community": 0,
+      "community_name": "_S3Falso",
+      "norm_label": ".test_la_copia_es_una_base_sqlite_valida()"
+    },
+    {
+      "label": ".test_conserva_los_datos_no_solo_el_esquema()",
+      "file_type": "code",
+      "source_file": "tests/test_backup.py",
+      "source_location": "L31",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "tests_test_backup_testdumpdelabase_test_conserva_los_datos_no_solo_el_esquema",
+      "community": 0,
+      "community_name": "_S3Falso",
+      "norm_label": ".test_conserva_los_datos_no_solo_el_esquema()"
+    },
+    {
+      "label": ".test_comprimir_reduce_el_tamano()",
+      "file_type": "code",
+      "source_file": "tests/test_backup.py",
+      "source_location": "L46",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "tests_test_backup_testdumpdelabase_test_comprimir_reduce_el_tamano",
+      "community": 0,
+      "community_name": "_S3Falso",
+      "norm_label": ".test_comprimir_reduce_el_tamano()"
+    },
+    {
+      "label": "_S3Falso",
+      "file_type": "code",
+      "source_file": "tests/test_backup.py",
+      "source_location": "L52",
+      "_callable": true,
+      "_callable_class": true,
+      "_origin": "ast",
+      "id": "tests_test_backup_s3falso",
+      "community": 0,
+      "community_name": "_S3Falso",
+      "norm_label": "_s3falso"
+    },
+    {
+      "label": ".__init__()",
+      "file_type": "code",
+      "source_file": "tests/test_backup.py",
+      "source_location": "L55",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "tests_test_backup_s3falso_init",
+      "community": 0,
+      "community_name": "_S3Falso",
+      "norm_label": ".__init__()"
+    },
+    {
+      "label": ".get_paginator()",
+      "file_type": "code",
+      "source_file": "tests/test_backup.py",
+      "source_location": "L59",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "tests_test_backup_s3falso_get_paginator",
+      "community": 0,
+      "community_name": "_S3Falso",
+      "norm_label": ".get_paginator()"
+    },
+    {
+      "label": ".delete_object()",
+      "file_type": "code",
+      "source_file": "tests/test_backup.py",
+      "source_location": "L68",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "tests_test_backup_s3falso_delete_object",
+      "community": 0,
+      "community_name": "_S3Falso",
+      "norm_label": ".delete_object()"
+    },
+    {
+      "label": "_keys()",
+      "file_type": "code",
+      "source_file": "tests/test_backup.py",
+      "source_location": "L73",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "tests_test_backup_keys",
+      "community": 0,
+      "community_name": "_S3Falso",
+      "norm_label": "_keys()"
+    },
+    {
+      "label": "TestRetencion",
+      "file_type": "code",
+      "source_file": "tests/test_backup.py",
+      "source_location": "L77",
+      "_callable": true,
+      "_callable_class": true,
+      "_origin": "ast",
+      "id": "tests_test_backup_testretencion",
+      "community": 0,
+      "community_name": "_S3Falso",
+      "norm_label": "testretencion"
+    },
+    {
+      "label": ".test_con_pocos_backups_no_borra_nada()",
+      "file_type": "code",
+      "source_file": "tests/test_backup.py",
+      "source_location": "L78",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "tests_test_backup_testretencion_test_con_pocos_backups_no_borra_nada",
+      "community": 0,
+      "community_name": "_S3Falso",
+      "norm_label": ".test_con_pocos_backups_no_borra_nada()"
+    },
+    {
+      "label": ".test_conserva_los_ultimos_30_dias()",
+      "file_type": "code",
+      "source_file": "tests/test_backup.py",
+      "source_location": "L84",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "tests_test_backup_testretencion_test_conserva_los_ultimos_30_dias",
+      "community": 0,
+      "community_name": "_S3Falso",
+      "norm_label": ".test_conserva_los_ultimos_30_dias()"
+    },
+    {
+      "label": ".test_conserva_el_primero_de_cada_mes_aunque_sea_viejo()",
+      "file_type": "code",
+      "source_file": "tests/test_backup.py",
+      "source_location": "L96",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "tests_test_backup_testretencion_test_conserva_el_primero_de_cada_mes_aunque_sea_viejo",
+      "community": 0,
+      "community_name": "_S3Falso",
+      "norm_label": ".test_conserva_el_primero_de_cada_mes_aunque_sea_viejo()"
+    },
+    {
+      "label": ".test_nunca_borra_el_backup_mas_reciente()",
+      "file_type": "code",
+      "source_file": "tests/test_backup.py",
+      "source_location": "L108",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "tests_test_backup_testretencion_test_nunca_borra_el_backup_mas_reciente",
+      "community": 0,
+      "community_name": "_S3Falso",
+      "norm_label": ".test_nunca_borra_el_backup_mas_reciente()"
+    },
+    {
+      "label": "TestDescargaSegura",
+      "file_type": "code",
+      "source_file": "tests/test_backup.py",
+      "source_location": "L116",
+      "_callable": true,
+      "_callable_class": true,
+      "_origin": "ast",
+      "id": "tests_test_backup_testdescargasegura",
+      "community": 0,
+      "community_name": "_S3Falso",
+      "norm_label": "testdescargasegura"
+    },
+    {
+      "label": ".test_no_deja_pedir_objetos_fuera_de_la_carpeta_de_backups()",
+      "file_type": "code",
+      "source_file": "tests/test_backup.py",
+      "source_location": "L117",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "tests_test_backup_testdescargasegura_test_no_deja_pedir_objetos_fuera_de_la_carpeta_de_backups",
+      "community": 0,
+      "community_name": "_S3Falso",
+      "norm_label": ".test_no_deja_pedir_objetos_fuera_de_la_carpeta_de_backups()"
+    },
+    {
+      "label": "Backup diario de la base. Dos cosas que tienen que estar bien s\u00ed o s\u00ed: que la\u2026",
+      "file_type": "rationale",
+      "source_file": "tests/test_backup.py",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "tests_test_backup_rationale_1",
+      "community": 0,
+      "community_name": "_S3Falso",
+      "norm_label": "backup diario de la base. dos cosas que tienen que estar bien si o si: que la..."
+    },
+    {
+      "label": "Bucket en memoria, para probar la retenci\u00f3n sin tocar Railway.",
+      "file_type": "rationale",
+      "source_file": "tests/test_backup.py",
+      "source_location": "L53",
+      "_origin": "ast",
+      "id": "tests_test_backup_rationale_53",
+      "community": 0,
+      "community_name": "_S3Falso",
+      "norm_label": "bucket en memoria, para probar la retencion sin tocar railway."
+    },
+    {
+      "label": "Un `key` manipulado no puede sacar otra cosa del bucket.",
+      "file_type": "rationale",
+      "source_file": "tests/test_backup.py",
+      "source_location": "L118",
+      "_origin": "ast",
+      "id": "tests_test_backup_rationale_118",
+      "community": 0,
+      "community_name": "_S3Falso",
+      "norm_label": "un `key` manipulado no puede sacar otra cosa del bucket."
     },
     {
       "label": "test_followup_filtros.py",
@@ -7517,8 +7918,8 @@
       "captured_at": null,
       "author": null,
       "contributor": null,
-      "community": 21,
-      "community_name": "new_appointment",
+      "community": 32,
+      "community_name": "Appointment Form (Shared Partial)",
       "norm_label": "appointment form (shared partial)",
       "_origin": "semantic",
       "id": "templates_appointment_form"
@@ -7533,8 +7934,8 @@
       "author": null,
       "contributor": null,
       "rationale": "A category group auto-expands only if it already has a checked service, since a collapsed group would hide the existing selection; a badge count is the only signal of what's selected inside a collapsed group.",
-      "community": 21,
-      "community_name": "new_appointment",
+      "community": 32,
+      "community_name": "Appointment Form (Shared Partial)",
       "norm_label": "grouped service checklist with collapsible categories",
       "_origin": "semantic",
       "id": "templates_appointment_form_service_selector"
@@ -7548,8 +7949,8 @@
       "captured_at": null,
       "author": null,
       "contributor": null,
-      "community": 9,
-      "community_name": "Expenses List (DataTable)",
+      "community": 32,
+      "community_name": "Appointment Form (Shared Partial)",
       "norm_label": "agreement dropdown with inline quick-create",
       "_origin": "semantic",
       "id": "templates_appointment_form_agreement_selector"
@@ -7564,8 +7965,8 @@
       "author": null,
       "contributor": null,
       "rationale": "A percentage can be computed over list price or over the subtotal already including the agreement; none chains onto the previous adjustment, so row order never changes the final total.",
-      "community": 21,
-      "community_name": "new_appointment",
+      "community": 32,
+      "community_name": "Appointment Form (Shared Partial)",
       "norm_label": "multiple discount/surcharge rows",
       "_origin": "semantic",
       "id": "templates_appointment_form_adjustments_rows"
@@ -7580,8 +7981,8 @@
       "author": null,
       "contributor": null,
       "rationale": "A partial payment does not lower the service's value, only the balance still owed.",
-      "community": 21,
-      "community_name": "new_appointment",
+      "community": 32,
+      "community_name": "Appointment Form (Shared Partial)",
       "norm_label": "multiple partial payments (abonos) rows",
       "_origin": "semantic",
       "id": "templates_appointment_form_payments_rows"
@@ -7596,8 +7997,8 @@
       "author": null,
       "contributor": null,
       "rationale": "Balance-due row only appears when there are payments; without payments, balance equals total and repeating the figure would just be noise.",
-      "community": 21,
-      "community_name": "new_appointment",
+      "community": 32,
+      "community_name": "Appointment Form (Shared Partial)",
       "norm_label": "real-time price preview box",
       "_origin": "semantic",
       "id": "templates_appointment_form_price_preview"
@@ -7611,8 +8012,8 @@
       "captured_at": null,
       "author": null,
       "contributor": null,
-      "community": 21,
-      "community_name": "new_appointment",
+      "community": 32,
+      "community_name": "Appointment Form (Shared Partial)",
       "norm_label": "client autocomplete by plate/name",
       "_origin": "semantic",
       "id": "templates_appointment_form_autocomplete"
@@ -7627,7 +8028,7 @@
       "author": null,
       "contributor": null,
       "community": 35,
-      "community_name": "Calendar View (FullCalendar)",
+      "community_name": "Appointments List (DataTable)",
       "norm_label": "appointments list (datatable)",
       "_origin": "semantic",
       "id": "templates_appointments_list"
@@ -7643,7 +8044,7 @@
       "contributor": null,
       "rationale": "Filter inputs bind to their column via an explicit data-col attribute instead of the <th> position, because DataTables removes the hidden Timestamp column's header from the DOM, which used to shift every filter input onto the wrong column. Search terms are also accent-stripped so users don't have to type Spanish tildes.",
       "community": 35,
-      "community_name": "Calendar View (FullCalendar)",
+      "community_name": "Appointments List (DataTable)",
       "norm_label": "per-column filter row (text/select/date-range)",
       "_origin": "semantic",
       "id": "templates_appointments_list_datatable_filters"
@@ -7658,7 +8059,7 @@
       "author": null,
       "contributor": null,
       "community": 35,
-      "community_name": "Calendar View (FullCalendar)",
+      "community_name": "Appointments List (DataTable)",
       "norm_label": "work status timer controls (iniciar/pausar/terminar)",
       "_origin": "semantic",
       "id": "templates_appointments_list_work_status_control"
@@ -7673,7 +8074,7 @@
       "author": null,
       "contributor": null,
       "community": 35,
-      "community_name": "Calendar View (FullCalendar)",
+      "community_name": "Appointments List (DataTable)",
       "norm_label": "excel/csv export buttons",
       "_origin": "semantic",
       "id": "templates_appointments_list_export_buttons"
@@ -7748,7 +8149,7 @@
       "captured_at": null,
       "author": null,
       "contributor": null,
-      "community": 35,
+      "community": 28,
       "community_name": "Calendar View (FullCalendar)",
       "norm_label": "appointment detail modal shell (#appointmentmodal)",
       "_origin": "semantic",
@@ -7779,7 +8180,7 @@
       "captured_at": null,
       "author": null,
       "contributor": null,
-      "community": 35,
+      "community": 28,
       "community_name": "Calendar View (FullCalendar)",
       "norm_label": "calendar view (fullcalendar)",
       "_origin": "semantic",
@@ -7794,7 +8195,7 @@
       "captured_at": null,
       "author": null,
       "contributor": null,
-      "community": 35,
+      "community": 28,
       "community_name": "Calendar View (FullCalendar)",
       "norm_label": "fullcalendar timegrid day/week view",
       "_origin": "semantic",
@@ -7810,7 +8211,7 @@
       "author": null,
       "contributor": null,
       "rationale": "A ResizeObserver re-measures each event box because at mount time FullCalendar hasn't given it its final height yet. Lines are hidden (not removed) bottom-up as space runs out, with the client's name protected as the last line to drop; notes get a variable line-clamp tried from most to fewest lines to use whatever space remains.",
-      "community": 35,
+      "community": 28,
       "community_name": "Calendar View (FullCalendar)",
       "norm_label": "adaptive event box line truncation",
       "_origin": "semantic",
@@ -7826,7 +8227,7 @@
       "author": null,
       "contributor": null,
       "rationale": "Deleting an appointment is permanent, so the client prompts for an admin keyword before submitting; this client-side prompt is described as 'the gate, not the lock' \u2014 real validation happens server-side.",
-      "community": 35,
+      "community": 28,
       "community_name": "Calendar View (FullCalendar)",
       "norm_label": "admin keyword delete confirmation",
       "_origin": "semantic",
@@ -7841,7 +8242,7 @@
       "captured_at": null,
       "author": null,
       "contributor": null,
-      "community": 35,
+      "community": 28,
       "community_name": "Calendar View (FullCalendar)",
       "norm_label": "event click \u2192 fetch appointment json \u2192 populate modal",
       "_origin": "semantic",
@@ -7886,8 +8287,8 @@
       "captured_at": null,
       "author": null,
       "contributor": null,
-      "community": 9,
-      "community_name": "Expenses List (DataTable)",
+      "community": 32,
+      "community_name": "Appointment Form (Shared Partial)",
       "norm_label": "rename category modal (dynamic form action)",
       "_origin": "semantic",
       "id": "templates_expense_categories_rename_modal"
@@ -7978,7 +8379,7 @@
       "author": null,
       "contributor": null,
       "community": 35,
-      "community_name": "Calendar View (FullCalendar)",
+      "community_name": "Appointments List (DataTable)",
       "norm_label": "expenses datatable with server-side query filters",
       "_origin": "semantic",
       "id": "templates_expenses_list_expenses_datatable"
@@ -8476,8 +8877,8 @@
       "captured_at": null,
       "author": null,
       "contributor": null,
-      "community": 57,
-      "community_name": "Manejo de objeci\u00f3n de precio: ancla de valor por costo diario, invitaci\u00f3n a ver carro aplicado, prohibido ofrecer descuento",
+      "community": 17,
+      "community_name": "_can_see_notifications",
       "norm_label": "uso de promociones por mariana: solo ante duda/objecion de precio, nunca en el saludo",
       "_origin": "semantic",
       "id": "templates_promotions_mariana_usage"
@@ -8836,8 +9237,8 @@
       "captured_at": null,
       "author": null,
       "contributor": null,
-      "community": 57,
-      "community_name": "Manejo de objeci\u00f3n de precio: ancla de valor por costo diario, invitaci\u00f3n a ver carro aplicado, prohibido ofrecer descuento",
+      "community": 17,
+      "community_name": "_can_see_notifications",
       "norm_label": "manejo de objecion de precio: ancla de valor por costo diario, invitacion a ver carro aplicado, prohibido ofrecer descuento",
       "_origin": "semantic",
       "id": "docs_mariana_base_conocimiento_objecion_precio"
@@ -9168,6 +9569,17 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "app.py",
+      "source_location": "L8433",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "app",
+      "target": "app_aplicar_retencion",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "app.py",
       "source_location": "L1624",
       "weight": 1.0,
       "_origin": "ast",
@@ -9305,6 +9717,39 @@
       "_origin": "ast",
       "source": "app",
       "target": "app_availability_vehicle_type_id",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "app.py",
+      "source_location": "L8339",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "app",
+      "target": "app_backup_download",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "app.py",
+      "source_location": "L8424",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "app",
+      "target": "app_backups_existentes",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "app.py",
+      "source_location": "L8310",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "app",
+      "target": "app_backups_list",
       "confidence_score": 1.0
     },
     {
@@ -9547,6 +9992,17 @@
       "_origin": "ast",
       "source": "app",
       "target": "app_diagnostic_service",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "app.py",
+      "source_location": "L8400",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "app",
+      "target": "app_dump_sqlite_gz",
       "confidence_score": 1.0
     },
     {
@@ -10185,6 +10641,17 @@
       "_origin": "ast",
       "source": "app",
       "target": "app_job_admin_reminder",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "app.py",
+      "source_location": "L8465",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "app",
+      "target": "app_job_backup_db",
       "confidence_score": 1.0
     },
     {
@@ -11071,6 +11538,17 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "app.py",
+      "source_location": "L8382",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "app",
+      "target": "app_s3_client",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "app.py",
       "source_location": "L3389",
       "weight": 1.0,
       "_origin": "ast",
@@ -11912,6 +12390,18 @@
       "relation": "imports",
       "context": "import",
       "confidence": "EXTRACTED",
+      "source_file": "tests/test_backup.py",
+      "source_location": "L13",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "tests_test_backup",
+      "target": "app",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
       "source_file": "tests/test_followup_filtros.py",
       "source_location": "L12",
       "weight": 1.0,
@@ -12049,6 +12539,18 @@
       "weight": 1.0,
       "_origin": "ast",
       "source": "app_job_admin_reminder",
+      "target": "app_bogota_now",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "app.py",
+      "source_location": "L8473",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "app_job_backup_db",
       "target": "app_bogota_now",
       "confidence_score": 1.0
     },
@@ -12646,6 +13148,30 @@
       "context": "decorator",
       "_origin": "ast",
       "source": "app_appointments_list",
+      "target": "route",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "source_file": "app.py",
+      "source_location": "L8338",
+      "weight": 1.0,
+      "context": "decorator",
+      "_origin": "ast",
+      "source": "app_backup_download",
+      "target": "route",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "source_file": "app.py",
+      "source_location": "L8309",
+      "weight": 1.0,
+      "context": "decorator",
+      "_origin": "ast",
+      "source": "app_backups_list",
       "target": "route",
       "confidence_score": 1.0
     },
@@ -14976,6 +15502,18 @@
       "_origin": "ast",
       "source": "app_rationale_1109",
       "target": "app_notification",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "app.py",
+      "source_location": "L8486",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "app_job_backup_db",
+      "target": "app_push_notification",
       "confidence_score": 1.0
     },
     {
@@ -20336,6 +20874,167 @@
       "target": "app_whatsapp_outbox"
     },
     {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "app.py",
+      "source_location": "L8329",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "app_backups_list",
+      "target": "app_backups_existentes",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "app.py",
+      "source_location": "L8316",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "app_backups_list",
+      "target": "app_s3_client",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "app.py",
+      "source_location": "L8311",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "app_rationale_8311",
+      "target": "app_backups_list",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "app.py",
+      "source_location": "L8355",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "app_backup_download",
+      "target": "app_s3_client",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "app.py",
+      "source_location": "L8340",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "app_rationale_8340",
+      "target": "app_backup_download",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "app.py",
+      "source_location": "L8468",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "app_job_backup_db",
+      "target": "app_s3_client",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "app.py",
+      "source_location": "L8383",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "app_rationale_8383",
+      "target": "app_s3_client",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "app.py",
+      "source_location": "L8475",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "app_job_backup_db",
+      "target": "app_dump_sqlite_gz",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "app.py",
+      "source_location": "L8401",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "app_rationale_8401",
+      "target": "app_dump_sqlite_gz",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "app.py",
+      "source_location": "L8439",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "app_aplicar_retencion",
+      "target": "app_backups_existentes",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "app.py",
+      "source_location": "L8425",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "app_rationale_8425",
+      "target": "app_backups_existentes",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "app.py",
+      "source_location": "L8477",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "app_job_backup_db",
+      "target": "app_aplicar_retencion",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "app.py",
+      "source_location": "L8434",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "app_rationale_8434",
+      "target": "app_aplicar_retencion",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "app.py",
+      "source_location": "L8466",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "app_rationale_8466",
+      "target": "app_job_backup_db",
+      "confidence_score": 1.0
+    },
+    {
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "migrate_prices.py",
@@ -22606,6 +23305,311 @@
       "_origin": "ast",
       "source": "tests_test_agenda_cajon_rationale_189",
       "target": "tests_test_agenda_cajon_testagendadediagnosticos_test_en_diagnosticos_no_se_repite_la_palabra_diagnostico",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "tests/test_backup.py",
+      "source_location": "L73",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "tests_test_backup",
+      "target": "tests_test_backup_keys",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "tests/test_backup.py",
+      "source_location": "L52",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "tests_test_backup",
+      "target": "tests_test_backup_s3falso",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "tests/test_backup.py",
+      "source_location": "L116",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "tests_test_backup",
+      "target": "tests_test_backup_testdescargasegura",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "tests/test_backup.py",
+      "source_location": "L18",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "tests_test_backup",
+      "target": "tests_test_backup_testdumpdelabase",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "tests/test_backup.py",
+      "source_location": "L77",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "tests_test_backup",
+      "target": "tests_test_backup_testretencion",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "tests/test_backup.py",
+      "source_location": "L1",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "tests_test_backup_rationale_1",
+      "target": "tests_test_backup",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "source_file": "tests/test_backup.py",
+      "source_location": "L46",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "tests_test_backup_testdumpdelabase",
+      "target": "tests_test_backup_testdumpdelabase_test_comprimir_reduce_el_tamano",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "source_file": "tests/test_backup.py",
+      "source_location": "L31",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "tests_test_backup_testdumpdelabase",
+      "target": "tests_test_backup_testdumpdelabase_test_conserva_los_datos_no_solo_el_esquema",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "source_file": "tests/test_backup.py",
+      "source_location": "L19",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "tests_test_backup_testdumpdelabase",
+      "target": "tests_test_backup_testdumpdelabase_test_la_copia_es_una_base_sqlite_valida",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "tests/test_backup.py",
+      "source_location": "L53",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "tests_test_backup_rationale_53",
+      "target": "tests_test_backup_s3falso",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "source_file": "tests/test_backup.py",
+      "source_location": "L68",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "tests_test_backup_s3falso",
+      "target": "tests_test_backup_s3falso_delete_object",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "source_file": "tests/test_backup.py",
+      "source_location": "L59",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "tests_test_backup_s3falso",
+      "target": "tests_test_backup_s3falso_get_paginator",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "source_file": "tests/test_backup.py",
+      "source_location": "L55",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "tests_test_backup_s3falso",
+      "target": "tests_test_backup_s3falso_init",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "tests/test_backup.py",
+      "source_location": "L80",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "tests_test_backup_testretencion_test_con_pocos_backups_no_borra_nada",
+      "target": "tests_test_backup_s3falso",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "tests/test_backup.py",
+      "source_location": "L100",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "tests_test_backup_testretencion_test_conserva_el_primero_de_cada_mes_aunque_sea_viejo",
+      "target": "tests_test_backup_s3falso",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "tests/test_backup.py",
+      "source_location": "L88",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "tests_test_backup_testretencion_test_conserva_los_ultimos_30_dias",
+      "target": "tests_test_backup_s3falso",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "tests/test_backup.py",
+      "source_location": "L111",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "tests_test_backup_testretencion_test_nunca_borra_el_backup_mas_reciente",
+      "target": "tests_test_backup_s3falso",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "tests/test_backup.py",
+      "source_location": "L80",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "tests_test_backup_testretencion_test_con_pocos_backups_no_borra_nada",
+      "target": "tests_test_backup_keys",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "tests/test_backup.py",
+      "source_location": "L100",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "tests_test_backup_testretencion_test_conserva_el_primero_de_cada_mes_aunque_sea_viejo",
+      "target": "tests_test_backup_keys",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "tests/test_backup.py",
+      "source_location": "L88",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "tests_test_backup_testretencion_test_conserva_los_ultimos_30_dias",
+      "target": "tests_test_backup_keys",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "tests/test_backup.py",
+      "source_location": "L111",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "tests_test_backup_testretencion_test_nunca_borra_el_backup_mas_reciente",
+      "target": "tests_test_backup_keys",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "source_file": "tests/test_backup.py",
+      "source_location": "L78",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "tests_test_backup_testretencion",
+      "target": "tests_test_backup_testretencion_test_con_pocos_backups_no_borra_nada",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "source_file": "tests/test_backup.py",
+      "source_location": "L96",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "tests_test_backup_testretencion",
+      "target": "tests_test_backup_testretencion_test_conserva_el_primero_de_cada_mes_aunque_sea_viejo",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "source_file": "tests/test_backup.py",
+      "source_location": "L84",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "tests_test_backup_testretencion",
+      "target": "tests_test_backup_testretencion_test_conserva_los_ultimos_30_dias",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "source_file": "tests/test_backup.py",
+      "source_location": "L108",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "tests_test_backup_testretencion",
+      "target": "tests_test_backup_testretencion_test_nunca_borra_el_backup_mas_reciente",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "source_file": "tests/test_backup.py",
+      "source_location": "L117",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "tests_test_backup_testdescargasegura",
+      "target": "tests_test_backup_testdescargasegura_test_no_deja_pedir_objetos_fuera_de_la_carpeta_de_backups",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "tests/test_backup.py",
+      "source_location": "L118",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "tests_test_backup_rationale_118",
+      "target": "tests_test_backup_testdescargasegura_test_no_deja_pedir_objetos_fuera_de_la_carpeta_de_backups",
       "confidence_score": 1.0
     },
     {
@@ -26028,5 +27032,5 @@
       "source_file": "docs/mariana-base-conocimiento.md"
     }
   ],
-  "built_at_commit": "1b4bd4cf3cae06833fb87ab349cba68cd2dadf14"
+  "built_at_commit": "68cfa6c373c4b85f3e03c1d69e3086eb1eb29723"
 }
