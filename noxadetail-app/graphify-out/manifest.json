@@ -1,7 +1,7 @@
 {
   "app.py": {
-    "mtime": 1786378518.1885464,
-    "ast_hash": "ddaadd75cb2a88e06b84d45dd792daf5",
+    "mtime": 1786379427.462116,
+    "ast_hash": "c2f71763a6fc07c0961bf5d6dca2a324",
     "semantic_hash": ""
   },
   "migrate_prices.py": {
@@ -50,8 +50,8 @@
     "semantic_hash": ""
   },
   "requirements.txt": {
-    "mtime": 1786228381.3764951,
-    "ast_hash": "1156dab42f14ab2d5eb8bc0f5bdc5293",
+    "mtime": 1786379367.5401423,
+    "ast_hash": "fe3b2f19f5020de93a2112e4201a805a",
     "semantic_hash": ""
   },
   "templates/agreements.html": {
@@ -75,8 +75,8 @@
     "semantic_hash": ""
   },
   "templates/base.html": {
-    "mtime": 1786228381.3801694,
-    "ast_hash": "3de44fff66fd4a262f610d80d5692c3b",
+    "mtime": 1786379483.9247208,
+    "ast_hash": "8539cb7facaed02ddf7540c50c997c9c",
     "semantic_hash": ""
   },
   "templates/calendar.html": {
@@ -217,6 +217,16 @@
   "tests/test_followup_filtros.py": {
     "mtime": 1786378536.704091,
     "ast_hash": "56213c42cc15257438739a696958dda4",
+    "semantic_hash": ""
+  },
+  "tests/test_backup.py": {
+    "mtime": 1786379527.0879092,
+    "ast_hash": "54035aafa3c14237d72a56c98fdf643e",
+    "semantic_hash": ""
+  },
+  "templates/backups.html": {
+    "mtime": 1786379446.6694567,
+    "ast_hash": "6b579df0706070b29d51e4d217c940dc",
     "semantic_hash": ""
   }
 }

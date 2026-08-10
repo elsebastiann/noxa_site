@@ -8306,6 +8306,191 @@ def test_whatsapp():
     return redirect(url_for("calendar_view"))
 
 
+@app.route("/backups")
+def backups_list():
+    """Los backups que hay, para poder bajarse uno y guardarlo fuera de Railway."""
+    if not getattr(g, "current_user", None) or g.current_user.role != "admin":
+        flash("Acceso restringido.", "danger")
+        return redirect(url_for("calendar_view"))
+
+    s3 = _s3_client()
+    if not s3:
+        flash("El bucket de backups todavía no está configurado.", "warning")
+        return render_template("backups.html", backups=[], bucket_ok=False)
+
+    try:
+        backups = [
+            {
+                "key": o["Key"],
+                "nombre": o["Key"].removeprefix("agenda/"),
+                "tamano_kb": round(o["Size"] / 1024),
+                "fecha": o["LastModified"],
+            }
+            for o in _backups_existentes(s3)
+        ]
+    except Exception as exc:
+        app.logger.error(f"[Backup] No se pudo listar el bucket: {exc}")
+        flash(f"No se pudieron listar los backups: {exc}", "danger")
+        backups = []
+    return render_template("backups.html", backups=backups, bucket_ok=True)
+
+
+@app.route("/backups/download")
+def backup_download():
+    """Redirige a una URL temporal del bucket.
+
+    El archivo no pasa por la app: se firma una URL de 5 minutos y el navegador
+    lo baja directo del bucket. Así un backup de varios MB no ocupa memoria ni
+    bloquea al único worker de gunicorn."""
+    if not getattr(g, "current_user", None) or g.current_user.role != "admin":
+        flash("Acceso restringido.", "danger")
+        return redirect(url_for("calendar_view"))
+
+    key = request.args.get("key", "")
+    # Sin esto, un `key` manipulado podría pedir cualquier objeto del bucket.
+    if not key.startswith("agenda/") or ".." in key:
+        flash("Backup no válido.", "danger")
+        return redirect(url_for("backups_list"))
+
+    s3 = _s3_client()
+    if not s3:
+        flash("El bucket de backups no está configurado.", "warning")
+        return redirect(url_for("backups_list"))
+    try:
+        url = s3.generate_presigned_url(
+            "get_object", Params={"Bucket": BACKUP_BUCKET, "Key": key}, ExpiresIn=300,
+        )
+    except Exception as exc:
+        app.logger.error(f"[Backup] No se pudo firmar la descarga de {key}: {exc}")
+        flash(f"No se pudo generar la descarga: {exc}", "danger")
+        return redirect(url_for("backups_list"))
+    return redirect(url)
+
+
+# ── Backup diario de la base ─────────────────────────────────────────────────
+# La base es un SQLite en un volumen de Railway: si ese volumen se corrompe o se
+# borra, se va todo (citas, nómina, conversaciones) y no hay de dónde volver.
+# El backup va a un bucket de Railway, que protege contra corrupción y borrados
+# accidentales — pero OJO, vive en la misma cuenta de Railway, así que no
+# protege contra perder la cuenta. Para eso hay que bajarse una copia desde
+# /backups cada tanto y guardarla fuera.
+BACKUP_BUCKET = os.environ.get("BACKUP_BUCKET", "")
+BACKUP_KEEP_DAILY = 30    # último mes día por día
+BACKUP_KEEP_MONTHLY = 12  # un año, el primero de cada mes
+
+
+def _s3_client():
+    """Cliente del bucket, o None si todavía no está configurado."""
+    if not BACKUP_BUCKET:
+        return None
+    try:
+        import boto3
+        return boto3.client(
+            "s3",
+            endpoint_url=os.environ.get("BACKUP_S3_ENDPOINT", ""),
+            aws_access_key_id=os.environ.get("BACKUP_S3_ACCESS_KEY_ID", ""),
+            aws_secret_access_key=os.environ.get("BACKUP_S3_SECRET_ACCESS_KEY", ""),
+            region_name=os.environ.get("BACKUP_S3_REGION", "auto"),
+        )
+    except Exception as exc:
+        app.logger.error(f"[Backup] No se pudo crear el cliente S3: {exc}")
+        return None
+
+
+def _dump_sqlite_gz() -> bytes:
+    """Copia consistente de la base, comprimida.
+
+    Se usa la API de backup de SQLite y no `cp`: copiar el archivo mientras hay
+    escrituras puede dejar un backup corrupto, y como Mariana escribe a
+    cualquier hora, no existe un momento "sin tráfico" en que sea seguro.
+    `backup()` sí es seguro con la base en uso."""
+    import gzip
+    import sqlite3
+    import tempfile
+
+    with tempfile.TemporaryDirectory() as tmp:
+        destino = os.path.join(tmp, "backup.db")
+        origen_conn = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
+        destino_conn = sqlite3.connect(destino)
+        try:
+            origen_conn.backup(destino_conn)
+        finally:
+            destino_conn.close()
+            origen_conn.close()
+        with open(destino, "rb") as fh:
+            return gzip.compress(fh.read(), compresslevel=6)
+
+
+def _backups_existentes(s3) -> list[dict]:
+    """Backups en el bucket, del más nuevo al más viejo."""
+    objetos = []
+    paginator = s3.get_paginator("list_objects_v2")
+    for page in paginator.paginate(Bucket=BACKUP_BUCKET, Prefix="agenda/"):
+        objetos.extend(page.get("Contents", []) or [])
+    return sorted(objetos, key=lambda o: o["Key"], reverse=True)
+
+
+def _aplicar_retencion(s3) -> int:
+    """Borra los backups que ya no entran en la política de retención.
+
+    Se conservan los últimos 30 diarios y, además, el primero de cada mes de los
+    últimos 12 meses: así se puede volver a cualquier día del último mes o a
+    cualquier mes del último año sin que el bucket crezca para siempre."""
+    objetos = _backups_existentes(s3)
+    if not objetos:
+        return 0
+
+    claves = [o["Key"] for o in objetos]
+    conservar = set(claves[:BACKUP_KEEP_DAILY])
+
+    # El nombre es agenda/AAAA-MM-DD.db.gz, así que el mes sale del propio Key
+    # sin tener que mirar la fecha de subida (que cambia si algo se re-sube).
+    primero_del_mes: dict[str, str] = {}
+    for key in sorted(claves):  # ascendente: el primero que aparece es el más viejo
+        mes = key[len("agenda/"):][:7]  # AAAA-MM
+        primero_del_mes.setdefault(mes, key)
+    conservar.update(sorted(primero_del_mes.values(), reverse=True)[:BACKUP_KEEP_MONTHLY])
+
+    borrados = 0
+    for key in claves:
+        if key not in conservar:
+            try:
+                s3.delete_object(Bucket=BACKUP_BUCKET, Key=key)
+                borrados += 1
+            except Exception as exc:
+                app.logger.error(f"[Backup] No se pudo borrar {key}: {exc}")
+    return borrados
+
+
+def _job_backup_db():
+    """Corre diariamente a las 3 AM (Bogotá), cuando no hay tráfico."""
+    with app.app_context():
+        s3 = _s3_client()
+        if not s3:
+            app.logger.warning("[Backup] Bucket no configurado — no se hizo backup.")
+            return
+
+        key = f"agenda/{bogota_now().strftime('%Y-%m-%d')}.db.gz"
+        try:
+            datos = _dump_sqlite_gz()
+            s3.put_object(Bucket=BACKUP_BUCKET, Key=key, Body=datos)
+            borrados = _aplicar_retencion(s3)
+            app.logger.info(
+                f"[Backup] {key} subido ({len(datos)/1024:.0f} KB comprimido), "
+                f"{borrados} antiguo(s) borrado(s)."
+            )
+        except Exception as exc:
+            # Un backup que falla en silencio es igual a no tener backup, así que
+            # esto sí tiene que verse en la campanita.
+            app.logger.error(f"[Backup] Falló el backup de la base: {exc}")
+            push_notification(
+                kind="backup_fallido", level="urgent",
+                title="Falló el backup diario de la base",
+                body=f"{type(exc).__name__}: {exc}",
+                url="/backups",
+            )
+
+
 # ── Scheduler setup ───────────────────────────────────────────────────────────
 _scheduler = BackgroundScheduler(timezone=_BOGOTA)
 
@@ -8346,6 +8531,12 @@ _scheduler.add_job(
     _job_whatsapp_followup,
     IntervalTrigger(minutes=30),
     id="whatsapp_followup",
+    replace_existing=True,
+)
+_scheduler.add_job(
+    _job_backup_db,
+    CronTrigger(hour=3, minute=0, timezone=_BOGOTA),
+    id="backup_db",
     replace_existing=True,
 )
 

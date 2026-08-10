@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+
+{% block extra_head %}
+<style>
+  .bk-note { color:var(--text2); font-size:.85rem; max-width:70ch; line-height:1.5; margin:8px 0 20px; }
+  .bk-warn { border:1px solid rgba(212,180,108,0.4); background:rgba(212,180,108,0.08);
+             border-radius:var(--radius); padding:12px 16px; margin-bottom:20px;
+             font-size:.85rem; line-height:1.5; }
+  .bk-wrap { overflow-x:auto; border:1px solid var(--border); border-radius:var(--radius); }
+  table.bk { width:100%; border-collapse:collapse; font-size:.88rem; min-width:520px; }
+  table.bk th { background:var(--surface2); color:var(--text2); text-align:left;
+                padding:10px 14px; font-weight:600; white-space:nowrap; }
+  table.bk td { padding:10px 14px; border-top:1px solid var(--border); }
+  .bk-name { font-family:ui-monospace, SFMono-Regular, Menlo, monospace; }
+  .bk-size { color:var(--text2); white-space:nowrap; }
+  .bk-empty { padding:34px; text-align:center; color:var(--text2);
+              border:1px solid var(--border); border-radius:var(--radius); }
+</style>
+{% endblock %}
+
+{% block content %}
+<h2 style="margin-top:16px;">Backups de la base</h2>
+<p class="bk-note">
+  Copia automática todos los días a las 3:00 a.m. Se conservan los últimos 30 días y
+  el primero de cada mes del último año.
+</p>
+
+<div class="bk-warn">
+  ⚠️ Estos backups viven en la misma cuenta de Railway que la base. Protegen contra
+  daños en los datos o borrados por error, pero no contra perder la cuenta.
+  <strong>Descarga uno cada tanto y guárdalo por fuera</strong> (tu computador, un
+  disco o Drive).
+</div>
+
+{% if not bucket_ok %}
+  <div class="bk-empty">El almacenamiento de backups todavía no está configurado.</div>
+{% elif backups %}
+  <div class="bk-wrap">
+    <table class="bk">
+      <thead>
+        <tr><th>Fecha</th><th>Tamaño</th><th></th></tr>
+      </thead>
+      <tbody>
+        {% for b in backups %}
+          <tr>
+            <td class="bk-name">{{ b.nombre }}</td>
+            <td class="bk-size">{{ b.tamano_kb }} KB</td>
+            <td><a class="btn btn-sm" href="{{ url_for('backup_download', key=b.key) }}">Descargar</a></td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+{% else %}
+  <div class="bk-empty">
+    Todavía no hay backups. El primero se crea automáticamente esta noche a las 3:00 a.m.
+  </div>
+{% endif %}
+{% endblock %}
