@@ -1416,7 +1416,7 @@ def seed_payment_methods():
 # el mismo criterio que DIAGNOSTIC_SERVICE_NAME: los ids difieren entre la BD
 # local y la de producción, y el nombre se puede corregir sin tocar código.
 PLAN_WASH_SERVICE_NAME = os.environ.get("PLAN_WASH_SERVICE_NAME", "Wash Premium")
-PLAN_MAINT_SERVICE_NAME = os.environ.get("PLAN_MAINT_SERVICE_NAME", "Mantenimiento")
+PLAN_MAINT_SERVICE_NAME = os.environ.get("PLAN_MAINT_SERVICE_NAME", "Mantenimiento Ceramico")
 
 
 def seed_maintenance_plans():
