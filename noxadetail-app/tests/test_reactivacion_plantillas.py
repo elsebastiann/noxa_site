@@ -67,8 +67,8 @@ class TestPlantillaPorEtapa:
         cotizado = _conversacion([("out", "El cerámico 7H+ queda en $1.099.000.")])
         sin_cotizar = _conversacion([("out", "¿Qué vehículo tienes?")])
 
-        assert A._tpl_reactivacion_para("ancla_de_valor", cotizado) == "HXcotizado"
-        assert A._tpl_reactivacion_para("ancla_de_valor", sin_cotizar) == "HXsincotizar"
+        assert A._tpl_reactivacion_para("ancla_de_valor", cotizado)[0] == "HXcotizado"
+        assert A._tpl_reactivacion_para("ancla_de_valor", sin_cotizar)[0] == "HXsincotizar"
 
     def test_las_demas_etapas_no_dependen_de_la_cotizacion(self, client, monkeypatch):
         monkeypatch.setitem(A.TPL_REACTIVACION, "reactivacion_suave", "HXsuave")
@@ -77,11 +77,49 @@ class TestPlantillaPorEtapa:
 
         conv = _conversacion([("out", "El cerámico queda en $1.099.000.")])
 
-        assert A._tpl_reactivacion_para("reactivacion_suave", conv) == "HXsuave"
-        assert A._tpl_reactivacion_para("check_in_breve", conv) == "HXcheckin"
-        assert A._tpl_reactivacion_para("ultima_oportunidad", conv) == "HXultima"
+        assert A._tpl_reactivacion_para("reactivacion_suave", conv)[0] == "HXsuave"
+        assert A._tpl_reactivacion_para("check_in_breve", conv)[0] == "HXcheckin"
+        assert A._tpl_reactivacion_para("ultima_oportunidad", conv)[0] == "HXultima"
 
     def test_etapa_desconocida_devuelve_vacio(self, client):
         """Sin SID el envío cae a texto libre en vez de reventar."""
         conv = _conversacion([("out", "hola")])
-        assert A._tpl_reactivacion_para("etapa_que_no_existe", conv) == ""
+        assert A._tpl_reactivacion_para("etapa_que_no_existe", conv)[0] == ""
+
+
+class TestTextoQueQuedaEnElPanel:
+    """Lo que se guarda tiene que ser lo que el cliente leyó.
+
+    Al principio se guardaba un marcador tipo '[Plantilla de reactivación: X]',
+    y eso dejaba ciegos a los dos que necesitan el contexto: quien atiende desde
+    el panel, y Mariana misma —que recibe el historial y podría repetirse o
+    contradecir lo que ya dijo.
+    """
+
+    def test_cada_plantilla_tiene_su_texto(self, client):
+        conv = _conversacion([("out", "hola")])
+        for stage in ("reactivacion_suave", "check_in_breve", "ultima_oportunidad"):
+            _, clave = A._tpl_reactivacion_para(stage, conv)
+            assert clave in A._TEXTO_REACTIVACION, f"falta el texto de {stage}"
+
+    def test_las_dos_variantes_del_segundo_intento_tienen_texto(self, client, monkeypatch):
+        monkeypatch.setattr(A, "TPL_REACTIVACION_2_COTIZADO", "HXa")
+        monkeypatch.setattr(A, "TPL_REACTIVACION_2_SIN_COTIZAR", "HXb")
+        cotizado = _conversacion([("out", "queda en $1.099.000")])
+        sin_cotizar = _conversacion([("out", "¿qué carro tienes?")])
+
+        for conv in (cotizado, sin_cotizar):
+            _, clave = A._tpl_reactivacion_para("ancla_de_valor", conv)
+            assert A._TEXTO_REACTIVACION.get(clave), f"sin texto para {clave}"
+
+    def test_el_texto_lleva_el_nombre_del_cliente(self, client):
+        for clave, plantilla in A._TEXTO_REACTIVACION.items():
+            texto = plantilla.format(nombre="Andrés")
+            assert "Andrés" in texto, f"{clave} no usa el nombre"
+            assert "{nombre}" not in texto, f"{clave} quedó sin sustituir"
+
+    def test_ningun_texto_parece_un_marcador_interno(self, client):
+        """Un '[algo]' suelto es señal de que volvió el placeholder."""
+        for clave, plantilla in A._TEXTO_REACTIVACION.items():
+            assert not plantilla.strip().startswith("["), f"{clave} parece un marcador"
+            assert "Mariana" in plantilla, f"{clave} no se presenta"

@@ -87,6 +87,42 @@ TPL_REACTIVACION = {
 TPL_REACTIVACION_2_COTIZADO   = os.environ.get("TWILIO_TPL_REACTIVACION_2A", "")
 TPL_REACTIVACION_2_SIN_COTIZAR = os.environ.get("TWILIO_TPL_REACTIVACION_2B", "")
 
+# Texto de cada plantilla, para dejar registro legible de lo que se envió.
+# Tiene que calzar con lo aprobado en Meta ({{1}} = nombre): quien lea el panel
+# después —o Mariana misma, que recibe el historial— necesita ver qué se le dijo
+# al cliente. Guardar un marcador tipo "[plantilla X]" deja a los dos a ciegas.
+# Si acá se cambia un texto, hay que cambiarlo también en Twilio (y volver a
+# pasar por aprobación); esto no altera lo que WhatsApp entrega.
+_TEXTO_REACTIVACION = {
+    "reactivacion_suave": (
+        "Hola {nombre}, soy Mariana de NOXA Detail. Te escribí hace unos días sobre tu "
+        "carro. Esta semana tenemos agenda disponible para el diagnóstico gratuito: "
+        "revisamos el estado real y te asesoro sin compromiso. ¿Te queda bien algún día "
+        "esta semana?"
+    ),
+    "ancla_de_valor_cotizado": (
+        "Hola {nombre}, soy Mariana de NOXA Detail. Sé que el costo puede sonar alto, "
+        "pero visto por año la protección sale en menos de lo que parece, y la garantía "
+        "es por contrato. ¿Te gustaría pasar a ver un carro que ya tiene el trabajo "
+        "aplicado?"
+    ),
+    "ancla_de_valor_sin_cotizar": (
+        "Hola {nombre}, soy Mariana de NOXA Detail. Quiero proponerte algo antes de que "
+        "decidas: un diagnóstico gratuito de 15 minutos donde revisamos el estado real "
+        "de tu carro y te digo exactamente qué necesita y qué no. Sin compromiso. "
+        "¿Esta semana puedes?"
+    ),
+    "check_in_breve": (
+        "Hola {nombre}, Mariana de NOXA Detail por aquí 👋 ¿Sigues pensando en el tema "
+        "de tu carro? Sin afán, cualquier cosa aquí estoy."
+    ),
+    "ultima_oportunidad": (
+        "Hola {nombre}, soy Mariana de NOXA Detail. No quiero llenarte de mensajes, así "
+        "que este es el último por ahora 🙏 Si más adelante quieres retomar el tema de tu "
+        "carro, aquí voy a estar. ¡Que estés muy bien!"
+    ),
+}
+
 # Tier del socio -> nombre exacto del convenio (Agreement.name) en producción.
 TIER_AGREEMENT_NAMES = {
     "classic_star": "Club Mercedes-Benz",
@@ -7874,14 +7910,15 @@ def _job_client_reminder():
             # start_datetime se guarda como hora local de Bogotá (la que se digitó
             # en el formulario), no en UTC: convertirla restaba 5 horas y le
             # anunciaba al cliente una hora que no era la de su cita.
+            # Calca el texto de la plantilla aprobada, para que lo que queda en
+            # el panel sea lo mismo que recibió el cliente. Si se edita acá hay
+            # que editar la plantilla en Twilio, y viceversa.
             msg = (
-                f"👋 Hola {appt.customer_name or 'cliente'}!\n\n"
-                f"Te recordamos que mañana tienes tu cita en *NOXA Detail*:\n"
-                f"🕐 {appt.start_datetime.strftime('%I:%M %p')}\n"
-                f"🔧 {appt.services}\n"
-                f"📍 Calle 128B # 53D-2, Prado Veraniego\n\n"
-                f"¿Nos confirmas que nos vemos? Si necesitas reagendar, por favor "
-                f"avísanos con tiempo. ¡Te esperamos! 🚗✨"
+                f"Hola {appt.customer_name or 'cliente'} 👋 Te recordamos que mañana "
+                f"tienes tu cita en NOXA Detail a las "
+                f"{appt.start_datetime.strftime('%I:%M %p')} para {appt.services}. "
+                f"Estamos en la Calle 128B # 53D-2, Prado Veraniego. ¿Nos confirmas que "
+                f"nos vemos? Si necesitas reagendar, avísanos con tiempo 🚗"
             )
             # Va con plantilla: el cliente pudo haber agendado hace días, así que
             # la ventana de 24h casi siempre está cerrada y el texto libre se
@@ -8124,12 +8161,18 @@ def _ya_se_cotizo(conversation: "Conversation") -> bool:
     )
 
 
-def _tpl_reactivacion_para(stage: str, conversation: "Conversation") -> str:
-    """SID de la plantilla que le toca a esta etapa de reactivación."""
+def _tpl_reactivacion_para(stage: str, conversation: "Conversation") -> tuple[str, str]:
+    """Plantilla que le toca a esta etapa: (sid, clave del texto).
+
+    Devuelve las dos cosas juntas a propósito. El SID define qué recibe el
+    cliente y el texto define qué queda escrito en el panel y en el historial
+    que ve Mariana; si se eligieran por separado podrían terminar contando
+    historias distintas."""
     if stage == "ancla_de_valor":
-        return (TPL_REACTIVACION_2_COTIZADO if _ya_se_cotizo(conversation)
-                else TPL_REACTIVACION_2_SIN_COTIZAR)
-    return TPL_REACTIVACION.get(stage, "")
+        if _ya_se_cotizo(conversation):
+            return TPL_REACTIVACION_2_COTIZADO, "ancla_de_valor_cotizado"
+        return TPL_REACTIVACION_2_SIN_COTIZAR, "ancla_de_valor_sin_cotizar"
+    return TPL_REACTIVACION.get(stage, ""), stage
 
 
 def _ventana_24h_abierta(conversation: "Conversation") -> bool:
@@ -8200,11 +8243,15 @@ def _job_whatsapp_followup():
             # toque, pero es eso o que el mensaje no llegue (63016). Si el
             # cliente responde a la plantilla, la ventana se reabre y Mariana
             # retoma la conversación normal desde el webhook.
-            tpl_sid = "" if _ventana_24h_abierta(conv) else _tpl_reactivacion_para(stage, conv)
+            tpl_sid, tpl_key = ("", "") if _ventana_24h_abierta(conv) else _tpl_reactivacion_para(stage, conv)
             nombre = conv.profile_name or "cliente"
 
             if tpl_sid:
-                reply = f"[Plantilla de reactivación: {stage}]"
+                # El texto real de la plantilla, no un marcador: es lo que queda
+                # en el panel y lo que Mariana lee como contexto si el cliente
+                # responde. Con un marcador, ni ella ni quien atienda sabrían qué
+                # se le dijo al cliente.
+                reply = _TEXTO_REACTIVACION.get(tpl_key, "").format(nombre=nombre)
             else:
                 try:
                     reply = generate_followup_message(conv, stage)
