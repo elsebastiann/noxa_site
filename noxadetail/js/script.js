@@ -8,7 +8,8 @@ const WHATSAPP_NUMBER = "573027928250";
 // (primeros 3 meses del local, llevadas a mano) — se suman al conteo real
 // de la API para que el KPI del hero no arranque de cero.
 const CLIENT_COUNT_OFFSET = 300;
-const STATS_API_URL = "https://app.noxadetail.com/api/public/stats/appointments-count";
+const LEADS_API_BASE = "https://app.noxadetail.com";
+const STATS_API_URL = `${LEADS_API_BASE}/api/public/stats/appointments-count`;
 
 const VEHICLE_LABELS = { auto: "Auto", suv: "SUV", camioneta: "Camioneta", moto: "Moto" };
 
@@ -661,7 +662,7 @@ function openLeadForm(serviceName){
     document.getElementById("leadModal").classList.add("open");
 }
 
-function submitLeadForm(event){
+async function submitLeadForm(event){
     event.preventDefault();
     const nombre = document.getElementById("leadNombre").value.trim();
     const telefono = document.getElementById("leadTelefono").value.trim();
@@ -669,20 +670,70 @@ function submitLeadForm(event){
     const modelo = document.getElementById("leadModelo").value.trim();
     const servicio = document.getElementById("leadServicio").value;
     const comentario = document.getElementById("leadComentario").value.trim();
+    const consent = document.getElementById("leadConsent").checked;
 
-    const lines = [
-        "Hola Noxa Detail 👋, quiero solicitar un *diagnóstico gratuito*.",
-        `Nombre: ${nombre}`,
-        `Teléfono: ${telefono}`,
-        `Vehículo: ${marca} ${modelo}`,
-        `Servicio de interés: ${servicio}`
-    ];
-    if(comentario) lines.push(`Comentario: ${comentario}`);
+    const btn  = document.getElementById("leadSubmitBtn");
+    const hint = document.getElementById("leadFormHint");
+    const form = event.target;
 
-    const text = encodeURIComponent(lines.join("\n"));
-    window.open(`https://wa.me/${WHATSAPP_NUMBER}?text=${text}`, "_blank");
-    closeModal("leadModal");
-    event.target.reset();
+    // Todo lo que escribió el cliente viaja como contexto para que Mariana
+    // arranque sabiendo qué carro tiene y qué le preocupa, en vez de volver a
+    // preguntarlo. Si tuviera que repreguntarlo, el lead se enfría.
+    const contexto = [
+        `Vehículo: ${marca} ${modelo}`.trim(),
+        `Servicio de interés: ${servicio}`,
+        comentario ? `Comentario: ${comentario}` : ""
+    ].filter(Boolean).join(" · ");
+
+    btn.disabled = true;
+    const textoBoton = btn.textContent;
+    btn.textContent = "Enviando…";
+    hint.textContent = "";
+
+    try{
+        const r = await fetch(`${LEADS_API_BASE}/api/public/web-lead`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                name: nombre,
+                phone: telefono,
+                consent: consent,
+                website_message: contexto,
+                page_url: window.location.href
+            })
+        });
+        const d = await r.json();
+        if(!r.ok || !d.ok) throw new Error(d.error || "No se pudo enviar.");
+
+        // whatsapp_sent en false significa que el lead SÍ quedó guardado pero el
+        // primer mensaje no salió; el asesor lo ve en el panel y lo retoma, así
+        // que para el cliente el resultado es el mismo: lo van a contactar.
+        hint.textContent = "¡Listo! Mariana te escribe por WhatsApp en un momento 🚗";
+        hint.classList.add("form-hint-ok");
+        form.reset();
+        setTimeout(() => {
+            closeModal("leadModal");
+            hint.textContent = "Mariana te escribe por WhatsApp en un momento. No tienes que hacer nada más.";
+            hint.classList.remove("form-hint-ok");
+        }, 2500);
+    }catch(err){
+        // Si el backend no responde, el lead no se puede perder: se cae al
+        // WhatsApp de siempre, que es el comportamiento que había antes.
+        hint.textContent = "No pudimos enviarlo. Te abrimos WhatsApp para escribirnos directo.";
+        hint.classList.add("form-hint-err");
+        const lines = [
+            "Hola Noxa Detail 👋, quiero solicitar un *diagnóstico gratuito*.",
+            `Nombre: ${nombre}`,
+            `Teléfono: ${telefono}`,
+            `Vehículo: ${marca} ${modelo}`,
+            `Servicio de interés: ${servicio}`
+        ];
+        if(comentario) lines.push(`Comentario: ${comentario}`);
+        window.open(`https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(lines.join("\n"))}`, "_blank");
+    }finally{
+        btn.disabled = false;
+        btn.textContent = textoBoton;
+    }
 }
 
 /* ---------------- NAV MOBILE TOGGLE ---------------- */

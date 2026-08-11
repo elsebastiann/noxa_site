@@ -26,7 +26,7 @@
 
 <link rel="icon" type="image/png" href="img/favicon.png">
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;600;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/style.css?v=58">
+<link rel="stylesheet" href="css/style.css?v=59">
 </head>
 <body>
 
@@ -487,8 +487,16 @@
                 <label for="leadComentario">Cuéntanos qué le notas al auto (opcional)</label>
                 <textarea id="leadComentario" rows="3" placeholder="Ej. rayones en el capó, quiero protegerlo antes de un viaje..."></textarea>
             </div>
-            <button type="submit" class="btn btn-gold btn-block">Enviar por WhatsApp</button>
-            <p class="form-hint">Al enviar, se abre WhatsApp con tu mensaje ya redactado para que un asesor te responda directamente.</p>
+            <!-- WhatsApp exige que el cliente autorice explícitamente antes de que
+                 el negocio le escriba primero. Sin esto Meta no deja enviar. -->
+            <div class="form-group form-consent">
+                <label for="leadConsent">
+                    <input type="checkbox" id="leadConsent" required>
+                    Autorizo que Mariana me escriba por WhatsApp a este número.
+                </label>
+            </div>
+            <button type="submit" class="btn btn-gold btn-block" id="leadSubmitBtn">Solicitar diagnóstico</button>
+            <p class="form-hint" id="leadFormHint">Mariana te escribe por WhatsApp en un momento. No tienes que hacer nada más.</p>
         </form>
     </div>
 </div>
@@ -535,7 +543,7 @@
     </div>
 </template>
 
-<script src="js/script.js?v=32"></script>
+<script src="js/script.js?v=33"></script>
 <script>
     initFilters();
     renderPPFTable("spectra");
