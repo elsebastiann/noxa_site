@@ -6188,6 +6188,7 @@ Hay situaciones que tú NO debes manejar sola, porque implican negociación, cri
 6. Pide ver fotos de trabajos anteriores o resultados de antes y después (tú no puedes enviar imágenes — ver la sección correspondiente).
 7. Pregunta por un servicio que no está en tu catálogo (ej. alistamientos, Chrome Delete). Nunca le digas que no se hace: reconoce y escala (ver LÍMITES).
 8. Necesita una cita fuera del horario de atención (ej. no puede llegar antes de las 6:00pm) — la excepción la decide un humano.
+9. Quiere comprar un plan de mantenimiento de cerámico. Explícale todo lo que necesite —qué incluye, cuánto vale para su carro, cuánto dura— pero el cierre lo hace un asesor: el plan se cobra por adelantado y hay que registrarlo a nombre de la placa. Escala cuando diga que lo quiere, no antes: si escalas mientras todavía está preguntando, cortas la conversación justo cuando está entendiendo el valor.
 
 ⚠️ Pedir un descuento NO es motivo de escalamiento — eso lo resuelves tú sin pausar la conversación (ver CUANDO PIDEN DESCUENTO).
 
@@ -6516,6 +6517,65 @@ def _slots_to_ranges(horas: list) -> list:
     return tramos
 
 
+def _format_planes_for_prompt() -> str:
+    """Planes de mantenimiento vigentes, con su precio por tipo de vehículo.
+
+    Se calcula contra `service_prices` en cada turno en vez de escribirlo en el
+    prompt: los precios cambian en el panel y un catálogo escrito a mano se
+    desactualiza en silencio, que es justo el error que ya se corrigió con los
+    precios de los servicios sueltos.
+
+    Un plan sin precio calculable (falta cargar alguna combinación) se omite:
+    es preferible que Mariana no lo mencione a que lo cotice mal."""
+    try:
+        planes = (MaintenancePlan.query
+                  .filter_by(is_active=True)
+                  .order_by(MaintenancePlan.months)
+                  .all())
+        tipos = VehicleType.query.filter_by(is_active=True).order_by(VehicleType.id).all()
+    except Exception as exc:
+        app.logger.error(f"[Planes] No se pudieron leer los planes para el bot: {exc}")
+        return ""
+
+    lineas = []
+    for p in planes:
+        precios = []
+        for vt in tipos:
+            precio = precio_sugerido_plan(p, vt.id)
+            if precio:
+                precios.append(f"{vt.name} ${precio:,.0f}".replace(",", "."))
+        if not precios:
+            continue
+        # Singular/plural bien escrito: el modelo copia el fraseo de este bloque,
+        # y un "1 mantenimientos" termina saliendo tal cual en el chat.
+        lavadas = f"{p.wash_count} lavada premium" if p.wash_count == 1 else f"{p.wash_count} lavadas premium"
+        mants = (f"{p.maintenance_count} mantenimiento" if p.maintenance_count == 1
+                 else f"{p.maintenance_count} mantenimientos")
+        lineas.append(
+            f"- {p.name} ({p.months} meses de vigencia): incluye "
+            f"{lavadas} y {mants} de cerámico, con {p.discount_pct}% de descuento "
+            f"sobre el precio suelto. {' · '.join(precios)}"
+        )
+
+    if not lineas:
+        return ""
+
+    return (
+        "PLANES DE MANTENIMIENTO DE CERÁMICO (precios reales, tomados del sistema).\n"
+        "Son paquetes prepagados para un solo vehículo: el cliente paga una vez y va "
+        "usando los servicios durante la vigencia del plan. Le sale más barato que "
+        "comprarlos sueltos y le asegura el mantenimiento del cerámico, que es lo que "
+        "hace que la protección dure lo que promete la garantía.\n"
+        "CUÁNDO OFRECERLOS: a quien ya tiene cerámico aplicado o lo está comprando, y a "
+        "quien pregunta por mantenimiento. No los ofrezcas a alguien que todavía no "
+        "entiende qué es un cerámico — primero el servicio, después el plan.\n"
+        "⚠️ TÚ NO CIERRAS LA VENTA DE UN PLAN: cuando el cliente diga que lo quiere, "
+        "escala a un asesor (ver ESCALAMIENTO). Explicas, resuelves dudas y despiertas "
+        "el interés; el cobro y el registro los hace una persona.\n"
+        + "\n".join(lineas)
+    )
+
+
 def _format_promotions_for_prompt() -> str:
     """Promociones vigentes que Mariana puede usar. Cadena vacía si no hay."""
     try:
@@ -6709,6 +6769,9 @@ def get_claude_reply(conversation: "Conversation", media_url: str | None = None,
     promos = _format_promotions_for_prompt()
     if promos:
         profile_line += "\n\n" + promos
+    planes = _format_planes_for_prompt()
+    if planes:
+        profile_line += "\n\n" + planes
     profile_line += "\n\n" + _format_availability_for_prompt()
 
     return _call_claude(messages, profile_line)

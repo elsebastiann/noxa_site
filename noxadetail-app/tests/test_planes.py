@@ -217,3 +217,59 @@ class TestCitaCubiertaPorPlan:
         appt = self._cita(_placa(), vt, "X")
         A.liberar_plan_de_cita(appt)  # no debe reventar
         assert appt.client_plan_id is None
+
+
+class TestPlanesEnElPromptDeMariana:
+    """Lo que Mariana recibe en cada turno para poder hablar de planes.
+
+    Se calcula contra la tabla de precios en vez de escribirse en el prompt,
+    porque un catálogo escrito a mano se desactualiza en silencio apenas alguien
+    cambia un precio en el panel — el mismo error que ya se corrigió con los
+    servicios sueltos.
+    """
+
+    def _precios_cargados(self):
+        for nombre, (w, m) in {
+            "Automovil": (70_000, 180_000), "SUV": (90_000, 200_000),
+            "Camioneta": (110_000, 220_000), "Moto": (40_000, 110_000),
+        }.items():
+            vt = _tipo_vehiculo(nombre)
+            _servicio_con_precio(A.PLAN_WASH_SERVICE_NAME, vt, w)
+            _servicio_con_precio(A.PLAN_MAINT_SERVICE_NAME, vt, m)
+
+    def test_incluye_los_planes_con_su_precio_por_vehiculo(self, client):
+        self._precios_cargados()
+        _plan()  # Plan Anual
+        bloque = A._format_planes_for_prompt()
+
+        assert "Plan Anual" in bloque
+        # El precio que ve Mariana tiene que ser el mismo del material comercial.
+        assert "$1.320.000" in bloque, bloque
+
+    def test_le_dice_que_no_cierre_la_venta(self, client):
+        """El cobro y el registro los hace una persona; si Mariana cerrara sola,
+        quedaría un plan vendido sin plata cobrada ni placa asociada."""
+        self._precios_cargados()
+        _plan()
+        bloque = A._format_planes_for_prompt()
+        assert "NO CIERRAS LA VENTA" in bloque
+        assert "escala" in bloque.lower()
+
+    def test_singular_bien_escrito(self, client):
+        """El modelo copia el fraseo del bloque: un '1 mantenimientos' sale tal
+        cual en el chat."""
+        self._precios_cargados()
+        _plan("Plan Trimestral", months=3, pct=15, wash=2, maint=1)
+        bloque = A._format_planes_for_prompt()
+        assert "1 mantenimientos" not in bloque, bloque
+        assert "1 mantenimiento" in bloque
+
+    def test_sin_planes_activos_no_dice_nada(self, client, monkeypatch):
+        """Sin planes vendibles el bloque se omite: mencionar algo que no se
+        puede vender es peor que no mencionarlo."""
+        class _Vacio:
+            def filter_by(self, **kw): return self
+            def order_by(self, *a): return self
+            def all(self): return []
+        monkeypatch.setattr(A.MaintenancePlan, "query", _Vacio())
+        assert A._format_planes_for_prompt() == ""

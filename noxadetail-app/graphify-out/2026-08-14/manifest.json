@@ -1,7 +1,7 @@
 {
   "app.py": {
-    "mtime": 1786724803.8840008,
-    "ast_hash": "98c36ed92316fb053ece1122be8bb6e3",
+    "mtime": 1786463619.893552,
+    "ast_hash": "ee076b78ad961b744297ddfbe9f76a00",
     "semantic_hash": ""
   },
   "migrate_prices.py": {
@@ -45,8 +45,8 @@
     "semantic_hash": ""
   },
   "docs/mariana-base-conocimiento.md": {
-    "mtime": 1786724876.7662394,
-    "ast_hash": "e076ba1016da1258de5835606332dc08",
+    "mtime": 1786228381.365846,
+    "ast_hash": "daf645698cfa6cce2c2ad13055467eeb",
     "semantic_hash": ""
   },
   "requirements.txt": {
@@ -230,8 +230,8 @@
     "semantic_hash": ""
   },
   "tests/test_planes.py": {
-    "mtime": 1786724825.8271508,
-    "ast_hash": "08dd943e1ac3227f58f776b7cc26117a",
+    "mtime": 1786386458.0333562,
+    "ast_hash": "4dd521fe0a29e6412f945b8757d45ecf",
     "semantic_hash": ""
   },
   "templates/plans.html": {
