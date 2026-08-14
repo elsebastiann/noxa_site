@@ -5,7 +5,10 @@
   .pl-note { color:var(--text2); font-size:.85rem; max-width:72ch; line-height:1.5; margin:8px 0 20px; }
   .pl-form { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
              padding:18px 20px; margin-bottom:26px; }
-  .pl-grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(170px,1fr)); gap:14px; }
+  /* minmax(210px) y no menos: con 8 campos, auto-fit los apretaba en una sola
+     fila larguísima y los últimos quedaban fuera de pantalla. */
+  .pl-grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(210px,1fr)); gap:14px; }
+  .pl-grid input, .pl-grid select { width:100%; box-sizing:border-box; }
   .pl-label { display:block; font-size:.78rem; color:var(--text2); margin-bottom:5px;
               text-transform:uppercase; letter-spacing:.04em; }
   .pl-hint { font-size:.78rem; color:var(--text3); margin-top:6px; min-height:1em; }
@@ -86,7 +89,7 @@
     <label class="pl-label" for="notes">Notas</label>
     <input id="notes" name="notes" placeholder="Opcional">
   </div>
-  <button type="submit" class="btn" style="margin-top:16px;">Registrar venta</button>
+  <button type="submit" class="btn btn-warning" style="margin-top:16px;">Registrar venta</button>
 </form>
 
 <h3 style="font-size:1rem; margin-bottom:12px;">Planes vendidos</h3>
@@ -171,6 +174,34 @@
     }
     plan.addEventListener('change', sugerir);
     vt.addEventListener('change', sugerir);
+
+    // Si la placa ya vino alguna vez, se traen sus datos en vez de volver a
+    // teclearlos. Solo se rellenan los campos vacíos: lo que el asesor escribió
+    // a mano manda sobre lo que hay guardado, que puede estar desactualizado.
+    const placa = document.getElementById('plate');
+    const nombre = document.getElementById('customer_name');
+    const cel = document.getElementById('phone');
+
+    async function traerCliente() {
+      // Se normaliza en pantalla lo mismo que hace normalize_plate() al guardar,
+      // para que el asesor vea la placa tal como va a quedar registrada y no
+      // dude de si "gew 614" y "GEW614" son el mismo carro.
+      placa.value = (placa.value || '').replace(/\s+/g, '').toUpperCase();
+      const valor = placa.value;
+      if (!valor) return;
+      try {
+        const d = await (await fetch(`/api/clients/by-plate?plate=${encodeURIComponent(valor)}`)).json();
+        if (!d.found) return;
+        if (!nombre.value && d.full_name) nombre.value = d.full_name;
+        if (!cel.value && d.phone) cel.value = d.phone;
+        if (!vt.value && d.vehicle_type_id) {
+          vt.value = d.vehicle_type_id;
+          sugerir();  // cambiar el vehículo cambia el precio del plan
+        }
+      } catch (e) { /* sin datos previos se llena a mano, como hasta ahora */ }
+    }
+    placa.addEventListener('change', traerCliente);
+    placa.addEventListener('blur', traerCliente);
   })();
 </script>
 {% endblock %}
