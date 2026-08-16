@@ -35,6 +35,102 @@ BUSINESS_START_HOUR = 9
 BUSINESS_END_HOUR = 18
 # Días hábiles: lunes=0 ... domingo=6 (por defecto lunes a sábado)
 BUSINESS_WEEKDAYS = {0, 1, 2, 3, 4, 5}
+
+
+# -----------------------
+# FESTIVOS DE COLOMBIA
+# -----------------------
+# NOXA no atiende domingos ni festivos. Los festivos colombianos no se pueden
+# escribir en una lista fija: unos dependen de la Pascua (que se mueve cada año)
+# y la mayoría de los de fecha fija se corren al lunes siguiente por la Ley
+# Emiliani (Ley 51 de 1983). Por eso se calculan, no se listan.
+_FESTIVOS_FIJOS = {           # no se mueven nunca
+    (1, 1):   "Año Nuevo",
+    (5, 1):   "Día del Trabajo",
+    (7, 20):  "Día de la Independencia",
+    (8, 7):   "Batalla de Boyacá",
+    (12, 8):  "Inmaculada Concepción",
+    (12, 25): "Navidad",
+}
+_FESTIVOS_EMILIANI = {        # se corren al lunes siguiente
+    (1, 6):   "Reyes Magos",
+    (3, 19):  "San José",
+    (6, 29):  "San Pedro y San Pablo",
+    (8, 15):  "Asunción de la Virgen",
+    (10, 12): "Día de la Raza",
+    (11, 1):  "Todos los Santos",
+    (11, 11): "Independencia de Cartagena",
+}
+
+
+def _domingo_de_pascua(anio: int) -> date:
+    """Algoritmo de Meeus/Jones/Butcher (calendario gregoriano)."""
+    a = anio % 19
+    b, c = divmod(anio, 100)
+    d, e = divmod(b, 4)
+    g = (8 * b + 13) // 25
+    h = (19 * a + b - d - g + 15) % 30
+    i, k = divmod(c, 4)
+    l = (32 + 2 * e + 2 * i - h - k) % 7
+    m = (a + 11 * h + 19 * l) // 433
+    mes = (h + l - 7 * m + 90) // 25
+    dia = (h + l - 7 * m + 33 * mes + 19) % 32
+    return date(anio, mes, dia)
+
+
+def _siguiente_lunes(d: date) -> date:
+    """Ley Emiliani: si ya es lunes se queda; si no, se corre al lunes siguiente."""
+    return d + timedelta(days=(7 - d.weekday()) % 7)
+
+
+_festivos_cache: dict[int, dict] = {}
+
+
+def festivos_colombia(anio: int) -> dict:
+    """{date: nombre} con los 18 festivos colombianos del año. Se cachea por año
+    porque el cálculo es puro y se consulta en bucles de disponibilidad."""
+    if anio in _festivos_cache:
+        return _festivos_cache[anio]
+
+    festivos = {date(anio, mes, dia): nombre for (mes, dia), nombre in _FESTIVOS_FIJOS.items()}
+    for (mes, dia), nombre in _FESTIVOS_EMILIANI.items():
+        festivos[_siguiente_lunes(date(anio, mes, dia))] = nombre
+
+    pascua = _domingo_de_pascua(anio)
+    # Jueves y Viernes Santo NO se mueven; los otros tres sí (por eso el +43/+64/+71,
+    # que ya incluye el corrimiento al lunes de Ascensión, Corpus y Sagrado Corazón).
+    festivos[pascua - timedelta(days=3)]  = "Jueves Santo"
+    festivos[pascua - timedelta(days=2)]  = "Viernes Santo"
+    festivos[pascua + timedelta(days=43)] = "Ascensión del Señor"
+    festivos[pascua + timedelta(days=64)] = "Corpus Christi"
+    festivos[pascua + timedelta(days=71)] = "Sagrado Corazón"
+
+    _festivos_cache[anio] = festivos
+    return festivos
+
+
+def es_festivo(d) -> str | None:
+    """Nombre del festivo si esa fecha lo es, o None."""
+    if isinstance(d, datetime):
+        d = d.date()
+    return festivos_colombia(d.year).get(d)
+
+
+def es_dia_habil(d) -> bool:
+    """True si NOXA atiende ese día: día hábil de la semana y no festivo."""
+    if isinstance(d, datetime):
+        d = d.date()
+    return d.weekday() in BUSINESS_WEEKDAYS and es_festivo(d) is None
+
+
+def motivo_dia_cerrado(d) -> str | None:
+    """Por qué está cerrado ese día, en texto para el cliente. None si se atiende."""
+    if isinstance(d, datetime):
+        d = d.date()
+    if d.weekday() not in BUSINESS_WEEKDAYS:
+        return "es domingo"
+    festivo = es_festivo(d)
+    return f"es festivo ({festivo})" if festivo else None
 # Con cuántos días de anticipación máxima se puede agendar desde el widget.
 BOOKING_WINDOW_DAYS = 15
 # Granularidad de los horarios ofrecidos.
@@ -1735,6 +1831,14 @@ def get_available_slots(target_date, service_ids: list[int], vehicle_type_id: in
     occupies_single_day = any(s.occupies_single_day for s in services)
     total_minutes = calculate_real_duration_minutes(service_ids, vehicle_type_id)
 
+    # Domingos y festivos no se atienden. Va aquí, en el embudo por el que pasan
+    # TODOS los caminos de agendamiento (widget del club, panel, y el bot de
+    # Mariana al crear o reagendar), en vez de repetir el chequeo en cada uno:
+    # antes las funciones del bot solo validaban contra estos cupos, así que un
+    # domingo devolvía horarios libres de 9 a 6 y la cita se creaba.
+    if not es_dia_habil(target_date):
+        return [], total_minutes
+
     day_start = datetime.combine(target_date, datetime.min.time()).replace(hour=BUSINESS_START_HOUR)
     day_end = _day_business_end(target_date)
 
@@ -1788,7 +1892,7 @@ def get_available_days(start_date, end_date, service_ids: list[int], vehicle_typ
     available = []
     d = start_date
     while d <= end_date:
-        if d.weekday() in BUSINESS_WEEKDAYS:
+        if es_dia_habil(d):
             slots, _ = get_available_slots(d, service_ids, vehicle_type_id)
             if slots:
                 available.append(d.isoformat())
@@ -2361,6 +2465,39 @@ def calendar_diagnosticos():
     return render_template("calendar.html", modo="diagnosticos")
 
 
+@app.route("/api/dia-cerrado")
+def api_dia_cerrado():
+    """¿Se atiende ese día? Lo consulta el formulario de citas para avisar antes
+    de guardar. Mariana y el widget público no pasan por aquí: a ellos el día
+    cerrado los bloquea sin apelación dentro de get_available_slots()."""
+    try:
+        d = datetime.strptime(request.args.get("fecha", ""), "%Y-%m-%d").date()
+    except ValueError:
+        return jsonify({"ok": False, "error": "Fecha inválida."}), 400
+    motivo = motivo_dia_cerrado(d)
+    return jsonify({
+        "ok": True,
+        "closed": motivo is not None,
+        "reason": motivo or "",
+        "label": f"{_DIAS_ES[d.weekday()].capitalize()} {d.strftime('%d/%m/%Y')}",
+    })
+
+
+def _requiere_confirmar_dia_cerrado() -> str | None:
+    """Guardia de servidor para las citas creadas a mano. El aviso en pantalla
+    se puede saltar (JS apagado, un POST directo), así que la regla se vuelve a
+    aplicar aquí: sin la confirmación explícita, no se guarda. Devuelve el
+    motivo cuando falta confirmar, o None si se puede seguir."""
+    try:
+        d = datetime.strptime(request.form.get("date", ""), "%Y-%m-%d").date()
+    except ValueError:
+        return None  # fecha inválida: la valida el flujo normal, no esto
+    motivo = motivo_dia_cerrado(d)
+    if motivo and request.form.get("confirmar_dia_cerrado") != "1":
+        return motivo
+    return None
+
+
 @app.route("/appointments/new", methods=["GET", "POST"])
 def new_appointment():
     services = Service.query.filter_by(is_active=True).order_by(Service.name).all()
@@ -2392,6 +2529,15 @@ def new_appointment():
 
         if not date_str or not time_str:
             flash("Debes seleccionar fecha y hora.", "danger")
+            return redirect(url_for("new_appointment"))
+
+        motivo_cerrado = _requiere_confirmar_dia_cerrado()
+        if motivo_cerrado:
+            flash(
+                f"No se guardó: ese día NOXA no atiende porque {motivo_cerrado}. "
+                f"Si de verdad se va a trabajar ese día, marca la casilla de confirmación.",
+                "warning",
+            )
             return redirect(url_for("new_appointment"))
 
         if not selected_ids:
@@ -2623,8 +2769,10 @@ def api_public_mb_availability():
     if target_date < today or target_date > today + timedelta(days=BOOKING_WINDOW_DAYS):
         return jsonify({"ok": False, "error": "Esa fecha está fuera de la ventana de agendamiento."}), 400
 
-    if target_date.weekday() not in BUSINESS_WEEKDAYS:
-        return jsonify({"ok": True, "slots": [], "total_minutes": 0, "closed": True})
+    cerrado = motivo_dia_cerrado(target_date)
+    if cerrado:
+        return jsonify({"ok": True, "slots": [], "total_minutes": 0,
+                        "closed": True, "closed_reason": f"No atendemos ese día porque {cerrado}."})
 
     try:
         service_ids = [int(x) for x in service_ids_str.split(",") if x.strip()]
@@ -2682,6 +2830,10 @@ def api_public_mb_book():
     today = date.today()
     if target_date < today or target_date > today + timedelta(days=BOOKING_WINDOW_DAYS):
         return jsonify({"ok": False, "error": "Esa fecha está fuera de la ventana de agendamiento."}), 400
+
+    cerrado = motivo_dia_cerrado(target_date)
+    if cerrado:
+        return jsonify({"ok": False, "error": f"No atendemos ese día porque {cerrado}. Elige otra fecha."}), 400
 
     _, error = _validate_online_bookable_services(service_ids)
     if error:
@@ -2813,6 +2965,15 @@ def edit_appointment(appointment_id):
     ).order_by(User.username).all()
 
     if request.method == "POST":
+        motivo_cerrado = _requiere_confirmar_dia_cerrado()
+        if motivo_cerrado:
+            flash(
+                f"No se guardó: ese día NOXA no atiende porque {motivo_cerrado}. "
+                f"Si de verdad se va a trabajar ese día, marca la casilla de confirmación.",
+                "warning",
+            )
+            return redirect(url_for("edit_appointment", appointment_id=appointment.id))
+
         # Campos básicos
         appointment.customer_name = request.form["customer_name"]
         appointment.plate = normalize_plate(request.form["plate"])
@@ -5023,6 +5184,8 @@ OPERARIO_ENDPOINTS = {
     "parking_list", "parking_new", "parking_delete",
     "api_events", "api_client_by_plate", "api_client_plates",
     "api_client_names", "api_client_by_name", "api_estimate_price",
+    # El operario también agenda, así que necesita el aviso de domingo/festivo.
+    "api_dia_cerrado",
     # El operario agenda citas, así que tiene que poder ver si la placa trae
     # plan. Solo lee cupos y vencimiento — no expone plata ni el catálogo.
     "api_plans_by_plate",
@@ -5856,7 +6019,7 @@ Si el cliente quiere hacer el **anticipo del 10%** directamente por transferenci
 Dar el dato de la transferencia sí lo manejas tú, no hace falta escalar solo para eso. Pero apenas el cliente acepte dejar el anticipo, además de darle los datos, escala en ese mismo turno (ver ESCALAMIENTO): el pago y el cupo los confirma un humano, no tú.
 
 # HORARIO DE ATENCIÓN
-Lunes a sábado, 9:00am a 6:00pm. Nunca ofrezcas ni confirmes citas en domingo. Si el cliente propone domingo, dile amablemente que atienden de lunes a sábado y pídele otra fecha dentro de ese horario.
+Lunes a sábado, 9:00am a 6:00pm. NOXA no atiende domingos NI festivos colombianos. Nunca ofrezcas ni confirmes una cita en domingo o en un día festivo. Si el cliente propone uno de esos días, dile amablemente por qué no se puede (que es domingo, o que ese festivo específico está cerrado) y ofrécele otra fecha de las que sí aparecen en tu disponibilidad. Más abajo te doy la lista de los festivos que caen dentro de la ventana de agendamiento; fuera de esos días, guíate siempre por el bloque de disponibilidad real.
 
 # METODOLOGÍA DE VENTA — VENDER SIN VENDER
 Tu trabajo no es convencer al cliente de que NOXA es lo mejor, ni venderle a la fuerza. Es ayudarlo, con las preguntas correctas, a que ÉL MISMO llegue a la conclusión de que quiere cuidar su inversión. Evita sonar a discurso de ventas ("somos los mejores", "es la mejor opción del mercado") — en vez de eso, haz que el cliente piense en su propio carro, su propia situación, y lo que le importa. Si lo logras, el cliente pide comprar, tú no tienes que empujarlo.
@@ -6429,7 +6592,7 @@ def _diagnostic_availability(days: int = _AVAILABILITY_DAYS) -> list:
     d = bogota_now().date()
     limit = d + timedelta(days=BOOKING_WINDOW_DAYS)
     while d <= limit and len(out) < days:
-        if d.weekday() in BUSINESS_WEEKDAYS:
+        if es_dia_habil(d):
             try:
                 slots, _ = get_available_slots(d, [svc.id], vt_id)
             except ValueError:
@@ -6684,6 +6847,38 @@ def _format_availability_for_prompt() -> str:
     )
 
 
+def _format_festivos_for_prompt() -> str:
+    """Festivos que caen dentro de la ventana de agendamiento.
+
+    El bloque de disponibilidad ya los omite, así que Mariana nunca los va a
+    ofrecer. Esto es para el caso contrario: que el cliente proponga uno y ella
+    sepa nombrarlo ("el lunes 17 es festivo") en vez de decir vagamente que no
+    hay cupo, que suena a excusa."""
+    hoy = bogota_now().date()
+    limite = hoy + timedelta(days=BOOKING_WINDOW_DAYS)
+    proximos = sorted(
+        (d, n)
+        for anio in {hoy.year, limite.year}
+        for d, n in festivos_colombia(anio).items()
+        if hoy <= d <= limite
+    )
+    if not proximos:
+        return (
+            "Festivos: no cae ningún festivo colombiano dentro de los próximos "
+            f"{BOOKING_WINDOW_DAYS} días. Igual, nunca agendes en domingo."
+        )
+    lineas = "\n".join(
+        f"- {_DIAS_ES[d.weekday()]} {d.strftime('%d/%m')} ({d.isoformat()}): {n}"
+        for d, n in proximos
+    )
+    return (
+        "Festivos colombianos dentro de la ventana de agendamiento — NOXA está CERRADO "
+        "esos días, no los ofrezcas ni los aceptes:\n" + lineas +
+        "\nSi el cliente pide uno de estos días, dile cuál es el festivo y ofrécele "
+        "otra fecha del bloque de disponibilidad."
+    )
+
+
 def is_first_client_turn(conversation: "Conversation") -> bool:
     """True si Mariana todavía no le ha respondido nada a este cliente.
 
@@ -6773,6 +6968,7 @@ def get_claude_reply(conversation: "Conversation", media_url: str | None = None,
     if planes:
         profile_line += "\n\n" + planes
     profile_line += "\n\n" + _format_availability_for_prompt()
+    profile_line += "\n\n" + _format_festivos_for_prompt()
 
     return _call_claude(messages, profile_line)
 
@@ -7028,6 +7224,16 @@ def book_diagnostic_from_bot(conversation: "Conversation", datos: dict) -> tuple
     if target_date < hoy or target_date > hoy + timedelta(days=BOOKING_WINDOW_DAYS):
         return False, "esa fecha está fuera de la ventana de agendamiento", None
 
+    # Se responde el motivo concreto para que Mariana se lo pueda explicar al
+    # cliente y le proponga otro día, en vez de decirle solo que no hay cupo.
+    cerrado = motivo_dia_cerrado(target_date)
+    if cerrado:
+        return False, (
+            f"ese día no se atiende porque {cerrado}. NOXA trabaja de lunes a sábado, "
+            f"sin festivos. Explícaselo al cliente y ofrécele otra fecha de las que "
+            f"aparecen en tu disponibilidad"
+        ), None
+
     # La cita se identifica por PLACA, no por teléfono ni por nombre: una misma
     # persona puede tener dos carros y agendar para cada uno, y puede haber
     # homónimos. Buscar por teléfono hacía que la segunda cita de un cliente con
@@ -7123,6 +7329,16 @@ def reschedule_diagnostic_from_bot(conversation: "Conversation", datos: dict) ->
     hoy = bogota_now().date()
     if target_date < hoy or target_date > hoy + timedelta(days=BOOKING_WINDOW_DAYS):
         return False, "esa fecha está fuera de la ventana de agendamiento", None
+
+    # Se responde el motivo concreto para que Mariana se lo pueda explicar al
+    # cliente y le proponga otro día, en vez de decirle solo que no hay cupo.
+    cerrado = motivo_dia_cerrado(target_date)
+    if cerrado:
+        return False, (
+            f"ese día no se atiende porque {cerrado}. NOXA trabaja de lunes a sábado, "
+            f"sin festivos. Explícaselo al cliente y ofrécele otra fecha de las que "
+            f"aparecen en tu disponibilidad"
+        ), None
 
     svc = _diagnostic_service()
     if not svc or not appt.vehicle_type_id:
@@ -8269,8 +8485,8 @@ def _job_whatsapp_followup():
     bloqueos por spam. Se resetea a 0 en cuanto el cliente vuelve a escribir (ver
     whatsapp_webhook)."""
     now_bogota = datetime.now(_BOGOTA)
-    if now_bogota.weekday() == 6 or not (9 <= now_bogota.hour < 18):  # domingo o fuera de horario
-        return
+    if not es_dia_habil(now_bogota.date()) or not (9 <= now_bogota.hour < 18):
+        return  # domingo, festivo o fuera de horario
     with app.app_context():
         candidatas = Conversation.query.filter(
             Conversation.bot_active == True,

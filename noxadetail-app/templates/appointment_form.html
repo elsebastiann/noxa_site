@@ -64,6 +64,28 @@
         </div>
       </div>
 
+      {# ---- Aviso de domingo / festivo ----
+         NOXA no atiende domingos ni festivos. A Mariana y al widget público eso
+         los bloquea sin apelación; aquí no, porque a veces se abre por excepción
+         — pero tiene que ser una decisión consciente, no un error de dedo. #}
+      <div id="diaCerradoAviso" class="alert alert-warning d-none" role="alert"
+           style="border-left:4px solid #ffc107;">
+        <div class="d-flex align-items-start gap-2">
+          <i class="bi bi-exclamation-triangle-fill" style="font-size:1.25rem;"></i>
+          <div class="flex-grow-1">
+            <strong id="diaCerradoTitulo">NOXA no atiende ese día</strong>
+            <div id="diaCerradoDetalle" class="small mt-1"></div>
+            <div class="form-check mt-2">
+              <input class="form-check-input" type="checkbox" value="1"
+                     name="confirmar_dia_cerrado" id="confirmarDiaCerrado">
+              <label class="form-check-label fw-semibold" for="confirmarDiaCerrado">
+                Confirmo que ese día sí se va a trabajar y quiero agendar de todas formas.
+              </label>
+            </div>
+          </div>
+        </div>
+      </div>
+
       {# ---- Datos del cliente ---- #}
       <div class="row g-3 mb-3">
         <div class="col-sm-3">
@@ -754,5 +776,60 @@ function saveNewAgreement() {
   plate.addEventListener("change", cargar);
   plate.addEventListener("blur", cargar);
   cargar();
+})();
+
+// --- Aviso de domingo / festivo -------------------------------------------
+// El servidor vuelve a validar esto al guardar, así que apagar el JS no sirve
+// para saltarse la confirmación: allá el POST se rechaza igual.
+(function () {
+  // Se ancla al input de fecha y de ahí se sube al formulario. Buscar el form
+  // por 'form[method="POST"]' agarraba el primero del layout (base.html), que
+  // no es este, y dejaba el aviso muerto sin dar ningún error visible.
+  const dateInp  = document.querySelector('input[name="date"]');
+  const form     = dateInp ? dateInp.form : null;
+  const aviso    = document.getElementById("diaCerradoAviso");
+  const detalle  = document.getElementById("diaCerradoDetalle");
+  const check    = document.getElementById("confirmarDiaCerrado");
+  const submitBtn= form ? form.querySelector('button[type="submit"]') : null;
+  if (!form || !dateInp || !aviso || !check || !submitBtn) return;
+
+  let diaCerrado = false;
+
+  function refrescarBoton() {
+    const bloquear = diaCerrado && !check.checked;
+    submitBtn.disabled = bloquear;
+    submitBtn.title = bloquear ? "Confirma primero que se va a trabajar ese día" : "";
+  }
+
+  function ocultar() {
+    diaCerrado = false;
+    aviso.classList.add("d-none");
+    check.checked = false;
+    refrescarBoton();
+  }
+
+  async function revisarFecha() {
+    const fecha = dateInp.value;
+    if (!fecha) { ocultar(); return; }
+    try {
+      const r = await fetch(`/api/dia-cerrado?fecha=${encodeURIComponent(fecha)}`);
+      const data = await r.json();
+      if (!data.ok || !data.closed) { ocultar(); return; }
+      diaCerrado = true;
+      detalle.textContent =
+        `${data.label}: ${data.reason}. NOXA trabaja de lunes a sábado, sin festivos.`;
+      aviso.classList.remove("d-none");
+      check.checked = false;
+      refrescarBoton();
+    } catch (e) {
+      // Si la consulta falla no se bloquea el trabajo: el servidor tiene la
+      // última palabra y rechazará el guardado si hace falta confirmar.
+      ocultar();
+    }
+  }
+
+  dateInp.addEventListener("change", revisarFecha);
+  check.addEventListener("change", refrescarBoton);
+  revisarFecha();  // también al abrir el formulario en modo edición
 })();
 </script>
