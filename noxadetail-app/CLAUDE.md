@@ -1,12 +1,18 @@
 ## graphify
 
-This project has a knowledge graph at graphify-out/ with god nodes, community structure, and cross-file relationships.
+**Consulta siempre el grafo GLOBAL con `--graph` explícito**, aunque estés dentro de este subproyecto:
 
-Rules:
-- For codebase questions, first run `graphify query "<question>"` when graphify-out/graph.json exists. Use `graphify path "<A>" "<B>"` for relationships and `graphify explain "<concept>"` for focused concepts. These return a scoped subgraph, usually much smaller than GRAPH_REPORT.md or raw grep output.
-- If graphify-out/wiki/index.md exists, use it for broad navigation instead of raw source browsing.
-- Read graphify-out/GRAPH_REPORT.md only for broad architecture review or when query/path/explain do not surface enough context.
-- After modifying code, run `graphify update .` to keep the graph current (AST-only, no API cost).
+```
+graphify query "<pregunta>" --graph ~/.graphify/global-graph.json
+```
+
+Lo mismo para `path`, `explain` y `affected`. El global cubre este subproyecto (tag `noxadetail-app`) y el sitio público (tag `noxadetail`), así que sirve igual para preguntas locales y para las que cruzan ambos — y evita el riesgo de cargar el grafo equivocado según el directorio en el que esté el shell.
+
+`graphify-out/` de este subproyecto existe como **insumo** del global: `graphify update` extrae hacia él y `graphify global add` lo fusiona. No lo consultes directo.
+
+No lo actualices a mano: el hook `pre-commit` del repo lo reconstruye, lo re-fusiona al global y lo agrega al mismo commit. Ver la sección graphify del `CLAUDE.md` de la raíz para el detalle.
+
+`graphify-out/GRAPH_REPORT.md` sigue sirviendo para revisión amplia de arquitectura, cuando `query`/`path`/`explain` no alcanzan.
 
 ## Noxa Detail: monorepo, two subprojects, two deploys
 
