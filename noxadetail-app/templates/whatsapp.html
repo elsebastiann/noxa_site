@@ -10,6 +10,7 @@
 {% macro status_pill_class(status) -%}
   {%- if status == 'En proceso' -%}st-proceso
   {%- elif status == 'Diagnóstico agendado' -%}st-diagnostico
+  {%- elif status == 'Reagendado' -%}st-reagendado
   {%- elif status == 'Servicio agendado' -%}st-servicio
   {%- elif status == 'Seguimiento futuro' -%}st-seguimiento
   {%- endif -%}
@@ -37,6 +38,7 @@
   .wa-row { display:flex; align-items:center; gap:12px; padding:11px 14px; cursor:pointer; border-bottom:1px solid #182229; text-decoration:none; border-left:3px solid transparent; }
   .wa-row[data-status="En proceso"]           { background:rgba(230,140,40,0.10);  border-left-color:#e68c28; }
   .wa-row[data-status="Diagnóstico agendado"] { background:rgba(60,180,230,0.11);  border-left-color:#3cb4e6; }
+  .wa-row[data-status="Reagendado"]           { background:rgba(212,180,108,0.13); border-left-color:#d4b46c; }
   .wa-row[data-status="Servicio agendado"]    { background:rgba(0,168,132,0.15);   border-left-color:#00a884; }
   .wa-row[data-status="Seguimiento futuro"]   { background:rgba(150,110,230,0.11); border-left-color:#966ee6; }
   .wa-row:hover { background:#202c33; }
@@ -56,6 +58,7 @@
   .wa-status-pill { display:inline-block; font-size:0.62rem; font-weight:600; padding:1px 7px; border-radius:10px; background:#2a3942; color:#8696a0; white-space:nowrap; }
   .wa-status-pill.st-proceso { background:rgba(230,140,40,0.18); color:#e6a028; }
   .wa-status-pill.st-diagnostico { background:rgba(60,180,230,0.18); color:#3cb4e6; }
+  .wa-status-pill.st-reagendado { background:rgba(212,180,108,0.20); color:#d4b46c; }
   .wa-status-pill.st-servicio { background:rgba(0,168,132,0.18); color:#00d9a0; }
   .wa-status-pill.st-seguimiento { background:rgba(150,110,230,0.18); color:#966ee6; }
   .wa-svc-pill { display:inline-block; font-size:0.62rem; font-weight:600; padding:1px 7px; border-radius:10px; white-space:nowrap; }

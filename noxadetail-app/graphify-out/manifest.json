@@ -1,7 +1,7 @@
 {
   "app.py": {
-    "mtime": 1786890427.6614368,
-    "ast_hash": "35a42abf4e74fb30eb68827a5b6e98c9",
+    "mtime": 1786894087.815452,
+    "ast_hash": "4daa02fc22db686f3f454afafe1570b9",
     "semantic_hash": ""
   },
   "migrate_prices.py": {
@@ -45,8 +45,8 @@
     "semantic_hash": ""
   },
   "docs/mariana-base-conocimiento.md": {
-    "mtime": 1786822089.0101297,
-    "ast_hash": "9f6a8971fd9ea9ec3ce2166b89c0b494",
+    "mtime": 1786893985.8249419,
+    "ast_hash": "c5ee39e8c335a5208339bfa9fb2728bb",
     "semantic_hash": ""
   },
   "requirements.txt": {
@@ -65,8 +65,8 @@
     "semantic_hash": ""
   },
   "templates/appointment_form.html": {
-    "mtime": 1786890736.961966,
-    "ast_hash": "b1419328006e05b8185719a5d2d53a1f",
+    "mtime": 1786894879.8938544,
+    "ast_hash": "cd3ac6df2152f4b1ee5a6bab02a99493",
     "semantic_hash": ""
   },
   "templates/appointments_list.html": {
@@ -195,8 +195,8 @@
     "semantic_hash": ""
   },
   "templates/whatsapp.html": {
-    "mtime": 1786228381.3852105,
-    "ast_hash": "47d8388d4011059e9d9b9148cd0228e1",
+    "mtime": 1786893874.1238773,
+    "ast_hash": "923911a457c3d9a5df77128316d67a2c",
     "semantic_hash": ""
   },
   "templates/whatsapp_outbox.html": {
@@ -242,6 +242,11 @@
   "tests/test_festivos.py": {
     "mtime": 1786890480.706003,
     "ast_hash": "405f8582faeb7cb7f95d45673c6bef9f",
+    "semantic_hash": ""
+  },
+  "tests/test_avisos_admin_bot.py": {
+    "mtime": 1786894016.2214952,
+    "ast_hash": "3980de5de25f3ba568ddcefdd7de8199",
     "semantic_hash": ""
   }
 }

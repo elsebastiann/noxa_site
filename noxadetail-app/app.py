@@ -3484,7 +3484,7 @@ def _kpis_embudo(date_from, date_to):
         Appointment.source == "whatsapp_bot",
         Appointment.start_datetime >= ini, Appointment.start_datetime <= fin,
     ).count()
-    con_cita = sum(por_estado.get(e, 0) for e in ("Diagnóstico agendado", "Servicio agendado"))
+    con_cita = sum(por_estado.get(e, 0) for e in ESTADOS_CON_CITA)
     total = len(leads)
     return {
         "leads": total,
@@ -7112,12 +7112,23 @@ _PROMO_RE   = re.compile(r"^\[PROMO:\s*(\d+)\s*\]$", re.IGNORECASE)
 _REAGENDAR_RE = re.compile(r"^\[REAGENDAR:\s*(.*?)\]$", re.IGNORECASE | re.DOTALL)
 _SIN_MENU_RE  = re.compile(r"^\[SIN_?MENU\]$", re.IGNORECASE)
 
+# Estados del lead. "Reagendado" no es una etapa del embudo de ventas como los
+# demás: marca a un cliente que YA tenía cita y escribió para moverla (no llegó
+# por pauta ni lo buscó Mariana). Se distingue porque operativamente es otra
+# cosa — no hay nada que vender ahí, solo una cita que cambió de hora.
 LEAD_STATES = [
     "En proceso",
     "Diagnóstico agendado",
+    "Reagendado",
     "Servicio agendado",
     "Seguimiento futuro",
 ]
+
+# Estados que significan "este cliente ya tiene una cita en firme". Se enumeran
+# una sola vez porque cada punto que los liste por separado es un lugar donde
+# olvidar uno: pasó el 2026-08-10, cuando a alguien con cita confirmada le
+# llegó un "te escribo para retomar" del job de seguimiento.
+ESTADOS_CON_CITA = ("Diagnóstico agendado", "Reagendado", "Servicio agendado")
 
 SERVICE_TAGS = [
     "Cerámico",
@@ -7693,6 +7704,7 @@ def _generate_and_send_reply(conversation: "Conversation", from_number: str, med
     # regenera el turno una sola vez (nunca en bucle) para que ofrezca otra hora.
     booked_appt = None
     moved_appt = None
+    status_desde_agenda = False  # ¿el estado lo fijó la agenda real o el [META:] del modelo?
     if reschedule_data:
         try:
             ok_move, detalle, appt = reschedule_diagnostic_from_bot(conversation, reschedule_data)
@@ -7704,6 +7716,8 @@ def _generate_and_send_reply(conversation: "Conversation", from_number: str, med
         if ok_move:
             app.logger.info(f"[Agenda] Mariana movió: {detalle} ({conversation.phone})")
             moved_appt = (appt, detalle)
+            new_status = "Reagendado"  # la cita real manda sobre el [META:]
+            status_desde_agenda = True
         else:
             app.logger.warning(f"[Agenda] No se pudo mover la cita ({conversation.phone}): {detalle}")
             if _booking_retry:
@@ -7727,6 +7741,7 @@ def _generate_and_send_reply(conversation: "Conversation", from_number: str, med
             app.logger.info(f"[Agenda] Mariana agendó: {detalle} ({conversation.phone})")
             booked_appt = appt
             new_status = "Diagnóstico agendado"  # la cita real manda sobre el [META:]
+            status_desde_agenda = True
         else:
             app.logger.warning(f"[Agenda] No se pudo agendar ({conversation.phone}): {detalle}")
             if _booking_retry:
@@ -7740,8 +7755,18 @@ def _generate_and_send_reply(conversation: "Conversation", from_number: str, med
                 return _generate_and_send_reply(conversation, from_number, _booking_retry=True)
 
     if new_status and new_status != conversation.status:
-        conversation.status = new_status
-        db.session.commit()
+        # El [META:] del modelo no puede pisar "Reagendado". En los turnos que
+        # siguen al reagendamiento el modelo sigue emitiendo su estado de
+        # siempre ("Diagnóstico agendado"), y sin este guardia el tag duraba un
+        # solo mensaje: el cliente contestaba "gracias" y volvía al valor viejo.
+        pisa_reagendado = (
+            not status_desde_agenda
+            and conversation.status == "Reagendado"
+            and new_status in ESTADOS_CON_CITA
+        )
+        if not pisa_reagendado:
+            conversation.status = new_status
+            db.session.commit()
     if new_service:
         existing = {t.strip() for t in (conversation.service_tag or "").split(",") if t.strip()}
         merged = existing.union(new_service)
@@ -7753,12 +7778,20 @@ def _generate_and_send_reply(conversation: "Conversation", from_number: str, med
         conversation.profile_name = new_name
         db.session.commit()
 
+    # Un fallo enviándole al cliente NO puede saltarse los avisos al admin de más
+    # abajo. Antes esto hacía `return False` en seco y se perdían los tres:
+    # cita agendada, cita movida y escalamiento. Lo peor del caso es que para
+    # entonces la cita YA quedó creada o movida en la agenda — justo cuando el
+    # admin más necesita enterarse, porque el cliente puede haberse quedado sin
+    # la confirmación. Se marca el fallo y se sigue.
+    send_failed = False
     for i, chunk in enumerate(visible_chunks):
         ok, err = send_whatsapp(from_number, chunk, kind="bot_respuesta",
                                 ref_type="conversation", ref_id=conversation.id)
         if not ok:
             app.logger.error(f"[WhatsApp] Error enviando mensaje: {err}")
-            return False
+            send_failed = True
+            break
         db.session.add(Message(conversation_id=conversation.id, direction="out", body=chunk))
         db.session.commit()
         if i < len(visible_chunks) - 1:
@@ -7768,7 +7801,7 @@ def _generate_and_send_reply(conversation: "Conversation", from_number: str, med
     # saltárselo con [SIN_MENU] cuando el cliente ya dijo qué necesita. El default
     # invertido es a propósito — pedirle al modelo que lo escribiera hacía que se
     # lo saltara justo con los leads genéricos, que son los que más lo necesitan.
-    if is_first_turn and not skip_menu and visible_chunks:
+    if is_first_turn and not skip_menu and visible_chunks and not send_failed:
         ok, err = send_whatsapp(from_number, WELCOME_MENU, kind="bot_menu",
                                 ref_type="conversation", ref_id=conversation.id)
         if ok:
@@ -7777,7 +7810,7 @@ def _generate_and_send_reply(conversation: "Conversation", from_number: str, med
         else:
             app.logger.error(f"[WhatsApp] No se pudo enviar el menú de bienvenida: {err}")
 
-    for promo_id in (promo_ids[:1] if PROMO_IMAGES_ENABLED else []):  # una imagen por turno, nunca una ráfaga
+    for promo_id in (promo_ids[:1] if PROMO_IMAGES_ENABLED and not send_failed else []):  # una imagen por turno, nunca una ráfaga
         promo = Promotion.query.get(promo_id)
         if not promo or not promo.vigente or not promo.image_url:
             app.logger.warning(f"[Promos] Se pidió enviar la promo {promo_id} pero no está vigente o no tiene imagen.")
@@ -7812,7 +7845,8 @@ def _generate_and_send_reply(conversation: "Conversation", from_number: str, med
         except Exception as exc:
             app.logger.error(f"[WhatsApp] Error avisando escalamiento al admin: {exc}")
 
-    return True
+    # Se conserva el contrato con el webhook: False hace que reintente el turno.
+    return not send_failed
 
 
 # ── Webhook: ESTADO DE ENTREGA de los mensajes salientes (Twilio) ─────────────
@@ -8495,7 +8529,7 @@ def _job_whatsapp_followup():
             # filtro le llegaba un "te escribo para retomar" a alguien con cita
             # confirmada, y Claude terminaba improvisando un recordatorio que no
             # le tocaba dar (visto en producción el 2026-08-10).
-            Conversation.status.notin_(("Diagnóstico agendado", "Servicio agendado")),
+            Conversation.status.notin_(ESTADOS_CON_CITA),
         ).all()
         for conv in candidatas:
             last_msg = (
