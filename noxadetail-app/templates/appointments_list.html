@@ -138,28 +138,37 @@
       <td>{{ a.end_datetime.strftime("%H:%M") }}</td>
 
       <td class="text-end">
-        {% set precio = estimated_prices.get(a.id, 0) %}
-        {% if precio %}
-          ${{ "{:,}".format(precio).replace(",", ".") }}
-        {% else %}
+        {% if not puede_ver_precios() %}
           <span class="text-muted small">—</span>
+        {% else %}
+          {% set precio = estimated_prices.get(a.id, 0) %}
+          {% if precio %}
+            ${{ "{:,}".format(precio).replace(",", ".") }}
+          {% else %}
+            <span class="text-muted small">—</span>
+          {% endif %}
         {% endif %}
       </td>
 
       {# Saldo: lo que falta por cobrar. Va aparte del valor del servicio a
-         propósito — un abono no abarata el trabajo, solo baja la deuda. #}
+         propósito — un abono no abarata el trabajo, solo baja la deuda.
+         El operario tampoco ve esto: también es un valor de servicio. #}
       <td class="text-end">
-        {% set p = plata.get(a.id) %}
-        {% if p and p.abonado %}
-          {% if p.saldo > 0 %}
-            <span class="text-warning fw-semibold">${{ "{:,}".format(p.saldo).replace(",", ".") }}</span>
-          {% elif p.saldo < 0 %}
-            <span class="text-success small">${{ "{:,}".format(p.saldo | abs).replace(",", ".") }} a favor</span>
-          {% else %}
-            <span class="text-success small">Pagado</span>
-          {% endif %}
-        {% else %}
+        {% if not puede_ver_precios() %}
           <span class="text-muted small">—</span>
+        {% else %}
+          {% set p = plata.get(a.id) %}
+          {% if p and p.abonado %}
+            {% if p.saldo > 0 %}
+              <span class="text-warning fw-semibold">${{ "{:,}".format(p.saldo).replace(",", ".") }}</span>
+            {% elif p.saldo < 0 %}
+              <span class="text-success small">${{ "{:,}".format(p.saldo | abs).replace(",", ".") }} a favor</span>
+            {% else %}
+              <span class="text-success small">Pagado</span>
+            {% endif %}
+          {% else %}
+            <span class="text-muted small">—</span>
+          {% endif %}
         {% endif %}
       </td>
 

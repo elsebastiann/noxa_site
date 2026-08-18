@@ -217,3 +217,92 @@ class TestTagDeReagendado:
                                      "[META: estado=Diagnóstico agendado; servicios=Cerámico]"])
         with A.app.app_context():
             assert A.Conversation.query.get(conversacion).status == "Reagendado"
+
+
+class TestCalificacionDeLead:
+    """gama/interes_real son campos nuevos del [META:] — cubren tanto el parseo
+    como que un marcador sin ellos (formato viejo, o un turno donde el modelo los
+    olvida) siga reconociéndose como [META:] y no se le cuele al cliente como
+    mensaje visible."""
+
+    def test_guarda_gama_e_interes(self, conversacion):
+        _correr_turno(conversacion, [
+            "Con gusto, te cuento.",
+            "[META: estado=En proceso; servicios=Cerámico; gama=Alta gama; interes_real=Alto]",
+        ])
+        with A.app.app_context():
+            conv = A.Conversation.query.get(conversacion)
+            assert conv.vehicle_tier == "Alta gama"
+            assert conv.intent_level == "Alto"
+            assert conv.priority == "Alta"
+
+    def test_formato_viejo_sin_gama_ni_interes_no_se_filtra_al_cliente(self, conversacion):
+        """Antes de tolerar el formato viejo, este [META:] sin gama/interes_real
+        no matcheaba _META_RE y se mandaba tal cual al cliente como si fuera un
+        mensaje normal — justo lo que un marcador interno nunca debe hacer."""
+        ok, enviados, _ = _correr_turno(conversacion, [
+            "Claro que sí.",
+            "[META: estado=En proceso; servicios=Cerámico]",
+        ])
+        assert ok is True
+        visibles = [e["body"] for e in enviados if e["kind"] == "bot_respuesta"]
+        assert visibles == ["Claro que sí."], (
+            f"el marcador [META:] sin gama/interes_real se coló como mensaje visible: {visibles}"
+        )
+        with A.app.app_context():
+            conv = A.Conversation.query.get(conversacion)
+            assert conv.vehicle_tier == ""
+            assert conv.intent_level == ""
+
+    def test_valor_no_reconocido_se_ignora_y_no_rompe_el_turno(self, conversacion):
+        ok, enviados, _ = _correr_turno(conversacion, [
+            "Listo.",
+            "[META: estado=En proceso; servicios=; gama=Deportivo; interes_real=Muchísimo]",
+        ])
+        assert ok is True
+        with A.app.app_context():
+            conv = A.Conversation.query.get(conversacion)
+            assert conv.vehicle_tier == ""
+            assert conv.intent_level == ""
+
+    def test_una_senal_sola_no_alcanza_para_prioridad_alta(self, conversacion):
+        """Un carro de alta gama sin ningún interés real no es un lead prioritario
+        — la prioridad combina las dos señales, nunca una sola (ver _compute_priority)."""
+        _correr_turno(conversacion, [
+            "Ok.",
+            "[META: estado=En proceso; servicios=; gama=Alta gama; interes_real=Bajo]",
+        ])
+        with A.app.app_context():
+            assert A.Conversation.query.get(conversacion).priority == "Media"
+
+    def test_interes_alto_solo_no_alcanza_para_alta_pero_si_para_media(self, conversacion):
+        _correr_turno(conversacion, [
+            "Ok.",
+            "[META: estado=En proceso; servicios=; gama=Estándar; interes_real=Alto]",
+        ])
+        with A.app.app_context():
+            assert A.Conversation.query.get(conversacion).priority == "Media"
+
+    def test_sin_ninguna_senal_la_prioridad_es_baja(self, conversacion):
+        _correr_turno(conversacion, [
+            "Hola.",
+            "[META: estado=En proceso; servicios=; gama=Sin dato; interes_real=Sin dato]",
+        ])
+        with A.app.app_context():
+            assert A.Conversation.query.get(conversacion).priority == "Baja"
+
+
+class TestComputePriority:
+    """Unitarios directos sobre _compute_priority, sin pasar por un turno completo."""
+
+    def test_alta_gama_y_alto_interes_es_alta(self):
+        assert A._compute_priority("Alta gama", "Alto") == "Alta"
+
+    def test_media_alta_y_medio_interes_es_alta(self):
+        assert A._compute_priority("Media-alta", "Medio") == "Alta"
+
+    def test_estandar_y_bajo_interes_es_baja(self):
+        assert A._compute_priority("Estándar", "Bajo") == "Baja"
+
+    def test_gama_desconocida_se_trata_como_baja_prioridad_por_defecto(self):
+        assert A._compute_priority("valor-invalido", "valor-invalido") == "Baja"

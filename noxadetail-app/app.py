@@ -1327,6 +1327,12 @@ class Conversation(db.Model):
     followup_count = db.Column(db.Integer, nullable=False, default=0)
     status       = db.Column(db.String(40), nullable=False, default="En proceso")
     service_tag  = db.Column(db.String(120), nullable=False, default="")  # lista separada por comas, ej. "Cerámico,PPF o wrap"
+    # Calificación del lead: la pone Mariana en cada turno vía [META: ... gama=...; interes_real=...],
+    # igual que estado/service_tag. "priority" es derivada de las otras dos (ver _compute_priority) y
+    # se guarda aparte para poder ordenar/filtrar la bandeja sin recalcularla en cada request.
+    vehicle_tier = db.Column(db.String(20), nullable=False, default="")
+    intent_level = db.Column(db.String(20), nullable=False, default="")
+    priority     = db.Column(db.String(10), nullable=False, default="Baja")
     created_at   = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
     updated_at   = db.Column(db.DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -1519,6 +1525,27 @@ def ensure_whatsapp_schema():
         except Exception:
             db.session.execute(
                 text("ALTER TABLE whatsapp_conversations ADD COLUMN service_tag VARCHAR(40) DEFAULT 'Otro servicio'")
+            )
+            db.session.commit()
+        try:
+            db.session.execute(text("SELECT vehicle_tier FROM whatsapp_conversations LIMIT 1"))
+        except Exception:
+            db.session.execute(
+                text("ALTER TABLE whatsapp_conversations ADD COLUMN vehicle_tier VARCHAR(20) DEFAULT ''")
+            )
+            db.session.commit()
+        try:
+            db.session.execute(text("SELECT intent_level FROM whatsapp_conversations LIMIT 1"))
+        except Exception:
+            db.session.execute(
+                text("ALTER TABLE whatsapp_conversations ADD COLUMN intent_level VARCHAR(20) DEFAULT ''")
+            )
+            db.session.commit()
+        try:
+            db.session.execute(text("SELECT priority FROM whatsapp_conversations LIMIT 1"))
+        except Exception:
+            db.session.execute(
+                text("ALTER TABLE whatsapp_conversations ADD COLUMN priority VARCHAR(10) DEFAULT 'Baja'")
             )
             db.session.commit()
 
@@ -4375,7 +4402,10 @@ def api_events():
         # Sin abonos el saldo ES el valor del servicio, así que la cifra sola se
         # entiende. Cuando hay abonos de por medio hay que decir qué es, o se
         # confunde con el total.
-        if plata["saldo"] < 0:
+        if not puede_ver_precios():
+            # El operario no ve valores de servicios en ningún cajón de la agenda.
+            saldo_texto = ""
+        elif plata["saldo"] < 0:
             saldo_texto = "A favor $" + f"{abs(plata['saldo']):,}".replace(",", ".")
         elif plata["abonado"]:
             saldo_texto = "Saldo $" + f"{plata['saldo']:,}".replace(",", ".")
@@ -4398,7 +4428,7 @@ def api_events():
                 "backgroundColor": color,
                 "borderColor": color,
                 "extendedProps": {
-                    "estimated_amount": plata["total"],
+                    "estimated_amount": plata["total"] if puede_ver_precios() else None,
                     "lineas": {
                         "nombre": first_name,
                         "placa": plate,
@@ -4433,6 +4463,8 @@ def appointment_json(appointment_id):
         net_secs = max(0, total_secs - (appt.total_pause_seconds or 0))
         work_duration_minutes = net_secs // 60
 
+    ver_precios = puede_ver_precios()
+
     return jsonify({
         "id": appt.id,
         "customer_name": appt.customer_name,
@@ -4442,9 +4474,10 @@ def appointment_json(appointment_id):
         "notes": appt.notes,
         "start": appt.start_datetime.strftime("%Y-%m-%d %H:%M"),
         "end": appt.end_datetime.strftime("%Y-%m-%d %H:%M"),
-        "estimated_amount": estimated_amount,
+        "estimated_amount": estimated_amount if ver_precios else None,
         "status": appt.status,
-        "money": plata,
+        "money": plata if ver_precios else None,
+        "puede_ver_precios": ver_precios,
         "operators": operators,
         "work_status": appt.work_status or "pending",
         "work_started_at": appt.work_started_at.strftime("%Y-%m-%d %H:%M") if appt.work_started_at else None,
@@ -4611,8 +4644,14 @@ def api_estimate_price():
     abonado = sum(_int_o_cero(a.get("amount")) for a in (data.get("payments") or [])
                   if isinstance(a, dict))
 
+    if not puede_ver_precios():
+        # El operario arma la cita, pero no ve cuánto vale: ni en la vista
+        # previa del formulario ni en la respuesta cruda de este endpoint.
+        return jsonify({"ok": True, "puede_ver_precios": False})
+
     return jsonify({
         "ok": True,
+        "puede_ver_precios": True,
         "base_price": base_price,
         "agreement_amount": max(base_price - subtotal, 0),
         "subtotal": subtotal,
@@ -5236,6 +5275,65 @@ def seed_superadmin():
 
 seed_superadmin()
 
+# --- Seed de datos de prueba, SOLO para environments de revisión ---
+# Nunca se activa solo: hace falta la variable SEED_DEMO_DATA=1, que no existe en
+# producción. Pensado para un Railway environment aparte (con su propia base y sin
+# credenciales de Twilio) donde alguien del negocio puede entrar a ver una función
+# nueva con datos realistas en vez de una bandeja vacía. Idempotente: si ya existe
+# el usuario demo, no vuelve a crear nada.
+def seed_demo_data():
+    if os.environ.get("SEED_DEMO_DATA") != "1":
+        return
+    with app.app_context():
+        if User.query.filter_by(username="demo").first():
+            return
+        u = User(username="demo", role="admin", is_active=True)
+        u.set_password("Demo1234!")
+        db.session.add(u)
+
+        escenarios = [
+            dict(phone="+573000000001", profile_name="Andrés (Porsche 911, listo para agendar)",
+                 status="En proceso", service_tag="Cerámico", vehicle_tier="Alta gama",
+                 intent_level="Alto", priority="Alta",
+                 msgs=[("in", "Hola, tengo un Porsche 911 y quiero cerámico"),
+                       ("out", "Con gusto, ¿qué anillo de cerámico buscas?"),
+                       ("in", "El de 9H, ¿cuándo puedo llevarlo?")]),
+            dict(phone="+573000000002", profile_name="Camila (BMW X5, preguntó y no volvió)",
+                 status="En proceso", service_tag="PPF o wrap", vehicle_tier="Alta gama",
+                 intent_level="Bajo", priority="Media",
+                 msgs=[("in", "Cuánto vale el PPF para un BMW X5"),
+                       ("out", "Depende de la zona, ¿todo el carro o solo el frente?")]),
+            dict(phone="+573000000003", profile_name="Julián (Mazda 3 2026, muy interesado)",
+                 status="Diagnóstico agendado", service_tag="Otro servicio", vehicle_tier="Media-alta",
+                 intent_level="Alto", priority="Alta",
+                 msgs=[("in", "Acabo de comprar un Mazda 3, quiero protegerlo bien"),
+                       ("out", "Perfecto, te propongo un diagnóstico gratuito primero"),
+                       ("in", "Sí, el sábado a las 10am")]),
+            dict(phone="+573000000004", profile_name="Laura (Renault Logan, cotizando)",
+                 status="En proceso", service_tag="Otro servicio", vehicle_tier="Estándar",
+                 intent_level="Medio", priority="Baja",
+                 msgs=[("in", "Cuánto vale un detallado interior"),
+                       ("out", "Desde 180 mil, depende del estado del carro")]),
+            dict(phone="+573000000005", profile_name="Nuevo contacto", status="En proceso",
+                 service_tag="", vehicle_tier="", intent_level="", priority="Baja",
+                 msgs=[("in", "Hola")]),
+        ]
+        base = datetime.utcnow() - timedelta(hours=3)
+        for i, esc in enumerate(escenarios):
+            conv = Conversation(phone=esc["phone"], profile_name=esc["profile_name"], bot_active=True,
+                                 status=esc["status"], service_tag=esc["service_tag"],
+                                 vehicle_tier=esc["vehicle_tier"], intent_level=esc["intent_level"],
+                                 priority=esc["priority"])
+            db.session.add(conv)
+            db.session.flush()
+            for j, (direction, body) in enumerate(esc["msgs"]):
+                db.session.add(Message(conversation_id=conv.id, direction=direction, body=body,
+                                        created_at=base + timedelta(hours=i, minutes=j * 2)))
+        db.session.commit()
+        app.logger.warning("[Demo] Datos de prueba sembrados (usuario 'demo' / Demo1234!).")
+
+seed_demo_data()
+
 # --- Stat público de solo lectura para el sitio de marketing (noxadetail.com):
 # número total de citas registradas, mostrado como "clientes atendidos" en el
 # hero. Sin datos sensibles (solo un conteo), así que lleva CORS abierto para
@@ -5290,10 +5388,21 @@ def es_marketing() -> bool:
     return bool(u) and u.role == "marketing"
 
 
+def es_operario() -> bool:
+    u = getattr(g, "current_user", None)
+    return bool(u) and u.role == "operario"
+
+
 @app.template_global()
 def puede_ver_finanzas() -> bool:
     """Marketing ve conversión y comportamiento de clientes, no la caja."""
     return not es_marketing()
+
+
+@app.template_global()
+def puede_ver_precios() -> bool:
+    """El operario agenda y trabaja citas, pero no ve cuánto valen los servicios."""
+    return not es_operario()
 
 
 @app.before_request
@@ -6443,9 +6552,9 @@ Cómo hacerlo (proceso de dos partes, en el mismo turno):
 
 # ESTADO Y SERVICIOS DEL LEAD (seguimiento interno para el negocio)
 En CADA turno tuyo, sin excepción, además de tu(s) mensaje(s) normal(es), agrega un último mensaje SEPARADO (con "---" antes, como siempre) con este formato EXACTO:
-[META: estado=<estado>; servicios=<lista o vacío>]
+[META: estado=<estado>; servicios=<lista o vacío>; gama=<gama>; interes_real=<interés>]
 
-Esto nunca lo ve el cliente — es solo para que el negocio sepa en qué punto va cada conversación. Cada vez que lo escribas, repasa TODA la conversación hasta ahora y refleja el panorama completo actual — no solo lo que cambió en este mensaje. Es mejor repetir información que ya diste antes que dejarla por fuera.
+Esto nunca lo ve el cliente — es solo para que el negocio sepa en qué punto va cada conversación, y para priorizar a qué leads les presta atención un asesor primero. Cada vez que lo escribas, repasa TODA la conversación hasta ahora y refleja el panorama completo actual — no solo lo que cambió en este mensaje. Es mejor repetir información que ya diste antes que dejarla por fuera.
 
 **<estado>** — uno de estos tres (el más avanzado que ya sea cierto):
 - En proceso — todo lo que pasa antes de agendar algo: desde que recién saluda hasta que ya está calificado, cotizado, o incluso con anticipo pendiente.
@@ -6459,15 +6568,27 @@ Esto nunca lo ve el cliente — es solo para que el negocio sepa en qué punto v
 - Otro servicio — cualquier otro (wash, detallado, polichado, porcelanizado, etc.).
 Un servicio solo cuenta como "interés" si el cliente lo demostró de verdad (preguntó precio, pidió detalles, dijo que le interesa) — NO por solo haberlo mencionado tú de pasada.
 
-Ejemplo completo: [META: estado=Diagnóstico agendado; servicios=Cerámico,PPF o wrap]
-Ejemplo sin servicios aún: [META: estado=En proceso; servicios=]
+**<gama>** — qué tan valioso es el carro del cliente, uno de estos cuatro:
+- Alta gama — marca premium (BMW, Mercedes-Benz, Audi, Porsche, Land Rover/Range Rover, Lexus, Volvo, Tesla, Mini, Jaguar, o equivalente) o un carro de colección/edición especial.
+- Media-alta — gama media-alta sin ser premium (ej. Mazda CX-9, Toyota gama alta, camionetas 4x4 tope de línea) o un carro NUEVO de cualquier marca (año actual o el anterior, o el cliente dijo explícitamente que lo acaba de comprar) — lo nuevo importa aunque la marca no sea premium, porque un carro recién comprado suele tener dueño dispuesto a invertir en protegerlo.
+- Estándar — el resto: gama media o económica, sin ser nuevo.
+- Sin dato — todavía no sabes qué carro tiene. Usa esto SIEMPRE que aplique, no adivines ni asumas "Estándar" por defecto.
+
+**<interes_real>** — qué tan en serio está el cliente con hacerse el servicio, uno de estos cuatro (se mide por comportamiento, no por cortesía):
+- Alto — pidió agendar o cita, preguntó forma de pago/anticipo/dirección, o dio su placa sin que se la pidieras explícitamente por otro motivo.
+- Medio — preguntó precio y siguió la conversación con preguntas de seguimiento (detalles del servicio, garantía, tiempos), o dijo explícitamente que le interesa y quiere pensarlo/consultarlo.
+- Bajo — preguntó algo puntual (precio, un dato) y no volvió a responder, o el tono es claramente exploratorio/comparando precios sin compromiso.
+- Sin dato — recién empieza la conversación, no hay suficiente para juzgar todavía.
+
+Ejemplo completo: [META: estado=Diagnóstico agendado; servicios=Cerámico,PPF o wrap; gama=Alta gama; interes_real=Alto]
+Ejemplo sin servicios aún: [META: estado=En proceso; servicios=; gama=Sin dato; interes_real=Sin dato]
 
 # ACTUALIZAR EL NOMBRE DEL CLIENTE
 Si en algún momento de la conversación el cliente te dice su nombre real (típicamente porque se lo preguntaste al no tener un nombre de perfil válido, pero puede pasar en cualquier momento), agrega otro mensaje separado que diga EXACTAMENTE: [NOMBRE: <nombre que dio>]
 Esto actualiza cómo se muestra el contacto en nuestro sistema interno — hazlo siempre que el cliente te dé su nombre real, aunque ya estuviera usando un nombre distinto antes.
 
-Ejemplo de tu respuesta completa en un turno: primer mensaje visible --- segundo mensaje visible (si aplica) --- [META: estado=En proceso; servicios=Cerámico]
-Ejemplo de un turno en el que agendas: mensaje de confirmación al cliente --- [AGENDAR: nombre=Andrés Rojas; celular=3001234567; vehiculo=SUV; placa=ABC123; fecha=2026-08-06; hora=15:00] --- [META: estado=Diagnóstico agendado; servicios=Cerámico]"""
+Ejemplo de tu respuesta completa en un turno: primer mensaje visible --- segundo mensaje visible (si aplica) --- [META: estado=En proceso; servicios=Cerámico; gama=Media-alta; interes_real=Medio]
+Ejemplo de un turno en el que agendas: mensaje de confirmación al cliente --- [AGENDAR: nombre=Andrés Rojas; celular=3001234567; vehiculo=SUV; placa=ABC123; fecha=2026-08-06; hora=15:00] --- [META: estado=Diagnóstico agendado; servicios=Cerámico; gama=Alta gama; interes_real=Alto]"""
 
 
 def _build_message_history(conversation: "Conversation") -> list[dict]:
@@ -7185,7 +7306,16 @@ def notify_admin_conversation_error(conversation: "Conversation", error: Excepti
 
 
 _ESCALATE_RE = re.compile(r"^\[ESCALAR:\s*(.*?)\]$", re.IGNORECASE)
-_META_RE = re.compile(r"^\[META:\s*estado\s*=\s*(.*?)\s*;\s*servicios\s*=\s*(.*?)\s*\]$", re.IGNORECASE)
+
+# gama/interes_real van entre paréntesis-no-captura opcional: si el modelo alguna
+# vez emite el formato viejo (o se le olvidan estos dos campos en un turno), el
+# marcador sigue reconociéndose como [META:] en vez de colársele al cliente como
+# texto visible — que es justo lo que pasaba antes de este ajuste.
+_META_RE = re.compile(
+    r"^\[META:\s*estado\s*=\s*(.*?)\s*;\s*servicios\s*=\s*(.*?)"
+    r"(?:\s*;\s*gama\s*=\s*(.*?)\s*;\s*interes_real\s*=\s*(.*?))?\s*\]$",
+    re.IGNORECASE,
+)
 _NOMBRE_RE = re.compile(r"^\[NOMBRE:\s*(.*?)\]$", re.IGNORECASE)
 _AGENDAR_RE = re.compile(r"^\[AGENDAR:\s*(.*?)\]$", re.IGNORECASE | re.DOTALL)
 _PROMO_RE   = re.compile(r"^\[PROMO:\s*(\d+)\s*\]$", re.IGNORECASE)
@@ -7215,6 +7345,37 @@ SERVICE_TAGS = [
     "PPF o wrap",
     "Otro servicio",
 ]
+
+# --- Calificación de leads: gama del vehículo + interés real (ver [META:] más abajo) ---
+VEHICLE_TIERS = [
+    "Alta gama",
+    "Media-alta",
+    "Estándar",
+    "Sin dato",
+]
+
+INTENT_LEVELS = [
+    "Alto",
+    "Medio",
+    "Bajo",
+    "Sin dato",
+]
+
+PRIORITY_LEVELS = ["Alta", "Media", "Baja"]
+
+
+def _compute_priority(vehicle_tier: str, intent_level: str) -> str:
+    """Prioridad derivada de gama + interés — nunca de una sola señal, por diseño:
+    un carro de alta gama sin ningún interés real no es un lead prioritario, y un
+    interés fuerte en un carro estándar sí vale la pena vigilar aunque no sea el
+    perfil típico del negocio."""
+    gama_alta = vehicle_tier in ("Alta gama", "Media-alta")
+    interes_fuerte = intent_level in ("Alto", "Medio")
+    if gama_alta and interes_fuerte:
+        return "Alta"
+    if gama_alta or intent_level == "Alto":
+        return "Media"
+    return "Baja"
 
 
 def _phone_for_display(e164: str) -> str:
@@ -7726,6 +7887,8 @@ def _generate_and_send_reply(conversation: "Conversation", from_number: str, med
     escalation_reason = None
     new_status = None
     new_service = None
+    new_vehicle_tier = None
+    new_intent_level = None
     new_name = None
     booking_data = None
     reschedule_data = None
@@ -7764,6 +7927,18 @@ def _generate_and_send_reply(conversation: "Conversation", from_number: str, med
                 app.logger.warning(f"[WhatsApp] Servicio(s) no reconocido(s), se ignoran: {invalid!r}")
             if valid:
                 new_service = valid
+
+            gama_candidate = (m_meta.group(3) or "").strip()
+            if gama_candidate in VEHICLE_TIERS:
+                new_vehicle_tier = gama_candidate
+            elif gama_candidate:
+                app.logger.warning(f"[WhatsApp] Gama de vehículo no reconocida, se ignora: {gama_candidate!r}")
+
+            interes_candidate = (m_meta.group(4) or "").strip()
+            if interes_candidate in INTENT_LEVELS:
+                new_intent_level = interes_candidate
+            elif interes_candidate:
+                app.logger.warning(f"[WhatsApp] Nivel de interés no reconocido, se ignora: {interes_candidate!r}")
         elif m_nombre:
             candidate = m_nombre.group(1).strip()
             if candidate:
@@ -7856,6 +8031,16 @@ def _generate_and_send_reply(conversation: "Conversation", from_number: str, med
             db.session.commit()
     if new_name and new_name != conversation.profile_name:
         conversation.profile_name = new_name
+        db.session.commit()
+    if (new_vehicle_tier and new_vehicle_tier != conversation.vehicle_tier) or \
+       (new_intent_level and new_intent_level != conversation.intent_level):
+        # Se recalcula la prioridad con lo que ya había si alguna de las dos
+        # señales no llegó en este turno — Mariana repite el panorama completo
+        # casi siempre, pero si un turno la omite no hay razón para perder la
+        # otra mitad de la calificación que sí llegó.
+        conversation.vehicle_tier = new_vehicle_tier or conversation.vehicle_tier
+        conversation.intent_level = new_intent_level or conversation.intent_level
+        conversation.priority = _compute_priority(conversation.vehicle_tier, conversation.intent_level)
         db.session.commit()
 
     # Un fallo enviándole al cliente NO puede saltarse los avisos al admin de más
@@ -8111,16 +8296,27 @@ def whatsapp_webhook():
 
 
 # ── Panel de mensajes de WhatsApp (bandeja + human takeover) ─────────────────
+_PRIORITY_RANK = {"Alta": 0, "Media": 1, "Baja": 2}
+
+
 def _whatsapp_rows():
+    """Ordenada por prioridad primero (Alta arriba) y, dentro de cada nivel, por el
+    mensaje más reciente — así Diana ve primero los leads que más importan, y entre
+    esos, los que están activos ahora mismo."""
     conversations = Conversation.query.all()
     rows = [(c, c.messages[-1] if c.messages else None) for c in conversations]
+    # Dos sorts estables en vez de una tupla: evita mezclar el datetime naive (hora
+    # de servidor) con truco de negación — con sort estable, ordenar primero por
+    # fecha y después por prioridad conserva la fecha como criterio de desempate.
     rows.sort(key=lambda r: (r[1].created_at if r[1] else r[0].created_at), reverse=True)
+    rows.sort(key=lambda r: _PRIORITY_RANK.get(r[0].priority, 2))
     return rows
 
 
 @app.route("/whatsapp")
 def whatsapp_inbox():
-    return render_template("whatsapp.html", rows=_whatsapp_rows(), conversation=None, messages=[], lead_states=LEAD_STATES, service_tags=SERVICE_TAGS)
+    return render_template("whatsapp.html", rows=_whatsapp_rows(), conversation=None, messages=[],
+                           lead_states=LEAD_STATES, service_tags=SERVICE_TAGS, priority_levels=PRIORITY_LEVELS)
 
 
 def _estados_entrega(conversation_id: int) -> dict:
@@ -8154,7 +8350,7 @@ def whatsapp_conversation(conversation_id):
     )
     return render_template("whatsapp.html", rows=_whatsapp_rows(), conversation=conversation,
                            messages=messages, estados=_estados_entrega(conversation.id),
-                           lead_states=LEAD_STATES, service_tags=SERVICE_TAGS)
+                           lead_states=LEAD_STATES, service_tags=SERVICE_TAGS, priority_levels=PRIORITY_LEVELS)
 
 
 @app.route("/whatsapp/media/<path:filename>")

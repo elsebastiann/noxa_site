@@ -256,7 +256,9 @@
             <option value="{{ ag.id }}"
               {% if is_edit and appointment.agreement_id == ag.id %}selected{% endif %}>
               {{ ag.name }}
+              {% if puede_ver_precios() %}
               ({% if ag.discount_type == 'percentage' %}{{ ag.value }}%{% else %}${{ "{:,}".format(ag.value) }}{% endif %})
+              {% endif %}
             </option>
           {% endfor %}
           <option value="__new__">+ Crear nuevo convenio...</option>
@@ -327,7 +329,10 @@
         </div>
       </div>
 
-      {# ---- Resumen de plata (calculado en tiempo real) ---- #}
+      {# ---- Resumen de plata (calculado en tiempo real) ----
+         El operario no ve valores de servicios: la caja completa se omite
+         del DOM, no solo se oculta con CSS. #}
+      {% if puede_ver_precios() %}
       <div class="mb-3 p-3 rounded border border-secondary" id="pricePreviewBox" style="display:none;">
         <div class="d-flex justify-content-between small text-secondary mb-1">
           <span>Precio de lista</span><span id="sumLista">$0</span>
@@ -354,6 +359,7 @@
           <span class="fs-6 fw-bold" id="sumSaldo">$0</span>
         </div>
       </div>
+      {% endif %}
 
       {# Plantillas de fila: se clonan al agregar. #}
       <template id="tplAdj">
@@ -654,6 +660,9 @@
     .then(r => r.json())
     .then(data => {
       if (!data.ok) return;
+      // El operario no ve valores: el servidor no manda cifras y acá no se
+      // intenta pintar el cuadro (que además Jinja ni siquiera renderizó).
+      if (data.puede_ver_precios === false) return;
       if (priceBox) priceBox.style.display = "block";
       if (priceLabel) priceLabel.textContent = pesos(data.final_price);
 

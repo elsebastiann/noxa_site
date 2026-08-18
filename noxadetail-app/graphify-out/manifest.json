@@ -1,7 +1,7 @@
 {
   "app.py": {
-    "mtime": 1787073333.9585848,
-    "ast_hash": "54b59ddd86ceafe219fd513d5ebb0d8e",
+    "mtime": 1787088064.5485938,
+    "ast_hash": "429f1d11d793dd20882532e5ca8021ea",
     "semantic_hash": ""
   },
   "migrate_prices.py": {
@@ -65,13 +65,13 @@
     "semantic_hash": ""
   },
   "templates/appointment_form.html": {
-    "mtime": 1786894879.8938544,
-    "ast_hash": "cd3ac6df2152f4b1ee5a6bab02a99493",
+    "mtime": 1787075271.484979,
+    "ast_hash": "c68df48bf8ea9bf83ea22d0632104bd5",
     "semantic_hash": ""
   },
   "templates/appointments_list.html": {
-    "mtime": 1786228381.3799815,
-    "ast_hash": "f55ce6fe65c4fe818de1f71c80c62179",
+    "mtime": 1787075280.3973665,
+    "ast_hash": "6235326f91c1dc4d178352326b06155f",
     "semantic_hash": ""
   },
   "templates/base.html": {
@@ -80,8 +80,8 @@
     "semantic_hash": ""
   },
   "templates/calendar.html": {
-    "mtime": 1786228381.3807783,
-    "ast_hash": "506aff494ef2739a69969abf5e3d3c05",
+    "mtime": 1787075294.369373,
+    "ast_hash": "fe5861790c02f9fb9ebae812d3d985a2",
     "semantic_hash": ""
   },
   "templates/edit_appointment.html": {
@@ -195,8 +195,8 @@
     "semantic_hash": ""
   },
   "templates/whatsapp.html": {
-    "mtime": 1786893874.1238773,
-    "ast_hash": "923911a457c3d9a5df77128316d67a2c",
+    "mtime": 1787086089.0944488,
+    "ast_hash": "4fd82d0c078efb4a421ef0dfeead9100",
     "semantic_hash": ""
   },
   "templates/whatsapp_outbox.html": {
@@ -245,8 +245,8 @@
     "semantic_hash": ""
   },
   "tests/test_avisos_admin_bot.py": {
-    "mtime": 1786894016.2214952,
-    "ast_hash": "3980de5de25f3ba568ddcefdd7de8199",
+    "mtime": 1787086369.1626098,
+    "ast_hash": "1f991fb8022cbf5ddc6bf4726f3bbad1",
     "semantic_hash": ""
   },
   "tests/test_parqueadero.py": {

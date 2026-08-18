@@ -16,6 +16,16 @@
   {%- endif -%}
 {%- endmacro %}
 
+{% macro priority_pill(priority) -%}
+  {%- if priority == 'Alta' -%}
+    <span class="wa-priority-pill pr-alta" title="Gama: buena · Interés: real">🔥 Alta</span>
+  {%- elif priority == 'Media' -%}
+    <span class="wa-priority-pill pr-media" title="Una de las dos señales, la otra floja o sin dato">👀 Media</span>
+  {%- else -%}
+    <span class="wa-priority-pill pr-baja" title="Ni gama ni interés confirmados todavía">Baja</span>
+  {%- endif -%}
+{%- endmacro %}
+
 {% macro tick(entrega) -%}
   {%- if not entrega -%}
   {%- elif entrega.estado in ('undelivered', 'failed', 'rejected_local') -%}
@@ -65,6 +75,12 @@
   .wa-svc-pill.svc-ceramico { background:rgba(212,180,108,0.20); color:#d4b46c; }
   .wa-svc-pill.svc-ppf { background:rgba(74,111,165,0.25); color:#8fb8e6; }
   .wa-svc-pill.svc-otro { background:rgba(134,150,160,0.20); color:#8696a0; }
+  .wa-priority-pill { display:inline-block; font-size:0.62rem; font-weight:700; padding:1px 7px; border-radius:10px; white-space:nowrap; }
+  .wa-priority-pill.pr-alta { background:rgba(230,60,60,0.20); color:#f07070; }
+  .wa-priority-pill.pr-media { background:rgba(230,180,40,0.18); color:#e6c060; }
+  .wa-priority-pill.pr-baja { background:rgba(134,150,160,0.14); color:#6b7680; }
+  /* Un lead Alta se nota antes de leer ningún pill: borde izquierdo más grueso. */
+  .wa-row[data-priority="Alta"] { border-left-width:5px; }
   .wa-filter-bar { display:flex; align-items:center; gap:8px; margin:8px 0 0; }
   .wa-filter-bar select { background:#202c33; color:#e9edef; border:1px solid #3b4a54; border-radius:8px; padding:5px 8px; font-size:0.8rem; }
   .wa-chip-group { display:flex; gap:6px; flex-wrap:wrap; }
@@ -132,7 +148,15 @@
 <h2><i class="bi bi-whatsapp"></i> Mensajes WhatsApp</h2>
 
 <div class="wa-filter-bar">
-  <label for="statusFilter" style="color:var(--text2);font-size:0.8rem;">Estado:</label>
+  <label for="priorityFilter" style="color:var(--text2);font-size:0.8rem;">Prioridad:</label>
+  <select id="priorityFilter" onchange="applyFilters()">
+    <option value="">Todas</option>
+    {% for p in priority_levels %}
+    <option value="{{ p }}">{{ p }}</option>
+    {% endfor %}
+  </select>
+
+  <label for="statusFilter" style="color:var(--text2);font-size:0.8rem;margin-left:8px;">Estado:</label>
   <select id="statusFilter" onchange="applyFilters()">
     <option value="">Todos</option>
     {% for s in lead_states %}
@@ -154,6 +178,7 @@
     <a class="wa-row {{ 'active' if conversation and conversation.id == conv.id else '' }}"
        data-status="{{ conv.status }}"
        data-services="{{ conv.service_tag }}"
+       data-priority="{{ conv.priority }}"
        href="{{ url_for('whatsapp_conversation', conversation_id=conv.id) }}">
       <div class="wa-avatar">{{ (conv.profile_name or conv.phone)[0]|upper }}</div>
       <div class="wa-row-main">
@@ -168,6 +193,7 @@
           {% if conv.bot_active %}<span class="wa-badge-active">● Activo</span>{% else %}<span class="wa-badge-paused">⏸ Pausado</span>{% endif %}
         </div>
         <div class="wa-pill-row">
+          {{ priority_pill(conv.priority) }}
           <span class="wa-status-pill {{ status_pill_class(conv.status) }}">{{ conv.status }}</span>
           {% for tag in conv.service_tag.split(',') if tag.strip() %}
           <span class="wa-svc-pill {{ service_pill_class(tag.strip()) }}">{{ tag.strip() }}</span>
@@ -189,10 +215,16 @@
           <p class="wa-header-name">{{ conversation.profile_name or conversation.phone }}</p>
           <p class="wa-header-phone">{{ conversation.phone }}</p>
           <div class="wa-pill-row">
+            {{ priority_pill(conversation.priority) }}
             <span class="wa-status-pill {{ status_pill_class(conversation.status) }}">{{ conversation.status }}</span>
             {% for tag in conversation.service_tag.split(',') if tag.strip() %}
             <span class="wa-svc-pill {{ service_pill_class(tag.strip()) }}">{{ tag.strip() }}</span>
             {% endfor %}
+            {% if conversation.vehicle_tier or conversation.intent_level %}
+            <span style="font-size:0.68rem;color:#8696a0;">
+              {{ conversation.vehicle_tier or 'gama: sin dato' }} · {{ conversation.intent_level or 'interés: sin dato' }}
+            </span>
+            {% endif %}
           </div>
         </div>
         <div class="wa-header-actions">
@@ -355,13 +387,15 @@
   }
 
   function applyFilters() {
+    const priorityValue = document.getElementById('priorityFilter').value;
     const statusValue = document.getElementById('statusFilter').value;
     const activeServices = Array.from(document.querySelectorAll('#serviceChips .wa-chip.active')).map(c => c.dataset.value);
     document.querySelectorAll('.wa-row').forEach(row => {
+      const priorityOk = !priorityValue || row.dataset.priority === priorityValue;
       const statusOk = !statusValue || row.dataset.status === statusValue;
       const rowServices = (row.dataset.services || '').split(',').map(s => s.trim()).filter(Boolean);
       const servicesOk = activeServices.length === 0 || activeServices.some(s => rowServices.includes(s));
-      row.style.display = (statusOk && servicesOk) ? '' : 'none';
+      row.style.display = (priorityOk && statusOk && servicesOk) ? '' : 'none';
     });
   }
 
