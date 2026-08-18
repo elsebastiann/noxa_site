@@ -85,6 +85,45 @@ class TestDiaHabil:
         assert not A.es_dia_habil(datetime(2026, 8, 17, 10, 30))
 
 
+def _proximo(pred, limite=90):
+    """Primera fecha FUTURA que cumple `pred`. Los tests que pasan por la ventana
+    de agendamiento o por el filtro de "cupos ya pasados" no pueden fijar fechas
+    a mano: sirven el día que se escriben y empiezan a fallar (o peor, a pasar
+    por la razón equivocada) cuando esa fecha queda en el pasado."""
+    d = A.bogota_now().date() + timedelta(days=1)
+    for _ in range(limite):
+        if pred(d):
+            return d
+        d += timedelta(days=1)
+    raise AssertionError("no se encontró una fecha que cumpla la condición")
+
+
+def proximo_domingo():
+    return _proximo(lambda d: d.weekday() == 6)
+
+
+def proximo_habil():
+    return _proximo(A.es_dia_habil)
+
+
+@pytest.fixture
+def festivo_en_la_ventana():
+    """Marca como festivo un día hábil próximo, inyectándolo en el caché.
+
+    El calendario real no siempre tiene un festivo dentro de la ventana de
+    agendamiento (después del 17/08/2026 el siguiente es el 12/10), así que sin
+    esto no se puede probar el bloqueo por festivo en el camino que sí valida esa
+    ventana. Se inyecta en el caché para que lo vean `es_festivo`,
+    `es_dia_habil` y `motivo_dia_cerrado` — el código real, sin parchear nada."""
+    d = proximo_habil()
+    A.festivos_colombia(d.year)  # asegura el año en el caché
+    A._festivos_cache[d.year][d] = "Festivo de prueba"
+    try:
+        yield d
+    finally:
+        A._festivos_cache[d.year].pop(d, None)
+
+
 @pytest.fixture
 def servicio_diagnostico():
     """La BD semilla no trae servicio de diagnóstico, así que se crea uno. Sin
@@ -109,33 +148,38 @@ def servicio_diagnostico():
 class TestBloqueoEnLaAgenda:
     """El bloqueo vive en get_available_slots(), no en cada llamador."""
 
-    def test_festivo_no_devuelve_cupos(self, servicio_diagnostico):
+    def test_festivo_no_devuelve_cupos(self, servicio_diagnostico, festivo_en_la_ventana):
         svc_id, vt_id = servicio_diagnostico
         with A.app.app_context():
-            slots, _ = A.get_available_slots(date(2026, 8, 17), [svc_id], vt_id)
+            slots, _ = A.get_available_slots(festivo_en_la_ventana, [svc_id], vt_id)
         assert slots == []
 
     def test_domingo_no_devuelve_cupos(self, servicio_diagnostico):
         svc_id, vt_id = servicio_diagnostico
         with A.app.app_context():
-            slots, _ = A.get_available_slots(date(2026, 8, 16), [svc_id], vt_id)
+            slots, _ = A.get_available_slots(proximo_domingo(), [svc_id], vt_id)
         assert slots == []
 
     def test_dia_habil_si_devuelve_cupos(self, servicio_diagnostico):
-        # Contraprueba: si un martes normal tampoco diera cupos, los tests de
-        # arriba pasarían por la razón equivocada.
+        # Contraprueba: si un día hábil tampoco diera cupos, los tests de arriba
+        # pasarían por la razón equivocada.
         svc_id, vt_id = servicio_diagnostico
         with A.app.app_context():
-            slots, _ = A.get_available_slots(date(2026, 8, 18), [svc_id], vt_id)
+            slots, _ = A.get_available_slots(proximo_habil(), [svc_id], vt_id)
         assert slots
 
-    def test_get_available_days_omite_domingos_y_festivos(self, servicio_diagnostico):
+    def test_get_available_days_omite_domingos_y_festivos(self, servicio_diagnostico,
+                                                          festivo_en_la_ventana):
         svc_id, vt_id = servicio_diagnostico
+        domingo = proximo_domingo()
+        habil = proximo_habil()
+        ini = min(domingo, habil, festivo_en_la_ventana)
+        fin = max(domingo, habil, festivo_en_la_ventana)
         with A.app.app_context():
-            dias = A.get_available_days(date(2026, 8, 14), date(2026, 8, 22), [svc_id], vt_id)
-        assert "2026-08-16" not in dias   # domingo
-        assert "2026-08-17" not in dias   # festivo (Asunción)
-        assert "2026-08-18" in dias       # martes normal
+            dias = A.get_available_days(ini, fin, [svc_id], vt_id)
+        assert domingo.isoformat() not in dias
+        assert festivo_en_la_ventana.isoformat() not in dias
+        assert habil.isoformat() in dias
 
     def test_disponibilidad_del_bot_nunca_ofrece_dia_cerrado(self, servicio_diagnostico):
         with A.app.app_context():
@@ -158,25 +202,42 @@ class TestBloqueoAlAgendarDesdeElBot:
             "fecha": fecha, "hora": "10:00",
         }
 
-    @pytest.mark.parametrize("fecha,motivo", [
-        ("2026-08-16", "domingo"),
-        ("2026-08-17", "Asunción"),
-    ])
-    def test_no_agenda_en_dia_cerrado(self, servicio_diagnostico, fecha, motivo):
+    def _intentar(self, fecha):
         with A.app.app_context():
             conv = A.Conversation(phone="+573009998877")
             A.db.session.add(conv)
             A.db.session.commit()
             try:
-                ok, detalle, appt = A.book_diagnostic_from_bot(conv, self._datos(fecha))
+                # Se devuelve el id, no el objeto: al salir del app_context la
+                # instancia queda desligada de la sesión y tocarla revienta.
+                ok, detalle, appt = A.book_diagnostic_from_bot(conv, self._datos(fecha.isoformat()))
+                return ok, detalle, (appt.id if appt else None)
             finally:
                 A.db.session.delete(conv)
                 A.db.session.commit()
 
+    def test_no_agenda_en_domingo(self, servicio_diagnostico):
+        ok, detalle, appt_id = self._intentar(proximo_domingo())
         assert ok is False
-        assert appt is None
+        assert appt_id is None
         # El motivo tiene que ser explicable al cliente, no un "no hay cupo" seco.
-        assert motivo.lower() in detalle.lower(), detalle
+        assert "domingo" in detalle.lower(), detalle
+
+    def test_no_agenda_en_festivo(self, servicio_diagnostico, festivo_en_la_ventana):
+        ok, detalle, appt_id = self._intentar(festivo_en_la_ventana)
+        assert ok is False
+        assert appt_id is None
+        assert "festivo" in detalle.lower(), detalle
+
+    def test_si_agenda_en_dia_habil(self, servicio_diagnostico):
+        """Contraprueba: si tampoco agendara en día hábil, los dos de arriba
+        pasarían por la razón equivocada (p. ej. la ventana de agendamiento)."""
+        ok, detalle, appt_id = self._intentar(proximo_habil())
+        assert ok is True, detalle
+        assert appt_id is not None
+        with A.app.app_context():
+            A.db.session.delete(A.Appointment.query.get(appt_id))
+            A.db.session.commit()
 
 
 class TestPanelManual:
