@@ -302,6 +302,7 @@ limiter = Limiter(get_remote_address, app=app, storage_uri="memory://")
 
 # --- Ensure expenses schema migration for is_void column ---
 from sqlalchemy import text
+from sqlalchemy import inspect as sa_inspect
 
 def ensure_expenses_schema():
     with app.app_context():
@@ -349,6 +350,85 @@ def ensure_service_sales_schema():
             db.session.execute(text("SELECT id FROM service_sales LIMIT 1"))
         except Exception:
             ServiceSale.__table__.create(db.engine)
+            return
+        _reparar_service_sales_appointment_id()
+
+
+def _reparar_service_sales_appointment_id():
+    """Quita el NOT NULL viejo de service_sales.appointment_id.
+
+    La tabla se creó cuando toda venta venía de una cita. Después el modelo se
+    relajó a nullable=True para poder registrar ventas sin cita (parqueadero),
+    pero `db.create_all()` no altera tablas existentes: el modelo decía una cosa
+    y la tabla otra, y cada registro de parqueadero moría con
+    'NOT NULL constraint failed: service_sales.appointment_id' — un 500 sin
+    pista en pantalla.
+
+    SQLite no puede quitar un NOT NULL con ALTER, así que hay que reconstruir la
+    tabla. Se sigue el procedimiento que recomienda SQLite, con dos cuidados:
+    el DDL de la tabla nueva se deriva del modelo (escribirlo a mano acá sería
+    otra copia que se vuelve a desincronizar), y se hace con foreign_keys=OFF
+    porque `client_plans.sale_id` referencia a service_sales y el DROP
+    intermedio la dejaría colgando por un instante.
+    """
+    insp = sa_inspect(db.engine)
+    col = next((c for c in insp.get_columns("service_sales") if c["name"] == "appointment_id"), None)
+    if col is None or col["nullable"]:
+        return  # ya está bien, o la columna no existe
+
+    app.logger.warning(
+        "[Migración] service_sales.appointment_id tiene un NOT NULL que el modelo "
+        "no declara; reconstruyendo la tabla para permitir ventas sin cita."
+    )
+
+    from sqlalchemy import Column, Integer, MetaData, Table
+    from sqlalchemy.schema import CreateTable
+
+    # MetaData aparte para no tocar la del app. Lleva un stub de `appointments`
+    # solo para que la llave foránea se pueda resolver al compilar el DDL; ese
+    # stub nunca se crea ni se toca, y tener solo `id` evita arrastrar en cadena
+    # todas las demás foráneas de appointments.
+    scratch = MetaData()
+    Table("appointments", scratch, Column("id", Integer, primary_key=True))
+
+    tmp_name = "service_sales_rebuild"
+    tmp = ServiceSale.__table__.to_metadata(scratch, name=tmp_name)
+    create_sql = str(CreateTable(tmp).compile(db.engine))
+    cols = ", ".join(f'"{c.name}"' for c in ServiceSale.__table__.columns)
+
+    raw = db.engine.raw_connection()
+    try:
+        cur = raw.cursor()
+        # Se GUARDA el valor original de foreign_keys y se restaura ese, no un ON
+        # fijo. La conexión sale del pool y se reutiliza: dejarla en ON activaba
+        # la verificación de foráneas para el resto de la app, que se escribió
+        # con el default de SQLite (OFF) y tiene flujos que no la cumplen. Eso
+        # rompía nómina con 'FOREIGN KEY constraint failed'.
+        fk_original = cur.execute("PRAGMA foreign_keys").fetchone()[0]
+        try:
+            cur.execute("PRAGMA foreign_keys=OFF")
+            cur.execute("BEGIN")
+            try:
+                cur.execute(f'DROP TABLE IF EXISTS "{tmp_name}"')
+                cur.execute(create_sql)
+                cur.execute(f'INSERT INTO "{tmp_name}" ({cols}) SELECT {cols} FROM service_sales')
+                cur.execute("DROP TABLE service_sales")
+                # legacy_alter_table=ON: sin esto, SQLite "arregla" las referencias
+                # de otras tablas al renombrar, y client_plans.sale_id terminaría
+                # apuntando a service_sales_rebuild en vez de a service_sales.
+                cur.execute("PRAGMA legacy_alter_table=ON")
+                cur.execute(f'ALTER TABLE "{tmp_name}" RENAME TO service_sales')
+                cur.execute("PRAGMA legacy_alter_table=OFF")
+                raw.commit()
+            except Exception:
+                raw.rollback()
+                raise
+        finally:
+            cur.execute(f"PRAGMA foreign_keys={'ON' if fk_original else 'OFF'}")
+    finally:
+        raw.close()
+
+    app.logger.warning("[Migración] service_sales reconstruida: appointment_id ya acepta NULL.")
 
 # -----------------------
 # MODELOS

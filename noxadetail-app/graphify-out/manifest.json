@@ -1,7 +1,7 @@
 {
   "app.py": {
-    "mtime": 1786894087.815452,
-    "ast_hash": "4daa02fc22db686f3f454afafe1570b9",
+    "mtime": 1787073333.9585848,
+    "ast_hash": "54b59ddd86ceafe219fd513d5ebb0d8e",
     "semantic_hash": ""
   },
   "migrate_prices.py": {
@@ -240,13 +240,18 @@
     "semantic_hash": ""
   },
   "tests/test_festivos.py": {
-    "mtime": 1786890480.706003,
-    "ast_hash": "405f8582faeb7cb7f95d45673c6bef9f",
+    "mtime": 1787073777.4368033,
+    "ast_hash": "9ecb27f65ac0d98c683af0e92e667f70",
     "semantic_hash": ""
   },
   "tests/test_avisos_admin_bot.py": {
     "mtime": 1786894016.2214952,
     "ast_hash": "3980de5de25f3ba568ddcefdd7de8199",
+    "semantic_hash": ""
+  },
+  "tests/test_parqueadero.py": {
+    "mtime": 1787073959.5411148,
+    "ast_hash": "3e8e4431936be2193ab707da516269cd",
     "semantic_hash": ""
   }
 }
