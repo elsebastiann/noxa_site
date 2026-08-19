@@ -708,6 +708,7 @@ async function submitLeadForm(event){
         // whatsapp_sent en false significa que el lead SÍ quedó guardado pero el
         // primer mensaje no salió; el asesor lo ve en el panel y lo retoma, así
         // que para el cliente el resultado es el mismo: lo van a contactar.
+        trackLead("formulario_sitio");
         hint.textContent = "¡Listo! Mariana te escribe por WhatsApp en un momento 🚗";
         hint.classList.add("form-hint-ok");
         form.reset();
@@ -825,6 +826,18 @@ function initReviewsAutoplay(){
 
 const WEB_LEAD_API_URL = "https://app.noxadetail.com/api/public/web-lead";
 
+/* Avisa al píxel de Meta que se generó un lead. Sin esto la pauta solo ve
+   PageView y optimiza hacia visitas, no hacia gente que deja sus datos.
+   Va envuelto porque fbq no existe si un bloqueador de anuncios lo frenó, y
+   un lead real NO se puede perder por eso: si falla, se ignora en silencio. */
+function trackLead(origen){
+    try{
+        if(typeof fbq === "function"){
+            fbq("track", "Lead", { content_name: origen });
+        }
+    }catch(e){ /* el píxel nunca puede tumbar el envío del lead */ }
+}
+
 const MARIANA_REPLIES = [
     "Cuéntame más — ¿qué marca y modelo es tu carro, y qué te gustaría protegerle o mejorarle?",
     "Perfecto, con esto ya tengo una idea clara. Para seguir contigo con calma (y poder mandarte fotos, cotización y agendar si quieres), pásame tus datos abajo y seguimos por WhatsApp 👇",
@@ -926,6 +939,7 @@ function showMarianaCapture(body, captureTpl, visitorTranscript, form){
         .then(res => res.json().catch(() => ({})).then(data => ({ ok: res.ok, data })))
         .then(({ ok, data }) => {
             if(ok && data && data.ok){
+                trackLead("widget_mariana");
                 card.querySelectorAll("input, button").forEach(el => { el.disabled = true; });
                 submitBtn.hidden = true;
                 showCaptureStatus(

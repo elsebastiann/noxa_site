@@ -2,8 +2,7 @@
   "0": "script.js",
   "1": "renderGrid",
   "2": "formatCOP",
-  "3": "initMariana",
+  "3": "showMarianaCapture",
   "4": "initLoopVideos",
-  "5": "closeModal",
   "6": "initReviewsAutoplay"
 }
