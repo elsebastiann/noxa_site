@@ -6759,8 +6759,8 @@ def _clasificar_conversacion_historica(conversation: "Conversation") -> "dict | 
         return None
 
     estado = m.group(1).strip()
-    servicios = [c.strip() for c in m.group(2).split(",") if c.strip()]
-    servicios = [c for c in servicios if c in SERVICE_TAGS]
+    servicio_candidates = [c.strip() for c in m.group(2).split(",") if c.strip()]
+    servicios = [s for s in (_match_valor_cerrado(c, SERVICE_TAGS) for c in servicio_candidates) if s]
     carro = (m.group(3) or "").strip()
     marca = (m.group(4) or "").strip()
     calif_raw = (m.group(5) or "").strip()
@@ -6775,10 +6775,10 @@ def _clasificar_conversacion_historica(conversation: "Conversation") -> "dict | 
             calificacion = calif_int
 
     return {
-        "estado": estado if estado in LEAD_STATES_MARIANA else None,
+        "estado": _match_valor_cerrado(estado, LEAD_STATES_MARIANA),
         "servicios": servicios,
         "carro": carro if carro.lower() != "sin dato" else "",
-        "marca": marca if marca in MARCAS_CONOCIDAS else "",
+        "marca": _match_valor_cerrado(marca, MARCAS_CONOCIDAS) or "",
         "calificacion": calificacion,
     }
 
@@ -7526,6 +7526,21 @@ MARCA_ABREVIATURA = {
 PRIORITY_LEVELS = ["Alta", "Media", "Baja", "Remarketing"]
 
 
+def _match_valor_cerrado(candidato: str, valores_validos: list) -> "str | None":
+    """Compara contra una lista cerrada (estado/marca/servicio) ignorando
+    mayúsculas y espacios de más. El rubro le pide a Claude un valor EXACTO de
+    la lista, pero en la práctica varía la capitalización ("chevrolet" en vez
+    de "Chevrolet") — sin esto, cualquier variación así se descartaba en
+    silencio y el campo se quedaba vacío aunque el dato sí estuviera ahí.
+    Devuelve el valor CANÓNICO (la capitalización de la lista), no el que llegó,
+    para que lo guardado siempre calce con lo que el resto del código espera."""
+    candidato_norm = candidato.strip().casefold()
+    for v in valores_validos:
+        if v.casefold() == candidato_norm:
+            return v
+    return None
+
+
 def _compute_priority(estado: str, calificacion: "int | None") -> str:
     """La prioridad nunca sale de una sola señal: combina el estado real de la
     conversación con la calificación (0-5, que ya mezcla servicio de interés +
@@ -8084,14 +8099,16 @@ def _generate_and_send_reply(conversation: "Conversation", from_number: str, med
             escalation_reason = m_esc.group(1).strip() or "el cliente necesita atención humana"
         elif m_meta:
             estado_candidate = m_meta.group(1).strip()
-            if estado_candidate in LEAD_STATES_MARIANA:
-                new_status = estado_candidate
+            estado_match = _match_valor_cerrado(estado_candidate, LEAD_STATES_MARIANA)
+            if estado_match:
+                new_status = estado_match
             elif estado_candidate:
                 app.logger.warning(f"[WhatsApp] Estado de lead no reconocido, se ignora: {estado_candidate!r}")
 
             servicio_candidates = [c.strip() for c in m_meta.group(2).split(",") if c.strip()]
-            valid = [c for c in servicio_candidates if c in SERVICE_TAGS]
-            invalid = [c for c in servicio_candidates if c not in SERVICE_TAGS]
+            matched = [(c, _match_valor_cerrado(c, SERVICE_TAGS)) for c in servicio_candidates]
+            valid = [m for _, m in matched if m]
+            invalid = [c for c, m in matched if not m]
             if invalid:
                 app.logger.warning(f"[WhatsApp] Servicio(s) no reconocido(s), se ignoran: {invalid!r}")
             if valid:
@@ -8102,8 +8119,9 @@ def _generate_and_send_reply(conversation: "Conversation", from_number: str, med
                 new_carro = carro_candidate
 
             marca_candidate = (m_meta.group(4) or "").strip()
-            if marca_candidate in MARCAS_CONOCIDAS:
-                new_marca = marca_candidate
+            marca_match = _match_valor_cerrado(marca_candidate, MARCAS_CONOCIDAS)
+            if marca_match:
+                new_marca = marca_match
             elif marca_candidate:
                 app.logger.warning(f"[WhatsApp] Marca no reconocida, se ignora: {marca_candidate!r}")
 

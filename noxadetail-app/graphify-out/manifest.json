@@ -1,7 +1,7 @@
 {
   "app.py": {
-    "mtime": 1787111038.6685452,
-    "ast_hash": "1cad0fb988c59f5531a3291da38f3b4f",
+    "mtime": 1787111545.481671,
+    "ast_hash": "7919eb445f2d63f8c4e9234348fb2ebd",
     "semantic_hash": ""
   },
   "migrate_prices.py": {
@@ -255,8 +255,8 @@
     "semantic_hash": ""
   },
   "tests/test_backfill_calificacion.py": {
-    "mtime": 1787110647.4673135,
-    "ast_hash": "b8d069a63d50a6b4c29348137759d378",
+    "mtime": 1787111599.003564,
+    "ast_hash": "ff05e5eedc487a7bf6437cebd37d34c2",
     "semantic_hash": ""
   }
 }

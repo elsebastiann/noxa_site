@@ -248,3 +248,39 @@ class TestRegresionProduccion:
         A.Message.query.filter_by(conversation_id=otra_id).delete()
         A.db.session.delete(A.Conversation.query.get(otra_id))
         A.db.session.commit()
+
+
+class TestMatchValorCerrado:
+    """Caso real visto en producción: un cliente dijo que su carro era un
+    'Spark Life' y Mariana sí lo captó, pero la marca nunca se guardó — el
+    rubro le pide un valor EXACTO de la lista cerrada, y cualquier variación de
+    mayúsculas/espacios (ej. 'chevrolet' en vez de 'Chevrolet') se descartaba
+    en silencio."""
+
+    def test_coincide_ignorando_mayusculas(self):
+        assert A._match_valor_cerrado("chevrolet", A.MARCAS_CONOCIDAS) == "Chevrolet"
+        assert A._match_valor_cerrado("CHEVROLET", A.MARCAS_CONOCIDAS) == "Chevrolet"
+
+    def test_coincide_ignorando_espacios_de_mas(self):
+        assert A._match_valor_cerrado("  Chevrolet  ", A.MARCAS_CONOCIDAS) == "Chevrolet"
+
+    def test_valor_que_de_verdad_no_esta_en_la_lista_no_matchea(self):
+        assert A._match_valor_cerrado("Lada", A.MARCAS_CONOCIDAS) is None
+
+    def test_devuelve_la_capitalizacion_canonica_no_la_que_llego(self):
+        """Importante para que lo guardado siempre calce con MARCA_ABREVIATURA
+        y con el resto del código que compara contra MARCAS_CONOCIDAS tal cual."""
+        assert A._match_valor_cerrado("mercedes-benz", A.MARCAS_CONOCIDAS) == "Mercedes-Benz"
+
+    def test_clasificar_conversacion_aplica_marca_con_minuscula(self, conversacion_vieja):
+        marcador = (
+            "[META: estado=en proceso; servicios=Cerámico; "
+            "carro=Chevrolet Spark Life 2016; marca=chevrolet; calificacion=2]"
+        )
+        conv = A.Conversation.query.get(conversacion_vieja)
+        with patch.object(A, "_get_claude_client") as fake_client:
+            fake_client.return_value.messages.create.return_value = _fake_claude_response(marcador)
+            resultado = A._clasificar_conversacion_historica(conv)
+
+        assert resultado["marca"] == "Chevrolet"
+        assert resultado["estado"] == "En proceso"
