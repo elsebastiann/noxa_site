@@ -6657,6 +6657,12 @@ def _build_message_history(conversation: "Conversation") -> list[dict]:
     )
     messages = []
     for m in history:
+        if not (m.body or "").strip():
+            # Claude rechaza mensajes con content vacío (400). El webhook actual
+            # siempre guarda un texto de reemplazo ("[imagen]", etc.), pero mensajes
+            # viejos de antes de esa garantía pueden tener el body vacío — se
+            # saltan en vez de dejar que rompan la llamada, en vivo o en el backfill.
+            continue
         role = "user" if m.direction == "in" else "assistant"
         if messages and messages[-1]["role"] == role:
             messages[-1]["content"] += "\n" + m.body
@@ -8517,32 +8523,41 @@ def whatsapp_backfill_calificacion():
 
     actualizadas = sin_info = errores = 0
     for conv in pendientes:
+        # Todo el bloque por conversación va adentro del try, no solo la llamada a
+        # Claude: una conversación con datos raros (ej. service_tag con una
+        # etiqueta que ya no existe, de antes de ampliar el catálogo) no puede
+        # tumbar las 200 que faltan por procesar en el mismo request.
         try:
             resultado = _clasificar_conversacion_historica(conv)
+            if not resultado:
+                sin_info += 1
+                continue
+
+            if resultado["estado"]:
+                conv.status = resultado["estado"]
+            if resultado["servicios"]:
+                # Solo etiquetas del catálogo ACTUAL — conversaciones viejas pueden
+                # traer "Otro servicio"/"PPF o wrap" del catálogo anterior, y
+                # SERVICE_TAGS.index() revienta con cualquiera que ya no exista.
+                existentes = {
+                    t.strip() for t in (conv.service_tag or "").split(",")
+                    if t.strip() and t.strip() in SERVICE_TAGS
+                }
+                fusion = existentes.union(resultado["servicios"])
+                conv.service_tag = ",".join(sorted(fusion, key=SERVICE_TAGS.index))
+            if resultado["carro"]:
+                conv.carro = resultado["carro"]
+            if resultado["marca"]:
+                conv.marca = resultado["marca"]
+            if resultado["calificacion"] is not None:
+                conv.calificacion = resultado["calificacion"]
+            conv.priority = _compute_priority(conv.status, conv.calificacion)
+            db.session.commit()
+            actualizadas += 1
         except Exception as exc:
+            db.session.rollback()
             app.logger.error(f"[Backfill] Error clasificando {conv.phone}: {exc}")
             errores += 1
-            continue
-
-        if not resultado:
-            sin_info += 1
-            continue
-
-        if resultado["estado"]:
-            conv.status = resultado["estado"]
-        if resultado["servicios"]:
-            existentes = {t.strip() for t in (conv.service_tag or "").split(",") if t.strip()}
-            fusion = existentes.union(resultado["servicios"])
-            conv.service_tag = ",".join(sorted(fusion, key=SERVICE_TAGS.index))
-        if resultado["carro"]:
-            conv.carro = resultado["carro"]
-        if resultado["marca"]:
-            conv.marca = resultado["marca"]
-        if resultado["calificacion"] is not None:
-            conv.calificacion = resultado["calificacion"]
-        conv.priority = _compute_priority(conv.status, conv.calificacion)
-        db.session.commit()
-        actualizadas += 1
 
     flash(
         f"Reclasificación con IA: {actualizadas} conversaciones actualizadas, "
