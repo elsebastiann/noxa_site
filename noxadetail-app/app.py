@@ -1334,10 +1334,24 @@ class Conversation(db.Model):
     marca        = db.Column(db.String(20), nullable=False, default="")   # normalizada, para el logo del avatar
     calificacion = db.Column(db.Integer, nullable=True)                   # 0-5, None = sin dato todavía
     priority     = db.Column(db.String(20), nullable=False, default="Baja")
+    # Archivado manual, desde el panel. Va en columnas propias y NO en `status`:
+    # ese campo es la etapa del embudo y lo consumen ESTADOS_CON_CITA, las
+    # analíticas y el [META:] de Mariana. Meter "Archivado" ahí borraría la etapa
+    # real del lead y, peor, el modelo volvería a emitir su [META:] en el turno
+    # siguiente y desharía el archivado solo.
+    # `archived_at` es la única fuente de verdad (NULL = no archivada): un
+    # booleano aparte sería un segundo campo que puede contradecir a este.
+    archived_at     = db.Column(db.DateTime, nullable=True)
+    archived_reason = db.Column(db.Text, nullable=True)
+    archived_by     = db.Column(db.String(120), nullable=True)
     created_at   = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
     updated_at   = db.Column(db.DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     messages   = db.relationship("Message", backref="conversation", order_by="Message.created_at")
+
+    @property
+    def archivada(self) -> bool:
+        return self.archived_at is not None
 
 
 class Message(db.Model):
@@ -1568,6 +1582,20 @@ def ensure_whatsapp_schema():
                 text("ALTER TABLE whatsapp_conversations ADD COLUMN priority VARCHAR(20) DEFAULT 'Baja'")
             )
             db.session.commit()
+        # Archivado manual. Son columnas nuevas, así que basta ADD COLUMN: no hace
+        # falta el rebuild de tabla que sí exigió service_sales.
+        for col, ddl in (
+            ("archived_at", "DATETIME"),
+            ("archived_reason", "TEXT"),
+            ("archived_by", "VARCHAR(120)"),
+        ):
+            try:
+                db.session.execute(text(f"SELECT {col} FROM whatsapp_conversations LIMIT 1"))
+            except Exception:
+                db.session.execute(
+                    text(f"ALTER TABLE whatsapp_conversations ADD COLUMN {col} {ddl}")
+                )
+                db.session.commit()
 
 ensure_whatsapp_schema()
 
@@ -8436,6 +8464,26 @@ def whatsapp_webhook():
     mensaje = Message(conversation_id=conversation.id, direction="in", body=stored_body)
     db.session.add(mensaje)
     conversation.followup_count = 0  # el cliente volvió a escribir, resetea el seguimiento
+
+    # Si estaba archivada, vuelve a la bandeja: el motivo del archivado no
+    # distingue "no le interesó" de "número equivocado", y dejar invisible a
+    # alguien que volvió a escribir es la falla que cuesta plata. El bot NO se
+    # reactiva solo — quien la atienda decide eso con el botón de siempre.
+    if conversation.archivada:
+        motivo_previo = conversation.archived_reason
+        conversation.archived_at = None
+        conversation.archived_reason = None
+        conversation.archived_by = None
+        contacto = conversation.profile_name or conversation.phone
+        push_notification(
+            kind="conversacion_desarchivada", level="warning",
+            title=f"{contacto} escribió en una conversación archivada",
+            body=(f"Volvió a la bandeja. Se había archivado por: {motivo_previo}"
+                  if motivo_previo else "Volvió a la bandeja."),
+            url=f"/whatsapp/{conversation.id}",
+            ref_type="conversation", ref_id=conversation.id,
+        )
+
     db.session.flush()
 
     # Se guardan ANTES de generar la respuesta: si algo falla más adelante, las
@@ -8681,6 +8729,58 @@ def whatsapp_toggle_bot(conversation_id):
         ref_type="conversation", ref_id=conversation.id,
     )
     flash("Bot pausado en esta conversación." if not conversation.bot_active else "Bot reactivado.", "success")
+    return redirect(url_for("whatsapp_conversation", conversation_id=conversation.id))
+
+
+@app.route("/whatsapp/<int:conversation_id>/archive", methods=["POST"])
+def whatsapp_archive(conversation_id):
+    """Saca una conversación de la bandeja, con el motivo escrito.
+
+    La nota se exige acá y no solo en el modal: lo que solo valida el navegador
+    se salta apagando el JS o mandando el POST directo. Sin motivo el archivado
+    no sirve para nada — dentro de un mes nadie recuerda por qué se cerró."""
+    conversation = Conversation.query.get_or_404(conversation_id)
+    motivo = (request.form.get("motivo") or "").strip()
+    if not motivo:
+        flash("Escribe por qué archivas la conversación.", "danger")
+        return redirect(url_for("whatsapp_conversation", conversation_id=conversation.id))
+
+    # UTC, no bogota_now(): la plantilla lo muestra con el filtro `hora_bogota`,
+    # que convierte de UTC a Bogotá. Guardar hora local acá la restaba dos veces
+    # y el panel mostraba el archivado 5 horas antes de que ocurriera. Es la
+    # misma convención de created_at / updated_at en este mismo modelo.
+    conversation.archived_at = datetime.utcnow()
+    conversation.archived_reason = motivo
+    conversation.archived_by = _quien()
+    # Archivar es decir "aquí ya terminamos": dejar a Mariana respondiendo en una
+    # conversación archivada se contradice con eso.
+    conversation.bot_active = False
+    db.session.commit()
+
+    contacto = conversation.profile_name or conversation.phone
+    push_notification(
+        kind="conversacion_archivada", level="info",
+        title=f"{_quien()} archivó la conversación con {contacto}",
+        body=motivo,
+        url=f"/whatsapp/{conversation.id}",
+        ref_type="conversation", ref_id=conversation.id,
+    )
+    flash("Conversación archivada.", "success")
+    return redirect(url_for("whatsapp_conversation", conversation_id=conversation.id))
+
+
+@app.route("/whatsapp/<int:conversation_id>/unarchive", methods=["POST"])
+def whatsapp_unarchive(conversation_id):
+    """Devuelve la conversación a la bandeja.
+
+    No reactiva el bot a propósito: quién vuelve a atender y si Mariana debe
+    responder son decisiones distintas, y para la segunda ya está su botón."""
+    conversation = Conversation.query.get_or_404(conversation_id)
+    conversation.archived_at = None
+    conversation.archived_reason = None
+    conversation.archived_by = None
+    db.session.commit()
+    flash("Conversación devuelta a la bandeja.", "success")
     return redirect(url_for("whatsapp_conversation", conversation_id=conversation.id))
 
 
@@ -9043,6 +9143,29 @@ def _ventana_24h_abierta(conversation: "Conversation") -> bool:
     return (datetime.utcnow() - ultimo_entrante.created_at) < timedelta(hours=24)
 
 
+def _candidatas_de_seguimiento():
+    """A quién le escribe el job de reactivación de leads.
+
+    Vive aparte del job para que los tests puedan ejercer ESTE filtro en vez de
+    reescribirlo. La copia que tenía test_followup_filtros.py ya se había
+    desincronizado del original —le faltaba "Reagendado"— así que el test seguía
+    en verde mientras producción filtraba distinto. Un filtro duplicado es un
+    test que no puede detectar la regresión que dice cubrir.
+    """
+    return Conversation.query.filter(
+        Conversation.bot_active == True,
+        Conversation.followup_count < len(_FOLLOWUP_STAGES),
+        # Al que ya agendó no hay que reactivarlo: ya convirtió. Sin este
+        # filtro le llegaba un "te escribo para retomar" a alguien con cita
+        # confirmada, y Claude terminaba improvisando un recordatorio que no
+        # le tocaba dar (visto en producción el 2026-08-10).
+        Conversation.status.notin_(ESTADOS_CON_CITA),
+        # A una conversación archivada a mano no se le insiste: archivarla es
+        # justamente decir "aquí ya terminamos".
+        Conversation.archived_at.is_(None),
+    ).all()
+
+
 def _job_whatsapp_followup():
     """Corre cada 30 minutos, solo dentro de horario de atención (lunes a sábado, 9am-6pm) —
     ese horario aplica solo para RETOMAR leads fríos, no para responder mensajes nuevos
@@ -9060,15 +9183,7 @@ def _job_whatsapp_followup():
     if not es_dia_habil(now_bogota.date()) or not (9 <= now_bogota.hour < 18):
         return  # domingo, festivo o fuera de horario
     with app.app_context():
-        candidatas = Conversation.query.filter(
-            Conversation.bot_active == True,
-            Conversation.followup_count < len(_FOLLOWUP_STAGES),
-            # Al que ya agendó no hay que reactivarlo: ya convirtió. Sin este
-            # filtro le llegaba un "te escribo para retomar" a alguien con cita
-            # confirmada, y Claude terminaba improvisando un recordatorio que no
-            # le tocaba dar (visto en producción el 2026-08-10).
-            Conversation.status.notin_(ESTADOS_CON_CITA),
-        ).all()
+        candidatas = _candidatas_de_seguimiento()
         for conv in candidatas:
             last_msg = (
                 Message.query

@@ -25,12 +25,14 @@ def _conv(status="En proceso", followup_count=0, bot_active=True):
 
 
 def _candidatas_del_job():
-    """Mismo filtro que usa _job_whatsapp_followup para elegir a quién escribirle."""
-    return A.Conversation.query.filter(
-        A.Conversation.bot_active == True,  # noqa: E712
-        A.Conversation.followup_count < len(A._FOLLOWUP_STAGES),
-        A.Conversation.status.notin_(("Diagnóstico agendado", "Cita agendada")),
-    ).all()
+    """El filtro REAL del job, no una copia.
+
+    Antes esto reescribía la consulta a mano y se desincronizó en silencio: la
+    tupla literal se quedó sin "Reagendado" mientras el código pasó a usar
+    ESTADOS_CON_CITA. El test seguía en verde con un filtro distinto al de
+    producción, que es la peor forma de fallar — parece cubierto y no lo está.
+    """
+    return A._candidatas_de_seguimiento()
 
 
 class TestAQuienSePersigue:

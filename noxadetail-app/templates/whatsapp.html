@@ -136,11 +136,14 @@
   .wa-back { display:none; }
 
   .wa-body { flex:1; background-image:radial-gradient(#182229 1px, transparent 1px); background-size:18px 18px;
-             padding:16px; overflow-y:auto; display:flex; flex-direction:column; gap:4px;
-             /* Con pocos mensajes, sin esto el espacio sobrante quedaba abajo (entre
-                el último mensaje y la barra de escribir) en vez de arriba, como en
-                cualquier chat — los mensajes se pegan al fondo. */
-             justify-content:flex-end; }
+             padding:16px; overflow-y:auto; display:flex; flex-direction:column; gap:4px; }
+  /* Con pocos mensajes, el espacio sobrante tiene que quedar ARRIBA para que se
+     peguen al fondo, como en cualquier chat. Se hace empujando el primer hijo con
+     margin-top:auto y NO con justify-content:flex-end sobre el contenedor: esa
+     propiedad, combinada con overflow-y:auto, hace que el contenido que desborda
+     se salga por encima del área scrolleable y el navegador no deje llegar a él —
+     o sea, se pierde el scroll y los mensajes viejos quedan inalcanzables. */
+  .wa-body > *:first-child { margin-top:auto; }
   .wa-day-sep { display:flex; justify-content:center; margin:14px 0 8px; }
   .wa-day-sep span {
     background:var(--surface2); color:var(--text2); border:1px solid var(--border);
@@ -170,6 +173,48 @@
   .wa-send { width:38px; height:38px; border-radius:50%; background:#00a884; border:none; color:#0b141a; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
   .wa-send:hover { background:#00d9a0; }
   .wa-paused-banner { background:#3a2f10; color:#e8c766; font-size:0.8rem; padding:8px 16px; }
+
+  /* ── Archivado ── */
+  .wa-archived-banner {
+    display:flex; align-items:center; gap:12px;
+    background:#1f2c33; color:#8fa3b0; font-size:0.8rem; padding:10px 16px;
+    border-left:4px solid #667f8f;
+  }
+  .wa-archived-banner > i { font-size:1.1rem; color:#8fa3b0; }
+  .wa-archived-text { display:flex; flex-direction:column; gap:2px; min-width:0; flex:1; }
+  .wa-archived-text strong { color:#c3d1da; font-size:0.82rem; }
+  .wa-archived-motivo { color:#e9edef; }
+  .wa-archived-firma { color:#6b7d89; font-size:0.72rem; }
+  /* Atenuadas en la lista para que en "Todas" se distingan de un vistazo sin
+     tener que leer el pill. */
+  .wa-row[data-archived="1"] { opacity:.55; }
+  .wa-row[data-archived="1"]:hover { opacity:.8; }
+  .wa-archived-chip {
+    display:inline-flex; align-items:center; gap:3px;
+    background:rgba(143,163,176,0.18); color:#a8bcc7;
+    font-size:0.65rem; padding:1px 6px; border-radius:999px; white-space:nowrap;
+  }
+
+  /* ── Modal ── */
+  .wa-modal-backdrop {
+    position:fixed; inset:0; background:rgba(0,0,0,0.6); z-index:1200;
+    display:flex; align-items:center; justify-content:center; padding:20px;
+  }
+  .wa-modal {
+    background:#111b21; border:1px solid #2a3942; border-radius:12px;
+    padding:20px 22px; width:100%; max-width:460px;
+    box-shadow:0 20px 60px rgba(0,0,0,0.5);
+  }
+  .wa-modal-title { color:#e9edef; font-size:1rem; font-weight:600; margin:0 0 4px; }
+  .wa-modal-sub { color:#8696a0; font-size:0.8rem; margin:0 0 14px; }
+  .wa-modal-label { display:block; color:#c3d1da; font-size:0.78rem; font-weight:600; margin-bottom:6px; }
+  .wa-modal textarea {
+    width:100%; background:#0b141a; border:1px solid #2a3942; border-radius:8px;
+    color:#e9edef; font-size:0.85rem; padding:9px 11px; resize:vertical;
+    font-family:inherit;
+  }
+  .wa-modal textarea:focus { outline:2px solid #d4a013; outline-offset:1px; border-color:#d4a013; }
+  .wa-modal-actions { display:flex; justify-content:flex-end; gap:8px; margin-top:14px; }
 
   /* ── Responsive: en móvil solo un panel a la vez ── */
   @media (max-width: 860px) {
@@ -211,6 +256,13 @@
     <option value="sin-dato">Sin calificar</option>
   </select>
 
+  <label for="archivedFilter" style="color:var(--text2);font-size:0.8rem;margin-left:8px;">Archivadas:</label>
+  <select id="archivedFilter" onchange="applyFilters()">
+    <option value="ocultar">Ocultar</option>
+    <option value="solo">Solo archivadas</option>
+    <option value="todas">Todas</option>
+  </select>
+
   <div class="wa-multiselect" id="serviceMultiselect">
     <button type="button" class="wa-multiselect-btn" onclick="toggleServiceMenu(event)">
       Servicio <span id="serviceCount" class="wa-multiselect-count" style="display:none;"></span>
@@ -235,6 +287,7 @@
        data-services="{{ conv.service_tag }}"
        data-priority="{{ conv.priority }}"
        data-calificacion="{{ conv.calificacion if conv.calificacion is not none else 'sin-dato' }}"
+       data-archived="{{ '1' if conv.archivada else '0' }}"
        href="{{ url_for('whatsapp_conversation', conversation_id=conv.id) }}">
       <div class="wa-avatar">{{ avatar_content(conv, marca_abreviaturas) }}</div>
       <div class="wa-row-main">
@@ -247,7 +300,7 @@
           <span class="wa-preview">
             {% if last_msg %}{% if last_msg.direction == 'out' %}<i class="bi bi-check2-all"></i> {% endif %}{{ last_msg.body }}{% else %}Sin mensajes{% endif %}
           </span>
-          {% if conv.bot_active %}<span class="wa-badge-active">● Activo</span>{% else %}<span class="wa-badge-paused">⏸ Con un asesor</span>{% endif %}
+          {% if conv.archivada %}<span class="wa-archived-chip"><i class="bi bi-archive"></i> Archivada</span>{% elif conv.bot_active %}<span class="wa-badge-active">● Activo</span>{% else %}<span class="wa-badge-paused">⏸ Con un asesor</span>{% endif %}
         </div>
         <div class="wa-pill-row">
           {{ priority_pill(conv.priority) }}
@@ -289,11 +342,52 @@
               <button type="submit" class="wa-btn wa-btn-ok"><i class="bi bi-play-circle"></i> Reactivar bot</button>
             {% endif %}
           </form>
+          {% if not conversation.archivada %}
+          <button type="button" class="wa-btn" onclick="abrirArchivar()">
+            <i class="bi bi-archive"></i> Archivar
+          </button>
+          {% endif %}
         </div>
       </div>
 
       <div id="pausedBanner" class="wa-paused-banner" style="{{ '' if not conversation.bot_active else 'display:none;' }}">
         <i class="bi bi-exclamation-triangle"></i> El bot está pausado — Mariana no va a responder hasta que lo reactives.
+      </div>
+
+      {% if conversation.archivada %}
+      <div class="wa-archived-banner">
+        <i class="bi bi-archive-fill"></i>
+        <div class="wa-archived-text">
+          <strong>Conversación archivada</strong>
+          <span class="wa-archived-motivo">{{ conversation.archived_reason }}</span>
+          <span class="wa-archived-firma">
+            {{ conversation.archived_by or 'alguien' }} · {{ conversation.archived_at | hora_bogota('%d/%m/%Y %H:%M') }}
+          </span>
+        </div>
+        <form method="POST" action="{{ url_for('whatsapp_unarchive', conversation_id=conversation.id) }}" class="m-0">
+          <button type="submit" class="wa-btn wa-btn-ok"><i class="bi bi-arrow-counterclockwise"></i> Desarchivar</button>
+        </form>
+      </div>
+      {% endif %}
+
+      {# Modal de archivado. El motivo es obligatorio acá y también en el servidor:
+         esto se puede saltar apagando el JS. #}
+      <div id="archivarModal" class="wa-modal-backdrop" style="display:none;" onclick="cerrarArchivar(event)">
+        <div class="wa-modal" onclick="event.stopPropagation()">
+          <h3 class="wa-modal-title"><i class="bi bi-archive"></i> Archivar conversación</h3>
+          <p class="wa-modal-sub">
+            Sale de la bandeja y deja de recibir seguimientos automáticos. Mariana queda pausada.
+          </p>
+          <form method="POST" action="{{ url_for('whatsapp_archive', conversation_id=conversation.id) }}">
+            <label class="wa-modal-label" for="motivoArchivar">¿Por qué se archiva?</label>
+            <textarea id="motivoArchivar" name="motivo" rows="3" required
+                      placeholder="Ej: no le interesó el precio, ya compró en otro lado, número equivocado..."></textarea>
+            <div class="wa-modal-actions">
+              <button type="button" class="wa-btn" onclick="cerrarArchivar()">Cancelar</button>
+              <button type="submit" class="wa-btn wa-btn-warn"><i class="bi bi-archive"></i> Archivar</button>
+            </div>
+          </form>
+        </div>
       </div>
 
       <div class="wa-body" id="waBody">
@@ -452,12 +546,32 @@
   // la misma pestaña, así que el filtro sigue puesto al volver a la bandeja.
   const FILTROS_KEY = 'waFiltros';
 
+  // ── Modal de archivado ──
+  function abrirArchivar() {
+    const m = document.getElementById('archivarModal');
+    if (!m) return;
+    m.style.display = 'flex';
+    document.getElementById('motivoArchivar').focus();
+  }
+  function cerrarArchivar(ev) {
+    // Con onclick en el backdrop, un clic dentro del cuadro burbujea hasta acá y
+    // lo cerraría a media escritura; el stopPropagation del cuadro lo evita, y
+    // este guardia cubre el caso de llamarla desde el botón Cancelar (sin ev).
+    if (ev && ev.target !== ev.currentTarget) return;
+    const m = document.getElementById('archivarModal');
+    if (m) m.style.display = 'none';
+  }
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') cerrarArchivar();
+  });
+
   function saveFilters() {
     const activeServices = Array.from(document.querySelectorAll('#serviceMenu input:checked')).map(c => c.value);
     sessionStorage.setItem(FILTROS_KEY, JSON.stringify({
       prioridad: document.getElementById('priorityFilter').value,
       estado: document.getElementById('statusFilter').value,
       calificacion: document.getElementById('calificacionFilter').value,
+      archivadas: document.getElementById('archivedFilter').value,
       servicios: activeServices,
     }));
   }
@@ -469,6 +583,9 @@
     if (guardado.prioridad) document.getElementById('priorityFilter').value = guardado.prioridad;
     if (guardado.estado) document.getElementById('statusFilter').value = guardado.estado;
     if (guardado.calificacion) document.getElementById('calificacionFilter').value = guardado.calificacion;
+    // Sin el || 'ocultar', una sesión guardada antes de que existiera este filtro
+    // llegaría con undefined y dejaría el select en blanco, mostrando todo.
+    document.getElementById('archivedFilter').value = guardado.archivadas || 'ocultar';
     document.querySelectorAll('#serviceMenu input[type=checkbox]').forEach(cb => {
       cb.checked = (guardado.servicios || []).includes(cb.value);
     });
@@ -479,6 +596,7 @@
     const priorityValue = document.getElementById('priorityFilter').value;
     const statusValue = document.getElementById('statusFilter').value;
     const calificacionValue = document.getElementById('calificacionFilter').value;
+    const archivedValue = document.getElementById('archivedFilter').value;
     const activeServices = Array.from(document.querySelectorAll('#serviceMenu input:checked')).map(c => c.value);
 
     const countEl = document.getElementById('serviceCount');
@@ -489,9 +607,13 @@
       const priorityOk = !priorityValue || row.dataset.priority === priorityValue;
       const statusOk = !statusValue || row.dataset.status === statusValue;
       const calificacionOk = !calificacionValue || row.dataset.calificacion === calificacionValue;
+      const archivada = row.dataset.archived === '1';
+      const archivedOk = archivedValue === 'todas' ? true
+                       : archivedValue === 'solo'  ? archivada
+                       : !archivada;
       const rowServices = (row.dataset.services || '').split(',').map(s => s.trim()).filter(Boolean);
       const servicesOk = activeServices.length === 0 || activeServices.some(s => rowServices.includes(s));
-      row.style.display = (priorityOk && statusOk && calificacionOk && servicesOk) ? '' : 'none';
+      row.style.display = (priorityOk && statusOk && calificacionOk && servicesOk && archivedOk) ? '' : 'none';
     });
   }
 

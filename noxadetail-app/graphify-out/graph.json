@@ -153,8 +153,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_es_festivo",
-      "community": 38,
-      "community_name": "motivo_dia_cerrado",
+      "community": 54,
+      "community_name": "_diagnostic_availability",
       "norm_label": "es_festivo()"
     },
     {
@@ -165,8 +165,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_es_dia_habil",
-      "community": 29,
-      "community_name": "get_available_slots",
+      "community": 54,
+      "community_name": "_diagnostic_availability",
       "norm_label": "es_dia_habil()"
     },
     {
@@ -177,8 +177,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_motivo_dia_cerrado",
-      "community": 38,
-      "community_name": "motivo_dia_cerrado",
+      "community": 50,
+      "community_name": "book_diagnostic_from_bot",
       "norm_label": "motivo_dia_cerrado()"
     },
     {
@@ -201,7 +201,7 @@
       "_origin": "ast",
       "id": "datetime",
       "community": 51,
-      "community_name": "test_abonos_ajustes.py",
+      "community_name": "datetime",
       "norm_label": "datetime"
     },
     {
@@ -369,8 +369,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_agreements_new",
-      "community": 7,
-      "community_name": "app.py",
+      "community": 48,
+      "community_name": "appointment_money",
       "norm_label": "agreements_new()"
     },
     {
@@ -393,8 +393,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_agreements_create_alias",
-      "community": 7,
-      "community_name": "app.py",
+      "community": 10,
+      "community_name": "route",
       "norm_label": "agreements_create_alias()"
     },
     {
@@ -405,8 +405,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_agreements_quick_create",
-      "community": 7,
-      "community_name": "app.py",
+      "community": 10,
+      "community_name": "route",
       "norm_label": "agreements_quick_create()"
     },
     {
@@ -443,8 +443,8 @@
       "_callable_class": true,
       "_origin": "ast",
       "id": "app_agreement",
-      "community": 7,
-      "community_name": "app.py",
+      "community": 48,
+      "community_name": "appointment_money",
       "norm_label": "agreement"
     },
     {
@@ -455,8 +455,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_agreement_repr",
-      "community": 7,
-      "community_name": "app.py",
+      "community": 48,
+      "community_name": "appointment_money",
       "norm_label": ".__repr__()"
     },
     {
@@ -506,7 +506,7 @@
       "_origin": "ast",
       "id": "app_appointment",
       "community": 70,
-      "community_name": "Appointment",
+      "community_name": "new_appointment",
       "norm_label": "appointment"
     },
     {
@@ -518,7 +518,7 @@
       "_origin": "ast",
       "id": "app_appointment_repr",
       "community": 70,
-      "community_name": "Appointment",
+      "community_name": "new_appointment",
       "norm_label": ".__repr__()"
     },
     {
@@ -614,8 +614,8 @@
       "_callable_class": true,
       "_origin": "ast",
       "id": "app_servicesale",
-      "community": 42,
-      "community_name": "normalize_plate",
+      "community": 22,
+      "community_name": "_parse_date",
       "norm_label": "servicesale"
     },
     {
@@ -626,8 +626,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_servicesale_repr",
-      "community": 42,
-      "community_name": "normalize_plate",
+      "community": 22,
+      "community_name": "_parse_date",
       "norm_label": ".__repr__()"
     },
     {
@@ -859,8 +859,8 @@
       "_callable_class": true,
       "_origin": "ast",
       "id": "app_appointmentoperator",
-      "community": 60,
-      "community_name": "edit_appointment",
+      "community": 70,
+      "community_name": "new_appointment",
       "norm_label": "appointmentoperator"
     },
     {
@@ -871,8 +871,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_appointmentoperator_repr",
-      "community": 60,
-      "community_name": "edit_appointment",
+      "community": 70,
+      "community_name": "new_appointment",
       "norm_label": ".__repr__()"
     },
     {
@@ -885,7 +885,7 @@
       "_origin": "ast",
       "id": "app_appointmentadjustment",
       "community": 4,
-      "community_name": "_ajuste",
+      "community_name": "test_abonos_ajustes.py",
       "norm_label": "appointmentadjustment"
     },
     {
@@ -897,7 +897,7 @@
       "_origin": "ast",
       "id": "app_appointmentadjustment_repr",
       "community": 4,
-      "community_name": "_ajuste",
+      "community_name": "test_abonos_ajustes.py",
       "norm_label": ".__repr__()"
     },
     {
@@ -909,8 +909,8 @@
       "_callable_class": true,
       "_origin": "ast",
       "id": "app_appointmentpayment",
-      "community": 70,
-      "community_name": "Appointment",
+      "community": 4,
+      "community_name": "test_abonos_ajustes.py",
       "norm_label": "appointmentpayment"
     },
     {
@@ -921,8 +921,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_appointmentpayment_repr",
-      "community": 70,
-      "community_name": "Appointment",
+      "community": 4,
+      "community_name": "test_abonos_ajustes.py",
       "norm_label": ".__repr__()"
     },
     {
@@ -959,8 +959,8 @@
       "_callable_class": true,
       "_origin": "ast",
       "id": "app_expensecategory",
-      "community": 30,
-      "community_name": "expense_categories_new",
+      "community": 9,
+      "community_name": "Expenses List (DataTable)",
       "norm_label": "expensecategory"
     },
     {
@@ -971,8 +971,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_expensecategory_repr",
-      "community": 30,
-      "community_name": "expense_categories_new",
+      "community": 9,
+      "community_name": "Expenses List (DataTable)",
       "norm_label": ".__repr__()"
     },
     {
@@ -1034,8 +1034,8 @@
       "_callable_class": true,
       "_origin": "ast",
       "id": "app_payrollentry",
-      "community": 13,
-      "community_name": "User",
+      "community": 2,
+      "community_name": "PayrollEntry",
       "norm_label": "payrollentry"
     },
     {
@@ -1058,8 +1058,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_payrollentry_repr",
-      "community": 13,
-      "community_name": "User",
+      "community": 2,
+      "community_name": "PayrollEntry",
       "norm_label": ".__repr__()"
     },
     {
@@ -1071,8 +1071,8 @@
       "_callable_class": true,
       "_origin": "ast",
       "id": "app_qualityerror",
-      "community": 40,
-      "community_name": "QualityError",
+      "community": 25,
+      "community_name": "payroll_detail.html",
       "norm_label": "qualityerror"
     },
     {
@@ -1083,8 +1083,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_qualityerror_unit_value",
-      "community": 40,
-      "community_name": "QualityError",
+      "community": 25,
+      "community_name": "payroll_detail.html",
       "norm_label": ".unit_value()"
     },
     {
@@ -1095,8 +1095,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_qualityerror_repr",
-      "community": 40,
-      "community_name": "QualityError",
+      "community": 25,
+      "community_name": "payroll_detail.html",
       "norm_label": ".__repr__()"
     },
     {
@@ -1108,8 +1108,8 @@
       "_callable_class": true,
       "_origin": "ast",
       "id": "app_qualityerroremployee",
-      "community": 68,
-      "community_name": "quality_errors_new",
+      "community": 25,
+      "community_name": "payroll_detail.html",
       "norm_label": "qualityerroremployee"
     },
     {
@@ -1134,8 +1134,8 @@
       "_callable_class": true,
       "_origin": "ast",
       "id": "app_conversation",
-      "community": 35,
-      "community_name": "whatsapp_webhook",
+      "community": 28,
+      "community_name": "api_public_web_lead",
       "norm_label": "conversation"
     },
     {
@@ -1146,8 +1146,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_conversation_archivada",
-      "community": 35,
-      "community_name": "whatsapp_webhook",
+      "community": 28,
+      "community_name": "api_public_web_lead",
       "norm_label": ".archivada()"
     },
     {
@@ -1234,8 +1234,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_promotion_vigente",
-      "community": 17,
-      "community_name": "Promotion",
+      "community": 31,
+      "community_name": "bogota_now",
       "norm_label": ".vigente()"
     },
     {
@@ -1331,8 +1331,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_seed_expense_categories",
-      "community": 30,
-      "community_name": "expense_categories_new",
+      "community": 9,
+      "community_name": "Expenses List (DataTable)",
       "norm_label": "seed_expense_categories()"
     },
     {
@@ -1380,7 +1380,7 @@
       "_origin": "ast",
       "id": "app_servicio_por_nombre",
       "community": 45,
-      "community_name": "Analytics Dashboard",
+      "community_name": "analytics_dashboard",
       "norm_label": "_servicio_por_nombre()"
     },
     {
@@ -1392,7 +1392,7 @@
       "_origin": "ast",
       "id": "app_precio_sugerido_plan",
       "community": 45,
-      "community_name": "Analytics Dashboard",
+      "community_name": "analytics_dashboard",
       "norm_label": "precio_sugerido_plan()"
     },
     {
@@ -1403,8 +1403,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_seed_agreements",
-      "community": 7,
-      "community_name": "app.py",
+      "community": 48,
+      "community_name": "appointment_money",
       "norm_label": "seed_agreements()"
     },
     {
@@ -1439,8 +1439,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_calculate_real_duration_minutes",
-      "community": 60,
-      "community_name": "edit_appointment",
+      "community": 70,
+      "community_name": "new_appointment",
       "norm_label": "calculate_real_duration_minutes()"
     },
     {
@@ -1452,7 +1452,7 @@
       "_origin": "ast",
       "id": "app_calculate_real_price",
       "community": 48,
-      "community_name": "api_estimate_price",
+      "community_name": "appointment_money",
       "norm_label": "calculate_real_price()"
     },
     {
@@ -1487,8 +1487,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_day_business_end",
-      "community": 29,
-      "community_name": "get_available_slots",
+      "community": 50,
+      "community_name": "book_diagnostic_from_bot",
       "norm_label": "_day_business_end()"
     },
     {
@@ -1499,8 +1499,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_appointment_capacity_profile",
-      "community": 29,
-      "community_name": "get_available_slots",
+      "community": 50,
+      "community_name": "book_diagnostic_from_bot",
       "norm_label": "_appointment_capacity_profile()"
     },
     {
@@ -1511,8 +1511,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_get_available_slots",
-      "community": 29,
-      "community_name": "get_available_slots",
+      "community": 50,
+      "community_name": "book_diagnostic_from_bot",
       "norm_label": "get_available_slots()"
     },
     {
@@ -1523,8 +1523,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_get_available_days",
-      "community": 29,
-      "community_name": "get_available_slots",
+      "community": 16,
+      "community_name": "api_public_mb_book",
       "norm_label": "get_available_days()"
     },
     {
@@ -1536,7 +1536,7 @@
       "_origin": "ast",
       "id": "app_split_price_by_agreement_eligibility",
       "community": 48,
-      "community_name": "api_estimate_price",
+      "community_name": "appointment_money",
       "norm_label": "split_price_by_agreement_eligibility()"
     },
     {
@@ -1548,7 +1548,7 @@
       "_origin": "ast",
       "id": "app_apply_agreement_discount",
       "community": 48,
-      "community_name": "api_estimate_price",
+      "community_name": "appointment_money",
       "norm_label": "apply_agreement_discount()"
     },
     {
@@ -1560,7 +1560,7 @@
       "_origin": "ast",
       "id": "app_apply_agreement_discount_split",
       "community": 48,
-      "community_name": "api_estimate_price",
+      "community_name": "appointment_money",
       "norm_label": "apply_agreement_discount_split()"
     },
     {
@@ -1572,7 +1572,7 @@
       "_origin": "ast",
       "id": "app_apply_adjustments",
       "community": 48,
-      "community_name": "api_estimate_price",
+      "community_name": "appointment_money",
       "norm_label": "apply_adjustments()"
     },
     {
@@ -1583,8 +1583,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_appointment_money",
-      "community": 20,
-      "community_name": "Calendar View (FullCalendar)",
+      "community": 48,
+      "community_name": "appointment_money",
       "norm_label": "appointment_money()"
     },
     {
@@ -1595,8 +1595,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_calculate_estimated_amount_for_appointment",
-      "community": 16,
-      "community_name": "api_public_mb_book",
+      "community": 70,
+      "community_name": "new_appointment",
       "norm_label": "calculate_estimated_amount_for_appointment()"
     },
     {
@@ -1607,8 +1607,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_abreviar_servicio",
-      "community": 72,
-      "community_name": "abreviar_servicios",
+      "community": 48,
+      "community_name": "appointment_money",
       "norm_label": "abreviar_servicio()"
     },
     {
@@ -1619,8 +1619,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_es_cita_de_diagnostico",
-      "community": 69,
-      "community_name": "_transacciones_citas",
+      "community": 48,
+      "community_name": "appointment_money",
       "norm_label": "es_cita_de_diagnostico()"
     },
     {
@@ -1631,8 +1631,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_nombre_servicio_diagnostico",
-      "community": 54,
-      "community_name": "_diagnostic_availability",
+      "community": 69,
+      "community_name": "_transacciones_citas",
       "norm_label": "_nombre_servicio_diagnostico()"
     },
     {
@@ -1643,8 +1643,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_abreviar_servicios",
-      "community": 72,
-      "community_name": "abreviar_servicios",
+      "community": 48,
+      "community_name": "appointment_money",
       "norm_label": "abreviar_servicios()"
     },
     {
@@ -1656,7 +1656,7 @@
       "_origin": "ast",
       "id": "app_int_o_cero",
       "community": 70,
-      "community_name": "Appointment",
+      "community_name": "new_appointment",
       "norm_label": "_int_o_cero()"
     },
     {
@@ -1668,7 +1668,7 @@
       "_origin": "ast",
       "id": "app_sync_appointment_adjustments",
       "community": 70,
-      "community_name": "Appointment",
+      "community_name": "new_appointment",
       "norm_label": "sync_appointment_adjustments()"
     },
     {
@@ -1680,7 +1680,7 @@
       "_origin": "ast",
       "id": "app_sync_appointment_payments",
       "community": 70,
-      "community_name": "Appointment",
+      "community_name": "new_appointment",
       "norm_label": "sync_appointment_payments()"
     },
     {
@@ -1715,8 +1715,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_liberar_plan_de_cita",
-      "community": 70,
-      "community_name": "Appointment",
+      "community": 40,
+      "community_name": "delete_appointment",
       "norm_label": "liberar_plan_de_cita()"
     },
     {
@@ -1728,7 +1728,7 @@
       "_origin": "ast",
       "id": "app_appointment_already_closed",
       "community": 48,
-      "community_name": "api_estimate_price",
+      "community_name": "appointment_money",
       "norm_label": "appointment_already_closed()"
     },
     {
@@ -1763,8 +1763,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_payment_methods_toggle",
-      "community": 12,
-      "community_name": "Base Layout Template",
+      "community": 7,
+      "community_name": "app.py",
       "norm_label": "payment_methods_toggle()"
     },
     {
@@ -1895,8 +1895,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_api_dia_cerrado",
-      "community": 38,
-      "community_name": "motivo_dia_cerrado",
+      "community": 50,
+      "community_name": "book_diagnostic_from_bot",
       "norm_label": "api_dia_cerrado()"
     },
     {
@@ -1907,8 +1907,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_requiere_confirmar_dia_cerrado",
-      "community": 38,
-      "community_name": "motivo_dia_cerrado",
+      "community": 60,
+      "community_name": "edit_appointment",
       "norm_label": "_requiere_confirmar_dia_cerrado()"
     },
     {
@@ -1919,8 +1919,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_new_appointment",
-      "community": 60,
-      "community_name": "edit_appointment",
+      "community": 70,
+      "community_name": "new_appointment",
       "norm_label": "new_appointment()"
     },
     {
@@ -1979,8 +1979,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_api_public_mb_available_days",
-      "community": 29,
-      "community_name": "get_available_slots",
+      "community": 16,
+      "community_name": "api_public_mb_book",
       "norm_label": "api_public_mb_available_days()"
     },
     {
@@ -2015,8 +2015,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_appointments_list",
-      "community": 26,
-      "community_name": "Appointments List (DataTable)",
+      "community": 48,
+      "community_name": "appointment_money",
       "norm_label": "appointments_list()"
     },
     {
@@ -2027,8 +2027,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_delete_appointment",
-      "community": 26,
-      "community_name": "Appointments List (DataTable)",
+      "community": 40,
+      "community_name": "delete_appointment",
       "norm_label": "delete_appointment()"
     },
     {
@@ -2147,8 +2147,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_meses_del_periodo",
-      "community": 69,
-      "community_name": "_transacciones_citas",
+      "community": 45,
+      "community_name": "analytics_dashboard",
       "norm_label": "_meses_del_periodo()"
     },
     {
@@ -2171,7 +2171,7 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_servicios_facturables",
-      "community": 56,
+      "community": 45,
       "community_name": "analytics_dashboard",
       "norm_label": "_servicios_facturables()"
     },
@@ -2183,7 +2183,7 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_analytics_data",
-      "community": 56,
+      "community": 45,
       "community_name": "analytics_dashboard",
       "norm_label": "_analytics_data()"
     },
@@ -2195,8 +2195,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_rango",
-      "community": 57,
-      "community_name": "_kpis_embudo",
+      "community": 45,
+      "community_name": "analytics_dashboard",
       "norm_label": "_rango()"
     },
     {
@@ -2207,8 +2207,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_rango_utc",
-      "community": 57,
-      "community_name": "_kpis_embudo",
+      "community": 45,
+      "community_name": "analytics_dashboard",
       "norm_label": "_rango_utc()"
     },
     {
@@ -2219,7 +2219,7 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_kpis_rentabilidad",
-      "community": 56,
+      "community": 45,
       "community_name": "analytics_dashboard",
       "norm_label": "_kpis_rentabilidad()"
     },
@@ -2231,8 +2231,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_kpis_embudo",
-      "community": 57,
-      "community_name": "_kpis_embudo",
+      "community": 45,
+      "community_name": "analytics_dashboard",
       "norm_label": "_kpis_embudo()"
     },
     {
@@ -2243,8 +2243,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_kpis_operacion",
-      "community": 57,
-      "community_name": "_kpis_embudo",
+      "community": 45,
+      "community_name": "analytics_dashboard",
       "norm_label": "_kpis_operacion()"
     },
     {
@@ -2267,7 +2267,7 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_kpis_clientes",
-      "community": 56,
+      "community": 45,
       "community_name": "analytics_dashboard",
       "norm_label": "_kpis_clientes()"
     },
@@ -2279,7 +2279,7 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_analytics_dashboard",
-      "community": 56,
+      "community": 45,
       "community_name": "analytics_dashboard",
       "norm_label": "analytics_dashboard()"
     },
@@ -2315,8 +2315,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_analytics_detalle",
-      "community": 44,
-      "community_name": "_can_see_notifications",
+      "community": 69,
+      "community_name": "_transacciones_citas",
       "norm_label": "analytics_detalle()"
     },
     {
@@ -2387,8 +2387,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_expenses_export",
-      "community": 22,
-      "community_name": "_parse_date",
+      "community": 9,
+      "community_name": "Expenses List (DataTable)",
       "norm_label": "expenses_export()"
     },
     {
@@ -2411,8 +2411,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_expense_categories_new",
-      "community": 30,
-      "community_name": "expense_categories_new",
+      "community": 9,
+      "community_name": "Expenses List (DataTable)",
       "norm_label": "expense_categories_new()"
     },
     {
@@ -2459,8 +2459,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_api_events",
-      "community": 20,
-      "community_name": "Calendar View (FullCalendar)",
+      "community": 48,
+      "community_name": "appointment_money",
       "norm_label": "api_events()"
     },
     {
@@ -2471,8 +2471,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_appointment_json",
-      "community": 20,
-      "community_name": "Calendar View (FullCalendar)",
+      "community": 48,
+      "community_name": "appointment_money",
       "norm_label": "appointment_json()"
     },
     {
@@ -2556,7 +2556,7 @@
       "_origin": "ast",
       "id": "app_api_estimate_price",
       "community": 48,
-      "community_name": "api_estimate_price",
+      "community_name": "appointment_money",
       "norm_label": "api_estimate_price()"
     },
     {
@@ -2568,7 +2568,7 @@
       "_origin": "ast",
       "id": "app_close_appointment",
       "community": 48,
-      "community_name": "api_estimate_price",
+      "community_name": "appointment_money",
       "norm_label": "close_appointment()"
     },
     {
@@ -2676,7 +2676,7 @@
       "_origin": "ast",
       "id": "app_migrate_booking_adjustments_to_rows",
       "community": 4,
-      "community_name": "_ajuste",
+      "community_name": "test_abonos_ajustes.py",
       "norm_label": "migrate_booking_adjustments_to_rows()"
     },
     {
@@ -2723,8 +2723,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_users_edit",
-      "community": 25,
-      "community_name": "payroll_detail.html",
+      "community": 13,
+      "community_name": "User",
       "norm_label": "users_edit()"
     },
     {
@@ -2771,8 +2771,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_seed_demo_data",
-      "community": 13,
-      "community_name": "User",
+      "community": 28,
+      "community_name": "api_public_web_lead",
       "norm_label": "seed_demo_data()"
     },
     {
@@ -2796,7 +2796,7 @@
       "_origin": "ast",
       "id": "app_es_marketing",
       "community": 45,
-      "community_name": "Analytics Dashboard",
+      "community_name": "analytics_dashboard",
       "norm_label": "es_marketing()"
     },
     {
@@ -2807,8 +2807,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_es_operario",
-      "community": 20,
-      "community_name": "Calendar View (FullCalendar)",
+      "community": 48,
+      "community_name": "appointment_money",
       "norm_label": "es_operario()"
     },
     {
@@ -2819,7 +2819,7 @@
       "_origin": "ast",
       "id": "template_global",
       "community": 45,
-      "community_name": "Analytics Dashboard",
+      "community_name": "analytics_dashboard",
       "norm_label": "template_global"
     },
     {
@@ -2831,7 +2831,7 @@
       "_origin": "ast",
       "id": "app_puede_ver_finanzas",
       "community": 45,
-      "community_name": "Analytics Dashboard",
+      "community_name": "analytics_dashboard",
       "norm_label": "puede_ver_finanzas()"
     },
     {
@@ -2842,8 +2842,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_puede_ver_precios",
-      "community": 20,
-      "community_name": "Calendar View (FullCalendar)",
+      "community": 48,
+      "community_name": "appointment_money",
       "norm_label": "puede_ver_precios()"
     },
     {
@@ -3019,8 +3019,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_quality_errors_new",
-      "community": 68,
-      "community_name": "quality_errors_new",
+      "community": 25,
+      "community_name": "payroll_detail.html",
       "norm_label": "quality_errors_new()"
     },
     {
@@ -3031,8 +3031,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_quality_errors_delete",
-      "community": 68,
-      "community_name": "quality_errors_new",
+      "community": 25,
+      "community_name": "payroll_detail.html",
       "norm_label": "quality_errors_delete()"
     },
     {
@@ -3139,8 +3139,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_normalize_whatsapp_number",
-      "community": 28,
-      "community_name": "api_public_web_lead",
+      "community": 30,
+      "community_name": "_normalize_whatsapp_number",
       "norm_label": "_normalize_whatsapp_number()"
     },
     {
@@ -3163,8 +3163,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_public_base_url",
-      "community": 67,
-      "community_name": "_status_callback_url",
+      "community": 17,
+      "community_name": "Promotion",
       "norm_label": "_public_base_url()"
     },
     {
@@ -3175,8 +3175,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_status_callback_url",
-      "community": 67,
-      "community_name": "_status_callback_url",
+      "community": 17,
+      "community_name": "Promotion",
       "norm_label": "_status_callback_url()"
     },
     {
@@ -3211,8 +3211,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_get_claude_client",
-      "community": 55,
-      "community_name": "_call_claude",
+      "community": 18,
+      "community_name": "_build_message_history",
       "norm_label": "_get_claude_client()"
     },
     {
@@ -3235,8 +3235,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_call_claude",
-      "community": 55,
-      "community_name": "_call_claude",
+      "community": 18,
+      "community_name": "_build_message_history",
       "norm_label": "_call_claude()"
     },
     {
@@ -3307,8 +3307,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_diagnostic_service",
-      "community": 54,
-      "community_name": "_diagnostic_availability",
+      "community": 69,
+      "community_name": "_transacciones_citas",
       "norm_label": "_diagnostic_service()"
     },
     {
@@ -3355,8 +3355,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_slots_to_ranges",
-      "community": 54,
-      "community_name": "_diagnostic_availability",
+      "community": 56,
+      "community_name": "_format_availability_for_prompt",
       "norm_label": "_slots_to_ranges()"
     },
     {
@@ -3368,7 +3368,7 @@
       "_origin": "ast",
       "id": "app_format_planes_for_prompt",
       "community": 45,
-      "community_name": "Analytics Dashboard",
+      "community_name": "analytics_dashboard",
       "norm_label": "_format_planes_for_prompt()"
     },
     {
@@ -3392,7 +3392,7 @@
       "_origin": "ast",
       "id": "app_fecha_hoy_para_prompt",
       "community": 55,
-      "community_name": "_call_claude",
+      "community_name": "generate_followup_message",
       "norm_label": "_fecha_hoy_para_prompt()"
     },
     {
@@ -3403,8 +3403,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_format_availability_for_prompt",
-      "community": 54,
-      "community_name": "_diagnostic_availability",
+      "community": 56,
+      "community_name": "_format_availability_for_prompt",
       "norm_label": "_format_availability_for_prompt()"
     },
     {
@@ -3452,7 +3452,7 @@
       "_origin": "ast",
       "id": "app_generate_followup_message",
       "community": 55,
-      "community_name": "_call_claude",
+      "community_name": "generate_followup_message",
       "norm_label": "generate_followup_message()"
     },
     {
@@ -3463,8 +3463,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_summarize_conversation_for_admin",
-      "community": 71,
-      "community_name": "notify_admin_conversation_error",
+      "community": 18,
+      "community_name": "_build_message_history",
       "norm_label": "_summarize_conversation_for_admin()"
     },
     {
@@ -3487,8 +3487,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_notify_admin_conversation_error",
-      "community": 71,
-      "community_name": "notify_admin_conversation_error",
+      "community": 35,
+      "community_name": "whatsapp_webhook",
       "norm_label": "notify_admin_conversation_error()"
     },
     {
@@ -3498,8 +3498,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "exception",
-      "community": 71,
-      "community_name": "notify_admin_conversation_error",
+      "community": 35,
+      "community_name": "whatsapp_webhook",
       "norm_label": "exception"
     },
     {
@@ -3522,8 +3522,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_compute_priority",
-      "community": 18,
-      "community_name": "_build_message_history",
+      "community": 38,
+      "community_name": "whatsapp_backfill_calificacion",
       "norm_label": "_compute_priority()"
     },
     {
@@ -3534,8 +3534,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_phone_for_display",
-      "community": 50,
-      "community_name": "book_diagnostic_from_bot",
+      "community": 59,
+      "community_name": "get_claude_reply",
       "norm_label": "_phone_for_display()"
     },
     {
@@ -3546,8 +3546,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_clean_phone_or_default",
-      "community": 50,
-      "community_name": "book_diagnostic_from_bot",
+      "community": 30,
+      "community_name": "_normalize_whatsapp_number",
       "norm_label": "_clean_phone_or_default()"
     },
     {
@@ -3714,8 +3714,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_validate_twilio_signature",
-      "community": 67,
-      "community_name": "_status_callback_url",
+      "community": 7,
+      "community_name": "app.py",
       "norm_label": "_validate_twilio_signature()"
     },
     {
@@ -3726,8 +3726,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_whatsapp_status_webhook",
-      "community": 67,
-      "community_name": "_status_callback_url",
+      "community": 7,
+      "community_name": "app.py",
       "norm_label": "whatsapp_status_webhook()"
     },
     {
@@ -3750,8 +3750,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_whatsapp_rows",
-      "community": 65,
-      "community_name": "whatsapp_conversation",
+      "community": 7,
+      "community_name": "app.py",
       "norm_label": "_whatsapp_rows()"
     },
     {
@@ -3762,8 +3762,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_whatsapp_inbox",
-      "community": 65,
-      "community_name": "whatsapp_conversation",
+      "community": 7,
+      "community_name": "app.py",
       "norm_label": "whatsapp_inbox()"
     },
     {
@@ -3774,8 +3774,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_whatsapp_backfill_calificacion",
-      "community": 18,
-      "community_name": "_build_message_history",
+      "community": 38,
+      "community_name": "whatsapp_backfill_calificacion",
       "norm_label": "whatsapp_backfill_calificacion()"
     },
     {
@@ -3786,8 +3786,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_estados_entrega",
-      "community": 65,
-      "community_name": "whatsapp_conversation",
+      "community": 7,
+      "community_name": "app.py",
       "norm_label": "_estados_entrega()"
     },
     {
@@ -3798,8 +3798,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_whatsapp_conversation",
-      "community": 65,
-      "community_name": "whatsapp_conversation",
+      "community": 7,
+      "community_name": "app.py",
       "norm_label": "whatsapp_conversation()"
     },
     {
@@ -3823,7 +3823,7 @@
       "_origin": "ast",
       "id": "app_whatsapp_messages_json",
       "community": 43,
-      "community_name": "whatsapp.html",
+      "community_name": "whatsapp_messages_json",
       "norm_label": "whatsapp_messages_json()"
     },
     {
@@ -3866,7 +3866,7 @@
       "label": "whatsapp_unarchive()",
       "file_type": "code",
       "source_file": "noxadetail-app/app.py",
-      "source_location": "L8769",
+      "source_location": "L8773",
       "_callable": true,
       "_origin": "ast",
       "id": "app_whatsapp_unarchive",
@@ -3878,7 +3878,7 @@
       "label": "whatsapp_send_manual()",
       "file_type": "code",
       "source_file": "noxadetail-app/app.py",
-      "source_location": "L8784",
+      "source_location": "L8788",
       "_callable": true,
       "_origin": "ast",
       "id": "app_whatsapp_send_manual",
@@ -3890,19 +3890,19 @@
       "label": "_job_admin_reminder()",
       "file_type": "code",
       "source_file": "noxadetail-app/app.py",
-      "source_location": "L8808",
+      "source_location": "L8812",
       "_callable": true,
       "_origin": "ast",
       "id": "app_job_admin_reminder",
-      "community": 31,
-      "community_name": "bogota_now",
+      "community": 64,
+      "community_name": "send_whatsapp",
       "norm_label": "_job_admin_reminder()"
     },
     {
       "label": "_job_client_reminder()",
       "file_type": "code",
       "source_file": "noxadetail-app/app.py",
-      "source_location": "L8843",
+      "source_location": "L8847",
       "_callable": true,
       "_origin": "ast",
       "id": "app_job_client_reminder",
@@ -3914,7 +3914,7 @@
       "label": "_job_ceramic_followup()",
       "file_type": "code",
       "source_file": "noxadetail-app/app.py",
-      "source_location": "L8889",
+      "source_location": "L8893",
       "_callable": true,
       "_origin": "ast",
       "id": "app_job_ceramic_followup",
@@ -3926,7 +3926,7 @@
       "label": "_job_ceramic_3weeks()",
       "file_type": "code",
       "source_file": "noxadetail-app/app.py",
-      "source_location": "L8932",
+      "source_location": "L8936",
       "_callable": true,
       "_origin": "ast",
       "id": "app_job_ceramic_3weeks",
@@ -3938,7 +3938,7 @@
       "label": "_job_reengagement_followup()",
       "file_type": "code",
       "source_file": "noxadetail-app/app.py",
-      "source_location": "L8965",
+      "source_location": "L8969",
       "_callable": true,
       "_origin": "ast",
       "id": "app_job_reengagement_followup",
@@ -3950,19 +3950,19 @@
       "label": "_job_post_service_followup()",
       "file_type": "code",
       "source_file": "noxadetail-app/app.py",
-      "source_location": "L9039",
+      "source_location": "L9043",
       "_callable": true,
       "_origin": "ast",
       "id": "app_job_post_service_followup",
-      "community": 31,
-      "community_name": "bogota_now",
+      "community": 69,
+      "community_name": "_transacciones_citas",
       "norm_label": "_job_post_service_followup()"
     },
     {
       "label": "_ya_se_cotizo()",
       "file_type": "code",
       "source_file": "noxadetail-app/app.py",
-      "source_location": "L9098",
+      "source_location": "L9102",
       "_callable": true,
       "_origin": "ast",
       "id": "app_ya_se_cotizo",
@@ -3974,7 +3974,7 @@
       "label": "_tpl_reactivacion_para()",
       "file_type": "code",
       "source_file": "noxadetail-app/app.py",
-      "source_location": "L9111",
+      "source_location": "L9115",
       "_callable": true,
       "_origin": "ast",
       "id": "app_tpl_reactivacion_para",
@@ -3986,7 +3986,7 @@
       "label": "_ventana_24h_abierta()",
       "file_type": "code",
       "source_file": "noxadetail-app/app.py",
-      "source_location": "L9125",
+      "source_location": "L9129",
       "_callable": true,
       "_origin": "ast",
       "id": "app_ventana_24h_abierta",
@@ -3998,7 +3998,7 @@
       "label": "_candidatas_de_seguimiento()",
       "file_type": "code",
       "source_file": "noxadetail-app/app.py",
-      "source_location": "L9142",
+      "source_location": "L9146",
       "_callable": true,
       "_origin": "ast",
       "id": "app_candidatas_de_seguimiento",
@@ -4010,7 +4010,7 @@
       "label": "_job_whatsapp_followup()",
       "file_type": "code",
       "source_file": "noxadetail-app/app.py",
-      "source_location": "L9165",
+      "source_location": "L9169",
       "_callable": true,
       "_origin": "ast",
       "id": "app_job_whatsapp_followup",
@@ -4026,62 +4026,62 @@
       "_origin": "ast",
       "id": "template_filter",
       "community": 43,
-      "community_name": "whatsapp.html",
+      "community_name": "whatsapp_messages_json",
       "norm_label": "template_filter"
     },
     {
       "label": "_filtro_hace_cuanto()",
       "file_type": "code",
       "source_file": "noxadetail-app/app.py",
-      "source_location": "L9238",
+      "source_location": "L9242",
       "_callable": true,
       "_origin": "ast",
       "id": "app_filtro_hace_cuanto",
       "community": 43,
-      "community_name": "whatsapp.html",
+      "community_name": "whatsapp_messages_json",
       "norm_label": "_filtro_hace_cuanto()"
     },
     {
       "label": "_filtro_sin_tildes()",
       "file_type": "code",
       "source_file": "noxadetail-app/app.py",
-      "source_location": "L9261",
+      "source_location": "L9265",
       "_callable": true,
       "_origin": "ast",
       "id": "app_filtro_sin_tildes",
       "community": 43,
-      "community_name": "whatsapp.html",
+      "community_name": "whatsapp_messages_json",
       "norm_label": "_filtro_sin_tildes()"
     },
     {
       "label": "_filtro_dia_bogota()",
       "file_type": "code",
       "source_file": "noxadetail-app/app.py",
-      "source_location": "L9271",
+      "source_location": "L9275",
       "_callable": true,
       "_origin": "ast",
       "id": "app_filtro_dia_bogota",
       "community": 43,
-      "community_name": "whatsapp.html",
+      "community_name": "whatsapp_messages_json",
       "norm_label": "_filtro_dia_bogota()"
     },
     {
       "label": "_filtro_hora_bogota()",
       "file_type": "code",
       "source_file": "noxadetail-app/app.py",
-      "source_location": "L9285",
+      "source_location": "L9289",
       "_callable": true,
       "_origin": "ast",
       "id": "app_filtro_hora_bogota",
       "community": 43,
-      "community_name": "whatsapp.html",
+      "community_name": "whatsapp_messages_json",
       "norm_label": "_filtro_hora_bogota()"
     },
     {
       "label": "promo_image()",
       "file_type": "code",
       "source_file": "noxadetail-app/app.py",
-      "source_location": "L9308",
+      "source_location": "L9312",
       "_callable": true,
       "_origin": "ast",
       "id": "app_promo_image",
@@ -4093,7 +4093,7 @@
       "label": "_save_promo_image()",
       "file_type": "code",
       "source_file": "noxadetail-app/app.py",
-      "source_location": "L9316",
+      "source_location": "L9320",
       "_callable": true,
       "_origin": "ast",
       "id": "app_save_promo_image",
@@ -4105,43 +4105,43 @@
       "label": "categoria_de_servicio()",
       "file_type": "code",
       "source_file": "noxadetail-app/app.py",
-      "source_location": "L9351",
+      "source_location": "L9355",
       "_callable": true,
       "_origin": "ast",
       "id": "app_categoria_de_servicio",
       "community": 45,
-      "community_name": "Analytics Dashboard",
+      "community_name": "analytics_dashboard",
       "norm_label": "categoria_de_servicio()"
     },
     {
       "label": "semaforo()",
       "file_type": "code",
       "source_file": "noxadetail-app/app.py",
-      "source_location": "L9375",
+      "source_location": "L9379",
       "_callable": true,
       "_origin": "ast",
       "id": "app_semaforo",
       "community": 45,
-      "community_name": "Analytics Dashboard",
+      "community_name": "analytics_dashboard",
       "norm_label": "semaforo()"
     },
     {
       "label": "agrupar_servicios()",
       "file_type": "code",
       "source_file": "noxadetail-app/app.py",
-      "source_location": "L9394",
+      "source_location": "L9398",
       "_callable": true,
       "_origin": "ast",
       "id": "app_agrupar_servicios",
       "community": 45,
-      "community_name": "Analytics Dashboard",
+      "community_name": "analytics_dashboard",
       "norm_label": "agrupar_servicios()"
     },
     {
       "label": "_parse_fecha()",
       "file_type": "code",
       "source_file": "noxadetail-app/app.py",
-      "source_location": "L9404",
+      "source_location": "L9408",
       "_callable": true,
       "_origin": "ast",
       "id": "app_parse_fecha",
@@ -4153,7 +4153,7 @@
       "label": "promotions_list()",
       "file_type": "code",
       "source_file": "noxadetail-app/app.py",
-      "source_location": "L9412",
+      "source_location": "L9416",
       "_callable": true,
       "_origin": "ast",
       "id": "app_promotions_list",
@@ -4165,7 +4165,7 @@
       "label": "promotions_toggle()",
       "file_type": "code",
       "source_file": "noxadetail-app/app.py",
-      "source_location": "L9442",
+      "source_location": "L9446",
       "_callable": true,
       "_origin": "ast",
       "id": "app_promotions_toggle",
@@ -4177,7 +4177,7 @@
       "label": "promotions_delete()",
       "file_type": "code",
       "source_file": "noxadetail-app/app.py",
-      "source_location": "L9453",
+      "source_location": "L9457",
       "_callable": true,
       "_origin": "ast",
       "id": "app_promotions_delete",
@@ -4189,7 +4189,7 @@
       "label": "_can_see_notifications()",
       "file_type": "code",
       "source_file": "noxadetail-app/app.py",
-      "source_location": "L9465",
+      "source_location": "L9469",
       "_callable": true,
       "_origin": "ast",
       "id": "app_can_see_notifications",
@@ -4201,7 +4201,7 @@
       "label": "api_notifications()",
       "file_type": "code",
       "source_file": "noxadetail-app/app.py",
-      "source_location": "L9473",
+      "source_location": "L9477",
       "_callable": true,
       "_origin": "ast",
       "id": "app_api_notifications",
@@ -4213,7 +4213,7 @@
       "label": "notification_mark_read()",
       "file_type": "code",
       "source_file": "noxadetail-app/app.py",
-      "source_location": "L9502",
+      "source_location": "L9506",
       "_callable": true,
       "_origin": "ast",
       "id": "app_notification_mark_read",
@@ -4225,7 +4225,7 @@
       "label": "notifications_mark_all_read()",
       "file_type": "code",
       "source_file": "noxadetail-app/app.py",
-      "source_location": "L9513",
+      "source_location": "L9517",
       "_callable": true,
       "_origin": "ast",
       "id": "app_notifications_mark_all_read",
@@ -4237,7 +4237,7 @@
       "label": "notifications_list()",
       "file_type": "code",
       "source_file": "noxadetail-app/app.py",
-      "source_location": "L9522",
+      "source_location": "L9526",
       "_callable": true,
       "_origin": "ast",
       "id": "app_notifications_list",
@@ -4249,7 +4249,7 @@
       "label": "whatsapp_outbox()",
       "file_type": "code",
       "source_file": "noxadetail-app/app.py",
-      "source_location": "L9539",
+      "source_location": "L9543",
       "_callable": true,
       "_origin": "ast",
       "id": "app_whatsapp_outbox",
@@ -4261,7 +4261,7 @@
       "label": "test_whatsapp()",
       "file_type": "code",
       "source_file": "noxadetail-app/app.py",
-      "source_location": "L9582",
+      "source_location": "L9586",
       "_callable": true,
       "_origin": "ast",
       "id": "app_test_whatsapp",
@@ -4273,31 +4273,31 @@
       "label": "plans_list()",
       "file_type": "code",
       "source_file": "noxadetail-app/app.py",
-      "source_location": "L9621",
+      "source_location": "L9625",
       "_callable": true,
       "_origin": "ast",
       "id": "app_plans_list",
-      "community": 45,
-      "community_name": "Analytics Dashboard",
+      "community": 31,
+      "community_name": "bogota_now",
       "norm_label": "plans_list()"
     },
     {
       "label": "api_plan_price()",
       "file_type": "code",
       "source_file": "noxadetail-app/app.py",
-      "source_location": "L9639",
+      "source_location": "L9643",
       "_callable": true,
       "_origin": "ast",
       "id": "app_api_plan_price",
       "community": 45,
-      "community_name": "Analytics Dashboard",
+      "community_name": "analytics_dashboard",
       "norm_label": "api_plan_price()"
     },
     {
       "label": "api_plans_by_plate()",
       "file_type": "code",
       "source_file": "noxadetail-app/app.py",
-      "source_location": "L9662",
+      "source_location": "L9666",
       "_callable": true,
       "_origin": "ast",
       "id": "app_api_plans_by_plate",
@@ -4309,7 +4309,7 @@
       "label": "plan_sell()",
       "file_type": "code",
       "source_file": "noxadetail-app/app.py",
-      "source_location": "L9693",
+      "source_location": "L9697",
       "_callable": true,
       "_origin": "ast",
       "id": "app_plan_sell",
@@ -4321,19 +4321,19 @@
       "label": "plan_toggle()",
       "file_type": "code",
       "source_file": "noxadetail-app/app.py",
-      "source_location": "L9779",
+      "source_location": "L9783",
       "_callable": true,
       "_origin": "ast",
       "id": "app_plan_toggle",
       "community": 45,
-      "community_name": "Analytics Dashboard",
+      "community_name": "analytics_dashboard",
       "norm_label": "plan_toggle()"
     },
     {
       "label": "backups_list()",
       "file_type": "code",
       "source_file": "noxadetail-app/app.py",
-      "source_location": "L9791",
+      "source_location": "L9795",
       "_callable": true,
       "_origin": "ast",
       "id": "app_backups_list",
@@ -4345,7 +4345,7 @@
       "label": "backup_download()",
       "file_type": "code",
       "source_file": "noxadetail-app/app.py",
-      "source_location": "L9820",
+      "source_location": "L9824",
       "_callable": true,
       "_origin": "ast",
       "id": "app_backup_download",
@@ -4357,7 +4357,7 @@
       "label": "_s3_client()",
       "file_type": "code",
       "source_file": "noxadetail-app/app.py",
-      "source_location": "L9863",
+      "source_location": "L9867",
       "_callable": true,
       "_origin": "ast",
       "id": "app_s3_client",
@@ -4369,7 +4369,7 @@
       "label": "_dump_sqlite_gz()",
       "file_type": "code",
       "source_file": "noxadetail-app/app.py",
-      "source_location": "L9881",
+      "source_location": "L9885",
       "_callable": true,
       "_origin": "ast",
       "id": "app_dump_sqlite_gz",
@@ -4381,7 +4381,7 @@
       "label": "_backups_existentes()",
       "file_type": "code",
       "source_file": "noxadetail-app/app.py",
-      "source_location": "L9905",
+      "source_location": "L9909",
       "_callable": true,
       "_origin": "ast",
       "id": "app_backups_existentes",
@@ -4393,7 +4393,7 @@
       "label": "_aplicar_retencion()",
       "file_type": "code",
       "source_file": "noxadetail-app/app.py",
-      "source_location": "L9914",
+      "source_location": "L9918",
       "_callable": true,
       "_origin": "ast",
       "id": "app_aplicar_retencion",
@@ -4405,7 +4405,7 @@
       "label": "_job_backup_db()",
       "file_type": "code",
       "source_file": "noxadetail-app/app.py",
-      "source_location": "L9946",
+      "source_location": "L9950",
       "_callable": true,
       "_origin": "ast",
       "id": "app_job_backup_db",
@@ -4453,8 +4453,8 @@
       "source_location": "L113",
       "_origin": "ast",
       "id": "app_rationale_113",
-      "community": 38,
-      "community_name": "motivo_dia_cerrado",
+      "community": 54,
+      "community_name": "_diagnostic_availability",
       "norm_label": "nombre del festivo si esa fecha lo es, o none."
     },
     {
@@ -4464,8 +4464,8 @@
       "source_location": "L120",
       "_origin": "ast",
       "id": "app_rationale_120",
-      "community": 29,
-      "community_name": "get_available_slots",
+      "community": 54,
+      "community_name": "_diagnostic_availability",
       "norm_label": "true si noxa atiende ese dia: dia habil de la semana y no festivo."
     },
     {
@@ -4475,8 +4475,8 @@
       "source_location": "L127",
       "_origin": "ast",
       "id": "app_rationale_127",
-      "community": 38,
-      "community_name": "motivo_dia_cerrado",
+      "community": 50,
+      "community_name": "book_diagnostic_from_bot",
       "norm_label": "por que esta cerrado ese dia, en texto para el cliente. none si se atiende."
     },
     {
@@ -4508,8 +4508,8 @@
       "source_location": "L561",
       "_origin": "ast",
       "id": "app_rationale_561",
-      "community": 7,
-      "community_name": "app.py",
+      "community": 10,
+      "community_name": "route",
       "norm_label": "alias para compatibilidad con el frontend. delega en /api/agreements/quick-..."
     },
     {
@@ -4575,7 +4575,7 @@
       "_origin": "ast",
       "id": "app_rationale_1119",
       "community": 4,
-      "community_name": "_ajuste",
+      "community_name": "test_abonos_ajustes.py",
       "norm_label": "un descuento o recargo de una cita. son varios por cita: antes cabia uno solo y..."
     },
     {
@@ -4585,8 +4585,8 @@
       "source_location": "L1141",
       "_origin": "ast",
       "id": "app_rationale_1141",
-      "community": 70,
-      "community_name": "Appointment",
+      "community": 4,
+      "community_name": "test_abonos_ajustes.py",
       "norm_label": "un abono: plata que el cliente ya entrego a cuenta del servicio. ojo \u2014 esto no..."
     },
     {
@@ -4596,8 +4596,8 @@
       "source_location": "L1229",
       "_origin": "ast",
       "id": "app_rationale_1229",
-      "community": 13,
-      "community_name": "User",
+      "community": 2,
+      "community_name": "PayrollEntry",
       "norm_label": "liquidacion de un operario en una quincena."
     },
     {
@@ -4607,8 +4607,8 @@
       "source_location": "L1275",
       "_origin": "ast",
       "id": "app_rationale_1275",
-      "community": 40,
-      "community_name": "QualityError",
+      "community": 25,
+      "community_name": "payroll_detail.html",
       "norm_label": "error de calidad registrado por el admin."
     },
     {
@@ -4618,8 +4618,8 @@
       "source_location": "L1296",
       "_origin": "ast",
       "id": "app_rationale_1296",
-      "community": 68,
-      "community_name": "quality_errors_new",
+      "community": 25,
+      "community_name": "payroll_detail.html",
       "norm_label": "asignacion de un error a uno o varios operarios (con monto dividido)."
     },
     {
@@ -4640,8 +4640,8 @@
       "source_location": "L1321",
       "_origin": "ast",
       "id": "app_rationale_1321",
-      "community": 35,
-      "community_name": "whatsapp_webhook",
+      "community": 28,
+      "community_name": "api_public_web_lead",
       "norm_label": "una conversacion de whatsapp por numero de telefono."
     },
     {
@@ -4695,8 +4695,8 @@
       "source_location": "L1444",
       "_origin": "ast",
       "id": "app_rationale_1444",
-      "community": 17,
-      "community_name": "Promotion",
+      "community": 31,
+      "community_name": "bogota_now",
       "norm_label": "activa y dentro de fechas. las fechas vacias significan \"sin limite\"."
     },
     {
@@ -4750,8 +4750,8 @@
       "source_location": "L1646",
       "_origin": "ast",
       "id": "app_rationale_1646",
-      "community": 30,
-      "community_name": "expense_categories_new",
+      "community": 9,
+      "community_name": "Expenses List (DataTable)",
       "norm_label": "crea categorias base de gastos si la tabla esta vacia."
     },
     {
@@ -4762,7 +4762,7 @@
       "_origin": "ast",
       "id": "app_rationale_1729",
       "community": 45,
-      "community_name": "Analytics Dashboard",
+      "community_name": "analytics_dashboard",
       "norm_label": "servicio activo por nombre exacto, sin distinguir mayusculas ni espacios."
     },
     {
@@ -4773,7 +4773,7 @@
       "_origin": "ast",
       "id": "app_rationale_1739",
       "community": 45,
-      "community_name": "Analytics Dashboard",
+      "community_name": "analytics_dashboard",
       "norm_label": "cuanto vale el plan para ese tipo de vehiculo. es la suma de los servicios que..."
     },
     {
@@ -4805,8 +4805,8 @@
       "source_location": "L1839",
       "_origin": "ast",
       "id": "app_rationale_1839",
-      "community": 60,
-      "community_name": "edit_appointment",
+      "community": 70,
+      "community_name": "new_appointment",
       "norm_label": "calcula duracion total real usando serviceprice. estrategia: - suma todas las..."
     },
     {
@@ -4817,7 +4817,7 @@
       "_origin": "ast",
       "id": "app_rationale_1878",
       "community": 48,
-      "community_name": "api_estimate_price",
+      "community_name": "appointment_money",
       "norm_label": "calcula el precio base real usando serviceprice. estrategia: - suma los precios..."
     },
     {
@@ -4849,8 +4849,8 @@
       "source_location": "L1946",
       "_origin": "ast",
       "id": "app_rationale_1946",
-      "community": 29,
-      "community_name": "get_available_slots",
+      "community": 50,
+      "community_name": "book_diagnostic_from_bot",
       "norm_label": "para una cita existente, determina (es_solo_diagnostico, fin_ocupacion_cupo)...."
     },
     {
@@ -4860,8 +4860,8 @@
       "source_location": "L1970",
       "_origin": "ast",
       "id": "app_rationale_1970",
-      "community": 29,
-      "community_name": "get_available_slots",
+      "community": 50,
+      "community_name": "book_diagnostic_from_bot",
       "norm_label": "devuelve (slots, total_minutes) para una fecha dada. cada slot es {\"start_iso\",..."
     },
     {
@@ -4871,8 +4871,8 @@
       "source_location": "L2046",
       "_origin": "ast",
       "id": "app_rationale_2046",
-      "community": 29,
-      "community_name": "get_available_slots",
+      "community": 16,
+      "community_name": "api_public_mb_book",
       "norm_label": "devuelve la lista de fechas (iso) dentro del rango que tienen al menos un..."
     },
     {
@@ -4883,7 +4883,7 @@
       "_origin": "ast",
       "id": "app_rationale_2067",
       "community": 48,
-      "community_name": "api_estimate_price",
+      "community_name": "appointment_money",
       "norm_label": "devuelve (precio_con_descuento, precio_sin_descuento)."
     },
     {
@@ -4894,7 +4894,7 @@
       "_origin": "ast",
       "id": "app_rationale_2095",
       "community": 48,
-      "community_name": "api_estimate_price",
+      "community_name": "appointment_money",
       "norm_label": "aplica el descuento del convenio solo a los servicios elegibles. devuelve..."
     },
     {
@@ -4905,7 +4905,7 @@
       "_origin": "ast",
       "id": "app_rationale_2108",
       "community": 48,
-      "community_name": "api_estimate_price",
+      "community_name": "appointment_money",
       "norm_label": "aplica una lista de descuentos/recargos sobre el subtotal. cada linea en..."
     },
     {
@@ -4915,8 +4915,8 @@
       "source_location": "L2159",
       "_origin": "ast",
       "id": "app_rationale_2159",
-      "community": 20,
-      "community_name": "Calendar View (FullCalendar)",
+      "community": 48,
+      "community_name": "appointment_money",
       "norm_label": "todo el desglose de plata de una cita, en un solo lugar. la distincion que..."
     },
     {
@@ -4926,8 +4926,8 @@
       "source_location": "L2214",
       "_origin": "ast",
       "id": "app_rationale_2214",
-      "community": 16,
-      "community_name": "api_public_mb_book",
+      "community": 70,
+      "community_name": "new_appointment",
       "norm_label": "lo que vale el servicio: precio de lista, menos convenio, mas/menos los..."
     },
     {
@@ -4937,8 +4937,8 @@
       "source_location": "L2239",
       "_origin": "ast",
       "id": "app_rationale_2239",
-      "community": 72,
-      "community_name": "abreviar_servicios",
+      "community": 48,
+      "community_name": "appointment_money",
       "norm_label": "un nombre de servicio que quepa en el cajon de una cita."
     },
     {
@@ -4948,8 +4948,8 @@
       "source_location": "L2254",
       "_origin": "ast",
       "id": "app_rationale_2254",
-      "community": 69,
-      "community_name": "_transacciones_citas",
+      "community": 48,
+      "community_name": "appointment_money",
       "norm_label": "una cita es de diagnostico solo si no trae nada mas. si el cliente aprovecho y..."
     },
     {
@@ -4959,8 +4959,8 @@
       "source_location": "L2270",
       "_origin": "ast",
       "id": "app_rationale_2270",
-      "community": 72,
-      "community_name": "abreviar_servicios",
+      "community": 48,
+      "community_name": "appointment_money",
       "norm_label": "varios servicios en una linea: los dos primeros y cuantos faltan."
     },
     {
@@ -4971,7 +4971,7 @@
       "_origin": "ast",
       "id": "app_rationale_2282",
       "community": 70,
-      "community_name": "Appointment",
+      "community_name": "new_appointment",
       "norm_label": "los campos de plata llegan del formulario como texto y a veces con puntos de..."
     },
     {
@@ -4982,7 +4982,7 @@
       "_origin": "ast",
       "id": "app_rationale_2291",
       "community": 70,
-      "community_name": "Appointment",
+      "community_name": "new_appointment",
       "norm_label": "reemplaza los descuentos/recargos de la cita por los que trae el formulario...."
     },
     {
@@ -4993,7 +4993,7 @@
       "_origin": "ast",
       "id": "app_rationale_2318",
       "community": 70,
-      "community_name": "Appointment",
+      "community_name": "new_appointment",
       "norm_label": "igual que los ajustes, pero para los abonos. un abono sin fecha se toma como de..."
     },
     {
@@ -5025,8 +5025,8 @@
       "source_location": "L2407",
       "_origin": "ast",
       "id": "app_rationale_2407",
-      "community": 70,
-      "community_name": "Appointment",
+      "community": 40,
+      "community_name": "delete_appointment",
       "norm_label": "devuelve el cupo cuando la cita se cancela o se borra."
     },
     {
@@ -5058,8 +5058,8 @@
       "source_location": "L2625",
       "_origin": "ast",
       "id": "app_rationale_2625",
-      "community": 38,
-      "community_name": "motivo_dia_cerrado",
+      "community": 50,
+      "community_name": "book_diagnostic_from_bot",
       "norm_label": "\u00bfse atiende ese dia? lo consulta el formulario de citas para avisar antes de..."
     },
     {
@@ -5069,8 +5069,8 @@
       "source_location": "L2642",
       "_origin": "ast",
       "id": "app_rationale_2642",
-      "community": 38,
-      "community_name": "motivo_dia_cerrado",
+      "community": 60,
+      "community_name": "edit_appointment",
       "norm_label": "guardia de servidor para las citas creadas a mano. el aviso en pantalla se..."
     },
     {
@@ -5102,8 +5102,8 @@
       "source_location": "L3065",
       "_origin": "ast",
       "id": "app_rationale_3065",
-      "community": 26,
-      "community_name": "Appointments List (DataTable)",
+      "community": 48,
+      "community_name": "appointment_money",
       "norm_label": "lista simple en tabla de las proximas citas."
     },
     {
@@ -5113,8 +5113,8 @@
       "source_location": "L3087",
       "_origin": "ast",
       "id": "app_rationale_3087",
-      "community": 26,
-      "community_name": "Appointments List (DataTable)",
+      "community": 40,
+      "community_name": "delete_appointment",
       "norm_label": "borrar una cita es irreversible y se pierde el historial del cliente, asi que..."
     },
     {
@@ -5146,8 +5146,8 @@
       "source_location": "L3385",
       "_origin": "ast",
       "id": "app_rationale_3385",
-      "community": 69,
-      "community_name": "_transacciones_citas",
+      "community": 45,
+      "community_name": "analytics_dashboard",
       "norm_label": "duracion del periodo en meses, con decimales. nunca menos de un mes para no..."
     },
     {
@@ -5168,7 +5168,7 @@
       "source_location": "L3449",
       "_origin": "ast",
       "id": "app_rationale_3449",
-      "community": 56,
+      "community": 45,
       "community_name": "analytics_dashboard",
       "norm_label": "solo lo que factura: las citas de diagnostico quedan fuera."
     },
@@ -5179,7 +5179,7 @@
       "source_location": "L3454",
       "_origin": "ast",
       "id": "app_rationale_3454",
-      "community": 56,
+      "community": 45,
       "community_name": "analytics_dashboard",
       "norm_label": "metricas del periodo sobre las citas agendadas, que es como opera el negocio:..."
     },
@@ -5190,8 +5190,8 @@
       "source_location": "L3567",
       "_origin": "ast",
       "id": "app_rationale_3567",
-      "community": 57,
-      "community_name": "_kpis_embudo",
+      "community": 45,
+      "community_name": "analytics_dashboard",
       "norm_label": "limites para campos guardados en hora local de bogota, como..."
     },
     {
@@ -5201,8 +5201,8 @@
       "source_location": "L3574",
       "_origin": "ast",
       "id": "app_rationale_3574",
-      "community": 57,
-      "community_name": "_kpis_embudo",
+      "community": 45,
+      "community_name": "analytics_dashboard",
       "norm_label": "limites para campos guardados en utc (los `created_at`, que usan utcnow). sin..."
     },
     {
@@ -5212,7 +5212,7 @@
       "source_location": "L3586",
       "_origin": "ast",
       "id": "app_rationale_3586",
-      "community": 56,
+      "community": 45,
       "community_name": "analytics_dashboard",
       "norm_label": "ingresos contra gastos. es la unica cifra que dice si el negocio gana plata; el..."
     },
@@ -5223,8 +5223,8 @@
       "source_location": "L3622",
       "_origin": "ast",
       "id": "app_rationale_3622",
-      "community": 57,
-      "community_name": "_kpis_embudo",
+      "community": 45,
+      "community_name": "analytics_dashboard",
       "norm_label": "de conversacion de whatsapp a plata. conecta el trabajo de mariana con el..."
     },
     {
@@ -5234,8 +5234,8 @@
       "source_location": "L3655",
       "_origin": "ast",
       "id": "app_rationale_3655",
-      "community": 57,
-      "community_name": "_kpis_embudo",
+      "community": 45,
+      "community_name": "analytics_dashboard",
       "norm_label": "como se esta usando la capacidad instalada: cancelaciones, cuando llega la..."
     },
     {
@@ -5256,7 +5256,7 @@
       "source_location": "L3785",
       "_origin": "ast",
       "id": "app_rationale_3785",
-      "community": 56,
+      "community": 45,
       "community_name": "analytics_dashboard",
       "norm_label": "recurrencia: en detailing conseguir un cliente cuesta mucho mas que hacerlo..."
     },
@@ -5278,8 +5278,8 @@
       "source_location": "L3912",
       "_origin": "ast",
       "id": "app_rationale_3912",
-      "community": 44,
-      "community_name": "_can_see_notifications",
+      "community": 69,
+      "community_name": "_transacciones_citas",
       "norm_label": "que hay detras de un punto de una grafica. un numero agregado sin poder abrirlo..."
     },
     {
@@ -5311,8 +5311,8 @@
       "source_location": "L4267",
       "_origin": "ast",
       "id": "app_rationale_4267",
-      "community": 22,
-      "community_name": "_parse_date",
+      "community": 9,
+      "community_name": "Expenses List (DataTable)",
       "norm_label": "export csv por filtros (para google sheets / looker studio)."
     },
     {
@@ -5322,8 +5322,8 @@
       "source_location": "L4423",
       "_origin": "ast",
       "id": "app_rationale_4423",
-      "community": 20,
-      "community_name": "Calendar View (FullCalendar)",
+      "community": 48,
+      "community_name": "appointment_money",
       "norm_label": "devuelve las citas en formato json para fullcalendar. las lineas van sueltas y..."
     },
     {
@@ -5345,7 +5345,7 @@
       "_origin": "ast",
       "id": "app_rationale_4645",
       "community": 48,
-      "community_name": "api_estimate_price",
+      "community_name": "appointment_money",
       "norm_label": "calcula el precio estimado segun: - servicios seleccionados - tipo de vehiculo..."
     },
     {
@@ -5378,7 +5378,7 @@
       "_origin": "ast",
       "id": "app_rationale_4979",
       "community": 4,
-      "community_name": "_ajuste",
+      "community_name": "test_abonos_ajustes.py",
       "norm_label": "el ajuste al crear la cita era uno solo y vivia en tres columnas de..."
     },
     {
@@ -5389,7 +5389,7 @@
       "_origin": "ast",
       "id": "app_rationale_5461",
       "community": 45,
-      "community_name": "Analytics Dashboard",
+      "community_name": "analytics_dashboard",
       "norm_label": "marketing ve conversion y comportamiento de clientes, no la caja."
     },
     {
@@ -5399,8 +5399,8 @@
       "source_location": "L5467",
       "_origin": "ast",
       "id": "app_rationale_5467",
-      "community": 20,
-      "community_name": "Calendar View (FullCalendar)",
+      "community": 48,
+      "community_name": "appointment_money",
       "norm_label": "el operario agenda y trabaja citas, pero no ve cuanto valen los servicios."
     },
     {
@@ -5421,8 +5421,8 @@
       "source_location": "L6007",
       "_origin": "ast",
       "id": "app_rationale_6007",
-      "community": 28,
-      "community_name": "api_public_web_lead",
+      "community": 30,
+      "community_name": "_normalize_whatsapp_number",
       "norm_label": "normaliza un numero al formato e.164 que usa twilio/whatsapp (+57 por defecto,..."
     },
     {
@@ -5443,8 +5443,8 @@
       "source_location": "L6050",
       "_origin": "ast",
       "id": "app_rationale_6050",
-      "community": 67,
-      "community_name": "_status_callback_url",
+      "community": 17,
+      "community_name": "Promotion",
       "norm_label": "dominio publico de la app, para que twilio sepa a donde devolver los callbacks..."
     },
     {
@@ -5487,8 +5487,8 @@
       "source_location": "L6707",
       "_origin": "ast",
       "id": "app_rationale_6707",
-      "community": 55,
-      "community_name": "_call_claude",
+      "community": 18,
+      "community_name": "_build_message_history",
       "norm_label": "llama a claude con la base de conocimiento de noxa + contexto puntual, y parte..."
     },
     {
@@ -5553,8 +5553,8 @@
       "source_location": "L6920",
       "_origin": "ast",
       "id": "app_rationale_6920",
-      "community": 54,
-      "community_name": "_diagnostic_availability",
+      "community": 69,
+      "community_name": "_transacciones_citas",
       "norm_label": "servicio con el que se agendan los diagnosticos. se busca por nombre..."
     },
     {
@@ -5597,8 +5597,8 @@
       "source_location": "L7024",
       "_origin": "ast",
       "id": "app_rationale_7024",
-      "community": 54,
-      "community_name": "_diagnostic_availability",
+      "community": 56,
+      "community_name": "_format_availability_for_prompt",
       "norm_label": "convierte [\"09:00\",\"09:30\",\"11:00\"] en [(\"09:00\",\"09:30\"), (\"11:00\",\"11:00\")]...."
     },
     {
@@ -5609,7 +5609,7 @@
       "_origin": "ast",
       "id": "app_rationale_7047",
       "community": 45,
-      "community_name": "Analytics Dashboard",
+      "community_name": "analytics_dashboard",
       "norm_label": "planes de mantenimiento vigentes, con su precio por tipo de vehiculo. se..."
     },
     {
@@ -5631,7 +5631,7 @@
       "_origin": "ast",
       "id": "app_rationale_7155",
       "community": 55,
-      "community_name": "_call_claude",
+      "community_name": "generate_followup_message",
       "norm_label": "que dia es hoy, en hora de bogota y en espanol. el modelo no tiene reloj: si no..."
     },
     {
@@ -5641,8 +5641,8 @@
       "source_location": "L7172",
       "_origin": "ast",
       "id": "app_rationale_7172",
-      "community": 54,
-      "community_name": "_diagnostic_availability",
+      "community": 56,
+      "community_name": "_format_availability_for_prompt",
       "norm_label": "bloque de disponibilidad que mariana ve en cada turno."
     },
     {
@@ -5686,7 +5686,7 @@
       "_origin": "ast",
       "id": "app_rationale_7340",
       "community": 55,
-      "community_name": "_call_claude",
+      "community_name": "generate_followup_message",
       "norm_label": "genera un mensaje de seguimiento personalizado para un lead que quedo en..."
     },
     {
@@ -5696,8 +5696,8 @@
       "source_location": "L7365",
       "_origin": "ast",
       "id": "app_rationale_7365",
-      "community": 71,
-      "community_name": "notify_admin_conversation_error",
+      "community": 18,
+      "community_name": "_build_message_history",
       "norm_label": "resumen corto y natural (1-2 frases) de que necesita/pregunto el lead, para el..."
     },
     {
@@ -5718,8 +5718,8 @@
       "source_location": "L7426",
       "_origin": "ast",
       "id": "app_rationale_7426",
-      "community": 71,
-      "community_name": "notify_admin_conversation_error",
+      "community": 35,
+      "community_name": "whatsapp_webhook",
       "norm_label": "avisa al admin por whatsapp cuando mariana no pudo responderle al cliente tras..."
     },
     {
@@ -5740,8 +5740,8 @@
       "source_location": "L7577",
       "_origin": "ast",
       "id": "app_rationale_7577",
-      "community": 18,
-      "community_name": "_build_message_history",
+      "community": 38,
+      "community_name": "whatsapp_backfill_calificacion",
       "norm_label": "la prioridad nunca sale de una sola senal: combina el estado real de la..."
     },
     {
@@ -5751,8 +5751,8 @@
       "source_location": "L7597",
       "_origin": "ast",
       "id": "app_rationale_7597",
-      "community": 50,
-      "community_name": "book_diagnostic_from_bot",
+      "community": 59,
+      "community_name": "get_claude_reply",
       "norm_label": "pasa un numero e.164 al formato local que se usa en la agenda. twilio necesita..."
     },
     {
@@ -5762,8 +5762,8 @@
       "source_location": "L7609",
       "_origin": "ast",
       "id": "app_rationale_7609",
-      "community": 50,
-      "community_name": "book_diagnostic_from_bot",
+      "community": 30,
+      "community_name": "_normalize_whatsapp_number",
       "norm_label": "devuelve el celular normalizado solo si parece un telefono de verdad...."
     },
     {
@@ -5905,8 +5905,8 @@
       "source_location": "L8361",
       "_origin": "ast",
       "id": "app_rationale_8361",
-      "community": 67,
-      "community_name": "_status_callback_url",
+      "community": 7,
+      "community_name": "app.py",
       "norm_label": "valida la firma de twilio contra la url exacta que nosotros le dimos como..."
     },
     {
@@ -5916,8 +5916,8 @@
       "source_location": "L8555",
       "_origin": "ast",
       "id": "app_rationale_8555",
-      "community": 65,
-      "community_name": "whatsapp_conversation",
+      "community": 7,
+      "community_name": "app.py",
       "norm_label": "orden cronologico, mas reciente primero \u2014 el orden por defecto de cualquier..."
     },
     {
@@ -5927,8 +5927,8 @@
       "source_location": "L8573",
       "_origin": "ast",
       "id": "app_rationale_8573",
-      "community": 18,
-      "community_name": "_build_message_history",
+      "community": 38,
+      "community_name": "whatsapp_backfill_calificacion",
       "norm_label": "clasifica con claude las conversaciones que quedaron sin calificacion \u2014..."
     },
     {
@@ -5938,8 +5938,8 @@
       "source_location": "L8632",
       "_origin": "ast",
       "id": "app_rationale_8632",
-      "community": 65,
-      "community_name": "whatsapp_conversation",
+      "community": 7,
+      "community_name": "app.py",
       "norm_label": "{texto del mensaje: estado de entrega} para una conversacion. message y..."
     },
     {
@@ -5961,7 +5961,7 @@
       "_origin": "ast",
       "id": "app_rationale_8680",
       "community": 43,
-      "community_name": "whatsapp.html",
+      "community_name": "whatsapp_messages_json",
       "norm_label": "mensajes nuevos desde el ultimo id visto \u2014 usado por el polling del chat."
     },
     {
@@ -5979,9 +5979,9 @@
       "label": "Devuelve la conversaci\u00f3n a la bandeja. No reactiva el bot a prop\u00f3sito: qui\u00e9n\u2026",
       "file_type": "rationale",
       "source_file": "noxadetail-app/app.py",
-      "source_location": "L8770",
+      "source_location": "L8774",
       "_origin": "ast",
-      "id": "app_rationale_8770",
+      "id": "app_rationale_8774",
       "community": 10,
       "community_name": "route",
       "norm_label": "devuelve la conversacion a la bandeja. no reactiva el bot a proposito: quien..."
@@ -5990,20 +5990,20 @@
       "label": "Corre cada 5 minutos. Notifica al admin si hay cita en los pr\u00f3ximos 30 min.",
       "file_type": "rationale",
       "source_file": "noxadetail-app/app.py",
-      "source_location": "L8809",
+      "source_location": "L8813",
       "_origin": "ast",
-      "id": "app_rationale_8809",
-      "community": 31,
-      "community_name": "bogota_now",
+      "id": "app_rationale_8813",
+      "community": 64,
+      "community_name": "send_whatsapp",
       "norm_label": "corre cada 5 minutos. notifica al admin si hay cita en los proximos 30 min."
     },
     {
       "label": "Corre diariamente a las 7 PM (Bogot\u00e1). Notifica a clientes con cita ma\u00f1ana.",
       "file_type": "rationale",
       "source_file": "noxadetail-app/app.py",
-      "source_location": "L8844",
+      "source_location": "L8848",
       "_origin": "ast",
-      "id": "app_rationale_8844",
+      "id": "app_rationale_8848",
       "community": 31,
       "community_name": "bogota_now",
       "norm_label": "corre diariamente a las 7 pm (bogota). notifica a clientes con cita manana."
@@ -6012,9 +6012,9 @@
       "label": "Corre diariamente a las 10 AM (Bogot\u00e1). A los 3 meses del cer\u00e1mico le avisa a\u2026",
       "file_type": "rationale",
       "source_file": "noxadetail-app/app.py",
-      "source_location": "L8890",
+      "source_location": "L8894",
       "_origin": "ast",
-      "id": "app_rationale_8890",
+      "id": "app_rationale_8894",
       "community": 31,
       "community_name": "bogota_now",
       "norm_label": "corre diariamente a las 10 am (bogota). a los 3 meses del ceramico le avisa a..."
@@ -6023,9 +6023,9 @@
       "label": "Corre diariamente a las 10 AM (Bogot\u00e1). A las 3 semanas del cer\u00e1mico le avisa a\u2026",
       "file_type": "rationale",
       "source_file": "noxadetail-app/app.py",
-      "source_location": "L8933",
+      "source_location": "L8937",
       "_origin": "ast",
-      "id": "app_rationale_8933",
+      "id": "app_rationale_8937",
       "community": 31,
       "community_name": "bogota_now",
       "norm_label": "corre diariamente a las 10 am (bogota). a las 3 semanas del ceramico le avisa a..."
@@ -6034,9 +6034,9 @@
       "label": "Corre diariamente a las 11 AM (Bogot\u00e1). Detecta clientes cuya \u00faltima cita\u2026",
       "file_type": "rationale",
       "source_file": "noxadetail-app/app.py",
-      "source_location": "L8966",
+      "source_location": "L8970",
       "_origin": "ast",
-      "id": "app_rationale_8966",
+      "id": "app_rationale_8970",
       "community": 31,
       "community_name": "bogota_now",
       "norm_label": "corre diariamente a las 11 am (bogota). detecta clientes cuya ultima cita..."
@@ -6045,20 +6045,20 @@
       "label": "Corre diariamente a las 10:30 AM (Bogot\u00e1). A los 7 d\u00edas de entregar el veh\u00edculo\u2026",
       "file_type": "rationale",
       "source_file": "noxadetail-app/app.py",
-      "source_location": "L9040",
+      "source_location": "L9044",
       "_origin": "ast",
-      "id": "app_rationale_9040",
-      "community": 31,
-      "community_name": "bogota_now",
+      "id": "app_rationale_9044",
+      "community": 69,
+      "community_name": "_transacciones_citas",
       "norm_label": "corre diariamente a las 10:30 am (bogota). a los 7 dias de entregar el vehiculo..."
     },
     {
       "label": "\u00bfMariana ya le dio un precio a este cliente? Se mira el historial en vez de\u2026",
       "file_type": "rationale",
       "source_file": "noxadetail-app/app.py",
-      "source_location": "L9099",
+      "source_location": "L9103",
       "_origin": "ast",
-      "id": "app_rationale_9099",
+      "id": "app_rationale_9103",
       "community": 39,
       "community_name": "_job_whatsapp_followup",
       "norm_label": "\u00bfmariana ya le dio un precio a este cliente? se mira el historial en vez de..."
@@ -6067,9 +6067,9 @@
       "label": "Plantilla que le toca a esta etapa: (sid, clave del texto). Devuelve las dos\u2026",
       "file_type": "rationale",
       "source_file": "noxadetail-app/app.py",
-      "source_location": "L9112",
+      "source_location": "L9116",
       "_origin": "ast",
-      "id": "app_rationale_9112",
+      "id": "app_rationale_9116",
       "community": 39,
       "community_name": "_job_whatsapp_followup",
       "norm_label": "plantilla que le toca a esta etapa: (sid, clave del texto). devuelve las dos..."
@@ -6078,9 +6078,9 @@
       "label": "\u00bfSe le puede escribir texto libre a este cliente ahora mismo? WhatsApp solo lo\u2026",
       "file_type": "rationale",
       "source_file": "noxadetail-app/app.py",
-      "source_location": "L9126",
+      "source_location": "L9130",
       "_origin": "ast",
-      "id": "app_rationale_9126",
+      "id": "app_rationale_9130",
       "community": 39,
       "community_name": "_job_whatsapp_followup",
       "norm_label": "\u00bfse le puede escribir texto libre a este cliente ahora mismo? whatsapp solo lo..."
@@ -6089,9 +6089,9 @@
       "label": "A qui\u00e9n le escribe el job de reactivaci\u00f3n de leads. Vive aparte del job para\u2026",
       "file_type": "rationale",
       "source_file": "noxadetail-app/app.py",
-      "source_location": "L9143",
+      "source_location": "L9147",
       "_origin": "ast",
-      "id": "app_rationale_9143",
+      "id": "app_rationale_9147",
       "community": 39,
       "community_name": "_job_whatsapp_followup",
       "norm_label": "a quien le escribe el job de reactivacion de leads. vive aparte del job para..."
@@ -6100,9 +6100,9 @@
       "label": "Corre cada 30 minutos, solo dentro de horario de atenci\u00f3n (lunes a s\u00e1bado,\u2026",
       "file_type": "rationale",
       "source_file": "noxadetail-app/app.py",
-      "source_location": "L9166",
+      "source_location": "L9170",
       "_origin": "ast",
-      "id": "app_rationale_9166",
+      "id": "app_rationale_9170",
       "community": 39,
       "community_name": "_job_whatsapp_followup",
       "norm_label": "corre cada 30 minutos, solo dentro de horario de atencion (lunes a sabado,..."
@@ -6111,53 +6111,53 @@
       "label": "hace 5 min\", \"hace 2 h\", \"ayer\"... Para las alertas, donde importa m\u00e1s cu\u00e1n\u2026",
       "file_type": "rationale",
       "source_file": "noxadetail-app/app.py",
-      "source_location": "L9239",
+      "source_location": "L9243",
       "_origin": "ast",
-      "id": "app_rationale_9239",
+      "id": "app_rationale_9243",
       "community": 43,
-      "community_name": "whatsapp.html",
+      "community_name": "whatsapp_messages_json",
       "norm_label": "hace 5 min\", \"hace 2 h\", \"ayer\"... para las alertas, donde importa mas cuan..."
     },
     {
       "label": "Versi\u00f3n sin tildes de un texto, para buscar sin escribirlas.",
       "file_type": "rationale",
       "source_file": "noxadetail-app/app.py",
-      "source_location": "L9262",
+      "source_location": "L9266",
       "_origin": "ast",
-      "id": "app_rationale_9262",
+      "id": "app_rationale_9266",
       "community": 43,
-      "community_name": "whatsapp.html",
+      "community_name": "whatsapp_messages_json",
       "norm_label": "version sin tildes de un texto, para buscar sin escribirlas."
     },
     {
       "label": "Etiqueta del separador de d\u00eda en el chat: \"Hoy\", \"Ayer\" o la fecha.",
       "file_type": "rationale",
       "source_file": "noxadetail-app/app.py",
-      "source_location": "L9272",
+      "source_location": "L9276",
       "_origin": "ast",
-      "id": "app_rationale_9272",
+      "id": "app_rationale_9276",
       "community": 43,
-      "community_name": "whatsapp.html",
+      "community_name": "whatsapp_messages_json",
       "norm_label": "etiqueta del separador de dia en el chat: \"hoy\", \"ayer\" o la fecha."
     },
     {
       "label": "Los timestamps se guardan en UTC naive (datetime.utcnow). Mostrarlos tal cual\u2026",
       "file_type": "rationale",
       "source_file": "noxadetail-app/app.py",
-      "source_location": "L9286",
+      "source_location": "L9290",
       "_origin": "ast",
-      "id": "app_rationale_9286",
+      "id": "app_rationale_9290",
       "community": 43,
-      "community_name": "whatsapp.html",
+      "community_name": "whatsapp_messages_json",
       "norm_label": "los timestamps se guardan en utc naive (datetime.utcnow). mostrarlos tal cual..."
     },
     {
       "label": "Sirve la imagen de una promoci\u00f3n. Es p\u00fablica a prop\u00f3sito: Twilio la descarga\u2026",
       "file_type": "rationale",
       "source_file": "noxadetail-app/app.py",
-      "source_location": "L9309",
+      "source_location": "L9313",
       "_origin": "ast",
-      "id": "app_rationale_9309",
+      "id": "app_rationale_9313",
       "community": 44,
       "community_name": "_can_see_notifications",
       "norm_label": "sirve la imagen de una promocion. es publica a proposito: twilio la descarga..."
@@ -6166,9 +6166,9 @@
       "label": "Guarda la imagen de apoyo y devuelve el nombre con el que qued\u00f3. El nombre\u2026",
       "file_type": "rationale",
       "source_file": "noxadetail-app/app.py",
-      "source_location": "L9317",
+      "source_location": "L9321",
       "_origin": "ast",
-      "id": "app_rationale_9317",
+      "id": "app_rationale_9321",
       "community": 44,
       "community_name": "_can_see_notifications",
       "norm_label": "guarda la imagen de apoyo y devuelve el nombre con el que quedo. el nombre..."
@@ -6177,31 +6177,31 @@
       "label": "ok' | 'warn' | 'bad' seg\u00fan los umbrales del negocio. Devuelve cadena vac\u00eda si\u2026",
       "file_type": "rationale",
       "source_file": "noxadetail-app/app.py",
-      "source_location": "L9376",
+      "source_location": "L9380",
       "_origin": "ast",
-      "id": "app_rationale_9376",
+      "id": "app_rationale_9380",
       "community": 45,
-      "community_name": "Analytics Dashboard",
+      "community_name": "analytics_dashboard",
       "norm_label": "ok' | 'warn' | 'bad' segun los umbrales del negocio. devuelve cadena vacia si..."
     },
     {
       "label": "[(categor\u00eda, [servicios]), ...] en el orden de SERVICE_CATEGORY_RULES, saltando\u2026",
       "file_type": "rationale",
       "source_file": "noxadetail-app/app.py",
-      "source_location": "L9395",
+      "source_location": "L9399",
       "_origin": "ast",
-      "id": "app_rationale_9395",
+      "id": "app_rationale_9399",
       "community": 45,
-      "community_name": "Analytics Dashboard",
+      "community_name": "analytics_dashboard",
       "norm_label": "[(categoria, [servicios]), ...] en el orden de service_category_rules, saltando..."
     },
     {
       "label": "Las alertas son de supervisi\u00f3n del negocio: las ve todo el que no sea operario\u2026",
       "file_type": "rationale",
       "source_file": "noxadetail-app/app.py",
-      "source_location": "L9466",
+      "source_location": "L9470",
       "_origin": "ast",
-      "id": "app_rationale_9466",
+      "id": "app_rationale_9470",
       "community": 44,
       "community_name": "_can_see_notifications",
       "norm_label": "las alertas son de supervision del negocio: las ve todo el que no sea operario..."
@@ -6210,9 +6210,9 @@
       "label": "Alimenta la campanita. Se consulta cada 30s desde el navegador.",
       "file_type": "rationale",
       "source_file": "noxadetail-app/app.py",
-      "source_location": "L9474",
+      "source_location": "L9478",
       "_origin": "ast",
-      "id": "app_rationale_9474",
+      "id": "app_rationale_9478",
       "community": 23,
       "community_name": "api_notifications",
       "norm_label": "alimenta la campanita. se consulta cada 30s desde el navegador."
@@ -6221,9 +6221,9 @@
       "label": "Historial completo, para cuando la campanita se queda corta.",
       "file_type": "rationale",
       "source_file": "noxadetail-app/app.py",
-      "source_location": "L9523",
+      "source_location": "L9527",
       "_origin": "ast",
-      "id": "app_rationale_9523",
+      "id": "app_rationale_9527",
       "community": 12,
       "community_name": "Base Layout Template",
       "norm_label": "historial completo, para cuando la campanita se queda corta."
@@ -6232,31 +6232,31 @@
       "label": "Planes vendidos, con su saldo. Lo primero que se necesita saber es a qui\u00e9n le\u2026",
       "file_type": "rationale",
       "source_file": "noxadetail-app/app.py",
-      "source_location": "L9622",
+      "source_location": "L9626",
       "_origin": "ast",
-      "id": "app_rationale_9622",
-      "community": 45,
-      "community_name": "Analytics Dashboard",
+      "id": "app_rationale_9626",
+      "community": 31,
+      "community_name": "bogota_now",
       "norm_label": "planes vendidos, con su saldo. lo primero que se necesita saber es a quien le..."
     },
     {
       "label": "Precio sugerido para el combo plan \u00d7 tipo de veh\u00edculo, para el formulario.",
       "file_type": "rationale",
       "source_file": "noxadetail-app/app.py",
-      "source_location": "L9640",
+      "source_location": "L9644",
       "_origin": "ast",
-      "id": "app_rationale_9640",
+      "id": "app_rationale_9644",
       "community": 45,
-      "community_name": "Analytics Dashboard",
+      "community_name": "analytics_dashboard",
       "norm_label": "precio sugerido para el combo plan \u00d7 tipo de vehiculo, para el formulario."
     },
     {
       "label": "Planes que puede usar una placa, para el formulario de la cita. Incluye el plan\u2026",
       "file_type": "rationale",
       "source_file": "noxadetail-app/app.py",
-      "source_location": "L9663",
+      "source_location": "L9667",
       "_origin": "ast",
-      "id": "app_rationale_9663",
+      "id": "app_rationale_9667",
       "community": 58,
       "community_name": "api_plans_by_plate",
       "norm_label": "planes que puede usar una placa, para el formulario de la cita. incluye el plan..."
@@ -6265,9 +6265,9 @@
       "label": "Vende un plan y registra el ingreso. La plata entra hoy, completa: es prepago.\u2026",
       "file_type": "rationale",
       "source_file": "noxadetail-app/app.py",
-      "source_location": "L9694",
+      "source_location": "L9698",
       "_origin": "ast",
-      "id": "app_rationale_9694",
+      "id": "app_rationale_9698",
       "community": 42,
       "community_name": "normalize_plate",
       "norm_label": "vende un plan y registra el ingreso. la plata entra hoy, completa: es prepago...."
@@ -6276,20 +6276,20 @@
       "label": "Desactiva un plan vendido (venta anulada, cliente que se fue).",
       "file_type": "rationale",
       "source_file": "noxadetail-app/app.py",
-      "source_location": "L9780",
+      "source_location": "L9784",
       "_origin": "ast",
-      "id": "app_rationale_9780",
+      "id": "app_rationale_9784",
       "community": 45,
-      "community_name": "Analytics Dashboard",
+      "community_name": "analytics_dashboard",
       "norm_label": "desactiva un plan vendido (venta anulada, cliente que se fue)."
     },
     {
       "label": "Los backups que hay, para poder bajarse uno y guardarlo fuera de Railway.",
       "file_type": "rationale",
       "source_file": "noxadetail-app/app.py",
-      "source_location": "L9792",
+      "source_location": "L9796",
       "_origin": "ast",
-      "id": "app_rationale_9792",
+      "id": "app_rationale_9796",
       "community": 24,
       "community_name": "_job_backup_db",
       "norm_label": "los backups que hay, para poder bajarse uno y guardarlo fuera de railway."
@@ -6298,9 +6298,9 @@
       "label": "Redirige a una URL temporal del bucket. El archivo no pasa por la app: se firma\u2026",
       "file_type": "rationale",
       "source_file": "noxadetail-app/app.py",
-      "source_location": "L9821",
+      "source_location": "L9825",
       "_origin": "ast",
-      "id": "app_rationale_9821",
+      "id": "app_rationale_9825",
       "community": 24,
       "community_name": "_job_backup_db",
       "norm_label": "redirige a una url temporal del bucket. el archivo no pasa por la app: se firma..."
@@ -6309,9 +6309,9 @@
       "label": "Cliente del bucket, o None si todav\u00eda no est\u00e1 configurado.",
       "file_type": "rationale",
       "source_file": "noxadetail-app/app.py",
-      "source_location": "L9864",
+      "source_location": "L9868",
       "_origin": "ast",
-      "id": "app_rationale_9864",
+      "id": "app_rationale_9868",
       "community": 24,
       "community_name": "_job_backup_db",
       "norm_label": "cliente del bucket, o none si todavia no esta configurado."
@@ -6320,9 +6320,9 @@
       "label": "Copia consistente de la base, comprimida. Se usa la API de backup de SQLite y\u2026",
       "file_type": "rationale",
       "source_file": "noxadetail-app/app.py",
-      "source_location": "L9882",
+      "source_location": "L9886",
       "_origin": "ast",
-      "id": "app_rationale_9882",
+      "id": "app_rationale_9886",
       "community": 24,
       "community_name": "_job_backup_db",
       "norm_label": "copia consistente de la base, comprimida. se usa la api de backup de sqlite y..."
@@ -6331,9 +6331,9 @@
       "label": "Backups en el bucket, del m\u00e1s nuevo al m\u00e1s viejo.",
       "file_type": "rationale",
       "source_file": "noxadetail-app/app.py",
-      "source_location": "L9906",
+      "source_location": "L9910",
       "_origin": "ast",
-      "id": "app_rationale_9906",
+      "id": "app_rationale_9910",
       "community": 24,
       "community_name": "_job_backup_db",
       "norm_label": "backups en el bucket, del mas nuevo al mas viejo."
@@ -6342,9 +6342,9 @@
       "label": "Borra los backups que ya no entran en la pol\u00edtica de retenci\u00f3n. Se conservan\u2026",
       "file_type": "rationale",
       "source_file": "noxadetail-app/app.py",
-      "source_location": "L9915",
+      "source_location": "L9919",
       "_origin": "ast",
-      "id": "app_rationale_9915",
+      "id": "app_rationale_9919",
       "community": 24,
       "community_name": "_job_backup_db",
       "norm_label": "borra los backups que ya no entran en la politica de retencion. se conservan..."
@@ -6353,9 +6353,9 @@
       "label": "Corre diariamente a las 3 AM (Bogot\u00e1), cuando no hay tr\u00e1fico.",
       "file_type": "rationale",
       "source_file": "noxadetail-app/app.py",
-      "source_location": "L9947",
+      "source_location": "L9951",
       "_origin": "ast",
-      "id": "app_rationale_9947",
+      "id": "app_rationale_9951",
       "community": 24,
       "community_name": "_job_backup_db",
       "norm_label": "corre diariamente a las 3 am (bogota), cuando no hay trafico."
@@ -6448,7 +6448,7 @@
       "_callable": true,
       "_origin": "ast",
       "id": "tests_conftest_make_user",
-      "community": 2,
+      "community": 41,
       "community_name": "make_user",
       "norm_label": "make_user()"
     },
@@ -6482,7 +6482,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "tests_test_abonos_ajustes",
-      "community": 51,
+      "community": 4,
       "community_name": "test_abonos_ajustes.py",
       "norm_label": "test_abonos_ajustes.py"
     },
@@ -6494,7 +6494,7 @@
       "_origin": "ast",
       "id": "tests_test_abonos_ajustes_py_fixture",
       "community": 4,
-      "community_name": "_ajuste",
+      "community_name": "test_abonos_ajustes.py",
       "norm_label": "fixture"
     },
     {
@@ -6506,7 +6506,7 @@
       "_origin": "ast",
       "id": "tests_test_abonos_ajustes_catalogo",
       "community": 4,
-      "community_name": "_ajuste",
+      "community_name": "test_abonos_ajustes.py",
       "norm_label": "catalogo()"
     },
     {
@@ -6517,7 +6517,7 @@
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_abonos_ajustes_cita",
-      "community": 51,
+      "community": 4,
       "community_name": "test_abonos_ajustes.py",
       "norm_label": "cita()"
     },
@@ -6530,7 +6530,7 @@
       "_origin": "ast",
       "id": "tests_test_abonos_ajustes_ajuste",
       "community": 4,
-      "community_name": "_ajuste",
+      "community_name": "test_abonos_ajustes.py",
       "norm_label": "_ajuste()"
     },
     {
@@ -6541,7 +6541,7 @@
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_abonos_ajustes_abono",
-      "community": 51,
+      "community": 4,
       "community_name": "test_abonos_ajustes.py",
       "norm_label": "_abono()"
     },
@@ -6554,7 +6554,7 @@
       "_callable_class": true,
       "_origin": "ast",
       "id": "tests_test_abonos_ajustes_testabonovsdescuento",
-      "community": 51,
+      "community": 4,
       "community_name": "test_abonos_ajustes.py",
       "norm_label": "testabonovsdescuento"
     },
@@ -6566,7 +6566,7 @@
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_abonos_ajustes_testabonovsdescuento_test_el_abono_no_baja_el_valor_del_servicio",
-      "community": 51,
+      "community": 4,
       "community_name": "test_abonos_ajustes.py",
       "norm_label": ".test_el_abono_no_baja_el_valor_del_servicio()"
     },
@@ -6578,7 +6578,7 @@
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_abonos_ajustes_testabonovsdescuento_test_el_descuento_si_baja_el_valor_del_servicio",
-      "community": 51,
+      "community": 4,
       "community_name": "test_abonos_ajustes.py",
       "norm_label": ".test_el_descuento_si_baja_el_valor_del_servicio()"
     },
@@ -6590,7 +6590,7 @@
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_abonos_ajustes_testabonovsdescuento_test_abonar_de_mas_deja_saldo_a_favor",
-      "community": 51,
+      "community": 4,
       "community_name": "test_abonos_ajustes.py",
       "norm_label": ".test_abonar_de_mas_deja_saldo_a_favor()"
     },
@@ -6604,7 +6604,7 @@
       "_origin": "ast",
       "id": "tests_test_abonos_ajustes_testvariosajustes",
       "community": 4,
-      "community_name": "_ajuste",
+      "community_name": "test_abonos_ajustes.py",
       "norm_label": "testvariosajustes"
     },
     {
@@ -6616,7 +6616,7 @@
       "_origin": "ast",
       "id": "tests_test_abonos_ajustes_testvariosajustes_test_se_acumulan_descuentos_y_recargos",
       "community": 4,
-      "community_name": "_ajuste",
+      "community_name": "test_abonos_ajustes.py",
       "norm_label": ".test_se_acumulan_descuentos_y_recargos()"
     },
     {
@@ -6628,7 +6628,7 @@
       "_origin": "ast",
       "id": "tests_test_abonos_ajustes_testvariosajustes_test_los_porcentajes_no_se_encadenan",
       "community": 4,
-      "community_name": "_ajuste",
+      "community_name": "test_abonos_ajustes.py",
       "norm_label": ".test_los_porcentajes_no_se_encadenan()"
     },
     {
@@ -6640,7 +6640,7 @@
       "_origin": "ast",
       "id": "tests_test_abonos_ajustes_testvariosajustes_test_el_orden_no_cambia_el_total",
       "community": 4,
-      "community_name": "_ajuste",
+      "community_name": "test_abonos_ajustes.py",
       "norm_label": ".test_el_orden_no_cambia_el_total()"
     },
     {
@@ -6652,7 +6652,7 @@
       "_origin": "ast",
       "id": "tests_test_abonos_ajustes_testvariosajustes_test_los_descuentos_no_dejan_el_total_en_negativo",
       "community": 4,
-      "community_name": "_ajuste",
+      "community_name": "test_abonos_ajustes.py",
       "norm_label": ".test_los_descuentos_no_dejan_el_total_en_negativo()"
     },
     {
@@ -6664,7 +6664,7 @@
       "_origin": "ast",
       "id": "tests_test_abonos_ajustes_testvariosajustes_test_se_ignoran_las_filas_vacias_o_invalidas",
       "community": 4,
-      "community_name": "_ajuste",
+      "community_name": "test_abonos_ajustes.py",
       "norm_label": ".test_se_ignoran_las_filas_vacias_o_invalidas()"
     },
     {
@@ -6677,7 +6677,7 @@
       "_origin": "ast",
       "id": "tests_test_abonos_ajustes_testbasedelporcentaje",
       "community": 4,
-      "community_name": "_ajuste",
+      "community_name": "test_abonos_ajustes.py",
       "norm_label": "testbasedelporcentaje"
     },
     {
@@ -6689,7 +6689,7 @@
       "_origin": "ast",
       "id": "tests_test_abonos_ajustes_testbasedelporcentaje_con_convenio",
       "community": 4,
-      "community_name": "_ajuste",
+      "community_name": "test_abonos_ajustes.py",
       "norm_label": ".con_convenio()"
     },
     {
@@ -6701,7 +6701,7 @@
       "_origin": "ast",
       "id": "tests_test_abonos_ajustes_testbasedelporcentaje_test_sobre_lista_ignora_el_convenio",
       "community": 4,
-      "community_name": "_ajuste",
+      "community_name": "test_abonos_ajustes.py",
       "norm_label": ".test_sobre_lista_ignora_el_convenio()"
     },
     {
@@ -6713,7 +6713,7 @@
       "_origin": "ast",
       "id": "tests_test_abonos_ajustes_testbasedelporcentaje_test_sobre_subtotal_usa_el_valor_ya_con_convenio",
       "community": 4,
-      "community_name": "_ajuste",
+      "community_name": "test_abonos_ajustes.py",
       "norm_label": ".test_sobre_subtotal_usa_el_valor_ya_con_convenio()"
     },
     {
@@ -6725,7 +6725,7 @@
       "_origin": "ast",
       "id": "tests_test_abonos_ajustes_testbasedelporcentaje_test_las_dos_bases_dan_montos_distintos",
       "community": 4,
-      "community_name": "_ajuste",
+      "community_name": "test_abonos_ajustes.py",
       "norm_label": ".test_las_dos_bases_dan_montos_distintos()"
     },
     {
@@ -6737,7 +6737,7 @@
       "_origin": "ast",
       "id": "tests_test_abonos_ajustes_testbasedelporcentaje_test_en_valor_fijo_la_base_no_cambia_nada",
       "community": 4,
-      "community_name": "_ajuste",
+      "community_name": "test_abonos_ajustes.py",
       "norm_label": ".test_en_valor_fijo_la_base_no_cambia_nada()"
     },
     {
@@ -6749,7 +6749,7 @@
       "_origin": "ast",
       "id": "tests_test_abonos_ajustes_testbasedelporcentaje_test_sin_precio_de_lista_cae_al_subtotal",
       "community": 4,
-      "community_name": "_ajuste",
+      "community_name": "test_abonos_ajustes.py",
       "norm_label": ".test_sin_precio_de_lista_cae_al_subtotal()"
     },
     {
@@ -6761,7 +6761,7 @@
       "_origin": "ast",
       "id": "tests_test_abonos_ajustes_testbasedelporcentaje_test_el_detalle_reporta_la_base_solo_en_porcentaje",
       "community": 4,
-      "community_name": "_ajuste",
+      "community_name": "test_abonos_ajustes.py",
       "norm_label": ".test_el_detalle_reporta_la_base_solo_en_porcentaje()"
     },
     {
@@ -6870,7 +6870,7 @@
       "_callable_class": true,
       "_origin": "ast",
       "id": "tests_test_abonos_ajustes_testborrado",
-      "community": 51,
+      "community": 4,
       "community_name": "test_abonos_ajustes.py",
       "norm_label": "testborrado"
     },
@@ -6882,7 +6882,7 @@
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_abonos_ajustes_testborrado_test_borrar_la_cita_arrastra_ajustes_y_abonos",
-      "community": 51,
+      "community": 4,
       "community_name": "test_abonos_ajustes.py",
       "norm_label": ".test_borrar_la_cita_arrastra_ajustes_y_abonos()"
     },
@@ -6895,7 +6895,7 @@
       "_callable_class": true,
       "_origin": "ast",
       "id": "tests_test_abonos_ajustes_testanalitica",
-      "community": 51,
+      "community": 4,
       "community_name": "test_abonos_ajustes.py",
       "norm_label": "testanalitica"
     },
@@ -6907,7 +6907,7 @@
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_abonos_ajustes_testanalitica_test_el_abono_no_mueve_ingresos_ni_descuentos",
-      "community": 51,
+      "community": 4,
       "community_name": "test_abonos_ajustes.py",
       "norm_label": ".test_el_abono_no_mueve_ingresos_ni_descuentos()"
     },
@@ -6920,7 +6920,7 @@
       "_origin": "ast",
       "id": "tests_test_abonos_ajustes_testanalitica_test_un_recargo_no_borra_los_descuentos_del_kpi",
       "community": 4,
-      "community_name": "_ajuste",
+      "community_name": "test_abonos_ajustes.py",
       "norm_label": ".test_un_recargo_no_borra_los_descuentos_del_kpi()"
     },
     {
@@ -6932,7 +6932,7 @@
       "_callable_class": true,
       "_origin": "ast",
       "id": "tests_test_abonos_ajustes_testmigraciondelajusteviejo",
-      "community": 51,
+      "community": 4,
       "community_name": "test_abonos_ajustes.py",
       "norm_label": "testmigraciondelajusteviejo"
     },
@@ -6944,7 +6944,7 @@
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_abonos_ajustes_testmigraciondelajusteviejo_test_pasa_la_columna_vieja_a_una_fila_y_no_se_repite",
-      "community": 51,
+      "community": 4,
       "community_name": "test_abonos_ajustes.py",
       "norm_label": ".test_pasa_la_columna_vieja_a_una_fila_y_no_se_repite()"
     },
@@ -6955,7 +6955,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "tests_test_abonos_ajustes_rationale_1",
-      "community": 51,
+      "community": 4,
       "community_name": "test_abonos_ajustes.py",
       "norm_label": "plata de una cita: descuentos/recargos contra abonos. la regla que estos tests..."
     },
@@ -6967,7 +6967,7 @@
       "_origin": "ast",
       "id": "tests_test_abonos_ajustes_rationale_19",
       "community": 4,
-      "community_name": "_ajuste",
+      "community_name": "test_abonos_ajustes.py",
       "norm_label": "un servicio con precio real para un tipo de vehiculo, del seed."
     },
     {
@@ -6978,7 +6978,7 @@
       "_origin": "ast",
       "id": "tests_test_abonos_ajustes_rationale_137",
       "community": 4,
-      "community_name": "_ajuste",
+      "community_name": "test_abonos_ajustes.py",
       "norm_label": "con convenio de por medio, un 10% sobre lista y un 10% sobre subtotal son plata..."
     },
     {
@@ -6989,7 +6989,7 @@
       "_origin": "ast",
       "id": "tests_test_abonos_ajustes_rationale_194",
       "community": 4,
-      "community_name": "_ajuste",
+      "community_name": "test_abonos_ajustes.py",
       "norm_label": "apply_adjustments se puede llamar sin lista (cierres viejos): en ese caso la..."
     },
     {
@@ -7022,7 +7022,7 @@
       "_origin": "ast",
       "id": "tests_test_abonos_ajustes_rationale_343",
       "community": 4,
-      "community_name": "_ajuste",
+      "community_name": "test_abonos_ajustes.py",
       "norm_label": "el bug que aparece si se calcula `lista \u2212 cobrado`: un recargo grande deja la..."
     },
     {
@@ -7033,7 +7033,7 @@
       "_origin": "ast",
       "id": "tests_test_agenda_cajon",
       "community": 51,
-      "community_name": "test_abonos_ajustes.py",
+      "community_name": "datetime",
       "norm_label": "test_agenda_cajon.py"
     },
     {
@@ -7142,7 +7142,7 @@
       "_origin": "ast",
       "id": "tests_test_agenda_cajon_testlineasdelevento",
       "community": 51,
-      "community_name": "test_abonos_ajustes.py",
+      "community_name": "datetime",
       "norm_label": "testlineasdelevento"
     },
     {
@@ -7152,8 +7152,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "tests_test_agenda_cajon_py_fixture",
-      "community": 41,
-      "community_name": "TestAgendaDeDiagnosticos",
+      "community": 51,
+      "community_name": "datetime",
       "norm_label": "fixture"
     },
     {
@@ -7165,7 +7165,7 @@
       "_origin": "ast",
       "id": "tests_test_agenda_cajon_testlineasdelevento_cita",
       "community": 51,
-      "community_name": "test_abonos_ajustes.py",
+      "community_name": "datetime",
       "norm_label": ".cita()"
     },
     {
@@ -7177,7 +7177,7 @@
       "_origin": "ast",
       "id": "tests_test_agenda_cajon_testlineasdelevento_lineas",
       "community": 51,
-      "community_name": "test_abonos_ajustes.py",
+      "community_name": "datetime",
       "norm_label": "._lineas()"
     },
     {
@@ -7189,7 +7189,7 @@
       "_origin": "ast",
       "id": "tests_test_agenda_cajon_testlineasdelevento_test_manda_las_cinco_lineas",
       "community": 51,
-      "community_name": "test_abonos_ajustes.py",
+      "community_name": "datetime",
       "norm_label": ".test_manda_las_cinco_lineas()"
     },
     {
@@ -7201,7 +7201,7 @@
       "_origin": "ast",
       "id": "tests_test_agenda_cajon_testlineasdelevento_test_las_notas_van_en_una_sola_linea",
       "community": 51,
-      "community_name": "test_abonos_ajustes.py",
+      "community_name": "datetime",
       "norm_label": ".test_las_notas_van_en_una_sola_linea()"
     },
     {
@@ -7213,7 +7213,7 @@
       "_origin": "ast",
       "id": "tests_test_agenda_cajon_testlineasdelevento_test_sin_abonos_la_cifra_va_sola",
       "community": 51,
-      "community_name": "test_abonos_ajustes.py",
+      "community_name": "datetime",
       "norm_label": ".test_sin_abonos_la_cifra_va_sola()"
     },
     {
@@ -7225,7 +7225,7 @@
       "_origin": "ast",
       "id": "tests_test_agenda_cajon_testlineasdelevento_test_con_abono_se_dice_que_es_un_saldo",
       "community": 51,
-      "community_name": "test_abonos_ajustes.py",
+      "community_name": "datetime",
       "norm_label": ".test_con_abono_se_dice_que_es_un_saldo()"
     },
     {
@@ -7237,7 +7237,7 @@
       "_origin": "ast",
       "id": "tests_test_agenda_cajon_testlineasdelevento_test_si_abonaron_de_mas_dice_a_favor",
       "community": 51,
-      "community_name": "test_abonos_ajustes.py",
+      "community_name": "datetime",
       "norm_label": ".test_si_abonaron_de_mas_dice_a_favor()"
     },
     {
@@ -7250,7 +7250,7 @@
       "_origin": "ast",
       "id": "tests_test_agenda_cajon_testagendadediagnosticos",
       "community": 41,
-      "community_name": "TestAgendaDeDiagnosticos",
+      "community_name": "make_user",
       "norm_label": "testagendadediagnosticos"
     },
     {
@@ -7261,8 +7261,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_agenda_cajon_testagendadediagnosticos_escenario",
-      "community": 41,
-      "community_name": "TestAgendaDeDiagnosticos",
+      "community": 51,
+      "community_name": "datetime",
       "norm_label": ".escenario()"
     },
     {
@@ -7274,7 +7274,7 @@
       "_origin": "ast",
       "id": "tests_test_agenda_cajon_testagendadediagnosticos_placas",
       "community": 41,
-      "community_name": "TestAgendaDeDiagnosticos",
+      "community_name": "make_user",
       "norm_label": "._placas()"
     },
     {
@@ -7286,7 +7286,7 @@
       "_origin": "ast",
       "id": "tests_test_agenda_cajon_testagendadediagnosticos_test_cada_agenda_ve_lo_suyo",
       "community": 41,
-      "community_name": "TestAgendaDeDiagnosticos",
+      "community_name": "make_user",
       "norm_label": ".test_cada_agenda_ve_lo_suyo()"
     },
     {
@@ -7298,7 +7298,7 @@
       "_origin": "ast",
       "id": "tests_test_agenda_cajon_testagendadediagnosticos_test_una_cita_mixta_cuenta_como_cita",
       "community": 41,
-      "community_name": "TestAgendaDeDiagnosticos",
+      "community_name": "make_user",
       "norm_label": ".test_una_cita_mixta_cuenta_como_cita()"
     },
     {
@@ -7310,7 +7310,7 @@
       "_origin": "ast",
       "id": "tests_test_agenda_cajon_testagendadediagnosticos_test_sin_modo_se_asume_la_agenda_de_citas",
       "community": 41,
-      "community_name": "TestAgendaDeDiagnosticos",
+      "community_name": "make_user",
       "norm_label": ".test_sin_modo_se_asume_la_agenda_de_citas()"
     },
     {
@@ -7322,7 +7322,7 @@
       "_origin": "ast",
       "id": "tests_test_agenda_cajon_testagendadediagnosticos_test_en_diagnosticos_no_se_repite_la_palabra_diagnostico",
       "community": 41,
-      "community_name": "TestAgendaDeDiagnosticos",
+      "community_name": "make_user",
       "norm_label": ".test_en_diagnosticos_no_se_repite_la_palabra_diagnostico()"
     },
     {
@@ -7334,7 +7334,7 @@
       "_origin": "ast",
       "id": "tests_test_agenda_cajon_testagendadediagnosticos_test_un_diagnostico_gratis_no_muestra_cero",
       "community": 41,
-      "community_name": "TestAgendaDeDiagnosticos",
+      "community_name": "make_user",
       "norm_label": ".test_un_diagnostico_gratis_no_muestra_cero()"
     },
     {
@@ -7346,7 +7346,7 @@
       "_origin": "ast",
       "id": "tests_test_agenda_cajon_testagendadediagnosticos_test_marketing_no_entra_a_la_agenda",
       "community": 41,
-      "community_name": "TestAgendaDeDiagnosticos",
+      "community_name": "make_user",
       "norm_label": ".test_marketing_no_entra_a_la_agenda()"
     },
     {
@@ -7357,7 +7357,7 @@
       "_origin": "ast",
       "id": "tests_test_agenda_cajon_rationale_1",
       "community": 51,
-      "community_name": "test_abonos_ajustes.py",
+      "community_name": "datetime",
       "norm_label": "lo que va dentro del cajon de una cita en la agenda. el recorte por alto lo..."
     },
     {
@@ -7368,7 +7368,7 @@
       "_origin": "ast",
       "id": "tests_test_agenda_cajon_rationale_121",
       "community": 41,
-      "community_name": "TestAgendaDeDiagnosticos",
+      "community_name": "make_user",
       "norm_label": "dos agendas con la misma pantalla: la que factura y la de diagnosticos."
     },
     {
@@ -7379,7 +7379,7 @@
       "_origin": "ast",
       "id": "tests_test_agenda_cajon_rationale_177",
       "community": 41,
-      "community_name": "TestAgendaDeDiagnosticos",
+      "community_name": "make_user",
       "norm_label": "si el cliente aprovecho y agendo tambien un servicio, ya factura."
     },
     {
@@ -7390,7 +7390,7 @@
       "_origin": "ast",
       "id": "tests_test_agenda_cajon_rationale_189",
       "community": 41,
-      "community_name": "TestAgendaDeDiagnosticos",
+      "community_name": "make_user",
       "norm_label": "todos los cajones dirian lo mismo; el renglon rinde mas con las notas."
     },
     {
@@ -7501,10 +7501,22 @@
       "norm_label": ".test_sin_motivo_no_archiva()"
     },
     {
-      "label": ".test_archivar_pausa_el_bot()",
+      "label": ".test_la_hora_queda_en_utc()",
       "file_type": "code",
       "source_file": "noxadetail-app/tests/test_archivar_conversaciones.py",
       "source_location": "L71",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "tests_test_archivar_conversaciones_testarchivar_test_la_hora_queda_en_utc",
+      "community": 8,
+      "community_name": "test_archivar_conversaciones.py",
+      "norm_label": ".test_la_hora_queda_en_utc()"
+    },
+    {
+      "label": ".test_archivar_pausa_el_bot()",
+      "file_type": "code",
+      "source_file": "noxadetail-app/tests/test_archivar_conversaciones.py",
+      "source_location": "L85",
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_archivar_conversaciones_testarchivar_test_archivar_pausa_el_bot",
@@ -7516,7 +7528,7 @@
       "label": ".test_no_toca_el_estado_del_embudo()",
       "file_type": "code",
       "source_file": "noxadetail-app/tests/test_archivar_conversaciones.py",
-      "source_location": "L75",
+      "source_location": "L89",
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_archivar_conversaciones_testarchivar_test_no_toca_el_estado_del_embudo",
@@ -7528,7 +7540,7 @@
       "label": "TestDesarchivar",
       "file_type": "code",
       "source_file": "noxadetail-app/tests/test_archivar_conversaciones.py",
-      "source_location": "L85",
+      "source_location": "L99",
       "_callable": true,
       "_callable_class": true,
       "_origin": "ast",
@@ -7541,7 +7553,7 @@
       "label": ".test_limpia_los_tres_campos()",
       "file_type": "code",
       "source_file": "noxadetail-app/tests/test_archivar_conversaciones.py",
-      "source_location": "L86",
+      "source_location": "L100",
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_archivar_conversaciones_testdesarchivar_test_limpia_los_tres_campos",
@@ -7553,7 +7565,7 @@
       "label": ".test_no_reactiva_el_bot_solo()",
       "file_type": "code",
       "source_file": "noxadetail-app/tests/test_archivar_conversaciones.py",
-      "source_location": "L96",
+      "source_location": "L110",
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_archivar_conversaciones_testdesarchivar_test_no_reactiva_el_bot_solo",
@@ -7565,7 +7577,7 @@
       "label": "TestSeguimiento",
       "file_type": "code",
       "source_file": "noxadetail-app/tests/test_archivar_conversaciones.py",
-      "source_location": "L104",
+      "source_location": "L118",
       "_callable": true,
       "_callable_class": true,
       "_origin": "ast",
@@ -7578,7 +7590,7 @@
       "label": ".test_una_archivada_no_entra_al_seguimiento()",
       "file_type": "code",
       "source_file": "noxadetail-app/tests/test_archivar_conversaciones.py",
-      "source_location": "L108",
+      "source_location": "L122",
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_archivar_conversaciones_testseguimiento_test_una_archivada_no_entra_al_seguimiento",
@@ -7590,7 +7602,7 @@
       "label": ".test_la_misma_sin_archivar_si_entra()",
       "file_type": "code",
       "source_file": "noxadetail-app/tests/test_archivar_conversaciones.py",
-      "source_location": "L118",
+      "source_location": "L132",
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_archivar_conversaciones_testseguimiento_test_la_misma_sin_archivar_si_entra",
@@ -7602,7 +7614,7 @@
       "label": "TestClienteVuelveAEscribir",
       "file_type": "code",
       "source_file": "noxadetail-app/tests/test_archivar_conversaciones.py",
-      "source_location": "L126",
+      "source_location": "L140",
       "_callable": true,
       "_callable_class": true,
       "_origin": "ast",
@@ -7615,7 +7627,7 @@
       "label": "._entrante()",
       "file_type": "code",
       "source_file": "noxadetail-app/tests/test_archivar_conversaciones.py",
-      "source_location": "L131",
+      "source_location": "L145",
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_archivar_conversaciones_testclientevuelveaescribir_entrante",
@@ -7627,7 +7639,7 @@
       "label": ".test_desarchiva()",
       "file_type": "code",
       "source_file": "noxadetail-app/tests/test_archivar_conversaciones.py",
-      "source_location": "L140",
+      "source_location": "L154",
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_archivar_conversaciones_testclientevuelveaescribir_test_desarchiva",
@@ -7639,7 +7651,7 @@
       "label": ".test_no_reactiva_el_bot()",
       "file_type": "code",
       "source_file": "noxadetail-app/tests/test_archivar_conversaciones.py",
-      "source_location": "L145",
+      "source_location": "L159",
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_archivar_conversaciones_testclientevuelveaescribir_test_no_reactiva_el_bot",
@@ -7651,7 +7663,7 @@
       "label": ".test_avisa_por_campanita()",
       "file_type": "code",
       "source_file": "noxadetail-app/tests/test_archivar_conversaciones.py",
-      "source_location": "L153",
+      "source_location": "L167",
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_archivar_conversaciones_testclientevuelveaescribir_test_avisa_por_campanita",
@@ -7682,12 +7694,23 @@
       "norm_label": "la nota es el punto: sin ella, en un mes nadie sabe por que se cerro. se valida..."
     },
     {
+      "label": "La plantilla la muestra con el filtro `hora_bogota`, que convierte de UTC.\u2026",
+      "file_type": "rationale",
+      "source_file": "noxadetail-app/tests/test_archivar_conversaciones.py",
+      "source_location": "L72",
+      "_origin": "ast",
+      "id": "tests_test_archivar_conversaciones_rationale_72",
+      "community": 8,
+      "community_name": "test_archivar_conversaciones.py",
+      "norm_label": "la plantilla la muestra con el filtro `hora_bogota`, que convierte de utc...."
+    },
+    {
       "label": "Volver a la bandeja y volver a atender con el bot son decisiones distintas;\u2026",
       "file_type": "rationale",
       "source_file": "noxadetail-app/tests/test_archivar_conversaciones.py",
-      "source_location": "L97",
+      "source_location": "L111",
       "_origin": "ast",
-      "id": "tests_test_archivar_conversaciones_rationale_97",
+      "id": "tests_test_archivar_conversaciones_rationale_111",
       "community": 8,
       "community_name": "test_archivar_conversaciones.py",
       "norm_label": "volver a la bandeja y volver a atender con el bot son decisiones distintas;..."
@@ -7696,9 +7719,9 @@
       "label": "El filtro del job es lo que hace que archivar sirva de algo: sin \u00e9l, Mariana le\u2026",
       "file_type": "rationale",
       "source_file": "noxadetail-app/tests/test_archivar_conversaciones.py",
-      "source_location": "L105",
+      "source_location": "L119",
       "_origin": "ast",
-      "id": "tests_test_archivar_conversaciones_rationale_105",
+      "id": "tests_test_archivar_conversaciones_rationale_119",
       "community": 8,
       "community_name": "test_archivar_conversaciones.py",
       "norm_label": "el filtro del job es lo que hace que archivar sirva de algo: sin el, mariana le..."
@@ -7707,9 +7730,9 @@
       "label": "Contraprueba: sin esto el test de arriba pasar\u00eda por cualquier motivo que\u2026",
       "file_type": "rationale",
       "source_file": "noxadetail-app/tests/test_archivar_conversaciones.py",
-      "source_location": "L119",
+      "source_location": "L133",
       "_origin": "ast",
-      "id": "tests_test_archivar_conversaciones_rationale_119",
+      "id": "tests_test_archivar_conversaciones_rationale_133",
       "community": 8,
       "community_name": "test_archivar_conversaciones.py",
       "norm_label": "contraprueba: sin esto el test de arriba pasaria por cualquier motivo que..."
@@ -7718,9 +7741,9 @@
       "label": "Un mensaje entrante devuelve la conversaci\u00f3n a la bandeja. El motivo del\u2026",
       "file_type": "rationale",
       "source_file": "noxadetail-app/tests/test_archivar_conversaciones.py",
-      "source_location": "L127",
+      "source_location": "L141",
       "_origin": "ast",
-      "id": "tests_test_archivar_conversaciones_rationale_127",
+      "id": "tests_test_archivar_conversaciones_rationale_141",
       "community": 8,
       "community_name": "test_archivar_conversaciones.py",
       "norm_label": "un mensaje entrante devuelve la conversacion a la bandeja. el motivo del..."
@@ -8491,8 +8514,8 @@
       "_callable_class": true,
       "_origin": "ast",
       "id": "tests_test_backfill_calificacion_testrutabackfill",
-      "community": 1,
-      "community_name": "login_as",
+      "community": 11,
+      "community_name": "test_backfill_calificacion.py",
       "norm_label": "testrutabackfill"
     },
     {
@@ -8503,8 +8526,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_backfill_calificacion_testrutabackfill_test_requiere_admin",
-      "community": 1,
-      "community_name": "login_as",
+      "community": 11,
+      "community_name": "test_backfill_calificacion.py",
       "norm_label": ".test_requiere_admin()"
     },
     {
@@ -8515,8 +8538,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_backfill_calificacion_testrutabackfill_test_clasifica_solo_las_que_no_tienen_calificacion",
-      "community": 1,
-      "community_name": "login_as",
+      "community": 11,
+      "community_name": "test_backfill_calificacion.py",
       "norm_label": ".test_clasifica_solo_las_que_no_tienen_calificacion()"
     },
     {
@@ -8528,8 +8551,8 @@
       "_callable_class": true,
       "_origin": "ast",
       "id": "tests_test_backfill_calificacion_testregresionproduccion",
-      "community": 11,
-      "community_name": "test_backfill_calificacion.py",
+      "community": 20,
+      "community_name": "TestRegresionProduccion",
       "norm_label": "testregresionproduccion"
     },
     {
@@ -8540,8 +8563,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_backfill_calificacion_testregresionproduccion_test_build_message_history_salta_mensajes_con_body_vacio",
-      "community": 11,
-      "community_name": "test_backfill_calificacion.py",
+      "community": 20,
+      "community_name": "TestRegresionProduccion",
       "norm_label": ".test_build_message_history_salta_mensajes_con_body_vacio()"
     },
     {
@@ -8552,8 +8575,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_backfill_calificacion_testregresionproduccion_test_service_tag_heredado_del_catalogo_viejo_no_tumba_la_ruta",
-      "community": 1,
-      "community_name": "login_as",
+      "community": 20,
+      "community_name": "TestRegresionProduccion",
       "norm_label": ".test_service_tag_heredado_del_catalogo_viejo_no_tumba_la_ruta()"
     },
     {
@@ -8564,8 +8587,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_backfill_calificacion_testregresionproduccion_test_una_conversacion_con_error_no_tumba_el_resto_del_lote",
-      "community": 1,
-      "community_name": "login_as",
+      "community": 20,
+      "community_name": "TestRegresionProduccion",
       "norm_label": ".test_una_conversacion_con_error_no_tumba_el_resto_del_lote()"
     },
     {
@@ -8670,8 +8693,8 @@
       "source_location": "L120",
       "_origin": "ast",
       "id": "tests_test_backfill_calificacion_rationale_120",
-      "community": 1,
-      "community_name": "login_as",
+      "community": 11,
+      "community_name": "test_backfill_calificacion.py",
       "norm_label": "idempotencia: una conversacion que ya tiene calificacion no se toca, asi que..."
     },
     {
@@ -8681,8 +8704,8 @@
       "source_location": "L163",
       "_origin": "ast",
       "id": "tests_test_backfill_calificacion_rationale_163",
-      "community": 11,
-      "community_name": "test_backfill_calificacion.py",
+      "community": 20,
+      "community_name": "TestRegresionProduccion",
       "norm_label": "dos fallas vistas en vivo el 2026-08-18 al correr el backfill contra..."
     },
     {
@@ -8692,8 +8715,8 @@
       "source_location": "L191",
       "_origin": "ast",
       "id": "tests_test_backfill_calificacion_rationale_191",
-      "community": 1,
-      "community_name": "login_as",
+      "community": 20,
+      "community_name": "TestRegresionProduccion",
       "norm_label": "otro servicio' y 'ppf o wrap' existian en el service_tags de antes de ampliar..."
     },
     {
@@ -8703,8 +8726,8 @@
       "source_location": "L219",
       "_origin": "ast",
       "id": "tests_test_backfill_calificacion_rationale_219",
-      "community": 1,
-      "community_name": "login_as",
+      "community": 20,
+      "community_name": "TestRegresionProduccion",
       "norm_label": "antes del fix, el try/except solo cubria la llamada a claude \u2014 un valueerror..."
     },
     {
@@ -8976,8 +8999,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "tests_test_festivos",
-      "community": 2,
-      "community_name": "make_user",
+      "community": 33,
+      "community_name": "test_festivos.py",
       "norm_label": "test_festivos.py"
     },
     {
@@ -9145,8 +9168,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_festivos_testdiahabil_test_acepta_datetime_ademas_de_date",
-      "community": 61,
-      "community_name": "date",
+      "community": 51,
+      "community_name": "datetime",
       "norm_label": ".test_acepta_datetime_ademas_de_date()"
     },
     {
@@ -9158,7 +9181,7 @@
       "_origin": "ast",
       "id": "tests_test_festivos_proximo",
       "community": 33,
-      "community_name": "TestBloqueoAlAgendarDesdeElBot",
+      "community_name": "test_festivos.py",
       "norm_label": "_proximo()"
     },
     {
@@ -9170,7 +9193,7 @@
       "_origin": "ast",
       "id": "tests_test_festivos_proximo_domingo",
       "community": 33,
-      "community_name": "TestBloqueoAlAgendarDesdeElBot",
+      "community_name": "test_festivos.py",
       "norm_label": "proximo_domingo()"
     },
     {
@@ -9182,7 +9205,7 @@
       "_origin": "ast",
       "id": "tests_test_festivos_proximo_habil",
       "community": 33,
-      "community_name": "TestBloqueoAlAgendarDesdeElBot",
+      "community_name": "test_festivos.py",
       "norm_label": "proximo_habil()"
     },
     {
@@ -9193,7 +9216,7 @@
       "_origin": "ast",
       "id": "tests_test_festivos_py_fixture",
       "community": 33,
-      "community_name": "TestBloqueoAlAgendarDesdeElBot",
+      "community_name": "test_festivos.py",
       "norm_label": "fixture"
     },
     {
@@ -9205,7 +9228,7 @@
       "_origin": "ast",
       "id": "tests_test_festivos_festivo_en_la_ventana",
       "community": 33,
-      "community_name": "TestBloqueoAlAgendarDesdeElBot",
+      "community_name": "test_festivos.py",
       "norm_label": "festivo_en_la_ventana()"
     },
     {
@@ -9217,7 +9240,7 @@
       "_origin": "ast",
       "id": "tests_test_festivos_servicio_diagnostico",
       "community": 33,
-      "community_name": "TestBloqueoAlAgendarDesdeElBot",
+      "community_name": "test_festivos.py",
       "norm_label": "servicio_diagnostico()"
     },
     {
@@ -9230,7 +9253,7 @@
       "_origin": "ast",
       "id": "tests_test_festivos_testbloqueoenlaagenda",
       "community": 33,
-      "community_name": "TestBloqueoAlAgendarDesdeElBot",
+      "community_name": "test_festivos.py",
       "norm_label": "testbloqueoenlaagenda"
     },
     {
@@ -9242,7 +9265,7 @@
       "_origin": "ast",
       "id": "tests_test_festivos_testbloqueoenlaagenda_test_festivo_no_devuelve_cupos",
       "community": 33,
-      "community_name": "TestBloqueoAlAgendarDesdeElBot",
+      "community_name": "test_festivos.py",
       "norm_label": ".test_festivo_no_devuelve_cupos()"
     },
     {
@@ -9254,7 +9277,7 @@
       "_origin": "ast",
       "id": "tests_test_festivos_testbloqueoenlaagenda_test_domingo_no_devuelve_cupos",
       "community": 33,
-      "community_name": "TestBloqueoAlAgendarDesdeElBot",
+      "community_name": "test_festivos.py",
       "norm_label": ".test_domingo_no_devuelve_cupos()"
     },
     {
@@ -9266,7 +9289,7 @@
       "_origin": "ast",
       "id": "tests_test_festivos_testbloqueoenlaagenda_test_dia_habil_si_devuelve_cupos",
       "community": 33,
-      "community_name": "TestBloqueoAlAgendarDesdeElBot",
+      "community_name": "test_festivos.py",
       "norm_label": ".test_dia_habil_si_devuelve_cupos()"
     },
     {
@@ -9278,7 +9301,7 @@
       "_origin": "ast",
       "id": "tests_test_festivos_testbloqueoenlaagenda_test_get_available_days_omite_domingos_y_festivos",
       "community": 33,
-      "community_name": "TestBloqueoAlAgendarDesdeElBot",
+      "community_name": "test_festivos.py",
       "norm_label": ".test_get_available_days_omite_domingos_y_festivos()"
     },
     {
@@ -9290,7 +9313,7 @@
       "_origin": "ast",
       "id": "tests_test_festivos_testbloqueoenlaagenda_test_disponibilidad_del_bot_nunca_ofrece_dia_cerrado",
       "community": 33,
-      "community_name": "TestBloqueoAlAgendarDesdeElBot",
+      "community_name": "test_festivos.py",
       "norm_label": ".test_disponibilidad_del_bot_nunca_ofrece_dia_cerrado()"
     },
     {
@@ -9303,7 +9326,7 @@
       "_origin": "ast",
       "id": "tests_test_festivos_testbloqueoalagendardesdeelbot",
       "community": 33,
-      "community_name": "TestBloqueoAlAgendarDesdeElBot",
+      "community_name": "test_festivos.py",
       "norm_label": "testbloqueoalagendardesdeelbot"
     },
     {
@@ -9315,7 +9338,7 @@
       "_origin": "ast",
       "id": "tests_test_festivos_testbloqueoalagendardesdeelbot_datos",
       "community": 33,
-      "community_name": "TestBloqueoAlAgendarDesdeElBot",
+      "community_name": "test_festivos.py",
       "norm_label": "._datos()"
     },
     {
@@ -9327,7 +9350,7 @@
       "_origin": "ast",
       "id": "tests_test_festivos_testbloqueoalagendardesdeelbot_intentar",
       "community": 33,
-      "community_name": "TestBloqueoAlAgendarDesdeElBot",
+      "community_name": "test_festivos.py",
       "norm_label": "._intentar()"
     },
     {
@@ -9339,7 +9362,7 @@
       "_origin": "ast",
       "id": "tests_test_festivos_testbloqueoalagendardesdeelbot_test_no_agenda_en_domingo",
       "community": 33,
-      "community_name": "TestBloqueoAlAgendarDesdeElBot",
+      "community_name": "test_festivos.py",
       "norm_label": ".test_no_agenda_en_domingo()"
     },
     {
@@ -9351,7 +9374,7 @@
       "_origin": "ast",
       "id": "tests_test_festivos_testbloqueoalagendardesdeelbot_test_no_agenda_en_festivo",
       "community": 33,
-      "community_name": "TestBloqueoAlAgendarDesdeElBot",
+      "community_name": "test_festivos.py",
       "norm_label": ".test_no_agenda_en_festivo()"
     },
     {
@@ -9363,7 +9386,7 @@
       "_origin": "ast",
       "id": "tests_test_festivos_testbloqueoalagendardesdeelbot_test_si_agenda_en_dia_habil",
       "community": 33,
-      "community_name": "TestBloqueoAlAgendarDesdeElBot",
+      "community_name": "test_festivos.py",
       "norm_label": ".test_si_agenda_en_dia_habil()"
     },
     {
@@ -9448,8 +9471,8 @@
       "_callable_class": true,
       "_origin": "ast",
       "id": "tests_test_festivos_testapidiacerrado",
-      "community": 2,
-      "community_name": "make_user",
+      "community": 1,
+      "community_name": "login_as",
       "norm_label": "testapidiacerrado"
     },
     {
@@ -9460,8 +9483,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_festivos_testapidiacerrado_test_reporta_festivo_con_su_nombre",
-      "community": 2,
-      "community_name": "make_user",
+      "community": 1,
+      "community_name": "login_as",
       "norm_label": ".test_reporta_festivo_con_su_nombre()"
     },
     {
@@ -9472,8 +9495,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_festivos_testapidiacerrado_test_reporta_domingo",
-      "community": 2,
-      "community_name": "make_user",
+      "community": 1,
+      "community_name": "login_as",
       "norm_label": ".test_reporta_domingo()"
     },
     {
@@ -9484,8 +9507,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_festivos_testapidiacerrado_test_dia_habil_no_esta_cerrado",
-      "community": 2,
-      "community_name": "make_user",
+      "community": 1,
+      "community_name": "login_as",
       "norm_label": ".test_dia_habil_no_esta_cerrado()"
     },
     {
@@ -9496,8 +9519,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_festivos_testapidiacerrado_test_fecha_invalida",
-      "community": 2,
-      "community_name": "make_user",
+      "community": 1,
+      "community_name": "login_as",
       "norm_label": ".test_fecha_invalida()"
     },
     {
@@ -9509,8 +9532,8 @@
       "_callable_class": true,
       "_origin": "ast",
       "id": "tests_test_festivos_testpromptdemariana",
-      "community": 2,
-      "community_name": "make_user",
+      "community": 33,
+      "community_name": "test_festivos.py",
       "norm_label": "testpromptdemariana"
     },
     {
@@ -9521,8 +9544,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_festivos_testpromptdemariana_test_el_prompt_nombra_los_festivos_proximos",
-      "community": 2,
-      "community_name": "make_user",
+      "community": 33,
+      "community_name": "test_festivos.py",
       "norm_label": ".test_el_prompt_nombra_los_festivos_proximos()"
     },
     {
@@ -9533,8 +9556,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_festivos_testpromptdemariana_test_los_festivos_listados_caen_en_la_ventana",
-      "community": 2,
-      "community_name": "make_user",
+      "community": 33,
+      "community_name": "test_festivos.py",
       "norm_label": ".test_los_festivos_listados_caen_en_la_ventana()"
     },
     {
@@ -9544,8 +9567,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "tests_test_festivos_rationale_1",
-      "community": 2,
-      "community_name": "make_user",
+      "community": 33,
+      "community_name": "test_festivos.py",
       "norm_label": "noxa no atiende domingos ni festivos colombianos. los festivos no se pueden..."
     },
     {
@@ -9556,7 +9579,7 @@
       "_origin": "ast",
       "id": "tests_test_festivos_rationale_89",
       "community": 33,
-      "community_name": "TestBloqueoAlAgendarDesdeElBot",
+      "community_name": "test_festivos.py",
       "norm_label": "primera fecha futura que cumple `pred`. los tests que pasan por la ventana de..."
     },
     {
@@ -9567,7 +9590,7 @@
       "_origin": "ast",
       "id": "tests_test_festivos_rationale_111",
       "community": 33,
-      "community_name": "TestBloqueoAlAgendarDesdeElBot",
+      "community_name": "test_festivos.py",
       "norm_label": "marca como festivo un dia habil proximo, inyectandolo en el cache. el..."
     },
     {
@@ -9578,7 +9601,7 @@
       "_origin": "ast",
       "id": "tests_test_festivos_rationale_129",
       "community": 33,
-      "community_name": "TestBloqueoAlAgendarDesdeElBot",
+      "community_name": "test_festivos.py",
       "norm_label": "la bd semilla no trae servicio de diagnostico, asi que se crea uno. sin esto..."
     },
     {
@@ -9589,7 +9612,7 @@
       "_origin": "ast",
       "id": "tests_test_festivos_rationale_149",
       "community": 33,
-      "community_name": "TestBloqueoAlAgendarDesdeElBot",
+      "community_name": "test_festivos.py",
       "norm_label": "el bloqueo vive en get_available_slots(), no en cada llamador."
     },
     {
@@ -9600,7 +9623,7 @@
       "_origin": "ast",
       "id": "tests_test_festivos_rationale_193",
       "community": 33,
-      "community_name": "TestBloqueoAlAgendarDesdeElBot",
+      "community_name": "test_festivos.py",
       "norm_label": "mariana revalida contra la agenda antes de crear la cita. antes de esto,..."
     },
     {
@@ -9611,7 +9634,7 @@
       "_origin": "ast",
       "id": "tests_test_festivos_rationale_233",
       "community": 33,
-      "community_name": "TestBloqueoAlAgendarDesdeElBot",
+      "community_name": "test_festivos.py",
       "norm_label": "contraprueba: si tampoco agendara en dia habil, los dos de arriba pasarian por..."
     },
     {
@@ -9833,8 +9856,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "tests_test_parqueadero",
-      "community": 1,
-      "community_name": "login_as",
+      "community": 29,
+      "community_name": "test_parqueadero.py",
       "norm_label": "test_parqueadero.py"
     },
     {
@@ -9844,8 +9867,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "tests_test_parqueadero_py_fixture",
-      "community": 1,
-      "community_name": "login_as",
+      "community": 29,
+      "community_name": "test_parqueadero.py",
       "norm_label": "fixture"
     },
     {
@@ -9856,8 +9879,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_parqueadero_admin",
-      "community": 1,
-      "community_name": "login_as",
+      "community": 29,
+      "community_name": "test_parqueadero.py",
       "norm_label": "admin()"
     },
     {
@@ -9868,8 +9891,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_parqueadero_limpiar",
-      "community": 1,
-      "community_name": "login_as",
+      "community": 29,
+      "community_name": "test_parqueadero.py",
       "norm_label": "_limpiar()"
     },
     {
@@ -10037,8 +10060,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "tests_test_parqueadero_rationale_1",
-      "community": 1,
-      "community_name": "login_as",
+      "community": 29,
+      "community_name": "test_parqueadero.py",
       "norm_label": "registrar un parqueadero crea una venta sin cita asociada. ese es el punto:..."
     },
     {
@@ -10154,7 +10177,7 @@
       "_callable_class": true,
       "_origin": "ast",
       "id": "tests_test_payroll_testintrial",
-      "community": 2,
+      "community": 41,
       "community_name": "make_user",
       "norm_label": "testintrial"
     },
@@ -10166,7 +10189,7 @@
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_payroll_testintrial_test_in_trial_true_within_30_days",
-      "community": 2,
+      "community": 41,
       "community_name": "make_user",
       "norm_label": ".test_in_trial_true_within_30_days()"
     },
@@ -10178,7 +10201,7 @@
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_payroll_testintrial_test_in_trial_false_after_30_days",
-      "community": 2,
+      "community": 41,
       "community_name": "make_user",
       "norm_label": ".test_in_trial_false_after_30_days()"
     },
@@ -10190,7 +10213,7 @@
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_payroll_testintrial_test_in_trial_boundary_exactly_30_days_is_false",
-      "community": 2,
+      "community": 41,
       "community_name": "make_user",
       "norm_label": ".test_in_trial_boundary_exactly_30_days_is_false()"
     },
@@ -10202,7 +10225,7 @@
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_payroll_testintrial_test_in_trial_boundary_29_days_is_true",
-      "community": 2,
+      "community": 41,
       "community_name": "make_user",
       "norm_label": ".test_in_trial_boundary_29_days_is_true()"
     },
@@ -10214,7 +10237,7 @@
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_payroll_testintrial_test_in_trial_falls_back_to_manual_flag_without_hire_date",
-      "community": 2,
+      "community": 41,
       "community_name": "make_user",
       "norm_label": ".test_in_trial_falls_back_to_manual_flag_without_hire_date()"
     },
@@ -10227,8 +10250,8 @@
       "_callable_class": true,
       "_origin": "ast",
       "id": "tests_test_payroll_testrecalculate",
-      "community": 13,
-      "community_name": "User",
+      "community": 2,
+      "community_name": "PayrollEntry",
       "norm_label": "testrecalculate"
     },
     {
@@ -10239,8 +10262,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_payroll_testrecalculate_test_basic_sum_no_deductions",
-      "community": 13,
-      "community_name": "User",
+      "community": 2,
+      "community_name": "PayrollEntry",
       "norm_label": ".test_basic_sum_no_deductions()"
     },
     {
@@ -10251,8 +10274,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_payroll_testrecalculate_test_quality_deduction_is_not_subtracted_a_second_time",
-      "community": 13,
-      "community_name": "User",
+      "community": 2,
+      "community_name": "PayrollEntry",
       "norm_label": ".test_quality_deduction_is_not_subtracted_a_second_time()"
     },
     {
@@ -10263,8 +10286,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_payroll_testrecalculate_test_all_deduction_fields_subtract_once",
-      "community": 13,
-      "community_name": "User",
+      "community": 2,
+      "community_name": "PayrollEntry",
       "norm_label": ".test_all_deduction_fields_subtract_once()"
     },
     {
@@ -10275,8 +10298,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_payroll_testrecalculate_test_total_can_go_negative_if_deductions_exceed_earnings",
-      "community": 13,
-      "community_name": "User",
+      "community": 2,
+      "community_name": "PayrollEntry",
       "norm_label": ".test_total_can_go_negative_if_deductions_exceed_earnings()"
     },
     {
@@ -10662,8 +10685,8 @@
       "source_location": "L107",
       "_origin": "ast",
       "id": "tests_test_payroll_rationale_107",
-      "community": 13,
-      "community_name": "User",
+      "community": 2,
+      "community_name": "PayrollEntry",
       "norm_label": "regresion del bug critico: deduction_quality es informativo (ya reflejado en..."
     },
     {
@@ -11844,7 +11867,7 @@
       "author": null,
       "contributor": null,
       "community": 45,
-      "community_name": "Analytics Dashboard",
+      "community_name": "analytics_dashboard",
       "norm_label": "analytics dashboard",
       "_origin": "semantic",
       "id": "templates_analytics"
@@ -11860,7 +11883,7 @@
       "contributor": null,
       "rationale": "The exact numeric value is stored in the data-v attribute; JS decides at render time whether to show it abbreviated or exact, so toggling the format never requires a page reload.",
       "community": 45,
-      "community_name": "Analytics Dashboard",
+      "community_name": "analytics_dashboard",
       "norm_label": "money formatting macro (data-v attribute)",
       "_origin": "semantic",
       "id": "templates_analytics_money_macro"
@@ -11876,7 +11899,7 @@
       "contributor": null,
       "rationale": "A fixed strip of headline numbers answers 'how is the business doing' regardless of which tab the user has open; kept sticky (position:sticky) so it survives scrolling.",
       "community": 45,
-      "community_name": "Analytics Dashboard",
+      "community_name": "analytics_dashboard",
       "norm_label": "sticky kpi strip",
       "_origin": "semantic",
       "id": "templates_analytics_kpi_strip"
@@ -11892,7 +11915,7 @@
       "contributor": null,
       "rationale": "Content is split into tabs so the user answers one question at a time instead of everything competing for attention on one screen; charts are lazily instantiated only when their tab is first shown because Chart.js measures 0x0 (and renders blank) inside a display:none container.",
       "community": 45,
-      "community_name": "Analytics Dashboard",
+      "community_name": "analytics_dashboard",
       "norm_label": "tabbed sections (resumen/comercial/clientes/operacion/servicios)",
       "_origin": "semantic",
       "id": "templates_analytics_tabs"
@@ -11908,7 +11931,7 @@
       "contributor": null,
       "rationale": "Daily series is the fine grain, re-bucketed client-side; default granularity is 'week' because a single month at daily resolution is one uninformative point. Dates are parsed by parts (not `new Date('YYYY-MM-DD')`) to avoid a UTC/Bogot\u00e1 off-by-one-day bug. Empty buckets are still emitted (as zero) rather than skipped so a day with no sales isn't rendered as a gap.",
       "community": 45,
-      "community_name": "Analytics Dashboard",
+      "community_name": "analytics_dashboard",
       "norm_label": "revenue chart with selectable granularity (day/week/month/quarter/year)",
       "_origin": "semantic",
       "id": "templates_analytics_ingresos_chart_granularity"
@@ -11924,7 +11947,7 @@
       "contributor": null,
       "rationale": "Chart click detection uses mode 'index' without intersect so clicking anywhere in a column opens the detail, since short/thin bars make pixel-perfect clicks unreliable.",
       "community": 45,
-      "community_name": "Analytics Dashboard",
+      "community_name": "analytics_dashboard",
       "norm_label": "detail drill-down modal (click chart bar/point)",
       "_origin": "semantic",
       "id": "templates_analytics_detalle_modal"
@@ -11939,7 +11962,7 @@
       "author": null,
       "contributor": null,
       "community": 45,
-      "community_name": "Analytics Dashboard",
+      "community_name": "analytics_dashboard",
       "norm_label": "traffic-light status indicator (ok/warn/bad)",
       "_origin": "semantic",
       "id": "templates_analytics_semaforo_indicator"
@@ -12184,8 +12207,8 @@
       "captured_at": null,
       "author": null,
       "contributor": null,
-      "community": 20,
-      "community_name": "Calendar View (FullCalendar)",
+      "community": 12,
+      "community_name": "Base Layout Template",
       "norm_label": "appointment detail modal shell (#appointmentmodal)",
       "_origin": "semantic",
       "id": "templates_base_appointment_detail_modal"
@@ -12215,8 +12238,8 @@
       "captured_at": null,
       "author": null,
       "contributor": null,
-      "community": 20,
-      "community_name": "Calendar View (FullCalendar)",
+      "community": 12,
+      "community_name": "Base Layout Template",
       "norm_label": "calendar view (fullcalendar)",
       "_origin": "semantic",
       "id": "templates_calendar"
@@ -12230,8 +12253,8 @@
       "captured_at": null,
       "author": null,
       "contributor": null,
-      "community": 20,
-      "community_name": "Calendar View (FullCalendar)",
+      "community": 12,
+      "community_name": "Base Layout Template",
       "norm_label": "fullcalendar timegrid day/week view",
       "_origin": "semantic",
       "id": "templates_calendar_fullcalendar_view"
@@ -12246,8 +12269,8 @@
       "author": null,
       "contributor": null,
       "rationale": "A ResizeObserver re-measures each event box because at mount time FullCalendar hasn't given it its final height yet. Lines are hidden (not removed) bottom-up as space runs out, with the client's name protected as the last line to drop; notes get a variable line-clamp tried from most to fewest lines to use whatever space remains.",
-      "community": 20,
-      "community_name": "Calendar View (FullCalendar)",
+      "community": 12,
+      "community_name": "Base Layout Template",
       "norm_label": "adaptive event box line truncation",
       "_origin": "semantic",
       "id": "templates_calendar_event_box_truncation"
@@ -12262,8 +12285,8 @@
       "author": null,
       "contributor": null,
       "rationale": "Deleting an appointment is permanent, so the client prompts for an admin keyword before submitting; this client-side prompt is described as 'the gate, not the lock' \u2014 real validation happens server-side.",
-      "community": 20,
-      "community_name": "Calendar View (FullCalendar)",
+      "community": 12,
+      "community_name": "Base Layout Template",
       "norm_label": "admin keyword delete confirmation",
       "_origin": "semantic",
       "id": "templates_calendar_delete_confirmation"
@@ -12277,8 +12300,8 @@
       "captured_at": null,
       "author": null,
       "contributor": null,
-      "community": 20,
-      "community_name": "Calendar View (FullCalendar)",
+      "community": 12,
+      "community_name": "Base Layout Template",
       "norm_label": "event click \u2192 fetch appointment json \u2192 populate modal",
       "_origin": "semantic",
       "id": "templates_calendar_appointment_detail_fetch"
@@ -12475,7 +12498,7 @@
       "contributor": null,
       "rationale": "Designed to be read in 30 seconds and answer 'are we doing well?'; every figure is compared to the immediately preceding period of equal length because a number alone says nothing \u2014 the direction of change does.",
       "community": 45,
-      "community_name": "Analytics Dashboard",
+      "community_name": "analytics_dashboard",
       "norm_label": "managerial dashboard (tablero gerencial)",
       "_origin": "semantic",
       "id": "templates_gerencial"
@@ -12491,7 +12514,7 @@
       "contributor": null,
       "rationale": "delta() macro takes a 'mejor' (better-is-higher vs. better-is-lower) parameter so metrics like cancellation rate, where a drop is good, still color correctly as an improvement.",
       "community": 45,
-      "community_name": "Analytics Dashboard",
+      "community_name": "analytics_dashboard",
       "norm_label": "period-over-period delta indicator (\u25b2/\u25bc %)",
       "_origin": "semantic",
       "id": "templates_gerencial_period_comparison_delta"
@@ -12507,7 +12530,7 @@
       "contributor": null,
       "rationale": "Alerts that demand a decision are placed above every other section so they can't be missed by scrolling past them.",
       "community": 45,
-      "community_name": "Analytics Dashboard",
+      "community_name": "analytics_dashboard",
       "norm_label": "conditional business alerts (losses, cold leads, high cancellation)",
       "_origin": "semantic",
       "id": "templates_gerencial_alerts_section"
@@ -12522,7 +12545,7 @@
       "author": null,
       "contributor": null,
       "community": 45,
-      "community_name": "Analytics Dashboard",
+      "community_name": "analytics_dashboard",
       "norm_label": "traffic-light status indicator (ok/warn/bad)",
       "_origin": "semantic",
       "id": "templates_gerencial_semaforo_indicator"
@@ -12551,8 +12574,8 @@
       "captured_at": null,
       "author": null,
       "contributor": null,
-      "community": 60,
-      "community_name": "edit_appointment",
+      "community": 70,
+      "community_name": "new_appointment",
       "norm_label": "new appointment page",
       "_origin": "semantic",
       "id": "templates_new_appointment"
@@ -12642,8 +12665,8 @@
       "captured_at": null,
       "author": null,
       "contributor": null,
-      "community": 12,
-      "community_name": "Base Layout Template",
+      "community": 7,
+      "community_name": "app.py",
       "norm_label": "payment_methods.html",
       "_origin": "semantic",
       "id": "templates_payment_methods"
@@ -12717,8 +12740,8 @@
       "captured_at": null,
       "author": null,
       "contributor": null,
-      "community": 68,
-      "community_name": "quality_errors_new",
+      "community": 25,
+      "community_name": "payroll_detail.html",
       "norm_label": "quality_errors.html",
       "_origin": "semantic",
       "id": "templates_quality_errors"
@@ -12822,8 +12845,8 @@
       "captured_at": null,
       "author": null,
       "contributor": null,
-      "community": 43,
-      "community_name": "whatsapp.html",
+      "community": 5,
+      "community_name": "mariana-base-conocimiento.md",
       "norm_label": "whatsapp.html",
       "_origin": "semantic",
       "id": "templates_whatsapp"
@@ -12867,8 +12890,8 @@
       "captured_at": null,
       "author": null,
       "contributor": null,
-      "community": 68,
-      "community_name": "quality_errors_new",
+      "community": 25,
+      "community_name": "payroll_detail.html",
       "norm_label": "precios de descuento por error de calidad: leve $5.000 / grave $10.000",
       "_origin": "semantic",
       "id": "templates_quality_errors_deduction_pricing"
@@ -12927,8 +12950,8 @@
       "captured_at": null,
       "author": null,
       "contributor": null,
-      "community": 23,
-      "community_name": "api_notifications",
+      "community": 5,
+      "community_name": "mariana-base-conocimiento.md",
       "norm_label": "codigo de error twilio/whatsapp 63016 (ventana 24h, requiere plantilla aprobada)",
       "_origin": "semantic",
       "id": "templates_whatsapp_outbox_error_63016"
@@ -13017,8 +13040,8 @@
       "captured_at": null,
       "author": null,
       "contributor": null,
-      "community": 12,
-      "community_name": "Base Layout Template",
+      "community": 7,
+      "community_name": "app.py",
       "norm_label": "seccion 6: medios de pago (efectivo/transferencia/datafono, anticipo 10%, bre-b/daviplata/nequi)",
       "_origin": "semantic",
       "id": "docs_mariana_base_conocimiento_medios_pago"
@@ -13182,8 +13205,8 @@
       "captured_at": null,
       "author": null,
       "contributor": null,
-      "community": 43,
-      "community_name": "whatsapp.html",
+      "community": 5,
+      "community_name": "mariana-base-conocimiento.md",
       "norm_label": "seccion 17: escalamiento a humano (6 casos, marcador [escalar:], pausa el bot)",
       "_origin": "semantic",
       "id": "docs_mariana_base_conocimiento_escalamiento"
@@ -13197,8 +13220,8 @@
       "captured_at": null,
       "author": null,
       "contributor": null,
-      "community": 43,
-      "community_name": "whatsapp.html",
+      "community": 5,
+      "community_name": "mariana-base-conocimiento.md",
       "norm_label": "seccion 18: marcadores internos [meta: estado=...; servicios=...] y [nombre: ...]",
       "_origin": "semantic",
       "id": "docs_mariana_base_conocimiento_marcadores_internos"
@@ -13272,8 +13295,8 @@
       "captured_at": "2026-08-03",
       "author": null,
       "contributor": null,
-      "community": 23,
-      "community_name": "api_notifications",
+      "community": 5,
+      "community_name": "mariana-base-conocimiento.md",
       "norm_label": "campanita de notificaciones internas (4.3b): notification model, push_notification(), /api/notifications",
       "_origin": "semantic",
       "id": "docs_mariana_base_conocimiento_campanita_notificaciones"
@@ -13930,7 +13953,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "noxadetail-app/app.py",
-      "source_location": "L9142",
+      "source_location": "L9146",
       "weight": 1.0,
       "_origin": "ast",
       "source": "app",
@@ -16669,7 +16692,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "noxadetail-app/app.py",
-      "source_location": "L8769",
+      "source_location": "L8773",
       "weight": 1.0,
       "_origin": "ast",
       "source": "app",
@@ -18043,18 +18066,6 @@
       "confidence_score": 1.0,
       "source": "app_sync_appointment_payments",
       "target": "app_bogota_now"
-    },
-    {
-      "relation": "calls",
-      "context": "call",
-      "confidence": "EXTRACTED",
-      "source_file": "noxadetail-app/app.py",
-      "source_location": "L8748",
-      "weight": 1.0,
-      "_origin": "ast",
-      "source": "app_whatsapp_archive",
-      "target": "app_bogota_now",
-      "confidence_score": 1.0
     },
     {
       "relation": "imports_from",
@@ -19677,7 +19688,7 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "noxadetail-app/app.py",
-      "source_location": "L8768",
+      "source_location": "L8772",
       "weight": 1.0,
       "context": "decorator",
       "_origin": "ast",
@@ -21477,7 +21488,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "noxadetail-app/app.py",
-      "source_location": "L8757",
+      "source_location": "L8761",
       "weight": 1.0,
       "_origin": "ast",
       "source": "app_whatsapp_archive",
@@ -26735,7 +26746,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "noxadetail-app/app.py",
-      "source_location": "L8750",
+      "source_location": "L8754",
       "weight": 1.0,
       "_origin": "ast",
       "source": "app_whatsapp_archive",
@@ -26792,10 +26803,10 @@
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "noxadetail-app/app.py",
-      "source_location": "L8770",
+      "source_location": "L8774",
       "weight": 1.0,
       "_origin": "ast",
-      "source": "app_rationale_8770",
+      "source": "app_rationale_8774",
       "target": "app_whatsapp_unarchive",
       "confidence_score": 1.0
     },
@@ -26814,10 +26825,10 @@
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "noxadetail-app/app.py",
-      "source_location": "L8809",
+      "source_location": "L8813",
       "weight": 1.0,
       "_origin": "ast",
-      "source": "app_rationale_8809",
+      "source": "app_rationale_8813",
       "target": "app_job_admin_reminder",
       "confidence_score": 1.0
     },
@@ -26825,10 +26836,10 @@
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "noxadetail-app/app.py",
-      "source_location": "L8844",
+      "source_location": "L8848",
       "weight": 1.0,
       "_origin": "ast",
-      "source": "app_rationale_8844",
+      "source": "app_rationale_8848",
       "target": "app_job_client_reminder",
       "confidence_score": 1.0
     },
@@ -26836,10 +26847,10 @@
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "noxadetail-app/app.py",
-      "source_location": "L8890",
+      "source_location": "L8894",
       "weight": 1.0,
       "_origin": "ast",
-      "source": "app_rationale_8890",
+      "source": "app_rationale_8894",
       "target": "app_job_ceramic_followup",
       "confidence_score": 1.0
     },
@@ -26847,10 +26858,10 @@
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "noxadetail-app/app.py",
-      "source_location": "L8933",
+      "source_location": "L8937",
       "weight": 1.0,
       "_origin": "ast",
-      "source": "app_rationale_8933",
+      "source": "app_rationale_8937",
       "target": "app_job_ceramic_3weeks",
       "confidence_score": 1.0
     },
@@ -26858,10 +26869,10 @@
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "noxadetail-app/app.py",
-      "source_location": "L8966",
+      "source_location": "L8970",
       "weight": 1.0,
       "_origin": "ast",
-      "source": "app_rationale_8966",
+      "source": "app_rationale_8970",
       "target": "app_job_reengagement_followup",
       "confidence_score": 1.0
     },
@@ -26869,10 +26880,10 @@
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "noxadetail-app/app.py",
-      "source_location": "L9040",
+      "source_location": "L9044",
       "weight": 1.0,
       "_origin": "ast",
-      "source": "app_rationale_9040",
+      "source": "app_rationale_9044",
       "target": "app_job_post_service_followup",
       "confidence_score": 1.0
     },
@@ -26880,10 +26891,10 @@
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "noxadetail-app/app.py",
-      "source_location": "L9099",
+      "source_location": "L9103",
       "weight": 1.0,
       "_origin": "ast",
-      "source": "app_rationale_9099",
+      "source": "app_rationale_9103",
       "target": "app_ya_se_cotizo",
       "confidence_score": 1.0
     },
@@ -26915,10 +26926,10 @@
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "noxadetail-app/app.py",
-      "source_location": "L9112",
+      "source_location": "L9116",
       "weight": 1.0,
       "_origin": "ast",
-      "source": "app_rationale_9112",
+      "source": "app_rationale_9116",
       "target": "app_tpl_reactivacion_para",
       "confidence_score": 1.0
     },
@@ -26938,10 +26949,10 @@
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "noxadetail-app/app.py",
-      "source_location": "L9126",
+      "source_location": "L9130",
       "weight": 1.0,
       "_origin": "ast",
-      "source": "app_rationale_9126",
+      "source": "app_rationale_9130",
       "target": "app_ventana_24h_abierta",
       "confidence_score": 1.0
     },
@@ -26950,7 +26961,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "noxadetail-app/app.py",
-      "source_location": "L9182",
+      "source_location": "L9186",
       "weight": 1.0,
       "_origin": "ast",
       "source": "app_job_whatsapp_followup",
@@ -26961,10 +26972,10 @@
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "noxadetail-app/app.py",
-      "source_location": "L9143",
+      "source_location": "L9147",
       "weight": 1.0,
       "_origin": "ast",
-      "source": "app_rationale_9143",
+      "source": "app_rationale_9147",
       "target": "app_candidatas_de_seguimiento",
       "confidence_score": 1.0
     },
@@ -26972,10 +26983,10 @@
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "noxadetail-app/app.py",
-      "source_location": "L9166",
+      "source_location": "L9170",
       "weight": 1.0,
       "_origin": "ast",
-      "source": "app_rationale_9166",
+      "source": "app_rationale_9170",
       "target": "app_job_whatsapp_followup",
       "confidence_score": 1.0
     },
@@ -27054,10 +27065,10 @@
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "noxadetail-app/app.py",
-      "source_location": "L9239",
+      "source_location": "L9243",
       "weight": 1.0,
       "_origin": "ast",
-      "source": "app_rationale_9239",
+      "source": "app_rationale_9243",
       "target": "app_filtro_hace_cuanto",
       "confidence_score": 1.0
     },
@@ -27065,10 +27076,10 @@
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "noxadetail-app/app.py",
-      "source_location": "L9262",
+      "source_location": "L9266",
       "weight": 1.0,
       "_origin": "ast",
-      "source": "app_rationale_9262",
+      "source": "app_rationale_9266",
       "target": "app_filtro_sin_tildes",
       "confidence_score": 1.0
     },
@@ -27076,10 +27087,10 @@
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "noxadetail-app/app.py",
-      "source_location": "L9272",
+      "source_location": "L9276",
       "weight": 1.0,
       "_origin": "ast",
-      "source": "app_rationale_9272",
+      "source": "app_rationale_9276",
       "target": "app_filtro_dia_bogota",
       "confidence_score": 1.0
     },
@@ -27087,10 +27098,10 @@
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "noxadetail-app/app.py",
-      "source_location": "L9286",
+      "source_location": "L9290",
       "weight": 1.0,
       "_origin": "ast",
-      "source": "app_rationale_9286",
+      "source": "app_rationale_9290",
       "target": "app_filtro_hora_bogota",
       "confidence_score": 1.0
     },
@@ -27098,10 +27109,10 @@
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "noxadetail-app/app.py",
-      "source_location": "L9309",
+      "source_location": "L9313",
       "weight": 1.0,
       "_origin": "ast",
-      "source": "app_rationale_9309",
+      "source": "app_rationale_9313",
       "target": "app_promo_image",
       "confidence_score": 1.0
     },
@@ -27132,10 +27143,10 @@
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "noxadetail-app/app.py",
-      "source_location": "L9317",
+      "source_location": "L9321",
       "weight": 1.0,
       "_origin": "ast",
-      "source": "app_rationale_9317",
+      "source": "app_rationale_9321",
       "target": "app_save_promo_image",
       "confidence_score": 1.0
     },
@@ -27155,10 +27166,10 @@
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "noxadetail-app/app.py",
-      "source_location": "L9376",
+      "source_location": "L9380",
       "weight": 1.0,
       "_origin": "ast",
-      "source": "app_rationale_9376",
+      "source": "app_rationale_9380",
       "target": "app_semaforo",
       "confidence_score": 1.0
     },
@@ -27188,10 +27199,10 @@
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "noxadetail-app/app.py",
-      "source_location": "L9395",
+      "source_location": "L9399",
       "weight": 1.0,
       "_origin": "ast",
-      "source": "app_rationale_9395",
+      "source": "app_rationale_9399",
       "target": "app_agrupar_servicios",
       "confidence_score": 1.0
     },
@@ -27339,10 +27350,10 @@
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "noxadetail-app/app.py",
-      "source_location": "L9466",
+      "source_location": "L9470",
       "weight": 1.0,
       "_origin": "ast",
-      "source": "app_rationale_9466",
+      "source": "app_rationale_9470",
       "target": "app_can_see_notifications",
       "confidence_score": 1.0
     },
@@ -27350,10 +27361,10 @@
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "noxadetail-app/app.py",
-      "source_location": "L9474",
+      "source_location": "L9478",
       "weight": 1.0,
       "_origin": "ast",
-      "source": "app_rationale_9474",
+      "source": "app_rationale_9478",
       "target": "app_api_notifications",
       "confidence_score": 1.0
     },
@@ -27372,10 +27383,10 @@
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "noxadetail-app/app.py",
-      "source_location": "L9523",
+      "source_location": "L9527",
       "weight": 1.0,
       "_origin": "ast",
-      "source": "app_rationale_9523",
+      "source": "app_rationale_9527",
       "target": "app_notifications_list",
       "confidence_score": 1.0
     },
@@ -27416,10 +27427,10 @@
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "noxadetail-app/app.py",
-      "source_location": "L9622",
+      "source_location": "L9626",
       "weight": 1.0,
       "_origin": "ast",
-      "source": "app_rationale_9622",
+      "source": "app_rationale_9626",
       "target": "app_plans_list",
       "confidence_score": 1.0
     },
@@ -27427,10 +27438,10 @@
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "noxadetail-app/app.py",
-      "source_location": "L9640",
+      "source_location": "L9644",
       "weight": 1.0,
       "_origin": "ast",
-      "source": "app_rationale_9640",
+      "source": "app_rationale_9644",
       "target": "app_api_plan_price",
       "confidence_score": 1.0
     },
@@ -27438,10 +27449,10 @@
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "noxadetail-app/app.py",
-      "source_location": "L9663",
+      "source_location": "L9667",
       "weight": 1.0,
       "_origin": "ast",
-      "source": "app_rationale_9663",
+      "source": "app_rationale_9667",
       "target": "app_api_plans_by_plate",
       "confidence_score": 1.0
     },
@@ -27449,10 +27460,10 @@
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "noxadetail-app/app.py",
-      "source_location": "L9694",
+      "source_location": "L9698",
       "weight": 1.0,
       "_origin": "ast",
-      "source": "app_rationale_9694",
+      "source": "app_rationale_9698",
       "target": "app_plan_sell",
       "confidence_score": 1.0
     },
@@ -27460,10 +27471,10 @@
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "noxadetail-app/app.py",
-      "source_location": "L9780",
+      "source_location": "L9784",
       "weight": 1.0,
       "_origin": "ast",
-      "source": "app_rationale_9780",
+      "source": "app_rationale_9784",
       "target": "app_plan_toggle",
       "confidence_score": 1.0
     },
@@ -27495,10 +27506,10 @@
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "noxadetail-app/app.py",
-      "source_location": "L9792",
+      "source_location": "L9796",
       "weight": 1.0,
       "_origin": "ast",
-      "source": "app_rationale_9792",
+      "source": "app_rationale_9796",
       "target": "app_backups_list",
       "confidence_score": 1.0
     },
@@ -27518,10 +27529,10 @@
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "noxadetail-app/app.py",
-      "source_location": "L9821",
+      "source_location": "L9825",
       "weight": 1.0,
       "_origin": "ast",
-      "source": "app_rationale_9821",
+      "source": "app_rationale_9825",
       "target": "app_backup_download",
       "confidence_score": 1.0
     },
@@ -27541,10 +27552,10 @@
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "noxadetail-app/app.py",
-      "source_location": "L9864",
+      "source_location": "L9868",
       "weight": 1.0,
       "_origin": "ast",
-      "source": "app_rationale_9864",
+      "source": "app_rationale_9868",
       "target": "app_s3_client",
       "confidence_score": 1.0
     },
@@ -27564,10 +27575,10 @@
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "noxadetail-app/app.py",
-      "source_location": "L9882",
+      "source_location": "L9886",
       "weight": 1.0,
       "_origin": "ast",
-      "source": "app_rationale_9882",
+      "source": "app_rationale_9886",
       "target": "app_dump_sqlite_gz",
       "confidence_score": 1.0
     },
@@ -27587,10 +27598,10 @@
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "noxadetail-app/app.py",
-      "source_location": "L9906",
+      "source_location": "L9910",
       "weight": 1.0,
       "_origin": "ast",
-      "source": "app_rationale_9906",
+      "source": "app_rationale_9910",
       "target": "app_backups_existentes",
       "confidence_score": 1.0
     },
@@ -27610,10 +27621,10 @@
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "noxadetail-app/app.py",
-      "source_location": "L9915",
+      "source_location": "L9919",
       "weight": 1.0,
       "_origin": "ast",
-      "source": "app_rationale_9915",
+      "source": "app_rationale_9919",
       "target": "app_aplicar_retencion",
       "confidence_score": 1.0
     },
@@ -27621,10 +27632,10 @@
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "noxadetail-app/app.py",
-      "source_location": "L9947",
+      "source_location": "L9951",
       "weight": 1.0,
       "_origin": "ast",
-      "source": "app_rationale_9947",
+      "source": "app_rationale_9951",
       "target": "app_job_backup_db",
       "confidence_score": 1.0
     },
@@ -30392,7 +30403,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "noxadetail-app/tests/test_archivar_conversaciones.py",
-      "source_location": "L126",
+      "source_location": "L140",
       "weight": 1.0,
       "_origin": "ast",
       "source": "tests_test_archivar_conversaciones",
@@ -30403,7 +30414,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "noxadetail-app/tests/test_archivar_conversaciones.py",
-      "source_location": "L85",
+      "source_location": "L99",
       "weight": 1.0,
       "_origin": "ast",
       "source": "tests_test_archivar_conversaciones",
@@ -30414,7 +30425,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "noxadetail-app/tests/test_archivar_conversaciones.py",
-      "source_location": "L104",
+      "source_location": "L118",
       "weight": 1.0,
       "_origin": "ast",
       "source": "tests_test_archivar_conversaciones",
@@ -30461,7 +30472,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "noxadetail-app/tests/test_archivar_conversaciones.py",
-      "source_location": "L72",
+      "source_location": "L86",
       "weight": 1.0,
       "_origin": "ast",
       "source": "tests_test_archivar_conversaciones_testarchivar_test_archivar_pausa_el_bot",
@@ -30485,7 +30496,19 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "noxadetail-app/tests/test_archivar_conversaciones.py",
-      "source_location": "L81",
+      "source_location": "L78",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "tests_test_archivar_conversaciones_testarchivar_test_la_hora_queda_en_utc",
+      "target": "tests_test_archivar_conversaciones_archivar",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "noxadetail-app/tests/test_archivar_conversaciones.py",
+      "source_location": "L95",
       "weight": 1.0,
       "_origin": "ast",
       "source": "tests_test_archivar_conversaciones_testarchivar_test_no_toca_el_estado_del_embudo",
@@ -30497,7 +30520,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "noxadetail-app/tests/test_archivar_conversaciones.py",
-      "source_location": "L154",
+      "source_location": "L168",
       "weight": 1.0,
       "_origin": "ast",
       "source": "tests_test_archivar_conversaciones_testclientevuelveaescribir_test_avisa_por_campanita",
@@ -30509,7 +30532,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "noxadetail-app/tests/test_archivar_conversaciones.py",
-      "source_location": "L141",
+      "source_location": "L155",
       "weight": 1.0,
       "_origin": "ast",
       "source": "tests_test_archivar_conversaciones_testclientevuelveaescribir_test_desarchiva",
@@ -30521,7 +30544,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "noxadetail-app/tests/test_archivar_conversaciones.py",
-      "source_location": "L146",
+      "source_location": "L160",
       "weight": 1.0,
       "_origin": "ast",
       "source": "tests_test_archivar_conversaciones_testclientevuelveaescribir_test_no_reactiva_el_bot",
@@ -30533,7 +30556,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "noxadetail-app/tests/test_archivar_conversaciones.py",
-      "source_location": "L87",
+      "source_location": "L101",
       "weight": 1.0,
       "_origin": "ast",
       "source": "tests_test_archivar_conversaciones_testdesarchivar_test_limpia_los_tres_campos",
@@ -30545,7 +30568,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "noxadetail-app/tests/test_archivar_conversaciones.py",
-      "source_location": "L99",
+      "source_location": "L113",
       "weight": 1.0,
       "_origin": "ast",
       "source": "tests_test_archivar_conversaciones_testdesarchivar_test_no_reactiva_el_bot_solo",
@@ -30557,7 +30580,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "noxadetail-app/tests/test_archivar_conversaciones.py",
-      "source_location": "L109",
+      "source_location": "L123",
       "weight": 1.0,
       "_origin": "ast",
       "source": "tests_test_archivar_conversaciones_testseguimiento_test_una_archivada_no_entra_al_seguimiento",
@@ -30569,7 +30592,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "noxadetail-app/tests/test_archivar_conversaciones.py",
-      "source_location": "L73",
+      "source_location": "L87",
       "weight": 1.0,
       "_origin": "ast",
       "source": "tests_test_archivar_conversaciones_testarchivar_test_archivar_pausa_el_bot",
@@ -30593,7 +30616,19 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "noxadetail-app/tests/test_archivar_conversaciones.py",
-      "source_location": "L82",
+      "source_location": "L79",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "tests_test_archivar_conversaciones_testarchivar_test_la_hora_queda_en_utc",
+      "target": "tests_test_archivar_conversaciones_leer",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "noxadetail-app/tests/test_archivar_conversaciones.py",
+      "source_location": "L96",
       "weight": 1.0,
       "_origin": "ast",
       "source": "tests_test_archivar_conversaciones_testarchivar_test_no_toca_el_estado_del_embudo",
@@ -30617,7 +30652,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "noxadetail-app/tests/test_archivar_conversaciones.py",
-      "source_location": "L143",
+      "source_location": "L157",
       "weight": 1.0,
       "_origin": "ast",
       "source": "tests_test_archivar_conversaciones_testclientevuelveaescribir_test_desarchiva",
@@ -30629,7 +30664,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "noxadetail-app/tests/test_archivar_conversaciones.py",
-      "source_location": "L148",
+      "source_location": "L162",
       "weight": 1.0,
       "_origin": "ast",
       "source": "tests_test_archivar_conversaciones_testclientevuelveaescribir_test_no_reactiva_el_bot",
@@ -30641,7 +30676,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "noxadetail-app/tests/test_archivar_conversaciones.py",
-      "source_location": "L91",
+      "source_location": "L105",
       "weight": 1.0,
       "_origin": "ast",
       "source": "tests_test_archivar_conversaciones_testdesarchivar_test_limpia_los_tres_campos",
@@ -30653,7 +30688,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "noxadetail-app/tests/test_archivar_conversaciones.py",
-      "source_location": "L101",
+      "source_location": "L115",
       "weight": 1.0,
       "_origin": "ast",
       "source": "tests_test_archivar_conversaciones_testdesarchivar_test_no_reactiva_el_bot_solo",
@@ -30664,7 +30699,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "noxadetail-app/tests/test_archivar_conversaciones.py",
-      "source_location": "L71",
+      "source_location": "L85",
       "weight": 1.0,
       "_origin": "ast",
       "source": "tests_test_archivar_conversaciones_testarchivar",
@@ -30686,7 +30721,18 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "noxadetail-app/tests/test_archivar_conversaciones.py",
-      "source_location": "L75",
+      "source_location": "L71",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "tests_test_archivar_conversaciones_testarchivar",
+      "target": "tests_test_archivar_conversaciones_testarchivar_test_la_hora_queda_en_utc",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "source_file": "noxadetail-app/tests/test_archivar_conversaciones.py",
+      "source_location": "L89",
       "weight": 1.0,
       "_origin": "ast",
       "source": "tests_test_archivar_conversaciones_testarchivar",
@@ -30716,10 +30762,21 @@
       "confidence_score": 1.0
     },
     {
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "noxadetail-app/tests/test_archivar_conversaciones.py",
+      "source_location": "L72",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "tests_test_archivar_conversaciones_rationale_72",
+      "target": "tests_test_archivar_conversaciones_testarchivar_test_la_hora_queda_en_utc",
+      "confidence_score": 1.0
+    },
+    {
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "noxadetail-app/tests/test_archivar_conversaciones.py",
-      "source_location": "L86",
+      "source_location": "L100",
       "weight": 1.0,
       "_origin": "ast",
       "source": "tests_test_archivar_conversaciones_testdesarchivar",
@@ -30730,7 +30787,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "noxadetail-app/tests/test_archivar_conversaciones.py",
-      "source_location": "L96",
+      "source_location": "L110",
       "weight": 1.0,
       "_origin": "ast",
       "source": "tests_test_archivar_conversaciones_testdesarchivar",
@@ -30741,44 +30798,11 @@
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "noxadetail-app/tests/test_archivar_conversaciones.py",
-      "source_location": "L97",
+      "source_location": "L111",
       "weight": 1.0,
       "_origin": "ast",
-      "source": "tests_test_archivar_conversaciones_rationale_97",
+      "source": "tests_test_archivar_conversaciones_rationale_111",
       "target": "tests_test_archivar_conversaciones_testdesarchivar_test_no_reactiva_el_bot_solo",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "rationale_for",
-      "confidence": "EXTRACTED",
-      "source_file": "noxadetail-app/tests/test_archivar_conversaciones.py",
-      "source_location": "L105",
-      "weight": 1.0,
-      "_origin": "ast",
-      "source": "tests_test_archivar_conversaciones_rationale_105",
-      "target": "tests_test_archivar_conversaciones_testseguimiento",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "method",
-      "confidence": "EXTRACTED",
-      "source_file": "noxadetail-app/tests/test_archivar_conversaciones.py",
-      "source_location": "L118",
-      "weight": 1.0,
-      "_origin": "ast",
-      "source": "tests_test_archivar_conversaciones_testseguimiento",
-      "target": "tests_test_archivar_conversaciones_testseguimiento_test_la_misma_sin_archivar_si_entra",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "method",
-      "confidence": "EXTRACTED",
-      "source_file": "noxadetail-app/tests/test_archivar_conversaciones.py",
-      "source_location": "L108",
-      "weight": 1.0,
-      "_origin": "ast",
-      "source": "tests_test_archivar_conversaciones_testseguimiento",
-      "target": "tests_test_archivar_conversaciones_testseguimiento_test_una_archivada_no_entra_al_seguimiento",
       "confidence_score": 1.0
     },
     {
@@ -30789,6 +30813,39 @@
       "weight": 1.0,
       "_origin": "ast",
       "source": "tests_test_archivar_conversaciones_rationale_119",
+      "target": "tests_test_archivar_conversaciones_testseguimiento",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "source_file": "noxadetail-app/tests/test_archivar_conversaciones.py",
+      "source_location": "L132",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "tests_test_archivar_conversaciones_testseguimiento",
+      "target": "tests_test_archivar_conversaciones_testseguimiento_test_la_misma_sin_archivar_si_entra",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "source_file": "noxadetail-app/tests/test_archivar_conversaciones.py",
+      "source_location": "L122",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "tests_test_archivar_conversaciones_testseguimiento",
+      "target": "tests_test_archivar_conversaciones_testseguimiento_test_una_archivada_no_entra_al_seguimiento",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "noxadetail-app/tests/test_archivar_conversaciones.py",
+      "source_location": "L133",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "tests_test_archivar_conversaciones_rationale_133",
       "target": "tests_test_archivar_conversaciones_testseguimiento_test_la_misma_sin_archivar_si_entra",
       "confidence_score": 1.0
     },
@@ -30796,10 +30853,10 @@
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "noxadetail-app/tests/test_archivar_conversaciones.py",
-      "source_location": "L127",
+      "source_location": "L141",
       "weight": 1.0,
       "_origin": "ast",
-      "source": "tests_test_archivar_conversaciones_rationale_127",
+      "source": "tests_test_archivar_conversaciones_rationale_141",
       "target": "tests_test_archivar_conversaciones_testclientevuelveaescribir",
       "confidence_score": 1.0
     },
@@ -30807,7 +30864,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "noxadetail-app/tests/test_archivar_conversaciones.py",
-      "source_location": "L131",
+      "source_location": "L145",
       "weight": 1.0,
       "_origin": "ast",
       "source": "tests_test_archivar_conversaciones_testclientevuelveaescribir",
@@ -30818,7 +30875,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "noxadetail-app/tests/test_archivar_conversaciones.py",
-      "source_location": "L153",
+      "source_location": "L167",
       "weight": 1.0,
       "_origin": "ast",
       "source": "tests_test_archivar_conversaciones_testclientevuelveaescribir",
@@ -30829,7 +30886,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "noxadetail-app/tests/test_archivar_conversaciones.py",
-      "source_location": "L140",
+      "source_location": "L154",
       "weight": 1.0,
       "_origin": "ast",
       "source": "tests_test_archivar_conversaciones_testclientevuelveaescribir",
@@ -30840,7 +30897,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "noxadetail-app/tests/test_archivar_conversaciones.py",
-      "source_location": "L145",
+      "source_location": "L159",
       "weight": 1.0,
       "_origin": "ast",
       "source": "tests_test_archivar_conversaciones_testclientevuelveaescribir",
@@ -30852,7 +30909,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "noxadetail-app/tests/test_archivar_conversaciones.py",
-      "source_location": "L156",
+      "source_location": "L170",
       "weight": 1.0,
       "_origin": "ast",
       "source": "tests_test_archivar_conversaciones_testclientevuelveaescribir_test_avisa_por_campanita",
@@ -30864,7 +30921,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "noxadetail-app/tests/test_archivar_conversaciones.py",
-      "source_location": "L142",
+      "source_location": "L156",
       "weight": 1.0,
       "_origin": "ast",
       "source": "tests_test_archivar_conversaciones_testclientevuelveaescribir_test_desarchiva",
@@ -30876,7 +30933,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "noxadetail-app/tests/test_archivar_conversaciones.py",
-      "source_location": "L147",
+      "source_location": "L161",
       "weight": 1.0,
       "_origin": "ast",
       "source": "tests_test_archivar_conversaciones_testclientevuelveaescribir_test_no_reactiva_el_bot",
@@ -38689,5 +38746,5 @@
       "source_file": "docs/mariana-base-conocimiento.md"
     }
   ],
-  "built_at_commit": "bd8958384009e400c624dbf77d450514ab6f1b67"
+  "built_at_commit": "35a78ae6a2536b0d7772f30383c3d2b75a9b445f"
 }

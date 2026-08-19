@@ -1,7 +1,7 @@
 {
   "app.py": {
-    "mtime": 1787147451.7214189,
-    "ast_hash": "e99bd93e2bedd5f645a484b6b8d3361b",
+    "mtime": 1787149114.3085833,
+    "ast_hash": "af2559e5d1add1ebccc3f611d2d32700",
     "semantic_hash": ""
   },
   "migrate_prices.py": {
@@ -195,8 +195,8 @@
     "semantic_hash": ""
   },
   "templates/whatsapp.html": {
-    "mtime": 1787147451.7306986,
-    "ast_hash": "7f1e8a7ffba1c0c1c8d36cecc8978730",
+    "mtime": 1787165016.2578557,
+    "ast_hash": "783fbfac02ffa453313e0b7fe1512dc9",
     "semantic_hash": ""
   },
   "templates/whatsapp_outbox.html": {
@@ -260,8 +260,8 @@
     "semantic_hash": ""
   },
   "tests/test_archivar_conversaciones.py": {
-    "mtime": 1787147004.1260273,
-    "ast_hash": "cae4b3615a1617cf6a18943a390ac9cd",
+    "mtime": 1787149161.0917284,
+    "ast_hash": "7879789c21bdeab90048ffda08c2cc0d",
     "semantic_hash": ""
   },
   "static/img/apple-touch-icon.png": {
