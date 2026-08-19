@@ -452,7 +452,36 @@
     if (box && !box.contains(e.target)) document.getElementById('serviceMenu').style.display = 'none';
   });
 
+  // Los filtros son solo estado de JS — al abrir una conversación se navega a
+  // /whatsapp/<id> (recarga completa), y sin esto se perdían apenas se hacía
+  // clic en cualquier fila. sessionStorage sobrevive esa navegación dentro de
+  // la misma pestaña, así que el filtro sigue puesto al volver a la bandeja.
+  const FILTROS_KEY = 'waFiltros';
+
+  function saveFilters() {
+    const activeServices = Array.from(document.querySelectorAll('#serviceMenu input:checked')).map(c => c.value);
+    sessionStorage.setItem(FILTROS_KEY, JSON.stringify({
+      prioridad: document.getElementById('priorityFilter').value,
+      estado: document.getElementById('statusFilter').value,
+      calificacion: document.getElementById('calificacionFilter').value,
+      servicios: activeServices,
+    }));
+  }
+
+  function restoreFilters() {
+    let guardado;
+    try { guardado = JSON.parse(sessionStorage.getItem(FILTROS_KEY) || 'null'); } catch (e) { guardado = null; }
+    if (!guardado) return;
+    if (guardado.prioridad) document.getElementById('priorityFilter').value = guardado.prioridad;
+    if (guardado.estado) document.getElementById('statusFilter').value = guardado.estado;
+    if (guardado.calificacion) document.getElementById('calificacionFilter').value = guardado.calificacion;
+    document.querySelectorAll('#serviceMenu input[type=checkbox]').forEach(cb => {
+      cb.checked = (guardado.servicios || []).includes(cb.value);
+    });
+  }
+
   function applyFilters() {
+    saveFilters();
     const priorityValue = document.getElementById('priorityFilter').value;
     const statusValue = document.getElementById('statusFilter').value;
     const calificacionValue = document.getElementById('calificacionFilter').value;
@@ -471,6 +500,9 @@
       row.style.display = (priorityOk && statusOk && calificacionOk && servicesOk) ? '' : 'none';
     });
   }
+
+  restoreFilters();
+  applyFilters();
 
   // Refresca la lista de conversaciones (panel izquierdo) cada 30s sin perder la conversación abierta
   setInterval(() => {
