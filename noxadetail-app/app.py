@@ -6178,13 +6178,17 @@ Un servicio solo cuenta como "interés" si el cliente lo demostró de verdad (pr
 BMW, Mercedes-Benz, Audi, Porsche, Toyota, Mazda, Chevrolet, Renault, Nissan, Kia, Hyundai, Ford, Volkswagen, Honda, Land Rover, Volvo, Lexus, Jeep, Mitsubishi, Suzuki, Peugeot, Citroën, Subaru, Tesla, Mini, Jaguar, Otra
 Usa "Otra" si el cliente ya dijo el carro pero la marca no está en la lista, o "Sin dato" si todavía no lo sabes.
 
-**<calificación>** — qué tan bueno es este lead para el negocio, del 0 al 5, o "Sin dato" si aún no hay suficiente información para juzgar:
-- 0 — el cliente puso objeción de precio real (le parece caro, en otro lado se lo hacen más barato o mejor) Y el carro es viejo o de gama baja.
-- 1 — servicio de ticket bajo (ej. lavada) en un carro de gama baja.
-- 2 — servicio de ticket bajo (ej. lavada) en un carro de gama media o alta.
-- 3 — servicio de ticket medio (motor, chasis, detallado exterior) en un carro de gama media o alta.
-- 4 — servicio de ticket medio-alto (corrección de pintura, detallado interior, polarizado) en un carro de gama media o alta.
-- 5 — servicio de ticket alto (cerámico, PPF, wrap) en un carro de gama media o alta.
+**<calificación>** — qué tan bueno es este lead para el negocio, del 0 al 5, o "Sin dato" si aún no hay suficiente información para juzgar. Combina DOS cosas — el ticket del servicio Y la gama del carro — nunca solo una. Un carro de gama baja NUNCA llega a 4 o 5, sin importar qué tan caro sea el servicio que pida: esta tabla cubre las 8 combinaciones posibles, no asumas ninguna que no esté acá.
+
+| Ticket del servicio | Carro gama baja | Carro gama media o alta |
+|---|---|---|
+| Bajo (lavada / mantenimiento) | 1 | 2 |
+| Medio (motor, chasis, detallado exterior) | 2 | 3 |
+| Medio-alto (corrección de pintura, detallado interior, polarizado) | 2 | 4 |
+| Alto (cerámico, PPF, wrap) | 3 | 5 |
+
+- 0 — es aparte de la tabla: el cliente puso objeción de precio real (le parece caro, en otro lado se lo hacen más barato o mejor) Y el carro es viejo o de gama baja. Si solo hay objeción de precio pero el carro es de gama media/alta, no es un 0 — usa la tabla con el ticket que corresponda.
+- Un carro gama baja pidiendo un servicio de ticket alto (ej. un carro viejo y económico preguntando por cerámico) es 3, no 5 — el interés en pagar por algo caro es real y vale la pena vigilarlo, pero el perfil de carro no es el que buscamos priorizar.
 No inventes la calificación sin base: si todavía no sabes qué servicio le interesa o qué carro tiene, usa "Sin dato" en vez de adivinar.
 
 Ejemplo completo: [META: estado=Diagnóstico agendado; servicios=Cerámico,PPF; carro=BMW M240i 2022; marca=BMW; calificacion=5]
