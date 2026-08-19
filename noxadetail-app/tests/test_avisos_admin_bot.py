@@ -198,7 +198,10 @@ class TestTagDeReagendado:
         """Si se olvida en esta tupla, el job de seguimiento vuelve a perseguir a
         alguien que acaba de confirmar hora, y las analíticas lo dejan de contar."""
         assert "Reagendado" in A.ESTADOS_CON_CITA
-        assert "Reagendado" in A.LEAD_STATES
+        # A propósito NO está en LEAD_STATES: no es una etapa del embudo de ventas
+        # que el filtro del panel deba ofrecer aparte — en el panel se ve con el
+        # mismo color que "Cita agendada" (ver status_pill_class en whatsapp.html).
+        assert "Reagendado" not in A.LEAD_STATES
 
     def test_el_job_de_seguimiento_no_lo_persigue(self, conversacion, cita):
         _correr_turno(conversacion, self._partes(cita))
@@ -220,24 +223,25 @@ class TestTagDeReagendado:
 
 
 class TestCalificacionDeLead:
-    """gama/interes_real son campos nuevos del [META:] — cubren tanto el parseo
-    como que un marcador sin ellos (formato viejo, o un turno donde el modelo los
-    olvida) siga reconociéndose como [META:] y no se le cuele al cliente como
-    mensaje visible."""
+    """carro/marca/calificacion son campos nuevos del [META:] — cubren tanto el
+    parseo como que un marcador sin ellos (formato viejo, o un turno donde el
+    modelo los olvida) siga reconociéndose como [META:] y no se le cuele al
+    cliente como mensaje visible."""
 
-    def test_guarda_gama_e_interes(self, conversacion):
+    def test_guarda_carro_marca_y_calificacion(self, conversacion):
         _correr_turno(conversacion, [
             "Con gusto, te cuento.",
-            "[META: estado=En proceso; servicios=Cerámico; gama=Alta gama; interes_real=Alto]",
+            "[META: estado=En proceso; servicios=Cerámico; carro=BMW M240i 2022; marca=BMW; calificacion=5]",
         ])
         with A.app.app_context():
             conv = A.Conversation.query.get(conversacion)
-            assert conv.vehicle_tier == "Alta gama"
-            assert conv.intent_level == "Alto"
+            assert conv.carro == "BMW M240i 2022"
+            assert conv.marca == "BMW"
+            assert conv.calificacion == 5
             assert conv.priority == "Alta"
 
-    def test_formato_viejo_sin_gama_ni_interes_no_se_filtra_al_cliente(self, conversacion):
-        """Antes de tolerar el formato viejo, este [META:] sin gama/interes_real
+    def test_formato_viejo_sin_carro_marca_ni_calificacion_no_se_filtra_al_cliente(self, conversacion):
+        """Antes de tolerar el formato viejo, este [META:] sin los campos nuevos
         no matcheaba _META_RE y se mandaba tal cual al cliente como si fuera un
         mensaje normal — justo lo que un marcador interno nunca debe hacer."""
         ok, enviados, _ = _correr_turno(conversacion, [
@@ -247,46 +251,75 @@ class TestCalificacionDeLead:
         assert ok is True
         visibles = [e["body"] for e in enviados if e["kind"] == "bot_respuesta"]
         assert visibles == ["Claro que sí."], (
-            f"el marcador [META:] sin gama/interes_real se coló como mensaje visible: {visibles}"
+            f"el marcador [META:] sin carro/marca/calificacion se coló como mensaje visible: {visibles}"
         )
         with A.app.app_context():
             conv = A.Conversation.query.get(conversacion)
-            assert conv.vehicle_tier == ""
-            assert conv.intent_level == ""
+            assert conv.carro == ""
+            assert conv.marca == ""
+            assert conv.calificacion is None
 
-    def test_valor_no_reconocido_se_ignora_y_no_rompe_el_turno(self, conversacion):
+    def test_marca_no_reconocida_se_ignora_y_no_rompe_el_turno(self, conversacion):
         ok, enviados, _ = _correr_turno(conversacion, [
             "Listo.",
-            "[META: estado=En proceso; servicios=; gama=Deportivo; interes_real=Muchísimo]",
+            "[META: estado=En proceso; servicios=; carro=Lada Niva 1990; marca=Lada; calificacion=1]",
         ])
         assert ok is True
         with A.app.app_context():
             conv = A.Conversation.query.get(conversacion)
-            assert conv.vehicle_tier == ""
-            assert conv.intent_level == ""
+            assert conv.marca == ""
+            assert conv.calificacion == 1  # la calificación sí es válida aunque la marca no
 
-    def test_una_senal_sola_no_alcanza_para_prioridad_alta(self, conversacion):
-        """Un carro de alta gama sin ningún interés real no es un lead prioritario
-        — la prioridad combina las dos señales, nunca una sola (ver _compute_priority)."""
-        _correr_turno(conversacion, [
-            "Ok.",
-            "[META: estado=En proceso; servicios=; gama=Alta gama; interes_real=Bajo]",
+    def test_calificacion_fuera_de_rango_se_ignora(self, conversacion):
+        ok, enviados, _ = _correr_turno(conversacion, [
+            "Listo.",
+            "[META: estado=En proceso; servicios=; carro=Sin dato; marca=Sin dato; calificacion=9]",
         ])
+        assert ok is True
         with A.app.app_context():
-            assert A.Conversation.query.get(conversacion).priority == "Media"
+            assert A.Conversation.query.get(conversacion).calificacion is None
 
-    def test_interes_alto_solo_no_alcanza_para_alta_pero_si_para_media(self, conversacion):
-        _correr_turno(conversacion, [
-            "Ok.",
-            "[META: estado=En proceso; servicios=; gama=Estándar; interes_real=Alto]",
-        ])
-        with A.app.app_context():
-            assert A.Conversation.query.get(conversacion).priority == "Media"
-
-    def test_sin_ninguna_senal_la_prioridad_es_baja(self, conversacion):
+    def test_estado_no_lo_puede_poner_esperando_directamente(self, conversacion):
+        """'Esperando' solo lo pone el job de seguimiento, nunca Mariana en vivo —
+        si el modelo lo emite, se ignora como estado no reconocido."""
         _correr_turno(conversacion, [
             "Hola.",
-            "[META: estado=En proceso; servicios=; gama=Sin dato; interes_real=Sin dato]",
+            "[META: estado=Esperando; servicios=; carro=Sin dato; marca=Sin dato; calificacion=Sin dato]",
+        ])
+        with A.app.app_context():
+            assert A.Conversation.query.get(conversacion).status == "En proceso"  # default del modelo, sin cambiar
+
+    def test_no_interesado_con_calificacion_alta_va_a_remarketing(self, conversacion):
+        """El caso que pidió el negocio: alguien que dijo que no, pero cuyo carro
+        y servicio de interés son del perfil bueno, no se descarta — se separa
+        para poder mandarle promociones más adelante."""
+        _correr_turno(conversacion, [
+            "Entendido.",
+            "[META: estado=No interesado; servicios=Polarizado; carro=Audi Q5 2023; marca=Audi; calificacion=4]",
+        ])
+        with A.app.app_context():
+            assert A.Conversation.query.get(conversacion).priority == "Remarketing"
+
+    def test_no_interesado_con_calificacion_baja_es_baja_no_remarketing(self, conversacion):
+        _correr_turno(conversacion, [
+            "Entendido.",
+            "[META: estado=No interesado; servicios=Lavada / mantenimiento; carro=Renault Logan 2015; marca=Renault; calificacion=0]",
+        ])
+        with A.app.app_context():
+            assert A.Conversation.query.get(conversacion).priority == "Baja"
+
+    def test_calificacion_media_es_prioridad_media(self, conversacion):
+        _correr_turno(conversacion, [
+            "Ok.",
+            "[META: estado=En proceso; servicios=; carro=Mazda 3 2023; marca=Mazda; calificacion=3]",
+        ])
+        with A.app.app_context():
+            assert A.Conversation.query.get(conversacion).priority == "Media"
+
+    def test_sin_calificacion_todavia_la_prioridad_es_baja(self, conversacion):
+        _correr_turno(conversacion, [
+            "Hola.",
+            "[META: estado=Iniciado; servicios=; carro=Sin dato; marca=Sin dato; calificacion=Sin dato]",
         ])
         with A.app.app_context():
             assert A.Conversation.query.get(conversacion).priority == "Baja"
@@ -295,14 +328,25 @@ class TestCalificacionDeLead:
 class TestComputePriority:
     """Unitarios directos sobre _compute_priority, sin pasar por un turno completo."""
 
-    def test_alta_gama_y_alto_interes_es_alta(self):
-        assert A._compute_priority("Alta gama", "Alto") == "Alta"
+    def test_calificacion_alta_es_prioridad_alta(self):
+        assert A._compute_priority("En proceso", 5) == "Alta"
+        assert A._compute_priority("En proceso", 4) == "Alta"
 
-    def test_media_alta_y_medio_interes_es_alta(self):
-        assert A._compute_priority("Media-alta", "Medio") == "Alta"
+    def test_calificacion_media_es_prioridad_media(self):
+        assert A._compute_priority("En proceso", 2) == "Media"
+        assert A._compute_priority("En proceso", 3) == "Media"
 
-    def test_estandar_y_bajo_interes_es_baja(self):
-        assert A._compute_priority("Estándar", "Bajo") == "Baja"
+    def test_calificacion_baja_es_prioridad_baja(self):
+        assert A._compute_priority("En proceso", 0) == "Baja"
+        assert A._compute_priority("En proceso", 1) == "Baja"
 
-    def test_gama_desconocida_se_trata_como_baja_prioridad_por_defecto(self):
-        assert A._compute_priority("valor-invalido", "valor-invalido") == "Baja"
+    def test_sin_calificacion_es_baja(self):
+        assert A._compute_priority("En proceso", None) == "Baja"
+
+    def test_no_interesado_con_calificacion_4_o_5_es_remarketing(self):
+        assert A._compute_priority("No interesado", 4) == "Remarketing"
+        assert A._compute_priority("No interesado", 5) == "Remarketing"
+
+    def test_no_interesado_con_calificacion_baja_es_baja(self):
+        assert A._compute_priority("No interesado", 3) == "Baja"
+        assert A._compute_priority("No interesado", None) == "Baja"

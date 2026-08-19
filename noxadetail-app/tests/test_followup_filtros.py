@@ -29,7 +29,7 @@ def _candidatas_del_job():
     return A.Conversation.query.filter(
         A.Conversation.bot_active == True,  # noqa: E712
         A.Conversation.followup_count < len(A._FOLLOWUP_STAGES),
-        A.Conversation.status.notin_(("Diagnóstico agendado", "Servicio agendado")),
+        A.Conversation.status.notin_(("Diagnóstico agendado", "Cita agendada")),
     ).all()
 
 
@@ -39,7 +39,7 @@ class TestAQuienSePersigue:
         assert agendado not in _candidatas_del_job()
 
     def test_al_que_ya_agendo_servicio_tampoco(self, client):
-        agendado = _conv(status="Servicio agendado")
+        agendado = _conv(status="Cita agendada")
         assert agendado not in _candidatas_del_job()
 
     def test_al_lead_en_proceso_si_se_le_escribe(self, client):

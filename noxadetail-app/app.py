@@ -1326,13 +1326,14 @@ class Conversation(db.Model):
     bot_active   = db.Column(db.Boolean, nullable=False, default=True)
     followup_count = db.Column(db.Integer, nullable=False, default=0)
     status       = db.Column(db.String(40), nullable=False, default="En proceso")
-    service_tag  = db.Column(db.String(120), nullable=False, default="")  # lista separada por comas, ej. "Cerámico,PPF o wrap"
-    # Calificación del lead: la pone Mariana en cada turno vía [META: ... gama=...; interes_real=...],
-    # igual que estado/service_tag. "priority" es derivada de las otras dos (ver _compute_priority) y
+    service_tag  = db.Column(db.String(120), nullable=False, default="")  # lista separada por comas, ej. "Cerámico,PPF"
+    # Calificación del lead: la pone Mariana en cada turno vía [META: ... carro=...; marca=...; calificacion=...],
+    # igual que estado/service_tag. "priority" es derivada de estado+calificación (ver _compute_priority) y
     # se guarda aparte para poder ordenar/filtrar la bandeja sin recalcularla en cada request.
-    vehicle_tier = db.Column(db.String(20), nullable=False, default="")
-    intent_level = db.Column(db.String(20), nullable=False, default="")
-    priority     = db.Column(db.String(10), nullable=False, default="Baja")
+    carro        = db.Column(db.String(120), nullable=False, default="")  # texto libre, ej. "BMW M240i 2022"
+    marca        = db.Column(db.String(20), nullable=False, default="")   # normalizada, para el logo del avatar
+    calificacion = db.Column(db.Integer, nullable=True)                   # 0-5, None = sin dato todavía
+    priority     = db.Column(db.String(20), nullable=False, default="Baja")
     created_at   = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
     updated_at   = db.Column(db.DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -1527,25 +1528,44 @@ def ensure_whatsapp_schema():
                 text("ALTER TABLE whatsapp_conversations ADD COLUMN service_tag VARCHAR(40) DEFAULT 'Otro servicio'")
             )
             db.session.commit()
+        # vehicle_tier/intent_level: campos viejos de la primera versión de la
+        # calificación, reemplazados por carro/marca/calificacion. Se botan en vez
+        # de dejarlos huérfanos — nada los lee ya.
+        for col in ("vehicle_tier", "intent_level"):
+            try:
+                db.session.execute(text(f"ALTER TABLE whatsapp_conversations DROP COLUMN {col}"))
+                db.session.commit()
+            except Exception:
+                db.session.rollback()
         try:
-            db.session.execute(text("SELECT vehicle_tier FROM whatsapp_conversations LIMIT 1"))
+            db.session.execute(text("SELECT carro FROM whatsapp_conversations LIMIT 1"))
         except Exception:
             db.session.execute(
-                text("ALTER TABLE whatsapp_conversations ADD COLUMN vehicle_tier VARCHAR(20) DEFAULT ''")
+                text("ALTER TABLE whatsapp_conversations ADD COLUMN carro VARCHAR(120) DEFAULT ''")
             )
             db.session.commit()
         try:
-            db.session.execute(text("SELECT intent_level FROM whatsapp_conversations LIMIT 1"))
+            db.session.execute(text("SELECT marca FROM whatsapp_conversations LIMIT 1"))
         except Exception:
             db.session.execute(
-                text("ALTER TABLE whatsapp_conversations ADD COLUMN intent_level VARCHAR(20) DEFAULT ''")
+                text("ALTER TABLE whatsapp_conversations ADD COLUMN marca VARCHAR(20) DEFAULT ''")
+            )
+            db.session.commit()
+        try:
+            db.session.execute(text("SELECT calificacion FROM whatsapp_conversations LIMIT 1"))
+        except Exception:
+            db.session.execute(
+                text("ALTER TABLE whatsapp_conversations ADD COLUMN calificacion INTEGER")
             )
             db.session.commit()
         try:
             db.session.execute(text("SELECT priority FROM whatsapp_conversations LIMIT 1"))
         except Exception:
+            # SQLite no aplica el límite de VARCHAR(N) — es solo type affinity, no un
+            # constraint real — así que "Remarketing" (11 chars) entra sin problema
+            # aunque la columna se haya declarado VARCHAR(10) en versiones viejas.
             db.session.execute(
-                text("ALTER TABLE whatsapp_conversations ADD COLUMN priority VARCHAR(10) DEFAULT 'Baja'")
+                text("ALTER TABLE whatsapp_conversations ADD COLUMN priority VARCHAR(20) DEFAULT 'Baja'")
             )
             db.session.commit()
 
@@ -5291,39 +5311,54 @@ def seed_demo_data():
         u.set_password("Demo1234!")
         db.session.add(u)
 
+        # priority va explícito en vez de calcularlo con _compute_priority: esa
+        # función se define más abajo en el archivo, y esta siembra corre al
+        # importar el módulo, antes de que exista.
         escenarios = [
-            dict(phone="+573000000001", profile_name="Andrés (Porsche 911, listo para agendar)",
-                 status="En proceso", service_tag="Cerámico", vehicle_tier="Alta gama",
-                 intent_level="Alto", priority="Alta",
-                 msgs=[("in", "Hola, tengo un Porsche 911 y quiero cerámico"),
+            dict(phone="+573000000001", profile_name="Andrés Rojas", bot_active=True,
+                 status="Diagnóstico agendado", service_tag="Cerámico,PPF",
+                 carro="BMW M240i 2022", marca="BMW", calificacion=5, priority="Alta",
+                 msgs=[("in", "Hola, tengo un BMW M240i y quiero cerámico"),
                        ("out", "Con gusto, ¿qué anillo de cerámico buscas?"),
                        ("in", "El de 9H, ¿cuándo puedo llevarlo?")]),
-            dict(phone="+573000000002", profile_name="Camila (BMW X5, preguntó y no volvió)",
-                 status="En proceso", service_tag="PPF o wrap", vehicle_tier="Alta gama",
-                 intent_level="Bajo", priority="Media",
-                 msgs=[("in", "Cuánto vale el PPF para un BMW X5"),
-                       ("out", "Depende de la zona, ¿todo el carro o solo el frente?")]),
-            dict(phone="+573000000003", profile_name="Julián (Mazda 3 2026, muy interesado)",
-                 status="Diagnóstico agendado", service_tag="Otro servicio", vehicle_tier="Media-alta",
-                 intent_level="Alto", priority="Alta",
+            dict(phone="+573000000002", profile_name="Camila Torres", bot_active=True,
+                 status="No interesado", service_tag="Polarizado",
+                 carro="Mercedes-Benz Clase C 2021", marca="Mercedes-Benz", calificacion=4, priority="Remarketing",
+                 msgs=[("in", "Cuánto vale el polarizado para un Mercedes Clase C"),
+                       ("out", "Depende de la zona, ¿todo el carro o solo el frente?"),
+                       ("in", "Está muy caro, prefiero esperar")]),
+            dict(phone="+573000000003", profile_name="Julián Peña", bot_active=True,
+                 status="Diagnóstico agendado", service_tag="Detallado exterior",
+                 carro="Mazda 3 2023", marca="Mazda", calificacion=3, priority="Media",
                  msgs=[("in", "Acabo de comprar un Mazda 3, quiero protegerlo bien"),
                        ("out", "Perfecto, te propongo un diagnóstico gratuito primero"),
                        ("in", "Sí, el sábado a las 10am")]),
-            dict(phone="+573000000004", profile_name="Laura (Renault Logan, cotizando)",
-                 status="En proceso", service_tag="Otro servicio", vehicle_tier="Estándar",
-                 intent_level="Medio", priority="Baja",
-                 msgs=[("in", "Cuánto vale un detallado interior"),
-                       ("out", "Desde 180 mil, depende del estado del carro")]),
-            dict(phone="+573000000005", profile_name="Nuevo contacto", status="En proceso",
-                 service_tag="", vehicle_tier="", intent_level="", priority="Baja",
+            dict(phone="+573000000004", profile_name="Laura Gómez", bot_active=True,
+                 status="No interesado", service_tag="Lavada / mantenimiento",
+                 carro="Renault Logan 2015", marca="Renault", calificacion=0, priority="Baja",
+                 msgs=[("in", "Cuánto vale una lavada"),
+                       ("out", "Desde 35 mil, depende del tamaño del carro"),
+                       ("in", "Está muy caro, en el barrio me lo hacen más barato")]),
+            dict(phone="+573000000005", profile_name="Nuevo contacto", bot_active=True,
+                 status="Iniciado", service_tag="", carro="", marca="", calificacion=None, priority="Baja",
                  msgs=[("in", "Hola")]),
+            dict(phone="+573000000006", profile_name="Daniel Martínez", bot_active=False,
+                 status="En proceso", service_tag="Cerámico",
+                 carro="Tesla Model 3 2024", marca="Tesla", calificacion=5, priority="Alta",
+                 msgs=[("in", "Quiero pagar el anticipo del cerámico ya mismo"),
+                       ("out", "Claro, dame un momento que te conecto con un asesor 🙂")]),
+            dict(phone="+573000000007", profile_name="Jorge Ruiz", bot_active=True,
+                 status="Esperando", service_tag="Lavada / mantenimiento",
+                 carro="Toyota Corolla 2020", marca="Toyota", calificacion=2, priority="Media",
+                 msgs=[("in", "Hola, cuánto vale la lavada"),
+                       ("out", "Desde 35 mil, ¿qué día te queda bien?")]),
         ]
         base = datetime.utcnow() - timedelta(hours=3)
         for i, esc in enumerate(escenarios):
-            conv = Conversation(phone=esc["phone"], profile_name=esc["profile_name"], bot_active=True,
-                                 status=esc["status"], service_tag=esc["service_tag"],
-                                 vehicle_tier=esc["vehicle_tier"], intent_level=esc["intent_level"],
-                                 priority=esc["priority"])
+            conv = Conversation(phone=esc["phone"], profile_name=esc["profile_name"],
+                                 bot_active=esc["bot_active"], status=esc["status"],
+                                 service_tag=esc["service_tag"], carro=esc["carro"], marca=esc["marca"],
+                                 calificacion=esc["calificacion"], priority=esc["priority"])
             db.session.add(conv)
             db.session.flush()
             for j, (direction, body) in enumerate(esc["msgs"]):
@@ -6552,43 +6587,55 @@ Cómo hacerlo (proceso de dos partes, en el mismo turno):
 
 # ESTADO Y SERVICIOS DEL LEAD (seguimiento interno para el negocio)
 En CADA turno tuyo, sin excepción, además de tu(s) mensaje(s) normal(es), agrega un último mensaje SEPARADO (con "---" antes, como siempre) con este formato EXACTO:
-[META: estado=<estado>; servicios=<lista o vacío>; gama=<gama>; interes_real=<interés>]
+[META: estado=<estado>; servicios=<lista o vacío>; carro=<carro>; marca=<marca>; calificacion=<calificación>]
 
 Esto nunca lo ve el cliente — es solo para que el negocio sepa en qué punto va cada conversación, y para priorizar a qué leads les presta atención un asesor primero. Cada vez que lo escribas, repasa TODA la conversación hasta ahora y refleja el panorama completo actual — no solo lo que cambió en este mensaje. Es mejor repetir información que ya diste antes que dejarla por fuera.
 
-**<estado>** — uno de estos tres (el más avanzado que ya sea cierto):
-- En proceso — todo lo que pasa antes de agendar algo: desde que recién saluda hasta que ya está calificado, cotizado, o incluso con anticipo pendiente.
+**<estado>** — uno de estos cinco (el más avanzado que ya sea cierto):
+- Iniciado — el cliente recién saludó o escribió por primera vez; todavía no sabes nada concreto de él (ni carro, ni qué busca).
+- En proceso — ya sabes algo real (qué carro tiene, qué servicio le interesa) y la conversación sigue activa, hasta que agende algo o diga que no le interesa.
 - Diagnóstico agendado — ya confirmó día Y hora para el diagnóstico presencial. IMPORTANTE: si acabas de confirmar día y hora en ESTE MISMO turno, actualiza el estado ya, en este mismo mensaje — no lo dejes para el siguiente turno.
-- Servicio agendado — ya confirmó día Y hora para el servicio real (cerámico, PPF, detallado, etc.), directo o después del diagnóstico. Misma regla: si lo acabas de confirmar en este turno, actualízalo ya.
-(No uses "Seguimiento futuro" — ese lo pone el sistema automáticamente.)
+- Cita agendada — ya confirmó día Y hora para el servicio real (cerámico, PPF, detallado, etc.), directo o después del diagnóstico. Misma regla: si lo acabas de confirmar en este turno, actualízalo ya.
+- No interesado — dijo explícitamente que no le interesa, que le parece caro, que lo va a hacer en otro lado, o algo equivalente, y no muestra intención de seguir la conversación.
+(No uses "Esperando" ni "Reagendado" — esos los pone el sistema automáticamente.)
 
 **<servicios>** — lista de TODOS los servicios en los que el cliente ha mostrado interés real hasta ahora en la conversación (no solo el de este mensaje), separados por coma, o vacío si ninguno todavía:
+- Lavada / mantenimiento — wash, mantenimiento básico.
+- Motor — limpieza o detallado de motor.
+- Chasis — limpieza o detallado de chasis.
+- Detallado exterior — pulido cosmético, sin ser corrección seria de pintura.
+- Detallado interior — tapicería, tablero, sanitización.
+- Corrección de pintura — pulido o corrección seria de rayones e imperfecciones.
+- Polarizado — láminas de vidrios.
 - Cerámico — coating cerámico (7H+ o 9H).
-- PPF o wrap — PPF/vinilo de protección, o corrección de wrap.
-- Otro servicio — cualquier otro (wash, detallado, polichado, porcelanizado, etc.).
+- PPF — película de protección de pintura.
+- Wrap — vinilo/forrado, o corrección de wrap.
 Un servicio solo cuenta como "interés" si el cliente lo demostró de verdad (preguntó precio, pidió detalles, dijo que le interesa) — NO por solo haberlo mencionado tú de pasada.
 
-**<gama>** — qué tan valioso es el carro del cliente, uno de estos cuatro:
-- Alta gama — marca premium (BMW, Mercedes-Benz, Audi, Porsche, Land Rover/Range Rover, Lexus, Volvo, Tesla, Mini, Jaguar, o equivalente) o un carro de colección/edición especial.
-- Media-alta — gama media-alta sin ser premium (ej. Mazda CX-9, Toyota gama alta, camionetas 4x4 tope de línea) o un carro NUEVO de cualquier marca (año actual o el anterior, o el cliente dijo explícitamente que lo acaba de comprar) — lo nuevo importa aunque la marca no sea premium, porque un carro recién comprado suele tener dueño dispuesto a invertir en protegerlo.
-- Estándar — el resto: gama media o económica, sin ser nuevo.
-- Sin dato — todavía no sabes qué carro tiene. Usa esto SIEMPRE que aplique, no adivines ni asumas "Estándar" por defecto.
+**<carro>** — el carro del cliente tal como te lo dijo, en formato "Marca Modelo Año" (ej. "BMW M240i 2022"), o "Sin dato" si todavía no lo sabes. Lo preguntas de forma natural en el paso de Situación de tu descubrimiento (ver METODOLOGÍA DE VENTA), nunca de golpe ni como interrogatorio.
 
-**<interes_real>** — qué tan en serio está el cliente con hacerse el servicio, uno de estos cuatro (se mide por comportamiento, no por cortesía):
-- Alto — pidió agendar o cita, preguntó forma de pago/anticipo/dirección, o dio su placa sin que se la pidieras explícitamente por otro motivo.
-- Medio — preguntó precio y siguió la conversación con preguntas de seguimiento (detalles del servicio, garantía, tiempos), o dijo explícitamente que le interesa y quiere pensarlo/consultarlo.
-- Bajo — preguntó algo puntual (precio, un dato) y no volvió a responder, o el tono es claramente exploratorio/comparando precios sin compromiso.
-- Sin dato — recién empieza la conversación, no hay suficiente para juzgar todavía.
+**<marca>** — SOLO la marca, una de esta lista cerrada (la que más se parezca a lo que dijo el cliente):
+BMW, Mercedes-Benz, Audi, Porsche, Toyota, Mazda, Chevrolet, Renault, Nissan, Kia, Hyundai, Ford, Volkswagen, Honda, Land Rover, Volvo, Lexus, Jeep, Mitsubishi, Suzuki, Peugeot, Citroën, Subaru, Tesla, Mini, Jaguar, Otra
+Usa "Otra" si el cliente ya dijo el carro pero la marca no está en la lista, o "Sin dato" si todavía no lo sabes.
 
-Ejemplo completo: [META: estado=Diagnóstico agendado; servicios=Cerámico,PPF o wrap; gama=Alta gama; interes_real=Alto]
-Ejemplo sin servicios aún: [META: estado=En proceso; servicios=; gama=Sin dato; interes_real=Sin dato]
+**<calificación>** — qué tan bueno es este lead para el negocio, del 0 al 5, o "Sin dato" si aún no hay suficiente información para juzgar:
+- 0 — el cliente puso objeción de precio real (le parece caro, en otro lado se lo hacen más barato o mejor) Y el carro es viejo o de gama baja.
+- 1 — servicio de ticket bajo (ej. lavada) en un carro de gama baja.
+- 2 — servicio de ticket bajo (ej. lavada) en un carro de gama media o alta.
+- 3 — servicio de ticket medio (motor, chasis, detallado exterior) en un carro de gama media o alta.
+- 4 — servicio de ticket medio-alto (corrección de pintura, detallado interior, polarizado) en un carro de gama media o alta.
+- 5 — servicio de ticket alto (cerámico, PPF, wrap) en un carro de gama media o alta.
+No inventes la calificación sin base: si todavía no sabes qué servicio le interesa o qué carro tiene, usa "Sin dato" en vez de adivinar.
+
+Ejemplo completo: [META: estado=Diagnóstico agendado; servicios=Cerámico,PPF; carro=BMW M240i 2022; marca=BMW; calificacion=5]
+Ejemplo sin info del carro aún: [META: estado=Iniciado; servicios=; carro=Sin dato; marca=Sin dato; calificacion=Sin dato]
 
 # ACTUALIZAR EL NOMBRE DEL CLIENTE
 Si en algún momento de la conversación el cliente te dice su nombre real (típicamente porque se lo preguntaste al no tener un nombre de perfil válido, pero puede pasar en cualquier momento), agrega otro mensaje separado que diga EXACTAMENTE: [NOMBRE: <nombre que dio>]
 Esto actualiza cómo se muestra el contacto en nuestro sistema interno — hazlo siempre que el cliente te dé su nombre real, aunque ya estuviera usando un nombre distinto antes.
 
-Ejemplo de tu respuesta completa en un turno: primer mensaje visible --- segundo mensaje visible (si aplica) --- [META: estado=En proceso; servicios=Cerámico; gama=Media-alta; interes_real=Medio]
-Ejemplo de un turno en el que agendas: mensaje de confirmación al cliente --- [AGENDAR: nombre=Andrés Rojas; celular=3001234567; vehiculo=SUV; placa=ABC123; fecha=2026-08-06; hora=15:00] --- [META: estado=Diagnóstico agendado; servicios=Cerámico; gama=Alta gama; interes_real=Alto]"""
+Ejemplo de tu respuesta completa en un turno: primer mensaje visible --- segundo mensaje visible (si aplica) --- [META: estado=En proceso; servicios=Cerámico; carro=Mazda CX-9 2023; marca=Mazda; calificacion=3]
+Ejemplo de un turno en el que agendas: mensaje de confirmación al cliente --- [AGENDAR: nombre=Andrés Rojas; celular=3001234567; vehiculo=SUV; placa=ABC123; fecha=2026-08-06; hora=15:00] --- [META: estado=Diagnóstico agendado; servicios=Cerámico; carro=BMW M240i 2022; marca=BMW; calificacion=5]"""
 
 
 def _build_message_history(conversation: "Conversation") -> list[dict]:
@@ -7311,9 +7358,13 @@ _ESCALATE_RE = re.compile(r"^\[ESCALAR:\s*(.*?)\]$", re.IGNORECASE)
 # vez emite el formato viejo (o se le olvidan estos dos campos en un turno), el
 # marcador sigue reconociéndose como [META:] en vez de colársele al cliente como
 # texto visible — que es justo lo que pasaba antes de este ajuste.
+
+# carro/marca/calificacion van en un bloque opcional: si un turno los omite (o
+# es un [META:] con el formato viejo), el marcador se sigue reconociendo como
+# interno en vez de colársele al cliente como texto visible.
 _META_RE = re.compile(
     r"^\[META:\s*estado\s*=\s*(.*?)\s*;\s*servicios\s*=\s*(.*?)"
-    r"(?:\s*;\s*gama\s*=\s*(.*?)\s*;\s*interes_real\s*=\s*(.*?))?\s*\]$",
+    r"(?:\s*;\s*carro\s*=\s*(.*?)\s*;\s*marca\s*=\s*(.*?)\s*;\s*calificacion\s*=\s*(.*?))?\s*\]$",
     re.IGNORECASE,
 )
 _NOMBRE_RE = re.compile(r"^\[NOMBRE:\s*(.*?)\]$", re.IGNORECASE)
@@ -7322,58 +7373,92 @@ _PROMO_RE   = re.compile(r"^\[PROMO:\s*(\d+)\s*\]$", re.IGNORECASE)
 _REAGENDAR_RE = re.compile(r"^\[REAGENDAR:\s*(.*?)\]$", re.IGNORECASE | re.DOTALL)
 _SIN_MENU_RE  = re.compile(r"^\[SIN_?MENU\]$", re.IGNORECASE)
 
-# Estados del lead. "Reagendado" no es una etapa del embudo de ventas como los
-# demás: marca a un cliente que YA tenía cita y escribió para moverla (no llegó
-# por pauta ni lo buscó Mariana). Se distingue porque operativamente es otra
-# cosa — no hay nada que vender ahí, solo una cita que cambió de hora.
-LEAD_STATES = [
+# Estados del lead que Mariana puede poner ella misma vía [META: estado=...].
+# "Iniciado" es el saludo inicial sin info real todavía; a partir de que sabe
+# algo concreto (carro, servicio de interés) pasa a "En proceso".
+LEAD_STATES_MARIANA = [
+    "Iniciado",
     "En proceso",
     "Diagnóstico agendado",
-    "Reagendado",
-    "Servicio agendado",
-    "Seguimiento futuro",
+    "Cita agendada",
+    "No interesado",
 ]
+
+# Lista completa para el filtro del panel: los de Mariana + "Esperando", que solo
+# lo pone el sistema (4 intentos de seguimiento sin respuesta — antes se llamaba
+# "Seguimiento futuro"). "Reagendado" no entra acá a propósito: no es una etapa
+# del embudo de ventas como las demás, marca a un cliente que YA tenía cita y
+# escribió para moverla (no llegó por pauta ni lo buscó Mariana) — se sigue
+# guardando tal cual porque las analíticas lo cuentan aparte, pero en el panel
+# se ve con el mismo color verde que "Cita agendada": para Diana es lo mismo,
+# tiene una cita en firme.
+LEAD_STATES = LEAD_STATES_MARIANA + ["Esperando"]
 
 # Estados que significan "este cliente ya tiene una cita en firme". Se enumeran
 # una sola vez porque cada punto que los liste por separado es un lugar donde
 # olvidar uno: pasó el 2026-08-10, cuando a alguien con cita confirmada le
 # llegó un "te escribo para retomar" del job de seguimiento.
-ESTADOS_CON_CITA = ("Diagnóstico agendado", "Reagendado", "Servicio agendado")
+ESTADOS_CON_CITA = ("Diagnóstico agendado", "Reagendado", "Cita agendada")
 
 SERVICE_TAGS = [
+    "Lavada / mantenimiento",
+    "Motor",
+    "Chasis",
+    "Detallado exterior",
+    "Detallado interior",
+    "Corrección de pintura",
+    "Polarizado",
     "Cerámico",
-    "PPF o wrap",
-    "Otro servicio",
+    "PPF",
+    "Wrap",
 ]
 
-# --- Calificación de leads: gama del vehículo + interés real (ver [META:] más abajo) ---
-VEHICLE_TIERS = [
-    "Alta gama",
-    "Media-alta",
-    "Estándar",
-    "Sin dato",
+# --- Calificación de leads (0-5) y prioridad derivada (ver [META:] más abajo) ---
+CALIFICACIONES = list(range(6))
+
+# Marcas que Mariana puede reportar en el campo `marca` del [META:]. Es una lista
+# cerrada (no texto libre) para que el avatar del panel pueda mostrar siempre una
+# sigla reconocida en vez de adivinar cómo abreviar algo que nunca había visto.
+MARCAS_CONOCIDAS = [
+    "BMW", "Mercedes-Benz", "Audi", "Porsche", "Toyota", "Mazda", "Chevrolet",
+    "Renault", "Nissan", "Kia", "Hyundai", "Ford", "Volkswagen", "Honda",
+    "Land Rover", "Volvo", "Lexus", "Jeep", "Mitsubishi", "Suzuki", "Peugeot",
+    "Citroën", "Subaru", "Tesla", "Mini", "Jaguar", "Otra",
 ]
 
-INTENT_LEVELS = [
-    "Alto",
-    "Medio",
-    "Bajo",
-    "Sin dato",
-]
+# Sigla mostrada en el avatar. No son logos reales (marcas registradas de
+# terceros, riesgo legal/de confiabilidad si se traen de un CDN externo) — son
+# solo texto. "Otra" y las que no tengan entrada acá caen al inicial del
+# cliente, como era antes de esta función existir.
+MARCA_ABREVIATURA = {
+    "BMW": "BMW", "Mercedes-Benz": "MB", "Audi": "AUDI", "Porsche": "POR",
+    "Toyota": "TOY", "Mazda": "MAZ", "Chevrolet": "CHEV", "Renault": "REN",
+    "Nissan": "NIS", "Kia": "KIA", "Hyundai": "HYU", "Ford": "FORD",
+    "Volkswagen": "VW", "Honda": "HON", "Land Rover": "LR", "Volvo": "VOLV",
+    "Lexus": "LEX", "Jeep": "JEEP", "Mitsubishi": "MITS", "Suzuki": "SUZ",
+    "Peugeot": "PEUG", "Citroën": "CITR", "Subaru": "SUB", "Tesla": "TSLA",
+    "Mini": "MINI", "Jaguar": "JAG",
+}
 
-PRIORITY_LEVELS = ["Alta", "Media", "Baja"]
+PRIORITY_LEVELS = ["Alta", "Media", "Baja", "Remarketing"]
 
 
-def _compute_priority(vehicle_tier: str, intent_level: str) -> str:
-    """Prioridad derivada de gama + interés — nunca de una sola señal, por diseño:
-    un carro de alta gama sin ningún interés real no es un lead prioritario, y un
-    interés fuerte en un carro estándar sí vale la pena vigilar aunque no sea el
-    perfil típico del negocio."""
-    gama_alta = vehicle_tier in ("Alta gama", "Media-alta")
-    interes_fuerte = intent_level in ("Alto", "Medio")
-    if gama_alta and interes_fuerte:
+def _compute_priority(estado: str, calificacion: "int | None") -> str:
+    """La prioridad nunca sale de una sola señal: combina el estado real de la
+    conversación con la calificación (0-5, que ya mezcla servicio de interés +
+    gama del carro — ver el rubro en el prompt de Mariana).
+
+    Caso especial: un "No interesado" con calificación alta (4-5 — o sea que el
+    carro/servicio eran justo el perfil que le interesa al negocio) no se
+    descarta sin más: se guarda aparte en "Remarketing" para promociones
+    futuras, separado de los "No interesado" de bajo valor que sí se ignoran."""
+    if estado == "No interesado":
+        return "Remarketing" if (calificacion is not None and calificacion >= 4) else "Baja"
+    if calificacion is None:
+        return "Baja"
+    if calificacion >= 4:
         return "Alta"
-    if gama_alta or intent_level == "Alto":
+    if calificacion >= 2:
         return "Media"
     return "Baja"
 
@@ -7887,8 +7972,9 @@ def _generate_and_send_reply(conversation: "Conversation", from_number: str, med
     escalation_reason = None
     new_status = None
     new_service = None
-    new_vehicle_tier = None
-    new_intent_level = None
+    new_carro = None
+    new_marca = None
+    new_calificacion = None
     new_name = None
     booking_data = None
     reschedule_data = None
@@ -7915,7 +8001,7 @@ def _generate_and_send_reply(conversation: "Conversation", from_number: str, med
             escalation_reason = m_esc.group(1).strip() or "el cliente necesita atención humana"
         elif m_meta:
             estado_candidate = m_meta.group(1).strip()
-            if estado_candidate in LEAD_STATES:
+            if estado_candidate in LEAD_STATES_MARIANA:
                 new_status = estado_candidate
             elif estado_candidate:
                 app.logger.warning(f"[WhatsApp] Estado de lead no reconocido, se ignora: {estado_candidate!r}")
@@ -7928,17 +8014,27 @@ def _generate_and_send_reply(conversation: "Conversation", from_number: str, med
             if valid:
                 new_service = valid
 
-            gama_candidate = (m_meta.group(3) or "").strip()
-            if gama_candidate in VEHICLE_TIERS:
-                new_vehicle_tier = gama_candidate
-            elif gama_candidate:
-                app.logger.warning(f"[WhatsApp] Gama de vehículo no reconocida, se ignora: {gama_candidate!r}")
+            carro_candidate = (m_meta.group(3) or "").strip()
+            if carro_candidate and carro_candidate.lower() != "sin dato":
+                new_carro = carro_candidate
 
-            interes_candidate = (m_meta.group(4) or "").strip()
-            if interes_candidate in INTENT_LEVELS:
-                new_intent_level = interes_candidate
-            elif interes_candidate:
-                app.logger.warning(f"[WhatsApp] Nivel de interés no reconocido, se ignora: {interes_candidate!r}")
+            marca_candidate = (m_meta.group(4) or "").strip()
+            if marca_candidate in MARCAS_CONOCIDAS:
+                new_marca = marca_candidate
+            elif marca_candidate:
+                app.logger.warning(f"[WhatsApp] Marca no reconocida, se ignora: {marca_candidate!r}")
+
+            calif_candidate = (m_meta.group(5) or "").strip()
+            if calif_candidate.lower() not in ("", "sin dato"):
+                try:
+                    calif_int = int(calif_candidate)
+                except ValueError:
+                    app.logger.warning(f"[WhatsApp] Calificación no numérica, se ignora: {calif_candidate!r}")
+                else:
+                    if calif_int in CALIFICACIONES:
+                        new_calificacion = calif_int
+                    else:
+                        app.logger.warning(f"[WhatsApp] Calificación fuera de rango, se ignora: {calif_int!r}")
         elif m_nombre:
             candidate = m_nombre.group(1).strip()
             if candidate:
@@ -8032,15 +8128,21 @@ def _generate_and_send_reply(conversation: "Conversation", from_number: str, med
     if new_name and new_name != conversation.profile_name:
         conversation.profile_name = new_name
         db.session.commit()
-    if (new_vehicle_tier and new_vehicle_tier != conversation.vehicle_tier) or \
-       (new_intent_level and new_intent_level != conversation.intent_level):
-        # Se recalcula la prioridad con lo que ya había si alguna de las dos
-        # señales no llegó en este turno — Mariana repite el panorama completo
-        # casi siempre, pero si un turno la omite no hay razón para perder la
-        # otra mitad de la calificación que sí llegó.
-        conversation.vehicle_tier = new_vehicle_tier or conversation.vehicle_tier
-        conversation.intent_level = new_intent_level or conversation.intent_level
-        conversation.priority = _compute_priority(conversation.vehicle_tier, conversation.intent_level)
+    if new_carro and new_carro != conversation.carro:
+        conversation.carro = new_carro
+        db.session.commit()
+    if new_marca and new_marca != conversation.marca:
+        conversation.marca = new_marca
+        db.session.commit()
+    if new_calificacion is not None and new_calificacion != conversation.calificacion:
+        conversation.calificacion = new_calificacion
+        db.session.commit()
+    # Se recalcula siempre con lo que haya quedado en status/calificacion — más
+    # simple y más seguro que rastrear cuál de los dos cambió este turno, y solo
+    # escribe si el resultado es distinto del que ya estaba guardado.
+    nueva_prioridad = _compute_priority(conversation.status, conversation.calificacion)
+    if nueva_prioridad != conversation.priority:
+        conversation.priority = nueva_prioridad
         db.session.commit()
 
     # Un fallo enviándole al cliente NO puede saltarse los avisos al admin de más
@@ -8296,7 +8398,9 @@ def whatsapp_webhook():
 
 
 # ── Panel de mensajes de WhatsApp (bandeja + human takeover) ─────────────────
-_PRIORITY_RANK = {"Alta": 0, "Media": 1, "Baja": 2}
+# Remarketing va al final: no son conversaciones activas que alguien tenga que
+# atender ahora, son una lista aparte para campañas futuras.
+_PRIORITY_RANK = {"Alta": 0, "Media": 1, "Baja": 2, "Remarketing": 3}
 
 
 def _whatsapp_rows():
@@ -8316,7 +8420,8 @@ def _whatsapp_rows():
 @app.route("/whatsapp")
 def whatsapp_inbox():
     return render_template("whatsapp.html", rows=_whatsapp_rows(), conversation=None, messages=[],
-                           lead_states=LEAD_STATES, service_tags=SERVICE_TAGS, priority_levels=PRIORITY_LEVELS)
+                           lead_states=LEAD_STATES, service_tags=SERVICE_TAGS, priority_levels=PRIORITY_LEVELS,
+                           calificaciones=CALIFICACIONES, marca_abreviaturas=MARCA_ABREVIATURA)
 
 
 def _estados_entrega(conversation_id: int) -> dict:
@@ -8350,7 +8455,8 @@ def whatsapp_conversation(conversation_id):
     )
     return render_template("whatsapp.html", rows=_whatsapp_rows(), conversation=conversation,
                            messages=messages, estados=_estados_entrega(conversation.id),
-                           lead_states=LEAD_STATES, service_tags=SERVICE_TAGS, priority_levels=PRIORITY_LEVELS)
+                           lead_states=LEAD_STATES, service_tags=SERVICE_TAGS, priority_levels=PRIORITY_LEVELS,
+                           calificaciones=CALIFICACIONES, marca_abreviaturas=MARCA_ABREVIATURA)
 
 
 @app.route("/whatsapp/media/<path:filename>")
@@ -8856,7 +8962,7 @@ def _job_whatsapp_followup():
                 db.session.add(Message(conversation_id=conv.id, direction="out", body=reply))
                 conv.followup_count += 1
                 if stage == "ultima_oportunidad":
-                    conv.status = "Seguimiento futuro"
+                    conv.status = "Esperando"
                 db.session.commit()
 
 

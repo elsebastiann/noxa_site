@@ -1,29 +1,44 @@
 {% extends "base.html" %}
 
-{% macro service_pill_class(tag) -%}
-  {%- if tag == 'Cerámico' -%}svc-ceramico
-  {%- elif tag == 'PPF o wrap' -%}svc-ppf
-  {%- else -%}svc-otro
-  {%- endif -%}
-{%- endmacro %}
-
 {% macro status_pill_class(status) -%}
-  {%- if status == 'En proceso' -%}st-proceso
+  {%- if status == 'Iniciado' -%}st-iniciado
+  {%- elif status == 'En proceso' -%}st-proceso
+  {%- elif status == 'Esperando' -%}st-esperando
   {%- elif status == 'Diagnóstico agendado' -%}st-diagnostico
-  {%- elif status == 'Reagendado' -%}st-reagendado
-  {%- elif status == 'Servicio agendado' -%}st-servicio
-  {%- elif status == 'Seguimiento futuro' -%}st-seguimiento
+  {%- elif status in ('Cita agendada', 'Reagendado') -%}st-cita
+  {%- elif status == 'No interesado' -%}st-no-interesado
   {%- endif -%}
 {%- endmacro %}
 
 {% macro priority_pill(priority) -%}
   {%- if priority == 'Alta' -%}
-    <span class="wa-priority-pill pr-alta" title="Gama: buena · Interés: real">🔥 Alta</span>
+    <span class="wa-priority-pill pr-alta" title="Calificación 4-5">🔥 Alta</span>
   {%- elif priority == 'Media' -%}
-    <span class="wa-priority-pill pr-media" title="Una de las dos señales, la otra floja o sin dato">👀 Media</span>
+    <span class="wa-priority-pill pr-media" title="Calificación 2-3">👀 Media</span>
+  {%- elif priority == 'Remarketing' -%}
+    <span class="wa-priority-pill pr-remarketing" title="No interesado, pero carro/servicio de buen ticket — candidato a promociones futuras">Remarketing</span>
   {%- else -%}
-    <span class="wa-priority-pill pr-baja" title="Ni gama ni interés confirmados todavía">Baja</span>
+    <span class="wa-priority-pill pr-baja" title="Calificación 0-1 o sin dato">Baja</span>
   {%- endif -%}
+{%- endmacro %}
+
+{% macro calificacion_pill(calif) -%}
+  {%- if calif is none -%}
+    <span class="wa-calif-pill cf-sin-dato">Sin calif.</span>
+  {%- elif calif >= 4 -%}
+    <span class="wa-calif-pill cf-alta">Calif. {{ calif }}</span>
+  {%- elif calif == 3 -%}
+    <span class="wa-calif-pill cf-media">Calif. {{ calif }}</span>
+  {%- elif calif >= 1 -%}
+    <span class="wa-calif-pill cf-baja">Calif. {{ calif }}</span>
+  {%- else -%}
+    <span class="wa-calif-pill cf-cero">Calif. {{ calif }}</span>
+  {%- endif -%}
+{%- endmacro %}
+
+{% macro avatar_content(conv, marca_abreviaturas) -%}
+  {%- set sigla = marca_abreviaturas.get(conv.marca) -%}
+  {%- if sigla -%}{{ sigla }}{%- else -%}{{ (conv.profile_name or conv.phone)[0]|upper }}{%- endif -%}
 {%- endmacro %}
 
 {% macro tick(entrega) -%}
@@ -44,50 +59,56 @@
   .wa-shell { display:flex; border:1px solid var(--border); border-radius:var(--radius); overflow:hidden; margin-top:16px; height:75vh; background:#0b141a; }
 
   /* ── Sidebar (lista de conversaciones) ── */
-  .wa-sidebar { width:340px; flex-shrink:0; border-right:1px solid #202c33; overflow-y:auto; }
-  .wa-row { display:flex; align-items:center; gap:12px; padding:11px 14px; cursor:pointer; border-bottom:1px solid #182229; text-decoration:none; border-left:3px solid transparent; }
-  .wa-row[data-status="En proceso"]           { background:rgba(230,140,40,0.10);  border-left-color:#e68c28; }
-  .wa-row[data-status="Diagnóstico agendado"] { background:rgba(60,180,230,0.11);  border-left-color:#3cb4e6; }
-  .wa-row[data-status="Reagendado"]           { background:rgba(212,180,108,0.13); border-left-color:#d4b46c; }
-  .wa-row[data-status="Servicio agendado"]    { background:rgba(0,168,132,0.15);   border-left-color:#00a884; }
-  .wa-row[data-status="Seguimiento futuro"]   { background:rgba(150,110,230,0.11); border-left-color:#966ee6; }
+  .wa-sidebar { width:380px; flex-shrink:0; border-right:1px solid #202c33; overflow-y:auto; }
+  .wa-row { display:flex; align-items:flex-start; gap:12px; padding:11px 14px; cursor:pointer; border-bottom:1px solid #182229; text-decoration:none; border-left:3px solid transparent; }
+  /* El color de fondo/borde lo pone la PRIORIDAD, no el estado — un pill ya dice
+     el estado, no hace falta agrupar visualmente por él también. */
+  .wa-row[data-priority="Alta"]        { background:rgba(226,75,74,0.09);  border-left-color:#e24b4a; border-left-width:5px; }
+  .wa-row[data-priority="Media"]       { background:rgba(230,180,40,0.07); border-left-color:#e6c060; }
+  .wa-row[data-priority="Baja"]        { border-left-color:#3b4a54; }
+  .wa-row[data-priority="Remarketing"] { background:rgba(150,110,230,0.08); border-left-color:#a07ee0; }
   .wa-row:hover { background:#202c33; }
   .wa-row.active { background:#26333c; }
+  /* Escalado a un asesor (bot pausado): se tiene que notar antes que cualquier
+     otra cosa en la fila, así que no comparte lenguaje visual con prioridad. */
+  .wa-row.wa-row-escalated { outline:2px solid #ff2b2b; outline-offset:-2px; }
 
-  /* ── Avatar: círculo simple, color neutro ── */
-  .wa-avatar { width:44px; height:44px; border-radius:50%; background:#2a3942; display:flex; align-items:center; justify-content:center; font-weight:700; color:#8696a0; flex-shrink:0; }
+  /* ── Avatar: sigla de la marca del carro si se conoce, si no la inicial del cliente ── */
+  .wa-avatar { width:44px; height:44px; border-radius:50%; background:#2a3942; display:flex; align-items:center; justify-content:center; font-weight:700; color:#c7d0d6; flex-shrink:0; font-size:0.72rem; letter-spacing:0.2px; }
 
   .wa-row-main { flex:1; min-width:0; }
   .wa-row-top { display:flex; justify-content:space-between; align-items:baseline; gap:8px; }
   .wa-name { color:#e9edef; font-weight:600; font-size:0.9rem; }
   .wa-time { color:#8696a0; font-size:0.68rem; flex-shrink:0; }
+  .wa-car-line { color:#a8b3ba; font-size:0.72rem; margin-top:1px; }
   .wa-preview { color:#8696a0; font-size:0.78rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:70%; }
   .wa-badge-active { color:#00d9a0; font-size:0.64rem; font-weight:700; white-space:nowrap; }
-  .wa-badge-paused { color:#e8c766; font-size:0.64rem; font-weight:700; white-space:nowrap; }
+  .wa-badge-paused { color:#ff5252; font-size:0.64rem; font-weight:700; white-space:nowrap; }
   .wa-pill-row { display:flex; gap:6px; margin-top:5px; flex-wrap:wrap; }
   .wa-status-pill { display:inline-block; font-size:0.62rem; font-weight:600; padding:1px 7px; border-radius:10px; background:#2a3942; color:#8696a0; white-space:nowrap; }
-  .wa-status-pill.st-proceso { background:rgba(230,140,40,0.18); color:#e6a028; }
-  .wa-status-pill.st-diagnostico { background:rgba(60,180,230,0.18); color:#3cb4e6; }
-  .wa-status-pill.st-reagendado { background:rgba(212,180,108,0.20); color:#d4b46c; }
-  .wa-status-pill.st-servicio { background:rgba(0,168,132,0.18); color:#00d9a0; }
-  .wa-status-pill.st-seguimiento { background:rgba(150,110,230,0.18); color:#966ee6; }
-  .wa-svc-pill { display:inline-block; font-size:0.62rem; font-weight:600; padding:1px 7px; border-radius:10px; white-space:nowrap; }
-  .wa-svc-pill.svc-ceramico { background:rgba(212,180,108,0.20); color:#d4b46c; }
-  .wa-svc-pill.svc-ppf { background:rgba(74,111,165,0.25); color:#8fb8e6; }
-  .wa-svc-pill.svc-otro { background:rgba(134,150,160,0.20); color:#8696a0; }
-  .wa-priority-pill { display:inline-block; font-size:0.62rem; font-weight:700; padding:1px 7px; border-radius:10px; white-space:nowrap; }
-  .wa-priority-pill.pr-alta { background:rgba(230,60,60,0.20); color:#f07070; }
-  .wa-priority-pill.pr-media { background:rgba(230,180,40,0.18); color:#e6c060; }
-  .wa-priority-pill.pr-baja { background:rgba(134,150,160,0.14); color:#6b7680; }
-  /* Un lead Alta se nota antes de leer ningún pill: borde izquierdo más grueso. */
-  .wa-row[data-priority="Alta"] { border-left-width:5px; }
-  .wa-filter-bar { display:flex; align-items:center; gap:8px; margin:8px 0 0; }
-  .wa-filter-bar select { background:#202c33; color:#e9edef; border:1px solid #3b4a54; border-radius:8px; padding:5px 8px; font-size:0.8rem; }
+  .wa-status-pill.st-iniciado      { background:rgba(134,150,160,0.20); color:#a7b1b8; }
+  .wa-status-pill.st-proceso       { background:rgba(180,140,100,0.22); color:#d8ae82; }
+  .wa-status-pill.st-esperando     { background:rgba(64,190,180,0.20);  color:#4fd6c8; }
+  .wa-status-pill.st-diagnostico   { background:rgba(60,180,230,0.18);  color:#3cb4e6; }
+  .wa-status-pill.st-cita          { background:rgba(0,168,132,0.18);   color:#00d9a0; }
+  .wa-status-pill.st-no-interesado { background:#0b0d10; color:#8f97a0; border:1px solid #3b4a54; }
+  .wa-svc-pill { display:inline-block; font-size:0.62rem; font-weight:600; padding:1px 7px; border-radius:10px; white-space:nowrap; background:rgba(134,150,160,0.18); color:#9aa5ab; }
+  .wa-priority-pill { display:inline-flex; align-items:center; gap:2px; font-size:0.62rem; font-weight:700; padding:1px 7px; border-radius:10px; white-space:nowrap; }
+  .wa-priority-pill.pr-alta        { background:rgba(226,75,74,0.20);  color:#f18585; }
+  .wa-priority-pill.pr-media       { background:rgba(230,180,40,0.18); color:#e6c060; }
+  .wa-priority-pill.pr-baja        { background:rgba(134,150,160,0.14); color:#8696a0; }
+  .wa-priority-pill.pr-remarketing { background:rgba(150,110,230,0.20); color:#b39ce8; }
+  .wa-calif-pill { display:inline-block; font-size:0.62rem; font-weight:800; padding:1px 7px; border-radius:10px; white-space:nowrap; }
+  .wa-calif-pill.cf-alta     { background:rgba(29,158,117,0.20); color:#4fd39a; }
+  .wa-calif-pill.cf-media    { background:rgba(230,180,40,0.18); color:#e6c060; }
+  .wa-calif-pill.cf-baja     { background:rgba(134,150,160,0.16); color:#9aa5ab; }
+  .wa-calif-pill.cf-cero     { background:rgba(226,75,74,0.16);  color:#e28787; }
+  .wa-calif-pill.cf-sin-dato { background:rgba(134,150,160,0.10); color:#6b7680; }
+  .wa-filter-bar { display:flex; align-items:center; gap:8px; margin:8px 0 0; overflow-x:auto; -webkit-overflow-scrolling:touch; }
+  .wa-filter-bar select { background:#202c33; color:#e9edef; border:1px solid #3b4a54; border-radius:8px; padding:5px 8px; font-size:0.8rem; flex-shrink:0; }
   .wa-chip-group { display:flex; gap:6px; flex-wrap:wrap; }
-  .wa-chip { font-size:0.75rem; font-weight:600; padding:4px 10px; border-radius:12px; cursor:pointer; border:1px solid #3b4a54; background:transparent; color:#8696a0; }
-  .wa-chip.svc-ceramico.active { background:rgba(212,180,108,0.20); color:#d4b46c; border-color:#d4b46c; }
-  .wa-chip.svc-ppf.active { background:rgba(74,111,165,0.25); color:#8fb8e6; border-color:#4a6fa5; }
-  .wa-chip.svc-otro.active { background:rgba(134,150,160,0.20); color:#8696a0; border-color:#8696a0; }
+  .wa-chip { font-size:0.75rem; font-weight:600; padding:4px 10px; border-radius:12px; cursor:pointer; border:1px solid #3b4a54; background:transparent; color:#8696a0; flex-shrink:0; }
+  .wa-chip.active { background:rgba(0,168,132,0.18); color:#00d9a0; border-color:#00a884; }
 
   /* ── Panel principal (conversación activa) ── */
   .wa-main { flex:1; display:flex; flex-direction:column; min-width:0; }
@@ -137,6 +158,7 @@
   /* ── Responsive: en móvil solo un panel a la vez ── */
   @media (max-width: 860px) {
     .wa-shell { height:78vh; }
+    .wa-sidebar { width:100%; }
     .wa-shell.has-active .wa-sidebar { display:none; }
     .wa-shell:not(.has-active) .wa-main { display:none; }
     .wa-back { display:inline-block; }
@@ -164,10 +186,19 @@
     {% endfor %}
   </select>
 
+  <label for="calificacionFilter" style="color:var(--text2);font-size:0.8rem;margin-left:8px;">Calificación:</label>
+  <select id="calificacionFilter" onchange="applyFilters()">
+    <option value="">Todas</option>
+    {% for c in calificaciones %}
+    <option value="{{ c }}">{{ c }}</option>
+    {% endfor %}
+    <option value="sin-dato">Sin calificar</option>
+  </select>
+
   <label style="color:var(--text2);font-size:0.8rem;margin-left:8px;">Servicio:</label>
   <div id="serviceChips" class="wa-chip-group">
     {% for tag in service_tags %}
-    <button type="button" class="wa-chip {{ service_pill_class(tag) }}" data-value="{{ tag }}" onclick="toggleServiceChip(this)">{{ tag }}</button>
+    <button type="button" class="wa-chip" data-value="{{ tag }}" onclick="toggleServiceChip(this)">{{ tag }}</button>
     {% endfor %}
   </div>
 </div>
@@ -175,28 +206,31 @@
 <div class="wa-shell {{ 'has-active' if conversation else '' }}">
   <div class="wa-sidebar">
     {% for conv, last_msg in rows %}
-    <a class="wa-row {{ 'active' if conversation and conversation.id == conv.id else '' }}"
+    <a class="wa-row {{ 'active' if conversation and conversation.id == conv.id else '' }} {{ 'wa-row-escalated' if not conv.bot_active else '' }}"
        data-status="{{ conv.status }}"
        data-services="{{ conv.service_tag }}"
        data-priority="{{ conv.priority }}"
+       data-calificacion="{{ conv.calificacion if conv.calificacion is not none else 'sin-dato' }}"
        href="{{ url_for('whatsapp_conversation', conversation_id=conv.id) }}">
-      <div class="wa-avatar">{{ (conv.profile_name or conv.phone)[0]|upper }}</div>
+      <div class="wa-avatar">{{ avatar_content(conv, marca_abreviaturas) }}</div>
       <div class="wa-row-main">
         <div class="wa-row-top">
           <span class="wa-name">{{ conv.profile_name or conv.phone }}</span>
           <span class="wa-time">{{ (last_msg.created_at if last_msg else conv.created_at) | hora_bogota('%d/%m %H:%M') }}</span>
         </div>
+        {% if conv.carro %}<div class="wa-car-line">{{ conv.carro }}</div>{% endif %}
         <div class="d-flex justify-content-between align-items-center mt-1">
           <span class="wa-preview">
             {% if last_msg %}{% if last_msg.direction == 'out' %}<i class="bi bi-check2-all"></i> {% endif %}{{ last_msg.body }}{% else %}Sin mensajes{% endif %}
           </span>
-          {% if conv.bot_active %}<span class="wa-badge-active">● Activo</span>{% else %}<span class="wa-badge-paused">⏸ Pausado</span>{% endif %}
+          {% if conv.bot_active %}<span class="wa-badge-active">● Activo</span>{% else %}<span class="wa-badge-paused">⏸ Con un asesor</span>{% endif %}
         </div>
         <div class="wa-pill-row">
           {{ priority_pill(conv.priority) }}
           <span class="wa-status-pill {{ status_pill_class(conv.status) }}">{{ conv.status }}</span>
+          {{ calificacion_pill(conv.calificacion) }}
           {% for tag in conv.service_tag.split(',') if tag.strip() %}
-          <span class="wa-svc-pill {{ service_pill_class(tag.strip()) }}">{{ tag.strip() }}</span>
+          <span class="wa-svc-pill">{{ tag.strip() }}</span>
           {% endfor %}
         </div>
       </div>
@@ -210,21 +244,17 @@
     {% if conversation %}
       <div class="wa-header">
         <a href="{{ url_for('whatsapp_inbox') }}" class="wa-btn wa-back"><i class="bi bi-arrow-left"></i></a>
-        <div class="wa-avatar">{{ (conversation.profile_name or conversation.phone)[0]|upper }}</div>
+        <div class="wa-avatar">{{ avatar_content(conversation, marca_abreviaturas) }}</div>
         <div>
           <p class="wa-header-name">{{ conversation.profile_name or conversation.phone }}</p>
-          <p class="wa-header-phone">{{ conversation.phone }}</p>
+          <p class="wa-header-phone">{{ conversation.phone }}{% if conversation.carro %} · {{ conversation.carro }}{% endif %}</p>
           <div class="wa-pill-row">
             {{ priority_pill(conversation.priority) }}
             <span class="wa-status-pill {{ status_pill_class(conversation.status) }}">{{ conversation.status }}</span>
+            {{ calificacion_pill(conversation.calificacion) }}
             {% for tag in conversation.service_tag.split(',') if tag.strip() %}
-            <span class="wa-svc-pill {{ service_pill_class(tag.strip()) }}">{{ tag.strip() }}</span>
+            <span class="wa-svc-pill">{{ tag.strip() }}</span>
             {% endfor %}
-            {% if conversation.vehicle_tier or conversation.intent_level %}
-            <span style="font-size:0.68rem;color:#8696a0;">
-              {{ conversation.vehicle_tier or 'gama: sin dato' }} · {{ conversation.intent_level or 'interés: sin dato' }}
-            </span>
-            {% endif %}
           </div>
         </div>
         <div class="wa-header-actions">
@@ -389,13 +419,15 @@
   function applyFilters() {
     const priorityValue = document.getElementById('priorityFilter').value;
     const statusValue = document.getElementById('statusFilter').value;
+    const calificacionValue = document.getElementById('calificacionFilter').value;
     const activeServices = Array.from(document.querySelectorAll('#serviceChips .wa-chip.active')).map(c => c.dataset.value);
     document.querySelectorAll('.wa-row').forEach(row => {
       const priorityOk = !priorityValue || row.dataset.priority === priorityValue;
       const statusOk = !statusValue || row.dataset.status === statusValue;
+      const calificacionOk = !calificacionValue || row.dataset.calificacion === calificacionValue;
       const rowServices = (row.dataset.services || '').split(',').map(s => s.trim()).filter(Boolean);
       const servicesOk = activeServices.length === 0 || activeServices.some(s => rowServices.includes(s));
-      row.style.display = (priorityOk && statusOk && servicesOk) ? '' : 'none';
+      row.style.display = (priorityOk && statusOk && calificacionOk && servicesOk) ? '' : 'none';
     });
   }
 
