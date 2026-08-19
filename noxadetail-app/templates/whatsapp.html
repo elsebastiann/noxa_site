@@ -104,11 +104,23 @@
   .wa-calif-pill.cf-baja     { background:rgba(134,150,160,0.16); color:#9aa5ab; }
   .wa-calif-pill.cf-cero     { background:rgba(226,75,74,0.16);  color:#e28787; }
   .wa-calif-pill.cf-sin-dato { background:rgba(134,150,160,0.10); color:#6b7680; }
-  .wa-filter-bar { display:flex; align-items:center; gap:8px; margin:8px 0 0; overflow-x:auto; -webkit-overflow-scrolling:touch; }
+  /* flex-wrap en vez de scroll horizontal: con el dropdown de Servicio en vez de
+     chips, los 4 controles ya caben envolviendo a 1-2 líneas incluso en móvil, y
+     así el menú desplegable (position:absolute) no queda cortado por un
+     contenedor con overflow — un scroll horizontal sí lo hubiera cortado. */
+  .wa-filter-bar { display:flex; align-items:center; gap:8px 12px; margin:8px 0 0; flex-wrap:wrap; }
   .wa-filter-bar select { background:#202c33; color:#e9edef; border:1px solid #3b4a54; border-radius:8px; padding:5px 8px; font-size:0.8rem; flex-shrink:0; }
-  .wa-chip-group { display:flex; gap:6px; flex-wrap:wrap; }
-  .wa-chip { font-size:0.75rem; font-weight:600; padding:4px 10px; border-radius:12px; cursor:pointer; border:1px solid #3b4a54; background:transparent; color:#8696a0; flex-shrink:0; }
-  .wa-chip.active { background:rgba(0,168,132,0.18); color:#00d9a0; border-color:#00a884; }
+  /* Dropdown de selección múltiple para Servicio: en vez de chips que envuelven
+     y desordenan el alto de la barra (y peor en móvil, con la barra en scroll
+     horizontal), es un solo botón del mismo alto que los <select> de al lado. */
+  .wa-multiselect { position:relative; flex-shrink:0; }
+  .wa-multiselect-btn { background:#202c33; color:#e9edef; border:1px solid #3b4a54; border-radius:8px; padding:5px 10px; font-size:0.8rem; cursor:pointer; white-space:nowrap; display:flex; align-items:center; gap:5px; }
+  .wa-multiselect-btn:hover { border-color:#5a6a75; }
+  .wa-multiselect-count { background:#00a884; color:#04342c; font-size:0.66rem; font-weight:700; border-radius:8px; padding:0 5px; }
+  .wa-multiselect-menu { position:absolute; top:calc(100% + 4px); left:0; background:#202c33; border:1px solid #3b4a54; border-radius:8px; padding:6px; min-width:200px; max-height:280px; overflow-y:auto; z-index:20; box-shadow:0 4px 16px rgba(0,0,0,0.4); }
+  .wa-multiselect-item { display:flex; align-items:center; gap:8px; padding:5px 6px; border-radius:6px; font-size:0.8rem; color:#e9edef; cursor:pointer; white-space:nowrap; }
+  .wa-multiselect-item:hover { background:#2a3942; }
+  .wa-multiselect-item input { accent-color:#00a884; }
 
   /* ── Panel principal (conversación activa) ── */
   .wa-main { flex:1; display:flex; flex-direction:column; min-width:0; }
@@ -195,11 +207,19 @@
     <option value="sin-dato">Sin calificar</option>
   </select>
 
-  <label style="color:var(--text2);font-size:0.8rem;margin-left:8px;">Servicio:</label>
-  <div id="serviceChips" class="wa-chip-group">
-    {% for tag in service_tags %}
-    <button type="button" class="wa-chip" data-value="{{ tag }}" onclick="toggleServiceChip(this)">{{ tag }}</button>
-    {% endfor %}
+  <div class="wa-multiselect" id="serviceMultiselect">
+    <button type="button" class="wa-multiselect-btn" onclick="toggleServiceMenu(event)">
+      Servicio <span id="serviceCount" class="wa-multiselect-count" style="display:none;"></span>
+      <i class="bi bi-chevron-down" style="font-size:0.7rem;"></i>
+    </button>
+    <div class="wa-multiselect-menu" id="serviceMenu" style="display:none;">
+      {% for tag in service_tags %}
+      <label class="wa-multiselect-item">
+        <input type="checkbox" value="{{ tag }}" onchange="applyFilters()">
+        {{ tag }}
+      </label>
+      {% endfor %}
+    </div>
   </div>
 </div>
 
@@ -411,16 +431,27 @@
 </div>
 
 <script>
-  function toggleServiceChip(el) {
-    el.classList.toggle('active');
-    applyFilters();
+  function toggleServiceMenu(e) {
+    e.stopPropagation();
+    const menu = document.getElementById('serviceMenu');
+    menu.style.display = menu.style.display === 'none' ? 'block' : 'none';
   }
+  // Clic afuera del menú lo cierra — el patrón usual de cualquier dropdown.
+  document.addEventListener('click', (e) => {
+    const box = document.getElementById('serviceMultiselect');
+    if (box && !box.contains(e.target)) document.getElementById('serviceMenu').style.display = 'none';
+  });
 
   function applyFilters() {
     const priorityValue = document.getElementById('priorityFilter').value;
     const statusValue = document.getElementById('statusFilter').value;
     const calificacionValue = document.getElementById('calificacionFilter').value;
-    const activeServices = Array.from(document.querySelectorAll('#serviceChips .wa-chip.active')).map(c => c.dataset.value);
+    const activeServices = Array.from(document.querySelectorAll('#serviceMenu input:checked')).map(c => c.value);
+
+    const countEl = document.getElementById('serviceCount');
+    if (activeServices.length) { countEl.textContent = activeServices.length; countEl.style.display = ''; }
+    else { countEl.style.display = 'none'; }
+
     document.querySelectorAll('.wa-row').forEach(row => {
       const priorityOk = !priorityValue || row.dataset.priority === priorityValue;
       const statusOk = !statusValue || row.dataset.status === statusValue;
