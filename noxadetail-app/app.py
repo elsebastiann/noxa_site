@@ -8481,22 +8481,13 @@ def whatsapp_webhook():
 
 
 # ── Panel de mensajes de WhatsApp (bandeja + human takeover) ─────────────────
-# Remarketing va al final: no son conversaciones activas que alguien tenga que
-# atender ahora, son una lista aparte para campañas futuras.
-_PRIORITY_RANK = {"Alta": 0, "Media": 1, "Baja": 2, "Remarketing": 3}
-
-
 def _whatsapp_rows():
-    """Ordenada por prioridad primero (Alta arriba) y, dentro de cada nivel, por el
-    mensaje más reciente — así Diana ve primero los leads que más importan, y entre
-    esos, los que están activos ahora mismo."""
+    """Orden cronológico, más reciente primero — el orden por defecto de cualquier
+    bandeja de chat. La prioridad no reordena la lista; para eso está el filtro de
+    Prioridad, que sí deja ver solo Alta/Remarketing/etc. cuando hace falta."""
     conversations = Conversation.query.all()
     rows = [(c, c.messages[-1] if c.messages else None) for c in conversations]
-    # Dos sorts estables en vez de una tupla: evita mezclar el datetime naive (hora
-    # de servidor) con truco de negación — con sort estable, ordenar primero por
-    # fecha y después por prioridad conserva la fecha como criterio de desempate.
     rows.sort(key=lambda r: (r[1].created_at if r[1] else r[0].created_at), reverse=True)
-    rows.sort(key=lambda r: _PRIORITY_RANK.get(r[0].priority, 2))
     return rows
 
 

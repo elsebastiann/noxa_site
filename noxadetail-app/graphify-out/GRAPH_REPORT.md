@@ -1,7 +1,7 @@
 # Graph Report - noxadetail-app  (2026-08-18)
 
 ## Corpus Check
-- 18 files · ~102,886 words
+- 18 files · ~102,809 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
@@ -10,7 +10,7 @@
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `579fcedf`
+- Built from commit: `4bc54147`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -285,7 +285,7 @@ Nodes (13): bogota_now(), book_diagnostic_from_bot(), _find_active_appointment_b
 
 ### Community 43 - "whatsapp_messages_json"
 Cohesion: 0.12
-Nodes (17): _estados_entrega(), _filtro_dia_bogota(), _filtro_hace_cuanto(), _filtro_hora_bogota(), _filtro_sin_tildes(), Ordenada por prioridad primero (Alta arriba) y, dentro de cada nivel, por el…, {texto del mensaje: estado de entrega} para una conversación. Message y…, Mensajes nuevos desde el último id visto — usado por el polling del chat. (+9 more)
+Nodes (17): _estados_entrega(), _filtro_dia_bogota(), _filtro_hace_cuanto(), _filtro_hora_bogota(), _filtro_sin_tildes(), Orden cronológico, más reciente primero — el orden por defecto de cualquier…, {texto del mensaje: estado de entrega} para una conversación. Message y…, Mensajes nuevos desde el último id visto — usado por el polling del chat. (+9 more)
 
 ### Community 44 - "api_notifications"
 Cohesion: 0.13
