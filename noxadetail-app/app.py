@@ -6141,6 +6141,56 @@ def _get_claude_client():
     return _claude_client
 
 
+# Extraído aparte (no solo inline en NOXA_SYSTEM_PROMPT) para que
+# _clasificar_conversacion_historica() pueda reusar el MISMO rubro al reclasificar
+# conversaciones viejas — si vivieran duplicados, terminarían desincronizándose la
+# próxima vez que se ajuste un criterio.
+LEAD_CLASIFICACION_RUBRIC = """# ESTADO Y SERVICIOS DEL LEAD (seguimiento interno para el negocio)
+En CADA turno tuyo, sin excepción, además de tu(s) mensaje(s) normal(es), agrega un último mensaje SEPARADO (con "---" antes, como siempre) con este formato EXACTO:
+[META: estado=<estado>; servicios=<lista o vacío>; carro=<carro>; marca=<marca>; calificacion=<calificación>]
+
+Esto nunca lo ve el cliente — es solo para que el negocio sepa en qué punto va cada conversación, y para priorizar a qué leads les presta atención un asesor primero. Cada vez que lo escribas, repasa TODA la conversación hasta ahora y refleja el panorama completo actual — no solo lo que cambió en este mensaje. Es mejor repetir información que ya diste antes que dejarla por fuera.
+
+**<estado>** — uno de estos cinco (el más avanzado que ya sea cierto):
+- Iniciado — el cliente recién saludó o escribió por primera vez; todavía no sabes nada concreto de él (ni carro, ni qué busca).
+- En proceso — ya sabes algo real (qué carro tiene, qué servicio le interesa) y la conversación sigue activa, hasta que agende algo o diga que no le interesa.
+- Diagnóstico agendado — ya confirmó día Y hora para el diagnóstico presencial. IMPORTANTE: si acabas de confirmar día y hora en ESTE MISMO turno, actualiza el estado ya, en este mismo mensaje — no lo dejes para el siguiente turno.
+- Cita agendada — ya confirmó día Y hora para el servicio real (cerámico, PPF, detallado, etc.), directo o después del diagnóstico. Misma regla: si lo acabas de confirmar en este turno, actualízalo ya.
+- No interesado — dijo explícitamente que no le interesa, que le parece caro, que lo va a hacer en otro lado, o algo equivalente, y no muestra intención de seguir la conversación.
+(No uses "Esperando" ni "Reagendado" — esos los pone el sistema automáticamente.)
+
+**<servicios>** — lista de TODOS los servicios en los que el cliente ha mostrado interés real hasta ahora en la conversación (no solo el de este mensaje), separados por coma, o vacío si ninguno todavía:
+- Lavada / mantenimiento — wash, mantenimiento básico.
+- Motor — limpieza o detallado de motor.
+- Chasis — limpieza o detallado de chasis.
+- Detallado exterior — pulido cosmético, sin ser corrección seria de pintura.
+- Detallado interior — tapicería, tablero, sanitización.
+- Corrección de pintura — pulido o corrección seria de rayones e imperfecciones.
+- Polarizado — láminas de vidrios.
+- Cerámico — coating cerámico (7H+ o 9H).
+- PPF — película de protección de pintura.
+- Wrap — vinilo/forrado, o corrección de wrap.
+Un servicio solo cuenta como "interés" si el cliente lo demostró de verdad (preguntó precio, pidió detalles, dijo que le interesa) — NO por solo haberlo mencionado tú de pasada.
+
+**<carro>** — el carro del cliente tal como te lo dijo, en formato "Marca Modelo Año" (ej. "BMW M240i 2022"), o "Sin dato" si todavía no lo sabes. Lo preguntas de forma natural en el paso de Situación de tu descubrimiento (ver METODOLOGÍA DE VENTA), nunca de golpe ni como interrogatorio.
+
+**<marca>** — SOLO la marca, una de esta lista cerrada (la que más se parezca a lo que dijo el cliente):
+BMW, Mercedes-Benz, Audi, Porsche, Toyota, Mazda, Chevrolet, Renault, Nissan, Kia, Hyundai, Ford, Volkswagen, Honda, Land Rover, Volvo, Lexus, Jeep, Mitsubishi, Suzuki, Peugeot, Citroën, Subaru, Tesla, Mini, Jaguar, Otra
+Usa "Otra" si el cliente ya dijo el carro pero la marca no está en la lista, o "Sin dato" si todavía no lo sabes.
+
+**<calificación>** — qué tan bueno es este lead para el negocio, del 0 al 5, o "Sin dato" si aún no hay suficiente información para juzgar:
+- 0 — el cliente puso objeción de precio real (le parece caro, en otro lado se lo hacen más barato o mejor) Y el carro es viejo o de gama baja.
+- 1 — servicio de ticket bajo (ej. lavada) en un carro de gama baja.
+- 2 — servicio de ticket bajo (ej. lavada) en un carro de gama media o alta.
+- 3 — servicio de ticket medio (motor, chasis, detallado exterior) en un carro de gama media o alta.
+- 4 — servicio de ticket medio-alto (corrección de pintura, detallado interior, polarizado) en un carro de gama media o alta.
+- 5 — servicio de ticket alto (cerámico, PPF, wrap) en un carro de gama media o alta.
+No inventes la calificación sin base: si todavía no sabes qué servicio le interesa o qué carro tiene, usa "Sin dato" en vez de adivinar.
+
+Ejemplo completo: [META: estado=Diagnóstico agendado; servicios=Cerámico,PPF; carro=BMW M240i 2022; marca=BMW; calificacion=5]
+Ejemplo sin info del carro aún: [META: estado=Iniciado; servicios=; carro=Sin dato; marca=Sin dato; calificacion=Sin dato]"""
+
+
 NOXA_SYSTEM_PROMPT = """Te llamas Mariana y eres la asesora comercial de NOXA Detail (también conocido como NOXA Car Care), un negocio de detailing y car wash de alto nivel en Bogotá (Prado Veraniego). Hablas por WhatsApp con clientes potenciales. Tu objetivo real es cerrar ventas o, como mínimo, agendar diagnósticos — eres una vendedora con oficio, no un catálogo automático.
 
 # IDENTIDAD
@@ -6585,50 +6635,7 @@ Cómo hacerlo (proceso de dos partes, en el mismo turno):
    Ejemplo: [ESCALAR: cliente quiere pagar el anticipo del cerámico 9H]
    Este mensaje con corchetes NUNCA lo ve el cliente — es una señal interna para el sistema, así que no le agregues nada de conversación ahí, solo el marcador.
 
-# ESTADO Y SERVICIOS DEL LEAD (seguimiento interno para el negocio)
-En CADA turno tuyo, sin excepción, además de tu(s) mensaje(s) normal(es), agrega un último mensaje SEPARADO (con "---" antes, como siempre) con este formato EXACTO:
-[META: estado=<estado>; servicios=<lista o vacío>; carro=<carro>; marca=<marca>; calificacion=<calificación>]
-
-Esto nunca lo ve el cliente — es solo para que el negocio sepa en qué punto va cada conversación, y para priorizar a qué leads les presta atención un asesor primero. Cada vez que lo escribas, repasa TODA la conversación hasta ahora y refleja el panorama completo actual — no solo lo que cambió en este mensaje. Es mejor repetir información que ya diste antes que dejarla por fuera.
-
-**<estado>** — uno de estos cinco (el más avanzado que ya sea cierto):
-- Iniciado — el cliente recién saludó o escribió por primera vez; todavía no sabes nada concreto de él (ni carro, ni qué busca).
-- En proceso — ya sabes algo real (qué carro tiene, qué servicio le interesa) y la conversación sigue activa, hasta que agende algo o diga que no le interesa.
-- Diagnóstico agendado — ya confirmó día Y hora para el diagnóstico presencial. IMPORTANTE: si acabas de confirmar día y hora en ESTE MISMO turno, actualiza el estado ya, en este mismo mensaje — no lo dejes para el siguiente turno.
-- Cita agendada — ya confirmó día Y hora para el servicio real (cerámico, PPF, detallado, etc.), directo o después del diagnóstico. Misma regla: si lo acabas de confirmar en este turno, actualízalo ya.
-- No interesado — dijo explícitamente que no le interesa, que le parece caro, que lo va a hacer en otro lado, o algo equivalente, y no muestra intención de seguir la conversación.
-(No uses "Esperando" ni "Reagendado" — esos los pone el sistema automáticamente.)
-
-**<servicios>** — lista de TODOS los servicios en los que el cliente ha mostrado interés real hasta ahora en la conversación (no solo el de este mensaje), separados por coma, o vacío si ninguno todavía:
-- Lavada / mantenimiento — wash, mantenimiento básico.
-- Motor — limpieza o detallado de motor.
-- Chasis — limpieza o detallado de chasis.
-- Detallado exterior — pulido cosmético, sin ser corrección seria de pintura.
-- Detallado interior — tapicería, tablero, sanitización.
-- Corrección de pintura — pulido o corrección seria de rayones e imperfecciones.
-- Polarizado — láminas de vidrios.
-- Cerámico — coating cerámico (7H+ o 9H).
-- PPF — película de protección de pintura.
-- Wrap — vinilo/forrado, o corrección de wrap.
-Un servicio solo cuenta como "interés" si el cliente lo demostró de verdad (preguntó precio, pidió detalles, dijo que le interesa) — NO por solo haberlo mencionado tú de pasada.
-
-**<carro>** — el carro del cliente tal como te lo dijo, en formato "Marca Modelo Año" (ej. "BMW M240i 2022"), o "Sin dato" si todavía no lo sabes. Lo preguntas de forma natural en el paso de Situación de tu descubrimiento (ver METODOLOGÍA DE VENTA), nunca de golpe ni como interrogatorio.
-
-**<marca>** — SOLO la marca, una de esta lista cerrada (la que más se parezca a lo que dijo el cliente):
-BMW, Mercedes-Benz, Audi, Porsche, Toyota, Mazda, Chevrolet, Renault, Nissan, Kia, Hyundai, Ford, Volkswagen, Honda, Land Rover, Volvo, Lexus, Jeep, Mitsubishi, Suzuki, Peugeot, Citroën, Subaru, Tesla, Mini, Jaguar, Otra
-Usa "Otra" si el cliente ya dijo el carro pero la marca no está en la lista, o "Sin dato" si todavía no lo sabes.
-
-**<calificación>** — qué tan bueno es este lead para el negocio, del 0 al 5, o "Sin dato" si aún no hay suficiente información para juzgar:
-- 0 — el cliente puso objeción de precio real (le parece caro, en otro lado se lo hacen más barato o mejor) Y el carro es viejo o de gama baja.
-- 1 — servicio de ticket bajo (ej. lavada) en un carro de gama baja.
-- 2 — servicio de ticket bajo (ej. lavada) en un carro de gama media o alta.
-- 3 — servicio de ticket medio (motor, chasis, detallado exterior) en un carro de gama media o alta.
-- 4 — servicio de ticket medio-alto (corrección de pintura, detallado interior, polarizado) en un carro de gama media o alta.
-- 5 — servicio de ticket alto (cerámico, PPF, wrap) en un carro de gama media o alta.
-No inventes la calificación sin base: si todavía no sabes qué servicio le interesa o qué carro tiene, usa "Sin dato" en vez de adivinar.
-
-Ejemplo completo: [META: estado=Diagnóstico agendado; servicios=Cerámico,PPF; carro=BMW M240i 2022; marca=BMW; calificacion=5]
-Ejemplo sin info del carro aún: [META: estado=Iniciado; servicios=; carro=Sin dato; marca=Sin dato; calificacion=Sin dato]
+""" + LEAD_CLASIFICACION_RUBRIC + """
 
 # ACTUALIZAR EL NOMBRE DEL CLIENTE
 Si en algún momento de la conversación el cliente te dice su nombre real (típicamente porque se lo preguntaste al no tener un nombre de perfil válido, pero puede pasar en cualquier momento), agrega otro mensaje separado que diga EXACTAMENTE: [NOMBRE: <nombre que dio>]
@@ -6698,6 +6705,76 @@ def _call_claude(messages: list[dict], extra_system_text: str) -> list[str]:
     # suelto, sin nada después, se le colaba tal cual al cliente.
     chunks = [c.strip() for c in re.split(r"(?:^|\n)\s*-{3,}\s*(?:\n|$)", full_text)]
     return [c for c in chunks if c] or [full_text]
+
+
+def _clasificar_conversacion_historica(conversation: "Conversation") -> "dict | None":
+    """Backfill: clasifica una conversación existente (estado/servicios/carro/marca/
+    calificación) leyendo su historial completo, SIN mandarle nada al cliente ni pasar
+    por Twilio. Usa el mismo rubro que Mariana sigue en vivo (LEAD_CLASIFICACION_RUBRIC)
+    para que el criterio no cambie según si la conversación es nueva o vieja.
+
+    Devuelve un dict con las claves parseadas (algunas pueden venir vacías/None si
+    Claude no tuvo suficiente base para juzgarlas), o None si no hay historial o la
+    respuesta no trajo un [META:] reconocible."""
+    history = _build_message_history(conversation)
+    if not history:
+        return None
+
+    instruccion = (
+        "[Sistema: no le respondas al cliente, esto no es un turno de conversación "
+        "normal. Con base en TODO el historial de arriba, escribe ÚNICAMENTE la línea "
+        "de clasificación, sin nada más — ni saludo, ni explicación, solo la línea "
+        "[META: ...] en el formato exacto que se te indicó.]"
+    )
+    if history[-1]["role"] == "user":
+        claude_messages = history[:-1] + [
+            {"role": "user", "content": history[-1]["content"] + "\n\n" + instruccion}
+        ]
+    else:
+        claude_messages = history + [{"role": "user", "content": instruccion}]
+
+    response = _get_claude_client().messages.create(
+        model="claude-sonnet-5",
+        max_tokens=150,
+        system=(
+            "Eres el motor de clasificación interno de NOXA Detail. Te llega el "
+            "historial completo de una conversación de WhatsApp entre Mariana (asesora "
+            "comercial de NOXA) y un cliente. Tu única tarea es leerlo y clasificarlo "
+            "según el rubro de abajo — NO continúes la conversación, NO le escribas "
+            "nada al cliente, NO agregues explicación ni texto fuera del marcador.\n\n"
+            + LEAD_CLASIFICACION_RUBRIC
+        ),
+        messages=claude_messages,
+    )
+    text = "\n".join(b.text for b in response.content if b.type == "text").strip()
+    m = _META_RE.match(text)
+    if not m:
+        app.logger.warning(f"[Backfill] Sin [META:] reconocible para {conversation.phone}: {text!r}")
+        return None
+
+    estado = m.group(1).strip()
+    servicios = [c.strip() for c in m.group(2).split(",") if c.strip()]
+    servicios = [c for c in servicios if c in SERVICE_TAGS]
+    carro = (m.group(3) or "").strip()
+    marca = (m.group(4) or "").strip()
+    calif_raw = (m.group(5) or "").strip()
+
+    calificacion = None
+    if calif_raw.lower() not in ("", "sin dato"):
+        try:
+            calif_int = int(calif_raw)
+        except ValueError:
+            calif_int = None
+        if calif_int in CALIFICACIONES:
+            calificacion = calif_int
+
+    return {
+        "estado": estado if estado in LEAD_STATES_MARIANA else None,
+        "servicios": servicios,
+        "carro": carro if carro.lower() != "sin dato" else "",
+        "marca": marca if marca in MARCAS_CONOCIDAS else "",
+        "calificacion": calificacion,
+    }
 
 
 # Los adjuntos entrantes se guardan junto a la base de datos, en el volumen
@@ -8422,6 +8499,57 @@ def whatsapp_inbox():
     return render_template("whatsapp.html", rows=_whatsapp_rows(), conversation=None, messages=[],
                            lead_states=LEAD_STATES, service_tags=SERVICE_TAGS, priority_levels=PRIORITY_LEVELS,
                            calificaciones=CALIFICACIONES, marca_abreviaturas=MARCA_ABREVIATURA)
+
+
+@app.route("/whatsapp/backfill-calificacion", methods=["POST"])
+def whatsapp_backfill_calificacion():
+    """Clasifica con Claude las conversaciones que quedaron sin calificación —
+    típicamente las que existían antes de que este campo existiera. No manda nada al
+    cliente ni pasa por Twilio; solo lee el historial y llena estado/servicios/carro/
+    marca/calificación, igual que lo haría Mariana en un turno en vivo. Idempotente:
+    solo toca conversaciones con calificacion=NULL, así que repetirlo no vuelve a
+    gastar en las que ya se clasificaron (a mano o en un turno real)."""
+    if not getattr(g, "current_user", None) or g.current_user.role != "admin":
+        flash("Acceso restringido a administradores.", "danger")
+        return redirect(url_for("whatsapp_inbox"))
+
+    pendientes = Conversation.query.filter(Conversation.calificacion.is_(None)).all()
+
+    actualizadas = sin_info = errores = 0
+    for conv in pendientes:
+        try:
+            resultado = _clasificar_conversacion_historica(conv)
+        except Exception as exc:
+            app.logger.error(f"[Backfill] Error clasificando {conv.phone}: {exc}")
+            errores += 1
+            continue
+
+        if not resultado:
+            sin_info += 1
+            continue
+
+        if resultado["estado"]:
+            conv.status = resultado["estado"]
+        if resultado["servicios"]:
+            existentes = {t.strip() for t in (conv.service_tag or "").split(",") if t.strip()}
+            fusion = existentes.union(resultado["servicios"])
+            conv.service_tag = ",".join(sorted(fusion, key=SERVICE_TAGS.index))
+        if resultado["carro"]:
+            conv.carro = resultado["carro"]
+        if resultado["marca"]:
+            conv.marca = resultado["marca"]
+        if resultado["calificacion"] is not None:
+            conv.calificacion = resultado["calificacion"]
+        conv.priority = _compute_priority(conv.status, conv.calificacion)
+        db.session.commit()
+        actualizadas += 1
+
+    flash(
+        f"Reclasificación con IA: {actualizadas} conversaciones actualizadas, "
+        f"{sin_info} sin información suficiente, {errores} con error.",
+        "success" if errores == 0 else "warning",
+    )
+    return redirect(url_for("whatsapp_inbox"))
 
 
 def _estados_entrega(conversation_id: int) -> dict:
