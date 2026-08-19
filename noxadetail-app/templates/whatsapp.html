@@ -498,6 +498,21 @@
   restoreFilters();
   applyFilters();
 
+  // En pantallas grandes 75vh se queda corto y deja un espacio muerto debajo
+  // del panel hasta el fondo de la ventana. Lo estiramos hasta el borde
+  // inferior real de la ventana en vez de un porcentaje fijo. En móvil se
+  // deja el 78vh del CSS tal cual (no es donde se reportó el problema).
+  function ajustarAltoWaShell() {
+    const shell = document.querySelector('.wa-shell');
+    if (!shell) return;
+    if (window.innerWidth <= 860) { shell.style.height = ''; return; }
+    const top = shell.getBoundingClientRect().top;
+    const alto = window.innerHeight - top - 16;
+    shell.style.height = Math.max(400, alto) + 'px';
+  }
+  window.addEventListener('resize', ajustarAltoWaShell);
+  ajustarAltoWaShell();
+
   // Refresca la lista de conversaciones (panel izquierdo) cada 30s sin perder la conversación abierta
   setInterval(() => {
     fetch(window.location.href).then(r => r.text()).then(html => {
