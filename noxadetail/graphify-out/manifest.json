@@ -5,8 +5,8 @@
     "semantic_hash": ""
   },
   "index.html": {
-    "mtime": 1786464500.6689754,
-    "ast_hash": "1408357099db503f26cd4cb620c31f61",
+    "mtime": 1787162048.941312,
+    "ast_hash": "9926e91d4baff0e4a4627490954270cc",
     "semantic_hash": ""
   },
   "img/favicon.png": {
@@ -167,6 +167,11 @@
   "video/services/wrap.mp4": {
     "mtime": 1785472183.0482526,
     "ast_hash": "ca6f85a14180e9baa082a0bbc9dbb548",
+    "semantic_hash": ""
+  },
+  "politica-de-privacidad.html": {
+    "mtime": 1787162002.231745,
+    "ast_hash": "904a037fac88e65ccc24b8fe21ee7d77",
     "semantic_hash": ""
   }
 }
