@@ -195,8 +195,8 @@
     "semantic_hash": ""
   },
   "templates/whatsapp.html": {
-    "mtime": 1787115021.4766421,
-    "ast_hash": "f19d646e714d02e28709a7c525f24d32",
+    "mtime": 1787144222.3236177,
+    "ast_hash": "26adce590f8d591dec459d4969123cf7",
     "semantic_hash": ""
   },
   "templates/whatsapp_outbox.html": {

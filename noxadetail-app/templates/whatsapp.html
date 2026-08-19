@@ -136,7 +136,11 @@
   .wa-back { display:none; }
 
   .wa-body { flex:1; background-image:radial-gradient(#182229 1px, transparent 1px); background-size:18px 18px;
-             padding:16px; overflow-y:auto; display:flex; flex-direction:column; gap:4px; }
+             padding:16px; overflow-y:auto; display:flex; flex-direction:column; gap:4px;
+             /* Con pocos mensajes, sin esto el espacio sobrante quedaba abajo (entre
+                el último mensaje y la barra de escribir) en vez de arriba, como en
+                cualquier chat — los mensajes se pegan al fondo. */
+             justify-content:flex-end; }
   .wa-day-sep { display:flex; justify-content:center; margin:14px 0 8px; }
   .wa-day-sep span {
     background:var(--surface2); color:var(--text2); border:1px solid var(--border);
