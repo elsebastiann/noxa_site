@@ -5414,6 +5414,9 @@ PUBLIC_ENDPOINTS  = {
     "public_booking_mercedes", "api_public_mb_availability", "api_public_mb_book",
     "api_public_mb_price", "api_public_mb_available_days",
     "api_public_stats_appointments_count", "api_public_web_lead",
+    # Meta pega acá cuando alguien llena el formulario de la pauta. Se protege con
+    # la firma X-Hub-Signature-256, no con sesión.
+    "api_public_meta_lead",
 }
 CHANGE_PWD_ENDPOINTS = {"change_password", "logout", "static"}
 
@@ -8059,6 +8062,27 @@ def api_public_web_lead():
     if not re.match(r"^\+573\d{9}$", phone):
         return _cors({"ok": False, "error": "Ingresa un número de WhatsApp colombiano válido."}, 400)
 
+    conversation, sent_ok, send_err = registrar_lead_entrante(
+        name=name, phone=phone, contexto=website_message, origen=page_url or "noxadetail.com",
+    )
+    return _cors({"ok": True, "conversation_id": conversation.id, "whatsapp_sent": sent_ok})
+
+
+def registrar_lead_entrante(*, name: str, phone: str, contexto: str, origen: str):
+    """Crea (o retoma) la conversación de un lead y le manda el saludo de apertura.
+
+    Compartida por el widget del sitio y por los leads que llegan del formulario
+    instantáneo de Meta: los dos terminan igual —conversación, contexto y saludo
+    con plantilla—, y duplicar esto era garantizar que un camino se arreglara y
+    el otro no.
+
+    `contexto` es la pieza clave: se guarda como mensaje ENTRANTE, así que entra
+    al historial que `_build_message_history()` le pasa a Claude. O sea, Mariana
+    lo lee como si el cliente se lo hubiera contado y no vuelve a preguntarlo.
+    Ahí es donde van las respuestas de la encuesta.
+
+    Devuelve (conversation, sent_ok, send_err).
+    """
     conversation = Conversation.query.filter_by(phone=phone).first()
     if not conversation:
         conversation = Conversation(phone=phone, profile_name=name)
@@ -8067,12 +8091,11 @@ def api_public_web_lead():
     elif name and conversation.profile_name != name:
         conversation.profile_name = name
     # bot_active se deja tal cual si la conversación ya existía (si un admin la
-    # había pausado a mano, un lead nuevo del sitio no debe reactivarla sola).
+    # había pausado a mano, un lead nuevo no debe reactivarla sola).
 
     consent_note = (
-        f"(Desde el chat del sitio web — {page_url or 'noxadetail.com'} — el visitante dio "
-        f"su nombre, su WhatsApp y autorizó ser contactado por este medio.) "
-        f"{website_message or '(sin mensaje adicional en el sitio)'}"
+        f"(Lead de {origen} — dejó su nombre, su WhatsApp y autorizó ser contactado "
+        f"por este medio.) {contexto or '(sin información adicional)'}"
     )
     db.session.add(Message(conversation_id=conversation.id, direction="in", body=consent_note))
     db.session.commit()
@@ -8084,11 +8107,146 @@ def api_public_web_lead():
         db.session.commit()
 
     try:
-        notify_admin_new_web_lead(conversation, name, website_message, page_url, sent_ok, send_err)
+        notify_admin_new_web_lead(conversation, name, contexto, origen, sent_ok, send_err)
     except Exception as exc:
-        app.logger.error(f"[WhatsApp] No se pudo avisar al admin del nuevo lead web: {exc}")
+        app.logger.error(f"[WhatsApp] No se pudo avisar al admin del nuevo lead: {exc}")
 
-    return _cors({"ok": True, "conversation_id": conversation.id, "whatsapp_sent": sent_ok})
+    return conversation, sent_ok, send_err
+
+
+# ── Leads del formulario instantáneo de Meta (pauta de encuesta) ─────────────
+# Meta no manda las respuestas: manda un `leadgen_id` y hay que ir a buscarlas a
+# la Graph API con el token de la página. Por eso hacen falta las tres variables.
+_META_GRAPH_VERSION = "v21.0"
+# Nombres que Meta usa para sus campos estándar. Todo lo demás en el formulario
+# se trata como pregunta de la encuesta y se le pasa a Mariana como contexto.
+_META_CAMPOS_NOMBRE = ("full_name", "first_name", "nombre", "nombre_completo")
+_META_CAMPOS_TELEFONO = ("phone_number", "telefono", "teléfono", "celular", "whatsapp")
+
+
+def _meta_firma_valida(raw_body: bytes) -> bool:
+    """Verifica X-Hub-Signature-256 contra META_APP_SECRET.
+
+    No es opcional: este endpoint es público y crea conversaciones que disparan
+    WhatsApps con plantilla. Sin firma, cualquiera podría inyectar leads falsos
+    y hacer que le escribamos a números arbitrarios a nuestro costo.
+    """
+    secret = os.environ.get("META_APP_SECRET", "")
+    firma = request.headers.get("X-Hub-Signature-256", "")
+    if not secret or not firma.startswith("sha256="):
+        return False
+    import hashlib
+    import hmac
+    esperada = hmac.new(secret.encode(), raw_body, hashlib.sha256).hexdigest()
+    return hmac.compare_digest(esperada, firma.split("=", 1)[1])
+
+
+def _meta_traer_lead(leadgen_id: str) -> dict:
+    """Trae los datos del lead desde la Graph API. Lanza si no se puede."""
+    token = os.environ.get("META_PAGE_TOKEN", "")
+    if not token:
+        raise RuntimeError("META_PAGE_TOKEN no configurado.")
+    r = requests.get(
+        f"https://graph.facebook.com/{_META_GRAPH_VERSION}/{leadgen_id}",
+        params={"access_token": token},
+        timeout=15,
+    )
+    if r.status_code != 200:
+        raise RuntimeError(f"Graph API respondió {r.status_code}: {r.text[:300]}")
+    return r.json()
+
+
+def _meta_parsear_lead(lead: dict) -> tuple:
+    """De la respuesta de Meta saca (nombre, teléfono, texto de la encuesta).
+
+    `field_data` es una lista de {name, values}. El nombre y el teléfono se
+    reconocen por su clave; TODO lo demás se conserva como pregunta/respuesta,
+    porque eso es justamente lo que Mariana no debe volver a preguntar.
+    """
+    nombre, telefono, respuestas = "", "", []
+    for campo in lead.get("field_data") or []:
+        clave = (campo.get("name") or "").strip().lower()
+        valor = ", ".join(str(v) for v in (campo.get("values") or []) if v).strip()
+        if not valor:
+            continue
+        if clave in _META_CAMPOS_NOMBRE and not nombre:
+            nombre = valor
+        elif clave in _META_CAMPOS_TELEFONO and not telefono:
+            telefono = valor
+        elif clave == "email":
+            respuestas.append(f"Correo: {valor}")
+        else:
+            etiqueta = (campo.get("name") or "Pregunta").replace("_", " ").strip().capitalize()
+            respuestas.append(f"{etiqueta}: {valor}")
+
+    if respuestas:
+        contexto = "Esto fue lo que respondió en la encuesta del anuncio:\n" + "\n".join(
+            f"- {r}" for r in respuestas
+        )
+    else:
+        contexto = "Llegó por la encuesta del anuncio, pero no dejó respuestas adicionales."
+    return nombre, telefono, contexto
+
+
+@app.route("/api/public/meta-lead", methods=["GET", "POST"])
+def api_public_meta_lead():
+    # GET = verificación del webhook. Meta la hace una sola vez, al configurarlo,
+    # y espera el hub.challenge devuelto tal cual, en texto plano.
+    if request.method == "GET":
+        verify = os.environ.get("META_VERIFY_TOKEN", "")
+        if (request.args.get("hub.mode") == "subscribe"
+                and verify and request.args.get("hub.verify_token") == verify):
+            return Response(request.args.get("hub.challenge", ""), mimetype="text/plain")
+        app.logger.warning("[Meta] Verificación de webhook rechazada (token que no coincide).")
+        return ("", 403)
+
+    if not _meta_firma_valida(request.get_data()):
+        app.logger.warning("[Meta] Webhook con firma inválida — descartado.")
+        return ("", 403)
+
+    payload = request.get_json(silent=True) or {}
+    # Se responde 200 SIEMPRE que la firma sea válida, aunque un lead individual
+    # falle: Meta reintenta el lote completo ante cualquier otro código, y eso
+    # duplicaría los leads que sí entraron.
+    for entry in payload.get("entry") or []:
+        for cambio in entry.get("changes") or []:
+            if cambio.get("field") != "leadgen":
+                continue
+            leadgen_id = str((cambio.get("value") or {}).get("leadgen_id") or "")
+            if not leadgen_id:
+                continue
+            try:
+                _procesar_lead_de_meta(leadgen_id)
+            except Exception as exc:
+                app.logger.error(f"[Meta] No se pudo procesar el lead {leadgen_id}: {exc}")
+                try:
+                    push_notification(
+                        kind="lead_meta_fallido", level="urgent",
+                        title="Llegó un lead de la pauta y no se pudo registrar",
+                        body=f"{type(exc).__name__}: {exc}. Búscalo en Meta y contáctalo a mano.",
+                        url="/whatsapp",
+                    )
+                except Exception:
+                    pass
+    return ("", 200)
+
+
+def _procesar_lead_de_meta(leadgen_id: str) -> None:
+    lead = _meta_traer_lead(leadgen_id)
+    nombre, telefono_raw, contexto = _meta_parsear_lead(lead)
+
+    phone = _normalize_whatsapp_number(re.sub(r"[^\d+]", "", telefono_raw))
+    if not re.match(r"^\+573\d{9}$", phone):
+        raise ValueError(f"teléfono no utilizable en el lead ({telefono_raw!r} -> {phone!r})")
+
+    conversation, sent_ok, _err = registrar_lead_entrante(
+        name=nombre or "Cliente", phone=phone, contexto=contexto,
+        origen="la encuesta de la pauta de Meta",
+    )
+    app.logger.info(
+        f"[Meta] Lead {leadgen_id} registrado en la conversación {conversation.id} "
+        f"(saludo enviado: {sent_ok})."
+    )
 
 
 def _generate_and_send_reply(conversation: "Conversation", from_number: str, media_url: str = "",
