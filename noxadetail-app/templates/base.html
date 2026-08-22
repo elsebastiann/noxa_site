@@ -612,6 +612,7 @@
             <li><a class="dropdown-item-custom" href="{{ url_for('plans_list') }}"><i class="bi bi-award"></i>Planes</a></li>
             <li><a class="dropdown-item-custom" href="{{ url_for('whatsapp_outbox') }}"><i class="bi bi-send-check"></i>Bandeja de salida</a></li>
             <li><a class="dropdown-item-custom" href="{{ url_for('backups_list') }}"><i class="bi bi-hdd-fill"></i>Backups</a></li>
+            <li><a class="dropdown-item-custom" href="{{ url_for('estado_servicios') }}"><i class="bi bi-activity"></i>Estado y saldos</a></li>
             {% endif %}
           </ul>
         </div>
@@ -724,6 +725,7 @@
   <a href="{{ url_for('plans_list') }}"><i class="bi bi-award"></i>Planes</a>
   <a href="{{ url_for('whatsapp_outbox') }}"><i class="bi bi-send-check"></i>Bandeja de salida</a>
   <a href="{{ url_for('backups_list') }}"><i class="bi bi-hdd-fill"></i>Backups</a>
+  <a href="{{ url_for('estado_servicios') }}"><i class="bi bi-activity"></i>Estado y saldos</a>
   {% endif %}
 
   {# ── Cerrar sesión ── #}

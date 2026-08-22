@@ -7435,11 +7435,16 @@ def notify_admin_conversation_error(conversation: "Conversation", error: Excepti
         return
 
     contacto = conversation.profile_name or conversation.phone
+    # Un fallo por saldo agotado se ve idéntico a un bug, pero se arregla
+    # recargando y afecta a TODAS las conversaciones, no solo a esta. Si es el
+    # caso, se dice de una — ver /estado.
+    motivo = _motivo_infraestructura(error)
     push_notification(
         kind="error_bot", level="urgent",
         title=f"Mariana no pudo responderle a {contacto}",
-        body=f"{type(error).__name__}: {error}. Pausé el bot en esa conversación.",
-        url=f"/whatsapp/{conversation.id}",
+        body=(f"{motivo}\n" if motivo else "")
+             + f"{type(error).__name__}: {error}. Pausé el bot en esa conversación.",
+        url="/estado" if motivo else f"/whatsapp/{conversation.id}",
         ref_type="conversation", ref_id=conversation.id,
     )
 
@@ -7465,6 +7470,7 @@ def notify_admin_conversation_error(conversation: "Conversation", error: Excepti
         f"📱 {conversation.phone}\n\n"
         f"Mariana no pudo responderle después de varios intentos — pausé el bot en esa "
         f"conversación, respóndele tú manual desde el panel de Mensajes o por WhatsApp."
+        + (f"\n\n{motivo}" if motivo else "")
     )
     send_whatsapp(admin_phone, msg, kind="admin_bot_atascado",
                   ref_type="conversation", ref_id=conversation.id)
@@ -9978,6 +9984,34 @@ def backups_list():
     return render_template("backups.html", backups=backups, bucket_ok=True)
 
 
+@app.route("/estado")
+def estado_servicios():
+    """Saldo y salud de los servicios de los que depende Mariana, en vivo.
+
+    Se consulta al abrir la página y no de un valor guardado: un número de saldo
+    cacheado es peor que ninguno, porque se ve confiable y puede tener días."""
+    if not getattr(g, "current_user", None) or g.current_user.role != "admin":
+        flash("Acceso restringido.", "danger")
+        return redirect(url_for("calendar_view"))
+
+    saldo, moneda, twilio_err = _saldo_twilio()
+    # La sonda a Anthropic cuesta una fracción de centavo, pero la página es de
+    # admin y se abre de vez en cuando — no hace falta cachearla.
+    anthropic_ok, anthropic_cat, anthropic_detalle = _diagnostico_anthropic()
+    anthropic_titulo, anthropic_accion = _ANTHROPIC_DIAGNOSTICO_TEXTO.get(
+        anthropic_cat, _ANTHROPIC_DIAGNOSTICO_TEXTO["otro"])
+
+    return render_template(
+        "estado.html",
+        saldo=saldo, moneda=moneda or "USD", twilio_err=twilio_err,
+        saldo_minimo=SALDO_TWILIO_MINIMO,
+        saldo_bajo=(saldo is not None and saldo < SALDO_TWILIO_MINIMO),
+        anthropic_ok=anthropic_ok, anthropic_cat=anthropic_cat,
+        anthropic_titulo=anthropic_titulo, anthropic_accion=anthropic_accion,
+        anthropic_detalle=anthropic_detalle,
+    )
+
+
 @app.route("/backups/download")
 def backup_download():
     """Redirige a una URL temporal del bucket.
@@ -10134,6 +10168,164 @@ def _job_backup_db():
             )
 
 
+# ── Saldo de los servicios de los que depende Mariana ─────────────────────────
+# Mariana se queda muda si se acaba el saldo de Twilio (no puede mandar) o el
+# crédito de Anthropic (no puede redactar), y en los dos casos el síntoma es el
+# mismo: silencio. Nadie se entera hasta que un cliente reclama.
+#
+# Los dos lados NO se pueden vigilar igual:
+#   • Twilio publica el saldo real (GET Balance.json). Se lee y se compara
+#     contra un umbral.
+#   • Anthropic NO expone crédito restante por API. El Admin API solo da
+#     consumo/costo histórico, exige una Admin key aparte y ni siquiera existe
+#     para cuentas individuales. Así que acá el equivalente es *probar* la API
+#     con una petición mínima: si el crédito se acabó, falla con un error de
+#     facturación. Cuesta una fracción de centavo y es la única señal fiable.
+SALDO_TWILIO_MINIMO = float(os.environ.get("TWILIO_SALDO_MINIMO", "15"))
+
+
+def _saldo_twilio() -> tuple[float | None, str, str]:
+    """Devuelve (saldo, moneda, error). `saldo=None` significa que no se pudo leer."""
+    account_sid = os.environ.get("TWILIO_ACCOUNT_SID", "")
+    auth_token  = os.environ.get("TWILIO_AUTH_TOKEN", "")
+    if not account_sid or not auth_token:
+        return None, "", "Variables TWILIO_ACCOUNT_SID / TWILIO_AUTH_TOKEN no configuradas."
+    try:
+        from twilio.rest import Client as TwilioClient
+        bal = TwilioClient(account_sid, auth_token).balance.fetch()
+        return float(bal.balance), (bal.currency or "USD").upper(), ""
+    except Exception as exc:
+        app.logger.error(f"[Saldo] No se pudo leer el saldo de Twilio: {exc}")
+        return None, "", str(exc)
+
+
+def _diagnostico_anthropic() -> tuple[bool, str, str]:
+    """Prueba la API de Claude con la petición más barata posible.
+
+    Devuelve (ok, categoria, detalle). `categoria` distingue los casos que
+    exigen acción distinta: 'sin_credito' se arregla recargando, 'credencial'
+    cambiando la key, 'limite' esperando, 'red' casi siempre solo.
+
+    Usa el MISMO modelo que Mariana (claude-sonnet-5): probar con otro no
+    demostraría que el modelo que de verdad se usa está disponible."""
+    api_key = os.environ.get("ANTHROPIC_API_KEY", "")
+    if not api_key:
+        return False, "credencial", "Variable ANTHROPIC_API_KEY no configurada."
+    import anthropic
+    try:
+        _get_claude_client().messages.create(
+            model="claude-sonnet-5",
+            max_tokens=1,
+            thinking={"type": "disabled"},
+            messages=[{"role": "user", "content": "ping"}],
+        )
+        return True, "ok", ""
+    except anthropic.AuthenticationError as exc:
+        return False, "credencial", f"La API key fue rechazada: {exc}"
+    except anthropic.PermissionDeniedError as exc:
+        return False, "credencial", f"La API key no tiene permiso: {exc}"
+    except anthropic.BadRequestError as exc:
+        # El crédito agotado llega como 400 invalid_request_error con el texto
+        # "credit balance is too low" — no hay código de error propio, toca
+        # mirar el mensaje.
+        detalle = str(exc)
+        if "credit balance" in detalle.lower():
+            return False, "sin_credito", detalle
+        return False, "otro", detalle
+    except anthropic.RateLimitError as exc:
+        # No es falta de saldo: alarmar como si lo fuera manda a recargar sin
+        # necesidad. Se reporta aparte.
+        return False, "limite", str(exc)
+    except anthropic.APIConnectionError as exc:
+        return False, "red", str(exc)
+    except Exception as exc:
+        return False, "otro", f"{type(exc).__name__}: {exc}"
+
+
+# Traducción de la categoría a algo accionable para quien lee la alerta.
+_ANTHROPIC_DIAGNOSTICO_TEXTO = {
+    "sin_credito": ("Se acabó el crédito de Anthropic",
+                    "Mariana no puede redactar respuestas. Recarga en console.anthropic.com."),
+    "credencial":  ("La API key de Anthropic no sirve",
+                    "Mariana no puede redactar respuestas. Revisa ANTHROPIC_API_KEY en Railway."),
+    "limite":      ("Anthropic está limitando las peticiones (rate limit)",
+                    "No es falta de saldo: se normaliza solo, pero si se repite hay que subir el tier."),
+    "red":         ("No se pudo contactar la API de Anthropic",
+                    "Puede ser un corte pasajero. Si sigue mañana, revisa el estado del servicio."),
+    "otro":        ("La API de Anthropic respondió con error",
+                    "Mariana podría no estar respondiendo."),
+}
+
+
+def _motivo_infraestructura(error: Exception) -> str:
+    """Si una excepción del bot es en realidad falta de saldo/credencial, lo dice
+    en una frase. Devuelve '' cuando el error no es de ese tipo.
+
+    Existe porque el aviso genérico ('Mariana no pudo responderle') se ve igual
+    trátese de un bug o de una tarjeta sin fondos, y esos dos se arreglan de
+    formas muy distintas."""
+    texto = f"{type(error).__name__}: {error}".lower()
+    if "credit balance" in texto:
+        return "⚠️ Es falta de CRÉDITO en Anthropic: recarga en console.anthropic.com."
+    if "authentication" in texto or "invalid x-api-key" in texto:
+        return "⚠️ Es la API KEY de Anthropic: está vencida o mal configurada."
+    if "20003" in texto or "insufficient funds" in texto:
+        return "⚠️ Es falta de SALDO en Twilio: recarga en console.twilio.com."
+    return ""
+
+
+# ── Job 8: Saldos — revisión diaria a las 8 AM ────────────────────────────────
+def _job_check_saldos():
+    """Corre diariamente a las 8 AM (Bogotá). Avisa ANTES de que se acabe, no
+    después: el aviso sale por campanita y por WhatsApp al admin.
+
+    El orden importa. Twilio se revisa primero y el aviso de Twilio se manda
+    mientras todavía queda saldo — si se espera a que llegue a cero, el propio
+    aviso tampoco sale."""
+    with app.app_context():
+        admin_phone = os.environ.get("ADMIN_WHATSAPP", "")
+
+        saldo, moneda, err = _saldo_twilio()
+        if err:
+            push_notification(
+                kind="saldo_twilio_ilegible", level="urgent",
+                title="No se pudo leer el saldo de Twilio",
+                body=err, url="/estado",
+            )
+        elif saldo is not None and saldo < SALDO_TWILIO_MINIMO:
+            titulo = f"Saldo de Twilio bajo: {saldo:.2f} {moneda}"
+            cuerpo = (f"Por debajo del mínimo de {SALDO_TWILIO_MINIMO:.2f} {moneda}. "
+                      f"Cuando llegue a cero Mariana deja de enviar WhatsApp.")
+            push_notification(kind="saldo_twilio_bajo", level="urgent",
+                              title=titulo, body=cuerpo, url="/estado")
+            if admin_phone:
+                send_whatsapp(admin_phone,
+                              f"💳 *NOXA — {titulo}*\n\n{cuerpo}\n\nRecarga en console.twilio.com",
+                              kind="admin_saldo_twilio")
+            app.logger.warning(f"[Saldo] Twilio bajo: {saldo:.2f} {moneda}")
+        else:
+            app.logger.info(f"[Saldo] Twilio OK: {saldo:.2f} {moneda}")
+
+        ok, categoria, detalle = _diagnostico_anthropic()
+        if not ok:
+            titulo, accion = _ANTHROPIC_DIAGNOSTICO_TEXTO.get(
+                categoria, _ANTHROPIC_DIAGNOSTICO_TEXTO["otro"])
+            push_notification(
+                kind=f"anthropic_{categoria}",
+                level="urgent" if categoria in ("sin_credito", "credencial") else "info",
+                title=titulo, body=f"{accion}\n\n{detalle[:400]}", url="/estado",
+            )
+            # El rate limit y los cortes de red se normalizan solos: llenarle el
+            # WhatsApp a Diana con eso hace que deje de mirar los avisos que sí
+            # importan.
+            if admin_phone and categoria in ("sin_credito", "credencial"):
+                send_whatsapp(admin_phone, f"🤖 *NOXA — {titulo}*\n\n{accion}",
+                              kind="admin_saldo_anthropic")
+            app.logger.warning(f"[Saldo] Anthropic {categoria}: {detalle[:200]}")
+        else:
+            app.logger.info("[Saldo] Anthropic OK.")
+
+
 # ── Scheduler setup ───────────────────────────────────────────────────────────
 _scheduler = BackgroundScheduler(timezone=_BOGOTA)
 
@@ -10183,6 +10375,14 @@ _scheduler.add_job(
     _job_backup_db,
     CronTrigger(hour=3, minute=0, timezone=_BOGOTA),
     id="backup_db",
+    replace_existing=True,
+)
+# A las 8 AM y no de madrugada: el aviso sirve solo si alguien puede recargar
+# al verlo.
+_scheduler.add_job(
+    _job_check_saldos,
+    CronTrigger(hour=8, minute=0, timezone=_BOGOTA),
+    id="check_saldos",
     replace_existing=True,
 )
 

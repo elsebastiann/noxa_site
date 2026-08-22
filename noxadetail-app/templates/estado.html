@@ -1,0 +1,103 @@
+{% extends "base.html" %}
+
+{% block extra_head %}
+<style>
+  .st-note { color:var(--text2); font-size:.85rem; max-width:70ch; line-height:1.5; margin:8px 0 22px; }
+  .st-grid { display:grid; gap:16px; grid-template-columns:repeat(auto-fit,minmax(300px,1fr)); }
+  .st-card { border:1px solid var(--border); border-radius:var(--radius); padding:18px 20px;
+             background:var(--surface2); }
+  .st-card h3 { font-size:.95rem; margin:0 0 4px; display:flex; align-items:center; gap:8px; }
+  .st-sub { color:var(--text2); font-size:.78rem; margin:0 0 14px; }
+  .st-big { font-size:2rem; font-weight:700; line-height:1.1; margin:0; }
+  .st-unit { font-size:.95rem; font-weight:600; color:var(--text2); margin-left:4px; }
+  .st-pill { display:inline-block; font-size:.72rem; font-weight:700; letter-spacing:.3px;
+             text-transform:uppercase; padding:3px 10px; border-radius:20px; }
+  .st-ok   { background:rgba(60,160,90,0.15); color:#3ca05a; }
+  .st-bad  { background:rgba(200,70,70,0.15); color:#c84646; }
+  .st-warn { background:rgba(212,180,108,0.18); color:#a5842f; }
+  .st-detail { margin-top:12px; font-size:.8rem; color:var(--text2); line-height:1.5;
+               word-break:break-word; }
+  .st-detail code { font-size:.75rem; }
+  .st-links { margin-top:14px; display:flex; gap:10px; flex-wrap:wrap; }
+  .st-links a { font-size:.8rem; }
+</style>
+{% endblock %}
+
+{% block content %}
+<h2 style="margin-top:16px;">Estado de los servicios de Mariana</h2>
+<p class="st-note">
+  Se consulta en vivo cada vez que abres esta página. Además se revisa
+  automáticamente todos los días a las 8:00 a.m., y si algo está mal te llega
+  aviso a la campanita y por WhatsApp.
+</p>
+
+<div class="st-grid">
+
+  {# ── Twilio ── #}
+  <div class="st-card">
+    <h3><i class="bi bi-whatsapp"></i> Twilio (envío de WhatsApp)</h3>
+    <p class="st-sub">Si llega a cero, Mariana no puede enviar ningún mensaje.</p>
+
+    {% if twilio_err %}
+      <span class="st-pill st-bad">No se pudo leer</span>
+      <div class="st-detail">{{ twilio_err }}</div>
+    {% else %}
+      <p class="st-big">
+        {{ '%.2f'|format(saldo) }}<span class="st-unit">{{ moneda }}</span>
+      </p>
+      <div style="margin-top:10px;">
+        {% if saldo_bajo %}
+          <span class="st-pill st-bad">Saldo bajo</span>
+        {% else %}
+          <span class="st-pill st-ok">Con saldo</span>
+        {% endif %}
+      </div>
+      <div class="st-detail">
+        Mínimo configurado: {{ '%.2f'|format(saldo_minimo) }} {{ moneda }}.
+        Por debajo de eso salta la alerta. Se cambia con la variable
+        <code>TWILIO_SALDO_MINIMO</code>.
+      </div>
+    {% endif %}
+
+    <div class="st-links">
+      <a class="btn btn-sm" href="https://console.twilio.com/us1/billing/manage-billing/billing-overview"
+         target="_blank" rel="noopener">Recargar en Twilio</a>
+    </div>
+  </div>
+
+  {# ── Anthropic ── #}
+  <div class="st-card">
+    <h3><i class="bi bi-robot"></i> Anthropic (redacción de respuestas)</h3>
+    <p class="st-sub">Si se acaba el crédito, Mariana recibe los mensajes pero no responde.</p>
+
+    {% if anthropic_ok %}
+      <span class="st-pill st-ok">Respondiendo</span>
+      <div class="st-detail">
+        La API contestó bien a una petición de prueba, así que la cuenta tiene
+        crédito y la key sirve.
+      </div>
+    {% else %}
+      <span class="st-pill {{ 'st-bad' if anthropic_cat in ('sin_credito','credencial') else 'st-warn' }}">
+        {{ anthropic_titulo }}
+      </span>
+      <div class="st-detail">
+        {{ anthropic_accion }}
+        {% if anthropic_detalle %}<br><code>{{ anthropic_detalle[:300] }}</code>{% endif %}
+      </div>
+    {% endif %}
+
+    <div class="st-detail" style="border-top:1px solid var(--border); padding-top:10px; margin-top:14px;">
+      <strong>Por qué no se ve un número acá:</strong> Anthropic no publica el
+      crédito restante por API — solo reportes de consumo, que además exigen una
+      cuenta de organización. Lo único comprobable es si la API responde, y eso
+      es lo que se prueba.
+    </div>
+
+    <div class="st-links">
+      <a class="btn btn-sm" href="https://console.anthropic.com/settings/billing"
+         target="_blank" rel="noopener">Ver crédito en Anthropic</a>
+    </div>
+  </div>
+
+</div>
+{% endblock %}
