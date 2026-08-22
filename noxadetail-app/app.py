@@ -10143,12 +10143,15 @@ _scheduler.add_job(
     id="admin_reminder",
     replace_existing=True,
 )
-_scheduler.add_job(
-    _job_client_reminder,
-    CronTrigger(hour=19, minute=0, timezone=_BOGOTA),
-    id="client_reminder",
-    replace_existing=True,
-)
+# El recordatorio de cita al CLIENTE (día anterior, 7 PM) queda desactivado por
+# decisión del negocio (2026-08-22). La función `_job_client_reminder` sigue en el
+# código; para reactivarlo basta con volver a registrar el job acá.
+# _scheduler.add_job(
+#     _job_client_reminder,
+#     CronTrigger(hour=19, minute=0, timezone=_BOGOTA),
+#     id="client_reminder",
+#     replace_existing=True,
+# )
 _scheduler.add_job(
     _job_ceramic_followup,
     CronTrigger(hour=10, minute=0, timezone=_BOGOTA),
