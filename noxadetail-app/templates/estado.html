@@ -100,4 +100,125 @@
   </div>
 
 </div>
+
+{# ── Railway ── #}
+<h2 style="margin-top:34px;">Costo de Railway</h2>
+<p class="st-note">
+  El <strong>{{ serverless_apagado.strftime('%d/%m/%Y') }}</strong> se apagó el modo
+  Serverless: antes la app se dormía cuando nadie la usaba, y dormida no corría el
+  backup de las 3:00 a.m. ni los demás trabajos programados. Ahora está encendida
+  todo el tiempo, lo que cuesta más — esta sección es para ver cuánto más.
+</p>
+
+{% if railway_err %}
+  <div class="bk-warn" style="border:1px solid rgba(212,180,108,0.4);background:rgba(212,180,108,0.08);
+              border-radius:var(--radius);padding:14px 18px;font-size:.85rem;line-height:1.6;">
+    <strong>Todavía no se puede leer el costo.</strong> {{ railway_err }}<br><br>
+    Para activarlo: crea un <em>workspace token</em> en
+    <a href="https://railway.com/account/tokens" target="_blank" rel="noopener">railway.com/account/tokens</a>
+    y agrégalo en las variables del servicio como <code>RAILWAY_API_TOKEN</code>,
+    junto con <code>RAILWAY_WORKSPACE_ID</code>.
+  </div>
+{% else %}
+  <div class="st-grid">
+
+    <div class="st-card">
+      <h3><i class="bi bi-currency-dollar"></i> Periodo actual</h3>
+      <p class="st-sub">
+        {% if railway.periodo_inicio %}
+          Desde el {{ railway.periodo_inicio.strftime('%d/%m') }}
+          {% if railway.periodo_fin %}hasta el {{ railway.periodo_fin.strftime('%d/%m') }}{% endif %}
+        {% else %}Ciclo de facturación en curso{% endif %}
+      </p>
+      <p class="st-big">{{ '%.2f'|format(railway.usage_usd) }}<span class="st-unit">USD</span></p>
+      {% if railway.credito_usd %}
+        <div class="st-detail">Crédito disponible: {{ '%.2f'|format(railway.credito_usd) }} USD.</div>
+      {% endif %}
+    </div>
+
+    <div class="st-card">
+      <h3><i class="bi bi-graph-up-arrow"></i> Antes vs. después del corte</h3>
+      {% if railway_comparacion and railway_comparacion.despues_diario is not none %}
+        <p class="st-sub">Gasto promedio por día</p>
+        <div style="display:flex;gap:26px;flex-wrap:wrap;align-items:flex-end;">
+          <div>
+            <div class="st-sub" style="margin:0;">Antes (dormida)</div>
+            <p class="st-big" style="font-size:1.5rem;">
+              {{ '%.3f'|format(railway_comparacion.antes_diario) if railway_comparacion.antes_diario else '—' }}
+              <span class="st-unit">USD</span>
+            </p>
+          </div>
+          <div>
+            <div class="st-sub" style="margin:0;">Ahora (24/7)</div>
+            <p class="st-big" style="font-size:1.5rem;">
+              {{ '%.3f'|format(railway_comparacion.despues_diario) }}<span class="st-unit">USD</span>
+            </p>
+          </div>
+          {% if railway_comparacion.incremento_pct is not none %}
+            <div>
+              <div class="st-sub" style="margin:0;">Cambio</div>
+              <p class="st-big" style="font-size:1.5rem;">
+                {{ '+' if railway_comparacion.incremento_pct > 0 }}{{ railway_comparacion.incremento_pct }}%
+              </p>
+            </div>
+          {% endif %}
+        </div>
+        <div class="st-detail">
+          {% if railway_comparacion.proyeccion_mensual %}
+            A este ritmo, unos <strong>{{ '%.2f'|format(railway_comparacion.proyeccion_mensual) }} USD al mes</strong>.
+          {% endif %}
+          Con {{ railway_comparacion.dias_despues }} día{{ 's' if railway_comparacion.dias_despues != 1 }}
+          de datos después del corte — mientras menos días, menos confiable el promedio.
+        </div>
+      {% else %}
+        <p class="st-sub">Todavía no hay con qué comparar.</p>
+        <div class="st-detail">
+          La primera foto del gasto se tomó hoy. Mañana ya habrá un día completo
+          con la app encendida 24/7 y aparecerá la comparación acá.
+        </div>
+      {% endif %}
+    </div>
+
+  </div>
+
+  {% if railway_serie %}
+    <h3 style="font-size:.95rem;margin:26px 0 10px;">Gasto por día</h3>
+    <div class="bk-wrap" style="overflow-x:auto;border:1px solid var(--border);border-radius:var(--radius);">
+      <table class="bk" style="width:100%;border-collapse:collapse;font-size:.88rem;min-width:420px;">
+        <thead>
+          <tr>
+            <th style="background:var(--surface2);color:var(--text2);text-align:left;padding:10px 14px;font-weight:600;">Día</th>
+            <th style="background:var(--surface2);color:var(--text2);text-align:left;padding:10px 14px;font-weight:600;">Costo del día</th>
+            <th style="background:var(--surface2);color:var(--text2);text-align:left;padding:10px 14px;font-weight:600;">Acumulado del periodo</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for d in railway_serie %}
+            <tr>
+              <td style="padding:10px 14px;border-top:1px solid var(--border);">
+                {{ d.fecha.strftime('%d/%m/%Y') }}
+                {% if d.fecha == serverless_apagado %}
+                  <span class="st-pill st-warn" style="margin-left:8px;">corte</span>
+                {% endif %}
+              </td>
+              <td style="padding:10px 14px;border-top:1px solid var(--border);">
+                {% if d.costo is not none %}{{ '%.3f'|format(d.costo) }} USD
+                {% else %}<span style="color:var(--text2);">—</span>{% endif %}
+              </td>
+              <td style="padding:10px 14px;border-top:1px solid var(--border);color:var(--text2);">
+                {{ '%.2f'|format(d.acumulado) }} USD
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <p class="st-note" style="margin-top:10px;">
+      Railway solo publica el gasto como acumulado del periodo, así que el costo de
+      cada día sale de restar la foto de hoy menos la de ayer. Por eso el historial
+      empieza el día que se activó esto y no se puede reconstruir hacia atrás — y
+      el primer día de cada ciclo de facturación aparece sin dato.
+    </p>
+  {% endif %}
+{% endif %}
 {% endblock %}

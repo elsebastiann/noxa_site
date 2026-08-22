@@ -10,6 +10,7 @@ dos decisiones que hacen que el aviso sirva:
     del admin. Un rate limit se normaliza solo; mandarlo por WhatsApp entrena
     a Diana a ignorar los avisos que sí importan.
 """
+from datetime import date, timedelta
 from unittest.mock import patch
 
 import httpx
@@ -142,11 +143,147 @@ class TestPaginaEstado:
         assert "Con saldo" in html
         assert "Respondiendo" in html
 
+    def test_muestra_el_costo_de_railway_y_la_comparacion(self, client):
+        login_as(client, make_user("admin_costos", role="admin"))
+        corte = A.SERVERLESS_APAGADO
+        periodo = corte - timedelta(days=20)
+        with A.app.app_context():
+            A.RailwayCostSnapshot.query.delete()
+            A.db.session.add(A.RailwayCostSnapshot(
+                fecha=corte, usage_usd=4.00, periodo_inicio=periodo))
+            A.db.session.commit()
+
+        datos = {"workspace": "NOXA", "usage_usd": 6.50, "credito_usd": 0.0,
+                 "periodo_inicio": periodo, "periodo_fin": None}
+        with patch.object(A, "_saldo_twilio", return_value=(50.0, "USD", "")), \
+             patch.object(A, "_diagnostico_anthropic", return_value=(True, "ok", "")), \
+             patch.object(A, "_costo_railway", return_value=(datos, "")):
+            html = client.get("/estado").get_data(as_text=True)
+
+        with A.app.app_context():
+            A.RailwayCostSnapshot.query.delete()
+            A.db.session.commit()
+
+        assert "Costo de Railway" in html
+        assert "6.50" in html          # acumulado del periodo
+        assert "corte" in html          # la marca del día en que se apagó Serverless
+
+    def test_sin_token_de_railway_explica_como_activarlo(self, client):
+        login_as(client, make_user("admin_sin_token", role="admin"))
+        with patch.object(A, "_saldo_twilio", return_value=(50.0, "USD", "")), \
+             patch.object(A, "_diagnostico_anthropic", return_value=(True, "ok", "")), \
+             patch.object(A, "_costo_railway", return_value=(None, "Falta configurar RAILWAY_API_TOKEN")):
+            html = client.get("/estado").get_data(as_text=True)
+
+        assert "RAILWAY_API_TOKEN" in html
+        assert "railway.com/account/tokens" in html
+
     def test_solo_para_admin(self, client):
         """Los saldos son información de la cuenta, no de la operación diaria."""
         login_as(client, make_user("operario_curioso", role="operario"))
         r = client.get("/estado")
         assert r.status_code == 302
+
+
+class TestCostoRailway:
+    """Railway solo publica el gasto como acumulado del periodo. El costo por día
+    sale de restar dos fotos, y esa resta tiene una trampa: cuando arranca un
+    ciclo de facturación nuevo el acumulado vuelve a cero."""
+
+    @pytest.fixture(autouse=True)
+    def _limpio(self):
+        with A.app.app_context():
+            A.RailwayCostSnapshot.query.delete()
+            A.db.session.commit()
+        yield
+        with A.app.app_context():
+            A.RailwayCostSnapshot.query.delete()
+            A.db.session.commit()
+
+    def _snap(self, dia, usd, periodo):
+        A.db.session.add(A.RailwayCostSnapshot(
+            fecha=dia, usage_usd=usd, periodo_inicio=periodo))
+        A.db.session.commit()
+
+    def test_costo_diario_es_la_diferencia_entre_fotos(self):
+        p = date(2026, 8, 1)
+        self._snap(date(2026, 8, 20), 4.00, p)
+        self._snap(date(2026, 8, 21), 4.30, p)
+        self._snap(date(2026, 8, 22), 4.75, p)
+
+        serie = A._serie_costos_railway()
+        assert [s["costo"] for s in serie] == [None, 0.30, 0.45]
+
+    def test_el_primer_dia_de_un_ciclo_nuevo_no_se_resta(self):
+        """Sin esto, el reinicio del acumulado se vería como un día de gasto
+        negativo — y arrastraría el promedio a un número sin sentido."""
+        self._snap(date(2026, 8, 30), 9.00, date(2026, 8, 1))
+        self._snap(date(2026, 9, 1), 0.35, date(2026, 9, 1))
+
+        serie = A._serie_costos_railway()
+        assert serie[-1]["costo"] is None
+
+    def test_compara_promedio_antes_y_despues_del_corte(self):
+        corte = A.SERVERLESS_APAGADO
+        periodo = corte - timedelta(days=20)
+        # En el corte llevaba 4 USD en 20 días dormida => 0.20 USD/día.
+        self._snap(corte, 4.00, periodo)
+        hoy = A.bogota_now().date()
+        dias = (hoy - corte).days
+
+        datos = {"usage_usd": 4.00 + 0.50 * max(dias, 1), "periodo_inicio": periodo,
+                 "credito_usd": 0.0, "workspace": "x", "periodo_fin": None}
+        comp = A._comparacion_serverless(datos)
+
+        assert comp["antes_diario"] == 0.20
+        if dias >= 1:
+            assert comp["despues_diario"] == 0.50
+            assert comp["incremento_pct"] == 150
+
+    def test_sin_foto_del_corte_no_inventa_comparacion(self):
+        datos = {"usage_usd": 9.0, "periodo_inicio": date(2026, 8, 1),
+                 "credito_usd": 0.0, "workspace": "x", "periodo_fin": None}
+        assert A._comparacion_serverless(datos) is None
+
+    def test_la_foto_del_dia_es_idempotente(self):
+        """Abrir /estado varias veces el mismo día no puede duplicar filas: la
+        serie se calcula restando días consecutivos."""
+        datos = {"usage_usd": 5.0, "periodo_inicio": date(2026, 8, 1)}
+        A._tomar_snapshot_costo_railway(datos)
+        A._tomar_snapshot_costo_railway({**datos, "usage_usd": 5.4})
+
+        snaps = A.RailwayCostSnapshot.query.all()
+        assert len(snaps) == 1
+        assert snaps[0].usage_usd == 5.4
+
+
+class TestConsultaRailway:
+    def test_sin_token_lo_dice_en_vez_de_fallar(self):
+        with patch.dict(A.os.environ, {"RAILWAY_API_TOKEN": "", "RAILWAY_WORKSPACE_ID": ""}):
+            datos, err = A._costo_railway()
+        assert datos is None and "RAILWAY_API_TOKEN" in err
+
+    def test_un_error_de_graphql_no_pasa_como_exito(self):
+        """GraphQL responde 200 aunque la consulta falle — el error viene en el
+        cuerpo. Mirar solo el código HTTP daría un costo de 0 dólares."""
+        respuesta = type("R", (), {"json": lambda self: {"errors": [{"message": "Not Authorized"}]}})()
+        with patch.dict(A.os.environ, {"RAILWAY_API_TOKEN": "t", "RAILWAY_WORKSPACE_ID": "w"}), \
+             patch.object(A.requests, "post", return_value=respuesta):
+            datos, err = A._costo_railway()
+        assert datos is None and "Not Authorized" in err
+
+    def test_lee_el_consumo_y_el_periodo(self):
+        cuerpo = {"data": {"workspace": {"name": "NOXA", "customer": {
+            "currentUsage": 7.42, "creditBalance": 1.5,
+            "billingPeriod": {"start": "2026-08-01T00:00:00Z", "end": "2026-09-01T00:00:00Z"}}}}}
+        respuesta = type("R", (), {"json": lambda self: cuerpo})()
+        with patch.dict(A.os.environ, {"RAILWAY_API_TOKEN": "t", "RAILWAY_WORKSPACE_ID": "w"}), \
+             patch.object(A.requests, "post", return_value=respuesta):
+            datos, err = A._costo_railway()
+
+        assert err == ""
+        assert datos["usage_usd"] == 7.42
+        assert datos["periodo_inicio"] == date(2026, 8, 1)
 
 
 def A_bad_request(mensaje):

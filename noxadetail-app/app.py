@@ -1494,6 +1494,28 @@ class Notification(db.Model):
         return self.LEVEL_COLORS.get(self.level, self.LEVEL_COLORS["info"])
 
 
+class RailwayCostSnapshot(db.Model):
+    """Una foto diaria de cuánto lleva gastado la cuenta de Railway.
+
+    Railway solo expone el gasto como un ACUMULADO del periodo de facturación
+    en curso (`currentUsage`), no como una serie por día. Guardando el
+    acumulado cada mañana, el costo de cada día sale de restar dos fotos
+    consecutivas — en dólares reales de la factura, sin tener que adivinar
+    precios por CPU o por GB.
+
+    Por eso el historial arranca el día que se empezó a guardar y no se puede
+    reconstruir hacia atrás: el dato de días pasados nunca existió como tal."""
+    __tablename__ = "railway_cost_snapshots"
+    id             = db.Column(db.Integer, primary_key=True)
+    fecha          = db.Column(db.Date, nullable=False, unique=True, index=True)
+    # Acumulado del periodo de facturación, en USD, al momento de la foto.
+    usage_usd      = db.Column(db.Float, nullable=False)
+    # Cuándo empezó ese periodo: cuando cambia, el acumulado se reinicia y la
+    # resta contra el día anterior daría negativo.
+    periodo_inicio = db.Column(db.Date, nullable=True)
+    created_at     = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+
+
 def push_notification(kind: str, title: str, body: str = "", level: str = "info",
                       url: str | None = None, ref_type: str | None = None,
                       ref_id: int | None = None) -> None:
@@ -10001,6 +10023,13 @@ def estado_servicios():
     anthropic_titulo, anthropic_accion = _ANTHROPIC_DIAGNOSTICO_TEXTO.get(
         anthropic_cat, _ANTHROPIC_DIAGNOSTICO_TEXTO["otro"])
 
+    railway, railway_err = _costo_railway()
+    # Abrir la página también deja la foto del día: así el historial no depende
+    # de que el job de las 8 a.m. haya corrido, y el corte queda registrado
+    # desde la primera vez que alguien entra.
+    if railway:
+        _tomar_snapshot_costo_railway(railway)
+
     return render_template(
         "estado.html",
         saldo=saldo, moneda=moneda or "USD", twilio_err=twilio_err,
@@ -10009,6 +10038,10 @@ def estado_servicios():
         anthropic_ok=anthropic_ok, anthropic_cat=anthropic_cat,
         anthropic_titulo=anthropic_titulo, anthropic_accion=anthropic_accion,
         anthropic_detalle=anthropic_detalle,
+        railway=railway, railway_err=railway_err,
+        railway_serie=list(reversed(_serie_costos_railway()))[:30],
+        railway_comparacion=_comparacion_serverless(railway),
+        serverless_apagado=SERVERLESS_APAGADO,
     )
 
 
@@ -10274,6 +10307,150 @@ def _motivo_infraestructura(error: Exception) -> str:
     return ""
 
 
+# ── Costo de Railway ──────────────────────────────────────────────────────────
+# El 2026-08-22 se apagó el modo Serverless del servicio: antes la app se dormía
+# tras 10 minutos sin tráfico, y dormida NO corre el scheduler — por eso el
+# backup de las 3 a.m. casi nunca se hacía. Encenderla 24/7 arregla eso pero
+# cuesta más, así que esta fecha queda como el corte contra el cual comparar.
+SERVERLESS_APAGADO = date(2026, 8, 22)
+
+RAILWAY_GRAPHQL_URL = "https://backboard.railway.com/graphql/v2"
+
+
+def _costo_railway() -> tuple[dict | None, str]:
+    """Consulta el gasto de la cuenta de Railway. Devuelve (datos, error).
+
+    El dinero de verdad vive en `customer`: las consultas `usage`/`estimatedUsage`
+    devuelven CPU y GB, no dólares, y convertirlas exigiría hardcodear la lista
+    de precios de Railway — que cambia sin avisar. `currentUsage` ya viene en
+    USD y sale de la misma fuente que la factura."""
+    token = os.environ.get("RAILWAY_API_TOKEN", "")
+    workspace_id = os.environ.get("RAILWAY_WORKSPACE_ID", "")
+    if not token or not workspace_id:
+        return None, ("Falta configurar RAILWAY_API_TOKEN y/o RAILWAY_WORKSPACE_ID.")
+
+    query = """
+    query($id: String!) {
+      workspace(workspaceId: $id) {
+        name
+        customer {
+          currentUsage
+          creditBalance
+          billingPeriod { start end }
+        }
+      }
+    }
+    """
+    try:
+        r = requests.post(
+            RAILWAY_GRAPHQL_URL,
+            headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"},
+            json={"query": query, "variables": {"id": workspace_id}},
+            timeout=15,
+        )
+        payload = r.json()
+    except Exception as exc:
+        app.logger.error(f"[Railway] No se pudo consultar el costo: {exc}")
+        return None, str(exc)
+
+    # GraphQL responde 200 aunque la consulta falle: el error viene en el cuerpo.
+    if payload.get("errors"):
+        msg = "; ".join(e.get("message", "?") for e in payload["errors"])
+        app.logger.error(f"[Railway] La API respondió con error: {msg}")
+        return None, msg
+
+    ws = (payload.get("data") or {}).get("workspace") or {}
+    cliente = ws.get("customer") or {}
+    if cliente.get("currentUsage") is None:
+        return None, "La respuesta no trajo el consumo — revisa que el token tenga acceso al workspace."
+
+    periodo = cliente.get("billingPeriod") or {}
+    return {
+        "workspace": ws.get("name") or "",
+        "usage_usd": float(cliente["currentUsage"]),
+        "credito_usd": float(cliente.get("creditBalance") or 0.0),
+        "periodo_inicio": _fecha_iso(periodo.get("start")),
+        "periodo_fin": _fecha_iso(periodo.get("end")),
+    }, ""
+
+
+def _fecha_iso(valor) -> "date | None":
+    """Las fechas de Railway llegan en ISO 8601 con zona; acá solo importa el día."""
+    if not valor:
+        return None
+    try:
+        return datetime.fromisoformat(str(valor).replace("Z", "+00:00")).date()
+    except ValueError:
+        return None
+
+
+def _tomar_snapshot_costo_railway(datos: dict) -> None:
+    """Guarda la foto del día. Idempotente: si ya hay una de hoy, la actualiza."""
+    hoy = bogota_now().date()
+    snap = RailwayCostSnapshot.query.filter_by(fecha=hoy).first()
+    if snap is None:
+        snap = RailwayCostSnapshot(fecha=hoy)
+        db.session.add(snap)
+    snap.usage_usd = datos["usage_usd"]
+    snap.periodo_inicio = datos["periodo_inicio"]
+    db.session.commit()
+
+
+def _serie_costos_railway() -> list[dict]:
+    """Costo por día, derivado de restar fotos consecutivas.
+
+    El primer día de un periodo de facturación no se resta contra el anterior:
+    ahí el acumulado ya se reinició y la resta daría un negativo absurdo."""
+    snaps = RailwayCostSnapshot.query.order_by(RailwayCostSnapshot.fecha).all()
+    serie = []
+    for i, s in enumerate(snaps):
+        previo = snaps[i - 1] if i else None
+        if previo is None or previo.periodo_inicio != s.periodo_inicio:
+            costo = None  # sin día anterior comparable, no se puede saber
+        else:
+            costo = round(s.usage_usd - previo.usage_usd, 4)
+        serie.append({"fecha": s.fecha, "acumulado": s.usage_usd, "costo": costo})
+    return serie
+
+
+def _comparacion_serverless(datos: dict | None) -> dict | None:
+    """Promedio de gasto diario antes vs. después de apagar Serverless.
+
+    El 'antes' no sale de fotos diarias (no existían todavía) sino de repartir
+    el acumulado del corte entre los días transcurridos del periodo. Es el mismo
+    dinero de la factura, solo que promediado — suficiente para ver si encender
+    la app 24/7 duplicó el costo o lo movió apenas."""
+    corte = (RailwayCostSnapshot.query
+             .filter(RailwayCostSnapshot.fecha >= SERVERLESS_APAGADO)
+             .order_by(RailwayCostSnapshot.fecha)
+             .first())
+    if corte is None or not datos:
+        return None
+
+    antes = None
+    if corte.periodo_inicio:
+        dias_antes = (corte.fecha - corte.periodo_inicio).days
+        if dias_antes >= 1:
+            antes = round(corte.usage_usd / dias_antes, 4)
+
+    despues = None
+    dias_despues = (bogota_now().date() - corte.fecha).days
+    # Solo tiene sentido si seguimos en el mismo periodo: si ya facturaron, el
+    # acumulado actual arrancó de cero y restarle el del corte da negativo.
+    if dias_despues >= 1 and datos["periodo_inicio"] == corte.periodo_inicio:
+        despues = round((datos["usage_usd"] - corte.usage_usd) / dias_despues, 4)
+
+    return {
+        "fecha_corte": corte.fecha,
+        "dias_despues": dias_despues,
+        "antes_diario": antes,
+        "despues_diario": despues,
+        "incremento_pct": (round((despues - antes) / antes * 100)
+                           if antes and despues and antes > 0 else None),
+        "proyeccion_mensual": round(despues * 30, 2) if despues else None,
+    }
+
+
 # ── Job 8: Saldos — revisión diaria a las 8 AM ────────────────────────────────
 def _job_check_saldos():
     """Corre diariamente a las 8 AM (Bogotá). Avisa ANTES de que se acabe, no
@@ -10324,6 +10501,16 @@ def _job_check_saldos():
             app.logger.warning(f"[Saldo] Anthropic {categoria}: {detalle[:200]}")
         else:
             app.logger.info("[Saldo] Anthropic OK.")
+
+        # La foto del gasto de Railway. Va acá y no en un job aparte porque es
+        # el mismo trámite: una vez al día, a la misma hora — y esa regularidad
+        # es justo lo que hace que restar dos fotos dé el costo de un día.
+        datos, err = _costo_railway()
+        if datos:
+            _tomar_snapshot_costo_railway(datos)
+            app.logger.info(f"[Railway] Gasto del periodo: {datos['usage_usd']:.2f} USD")
+        else:
+            app.logger.warning(f"[Railway] Sin foto de costo hoy: {err}")
 
 
 # ── Scheduler setup ───────────────────────────────────────────────────────────
