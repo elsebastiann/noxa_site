@@ -153,8 +153,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_es_festivo",
-      "community": 64,
-      "community_name": "motivo_dia_cerrado",
+      "community": 61,
+      "community_name": "date",
       "norm_label": "es_festivo()"
     },
     {
@@ -177,8 +177,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_motivo_dia_cerrado",
-      "community": 64,
-      "community_name": "motivo_dia_cerrado",
+      "community": 51,
+      "community_name": "api_public_mb_book",
       "norm_label": "motivo_dia_cerrado()"
     },
     {
@@ -201,7 +201,7 @@
       "_origin": "ast",
       "id": "datetime",
       "community": 41,
-      "community_name": "test_abonos_ajustes.py",
+      "community_name": "datetime",
       "norm_label": "datetime"
     },
     {
@@ -248,8 +248,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_ensure_service_sales_schema",
-      "community": 80,
-      "community_name": "_reparar_service_sales_appointment_id",
+      "community": 7,
+      "community_name": "app.py",
       "norm_label": "ensure_service_sales_schema()"
     },
     {
@@ -260,8 +260,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_reparar_service_sales_appointment_id",
-      "community": 80,
-      "community_name": "_reparar_service_sales_appointment_id",
+      "community": 7,
+      "community_name": "app.py",
       "norm_label": "_reparar_service_sales_appointment_id()"
     },
     {
@@ -357,8 +357,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_agreements_list",
-      "community": 12,
-      "community_name": "Base Layout Template",
+      "community": 10,
+      "community_name": "route",
       "norm_label": "agreements_list()"
     },
     {
@@ -369,8 +369,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_agreements_new",
-      "community": 62,
-      "community_name": "apply_agreement_discount_split",
+      "community": 10,
+      "community_name": "route",
       "norm_label": "agreements_new()"
     },
     {
@@ -381,8 +381,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_agreements_toggle",
-      "community": 12,
-      "community_name": "Base Layout Template",
+      "community": 10,
+      "community_name": "route",
       "norm_label": "agreements_toggle()"
     },
     {
@@ -393,8 +393,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_agreements_create_alias",
-      "community": 10,
-      "community_name": "route",
+      "community": 62,
+      "community_name": "apply_agreement_discount_split",
       "norm_label": "agreements_create_alias()"
     },
     {
@@ -405,8 +405,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_agreements_quick_create",
-      "community": 10,
-      "community_name": "route",
+      "community": 62,
+      "community_name": "apply_agreement_discount_split",
       "norm_label": "agreements_quick_create()"
     },
     {
@@ -418,8 +418,8 @@
       "_callable_class": true,
       "_origin": "ast",
       "id": "app_paymentmethod",
-      "community": 79,
-      "community_name": "payment_methods_new",
+      "community": 7,
+      "community_name": "app.py",
       "norm_label": "paymentmethod"
     },
     {
@@ -430,8 +430,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_paymentmethod_repr",
-      "community": 79,
-      "community_name": "payment_methods_new",
+      "community": 7,
+      "community_name": "app.py",
       "norm_label": ".__repr__()"
     },
     {
@@ -505,8 +505,8 @@
       "_callable_class": true,
       "_origin": "ast",
       "id": "app_appointment",
-      "community": 48,
-      "community_name": "Appointment",
+      "community": 70,
+      "community_name": "edit_appointment",
       "norm_label": "appointment"
     },
     {
@@ -517,8 +517,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_appointment_repr",
-      "community": 48,
-      "community_name": "Appointment",
+      "community": 70,
+      "community_name": "edit_appointment",
       "norm_label": ".__repr__()"
     },
     {
@@ -577,8 +577,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_ensure_appointment_plan_schema",
-      "community": 85,
-      "community_name": "ensure_appointment_plan_schema",
+      "community": 7,
+      "community_name": "app.py",
       "norm_label": "ensure_appointment_plan_schema()"
     },
     {
@@ -615,7 +615,7 @@
       "_origin": "ast",
       "id": "app_servicesale",
       "community": 48,
-      "community_name": "Appointment",
+      "community_name": "appointment_money",
       "norm_label": "servicesale"
     },
     {
@@ -627,7 +627,7 @@
       "_origin": "ast",
       "id": "app_servicesale_repr",
       "community": 48,
-      "community_name": "Appointment",
+      "community_name": "appointment_money",
       "norm_label": ".__repr__()"
     },
     {
@@ -639,8 +639,8 @@
       "_callable_class": true,
       "_origin": "ast",
       "id": "app_maintenanceplan",
-      "community": 78,
-      "community_name": "MaintenancePlan",
+      "community": 7,
+      "community_name": "app.py",
       "norm_label": "maintenanceplan"
     },
     {
@@ -651,8 +651,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_maintenanceplan_repr",
-      "community": 78,
-      "community_name": "MaintenancePlan",
+      "community": 7,
+      "community_name": "app.py",
       "norm_label": ".__repr__()"
     },
     {
@@ -762,7 +762,7 @@
       "_origin": "ast",
       "id": "app_client",
       "community": 20,
-      "community_name": "plan_sell",
+      "community_name": "book_diagnostic_from_bot",
       "norm_label": "client"
     },
     {
@@ -774,7 +774,7 @@
       "_origin": "ast",
       "id": "app_client_repr",
       "community": 20,
-      "community_name": "plan_sell",
+      "community_name": "book_diagnostic_from_bot",
       "norm_label": ".__repr__()"
     },
     {
@@ -884,8 +884,8 @@
       "_callable_class": true,
       "_origin": "ast",
       "id": "app_appointmentadjustment",
-      "community": 69,
-      "community_name": "sync_appointment_adjustments",
+      "community": 4,
+      "community_name": "test_abonos_ajustes.py",
       "norm_label": "appointmentadjustment"
     },
     {
@@ -896,8 +896,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_appointmentadjustment_repr",
-      "community": 69,
-      "community_name": "sync_appointment_adjustments",
+      "community": 4,
+      "community_name": "test_abonos_ajustes.py",
       "norm_label": ".__repr__()"
     },
     {
@@ -909,8 +909,8 @@
       "_callable_class": true,
       "_origin": "ast",
       "id": "app_appointmentpayment",
-      "community": 74,
-      "community_name": "sync_appointment_payments",
+      "community": 4,
+      "community_name": "test_abonos_ajustes.py",
       "norm_label": "appointmentpayment"
     },
     {
@@ -921,8 +921,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_appointmentpayment_repr",
-      "community": 74,
-      "community_name": "sync_appointment_payments",
+      "community": 4,
+      "community_name": "test_abonos_ajustes.py",
       "norm_label": ".__repr__()"
     },
     {
@@ -935,7 +935,7 @@
       "_origin": "ast",
       "id": "app_expense",
       "community": 9,
-      "community_name": "_parse_date",
+      "community_name": "Expenses List (DataTable)",
       "norm_label": "expense"
     },
     {
@@ -947,7 +947,7 @@
       "_origin": "ast",
       "id": "app_expense_repr",
       "community": 9,
-      "community_name": "_parse_date",
+      "community_name": "Expenses List (DataTable)",
       "norm_label": ".__repr__()"
     },
     {
@@ -985,7 +985,7 @@
       "_origin": "ast",
       "id": "app_parking",
       "community": 22,
-      "community_name": "parking_new",
+      "community_name": "_parse_date",
       "norm_label": "parking"
     },
     {
@@ -997,7 +997,7 @@
       "_origin": "ast",
       "id": "app_parking_repr",
       "community": 22,
-      "community_name": "parking_new",
+      "community_name": "_parse_date",
       "norm_label": ".__repr__()"
     },
     {
@@ -1223,7 +1223,7 @@
       "_origin": "ast",
       "id": "app_promotion",
       "community": 17,
-      "community_name": "Promotion",
+      "community_name": "promotions_list",
       "norm_label": "promotion"
     },
     {
@@ -1234,8 +1234,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_promotion_vigente",
-      "community": 17,
-      "community_name": "Promotion",
+      "community": 50,
+      "community_name": "bogota_now",
       "norm_label": ".vigente()"
     },
     {
@@ -1247,7 +1247,7 @@
       "_origin": "ast",
       "id": "app_promotion_image_url",
       "community": 17,
-      "community_name": "Promotion",
+      "community_name": "promotions_list",
       "norm_label": ".image_url()"
     },
     {
@@ -1321,7 +1321,7 @@
       "_origin": "ast",
       "id": "app_get_existing_vendors",
       "community": 9,
-      "community_name": "_parse_date",
+      "community_name": "Expenses List (DataTable)",
       "norm_label": "get_existing_vendors()"
     },
     {
@@ -1368,8 +1368,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_seed_payment_methods",
-      "community": 79,
-      "community_name": "payment_methods_new",
+      "community": 7,
+      "community_name": "app.py",
       "norm_label": "seed_payment_methods()"
     },
     {
@@ -1380,8 +1380,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_seed_maintenance_plans",
-      "community": 78,
-      "community_name": "MaintenancePlan",
+      "community": 7,
+      "community_name": "app.py",
       "norm_label": "seed_maintenance_plans()"
     },
     {
@@ -1428,8 +1428,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_normalize_plate",
-      "community": 57,
-      "community_name": "normalize_plate",
+      "community": 20,
+      "community_name": "book_diagnostic_from_bot",
       "norm_label": "normalize_plate()"
     },
     {
@@ -1441,7 +1441,7 @@
       "_origin": "ast",
       "id": "app_upsert_client_from_appointment",
       "community": 20,
-      "community_name": "plan_sell",
+      "community_name": "book_diagnostic_from_bot",
       "norm_label": "upsert_client_from_appointment()"
     },
     {
@@ -1465,7 +1465,7 @@
       "_origin": "ast",
       "id": "app_calculate_real_price",
       "community": 48,
-      "community_name": "Appointment",
+      "community_name": "appointment_money",
       "norm_label": "calculate_real_price()"
     },
     {
@@ -1476,8 +1476,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_resolve_tier_agreement_id",
-      "community": 51,
-      "community_name": "api_public_mb_book",
+      "community": 62,
+      "community_name": "apply_agreement_discount_split",
       "norm_label": "resolve_tier_agreement_id()"
     },
     {
@@ -1488,8 +1488,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_notify_admin_mercedes_benz_booking",
-      "community": 51,
-      "community_name": "api_public_mb_book",
+      "community": 56,
+      "community_name": "send_whatsapp",
       "norm_label": "notify_admin_mercedes_benz_booking()"
     },
     {
@@ -1585,7 +1585,7 @@
       "_origin": "ast",
       "id": "app_apply_adjustments",
       "community": 48,
-      "community_name": "Appointment",
+      "community_name": "appointment_money",
       "norm_label": "apply_adjustments()"
     },
     {
@@ -1597,7 +1597,7 @@
       "_origin": "ast",
       "id": "app_appointment_money",
       "community": 48,
-      "community_name": "Appointment",
+      "community_name": "appointment_money",
       "norm_label": "appointment_money()"
     },
     {
@@ -1609,7 +1609,7 @@
       "_origin": "ast",
       "id": "app_calculate_estimated_amount_for_appointment",
       "community": 48,
-      "community_name": "Appointment",
+      "community_name": "appointment_money",
       "norm_label": "calculate_estimated_amount_for_appointment()"
     },
     {
@@ -1620,8 +1620,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_abreviar_servicio",
-      "community": 48,
-      "community_name": "Appointment",
+      "community": 69,
+      "community_name": "abreviar_servicios",
       "norm_label": "abreviar_servicio()"
     },
     {
@@ -1633,7 +1633,7 @@
       "_origin": "ast",
       "id": "app_es_cita_de_diagnostico",
       "community": 48,
-      "community_name": "Appointment",
+      "community_name": "appointment_money",
       "norm_label": "es_cita_de_diagnostico()"
     },
     {
@@ -1644,8 +1644,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_nombre_servicio_diagnostico",
-      "community": 48,
-      "community_name": "Appointment",
+      "community": 31,
+      "community_name": "_transacciones_citas",
       "norm_label": "_nombre_servicio_diagnostico()"
     },
     {
@@ -1656,8 +1656,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_abreviar_servicios",
-      "community": 48,
-      "community_name": "Appointment",
+      "community": 69,
+      "community_name": "abreviar_servicios",
       "norm_label": "abreviar_servicios()"
     },
     {
@@ -1668,8 +1668,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_int_o_cero",
-      "community": 20,
-      "community_name": "plan_sell",
+      "community": 70,
+      "community_name": "edit_appointment",
       "norm_label": "_int_o_cero()"
     },
     {
@@ -1680,8 +1680,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_sync_appointment_adjustments",
-      "community": 69,
-      "community_name": "sync_appointment_adjustments",
+      "community": 70,
+      "community_name": "edit_appointment",
       "norm_label": "sync_appointment_adjustments()"
     },
     {
@@ -1692,8 +1692,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_sync_appointment_payments",
-      "community": 74,
-      "community_name": "sync_appointment_payments",
+      "community": 70,
+      "community_name": "edit_appointment",
       "norm_label": "sync_appointment_payments()"
     },
     {
@@ -1705,7 +1705,7 @@
       "_origin": "ast",
       "id": "app_planes_vigentes_para_placa",
       "community": 57,
-      "community_name": "normalize_plate",
+      "community_name": "api_plans_by_plate",
       "norm_label": "planes_vigentes_para_placa()"
     },
     {
@@ -1728,8 +1728,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_liberar_plan_de_cita",
-      "community": 48,
-      "community_name": "Appointment",
+      "community": 70,
+      "community_name": "edit_appointment",
       "norm_label": "liberar_plan_de_cita()"
     },
     {
@@ -1741,7 +1741,7 @@
       "_origin": "ast",
       "id": "app_appointment_already_closed",
       "community": 48,
-      "community_name": "Appointment",
+      "community_name": "appointment_money",
       "norm_label": "appointment_already_closed()"
     },
     {
@@ -1752,7 +1752,7 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_payment_methods_list",
-      "community": 12,
+      "community": 1,
       "community_name": "Base Layout Template",
       "norm_label": "payment_methods_list()"
     },
@@ -1764,8 +1764,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_payment_methods_new",
-      "community": 79,
-      "community_name": "payment_methods_new",
+      "community": 7,
+      "community_name": "app.py",
       "norm_label": "payment_methods_new()"
     },
     {
@@ -1788,7 +1788,7 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_vehicle_types_list",
-      "community": 12,
+      "community": 1,
       "community_name": "Base Layout Template",
       "norm_label": "vehicle_types_list()"
     },
@@ -1812,8 +1812,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_vehicle_types_toggle",
-      "community": 71,
-      "community_name": "service_prices.html",
+      "community": 10,
+      "community_name": "route",
       "norm_label": "vehicle_types_toggle()"
     },
     {
@@ -1824,7 +1824,7 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_service_prices_list",
-      "community": 12,
+      "community": 1,
       "community_name": "Base Layout Template",
       "norm_label": "service_prices_list()"
     },
@@ -1848,8 +1848,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_service_prices_update",
-      "community": 71,
-      "community_name": "service_prices.html",
+      "community": 10,
+      "community_name": "route",
       "norm_label": "service_prices_update()"
     },
     {
@@ -1860,8 +1860,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_service_prices_toggle",
-      "community": 71,
-      "community_name": "service_prices.html",
+      "community": 10,
+      "community_name": "route",
       "norm_label": "service_prices_toggle()"
     },
     {
@@ -1885,7 +1885,7 @@
       "_origin": "ast",
       "id": "app_calendar_view",
       "community": 12,
-      "community_name": "Base Layout Template",
+      "community_name": "Calendar View (FullCalendar)",
       "norm_label": "calendar_view()"
     },
     {
@@ -1896,7 +1896,7 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_calendar_diagnosticos",
-      "community": 12,
+      "community": 1,
       "community_name": "Base Layout Template",
       "norm_label": "calendar_diagnosticos()"
     },
@@ -1908,8 +1908,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_api_dia_cerrado",
-      "community": 64,
-      "community_name": "motivo_dia_cerrado",
+      "community": 51,
+      "community_name": "api_public_mb_book",
       "norm_label": "api_dia_cerrado()"
     },
     {
@@ -1920,8 +1920,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_requiere_confirmar_dia_cerrado",
-      "community": 64,
-      "community_name": "motivo_dia_cerrado",
+      "community": 70,
+      "community_name": "edit_appointment",
       "norm_label": "_requiere_confirmar_dia_cerrado()"
     },
     {
@@ -1956,8 +1956,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_vehicle_coverage_matrix",
-      "community": 82,
-      "community_name": "public_booking_mercedes",
+      "community": 7,
+      "community_name": "app.py",
       "norm_label": "_vehicle_coverage_matrix()"
     },
     {
@@ -1968,8 +1968,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_public_booking_mercedes",
-      "community": 82,
-      "community_name": "public_booking_mercedes",
+      "community": 7,
+      "community_name": "app.py",
       "norm_label": "public_booking_mercedes()"
     },
     {
@@ -1980,8 +1980,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_api_public_mb_price",
-      "community": 51,
-      "community_name": "api_public_mb_book",
+      "community": 62,
+      "community_name": "apply_agreement_discount_split",
       "norm_label": "api_public_mb_price()"
     },
     {
@@ -2029,7 +2029,7 @@
       "_origin": "ast",
       "id": "app_appointments_list",
       "community": 12,
-      "community_name": "Base Layout Template",
+      "community_name": "Calendar View (FullCalendar)",
       "norm_label": "appointments_list()"
     },
     {
@@ -2041,7 +2041,7 @@
       "_origin": "ast",
       "id": "app_delete_appointment",
       "community": 12,
-      "community_name": "Base Layout Template",
+      "community_name": "Calendar View (FullCalendar)",
       "norm_label": "delete_appointment()"
     },
     {
@@ -2064,8 +2064,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_services_view",
-      "community": 15,
-      "community_name": "Service",
+      "community": 1,
+      "community_name": "Base Layout Template",
       "norm_label": "services_view()"
     },
     {
@@ -2136,7 +2136,7 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_parse_date",
-      "community": 9,
+      "community": 22,
       "community_name": "_parse_date",
       "norm_label": "_parse_date()"
     },
@@ -2149,7 +2149,7 @@
       "_origin": "ast",
       "id": "app_expenses_list",
       "community": 9,
-      "community_name": "_parse_date",
+      "community_name": "Expenses List (DataTable)",
       "norm_label": "expenses_list()"
     },
     {
@@ -2160,7 +2160,7 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_meses_del_periodo",
-      "community": 31,
+      "community": 45,
       "community_name": "analytics_dashboard",
       "norm_label": "_meses_del_periodo()"
     },
@@ -2172,8 +2172,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_transacciones_citas",
-      "community": 48,
-      "community_name": "Appointment",
+      "community": 31,
+      "community_name": "_transacciones_citas",
       "norm_label": "_transacciones_citas()"
     },
     {
@@ -2184,7 +2184,7 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_servicios_facturables",
-      "community": 31,
+      "community": 45,
       "community_name": "analytics_dashboard",
       "norm_label": "_servicios_facturables()"
     },
@@ -2196,7 +2196,7 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_analytics_data",
-      "community": 31,
+      "community": 45,
       "community_name": "analytics_dashboard",
       "norm_label": "_analytics_data()"
     },
@@ -2208,8 +2208,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_rango",
-      "community": 68,
-      "community_name": "_kpis_embudo",
+      "community": 45,
+      "community_name": "analytics_dashboard",
       "norm_label": "_rango()"
     },
     {
@@ -2220,8 +2220,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_rango_utc",
-      "community": 68,
-      "community_name": "_kpis_embudo",
+      "community": 45,
+      "community_name": "analytics_dashboard",
       "norm_label": "_rango_utc()"
     },
     {
@@ -2232,7 +2232,7 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_kpis_rentabilidad",
-      "community": 31,
+      "community": 45,
       "community_name": "analytics_dashboard",
       "norm_label": "_kpis_rentabilidad()"
     },
@@ -2244,8 +2244,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_kpis_embudo",
-      "community": 68,
-      "community_name": "_kpis_embudo",
+      "community": 45,
+      "community_name": "analytics_dashboard",
       "norm_label": "_kpis_embudo()"
     },
     {
@@ -2256,8 +2256,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_kpis_operacion",
-      "community": 68,
-      "community_name": "_kpis_embudo",
+      "community": 45,
+      "community_name": "analytics_dashboard",
       "norm_label": "_kpis_operacion()"
     },
     {
@@ -2269,7 +2269,7 @@
       "_origin": "ast",
       "id": "app_kpis_diagnosticos",
       "community": 31,
-      "community_name": "analytics_dashboard",
+      "community_name": "_transacciones_citas",
       "norm_label": "_kpis_diagnosticos()"
     },
     {
@@ -2280,7 +2280,7 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_kpis_clientes",
-      "community": 31,
+      "community": 45,
       "community_name": "analytics_dashboard",
       "norm_label": "_kpis_clientes()"
     },
@@ -2292,7 +2292,7 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_analytics_dashboard",
-      "community": 31,
+      "community": 45,
       "community_name": "analytics_dashboard",
       "norm_label": "analytics_dashboard()"
     },
@@ -2304,8 +2304,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_resumen_gerencial",
-      "community": 9,
-      "community_name": "_parse_date",
+      "community": 44,
+      "community_name": "_can_see_notifications",
       "norm_label": "_resumen_gerencial()"
     },
     {
@@ -2316,8 +2316,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_dashboard_gerencial",
-      "community": 9,
-      "community_name": "_parse_date",
+      "community": 44,
+      "community_name": "_can_see_notifications",
       "norm_label": "dashboard_gerencial()"
     },
     {
@@ -2328,8 +2328,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_analytics_detalle",
-      "community": 48,
-      "community_name": "Appointment",
+      "community": 22,
+      "community_name": "_parse_date",
       "norm_label": "analytics_detalle()"
     },
     {
@@ -2340,7 +2340,7 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_sales_list",
-      "community": 9,
+      "community": 22,
       "community_name": "_parse_date",
       "norm_label": "sales_list()"
     },
@@ -2352,7 +2352,7 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_sales_export",
-      "community": 9,
+      "community": 22,
       "community_name": "_parse_date",
       "norm_label": "sales_export()"
     },
@@ -2365,7 +2365,7 @@
       "_origin": "ast",
       "id": "app_expenses_new",
       "community": 9,
-      "community_name": "_parse_date",
+      "community_name": "Expenses List (DataTable)",
       "norm_label": "expenses_new()"
     },
     {
@@ -2377,7 +2377,7 @@
       "_origin": "ast",
       "id": "app_expenses_edit",
       "community": 9,
-      "community_name": "_parse_date",
+      "community_name": "Expenses List (DataTable)",
       "norm_label": "expenses_edit()"
     },
     {
@@ -2389,7 +2389,7 @@
       "_origin": "ast",
       "id": "app_expenses_toggle_void",
       "community": 9,
-      "community_name": "_parse_date",
+      "community_name": "Expenses List (DataTable)",
       "norm_label": "expenses_toggle_void()"
     },
     {
@@ -2401,7 +2401,7 @@
       "_origin": "ast",
       "id": "app_expenses_export",
       "community": 9,
-      "community_name": "_parse_date",
+      "community_name": "Expenses List (DataTable)",
       "norm_label": "expenses_export()"
     },
     {
@@ -2412,8 +2412,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_expense_categories_list",
-      "community": 9,
-      "community_name": "_parse_date",
+      "community": 63,
+      "community_name": "Expense Categories Management",
       "norm_label": "expense_categories_list()"
     },
     {
@@ -2473,7 +2473,7 @@
       "_origin": "ast",
       "id": "app_api_events",
       "community": 48,
-      "community_name": "Appointment",
+      "community_name": "appointment_money",
       "norm_label": "api_events()"
     },
     {
@@ -2485,7 +2485,7 @@
       "_origin": "ast",
       "id": "app_appointment_json",
       "community": 48,
-      "community_name": "Appointment",
+      "community_name": "appointment_money",
       "norm_label": "appointment_json()"
     },
     {
@@ -2496,8 +2496,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_api_client_by_plate",
-      "community": 57,
-      "community_name": "normalize_plate",
+      "community": 20,
+      "community_name": "book_diagnostic_from_bot",
       "norm_label": "api_client_by_plate()"
     },
     {
@@ -2532,8 +2532,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_api_client_plates",
-      "community": 10,
-      "community_name": "route",
+      "community": 55,
+      "community_name": "api_notifications",
       "norm_label": "api_client_plates()"
     },
     {
@@ -2544,8 +2544,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_api_client_names",
-      "community": 10,
-      "community_name": "route",
+      "community": 55,
+      "community_name": "api_notifications",
       "norm_label": "api_client_names()"
     },
     {
@@ -2569,7 +2569,7 @@
       "_origin": "ast",
       "id": "app_api_estimate_price",
       "community": 48,
-      "community_name": "Appointment",
+      "community_name": "appointment_money",
       "norm_label": "api_estimate_price()"
     },
     {
@@ -2581,7 +2581,7 @@
       "_origin": "ast",
       "id": "app_close_appointment",
       "community": 48,
-      "community_name": "Appointment",
+      "community_name": "appointment_money",
       "norm_label": "close_appointment()"
     },
     {
@@ -2629,7 +2629,7 @@
       "_origin": "ast",
       "id": "app_parking_list",
       "community": 22,
-      "community_name": "parking_new",
+      "community_name": "_parse_date",
       "norm_label": "parking_list()"
     },
     {
@@ -2641,7 +2641,7 @@
       "_origin": "ast",
       "id": "app_parking_new",
       "community": 22,
-      "community_name": "parking_new",
+      "community_name": "_parse_date",
       "norm_label": "parking_new()"
     },
     {
@@ -2653,7 +2653,7 @@
       "_origin": "ast",
       "id": "app_parking_delete",
       "community": 22,
-      "community_name": "parking_new",
+      "community_name": "_parse_date",
       "norm_label": "parking_delete()"
     },
     {
@@ -2664,8 +2664,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_ensure_payroll_schema",
-      "community": 86,
-      "community_name": "ensure_payroll_schema",
+      "community": 7,
+      "community_name": "app.py",
       "norm_label": "ensure_payroll_schema()"
     },
     {
@@ -2676,8 +2676,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_ensure_adjustment_base_schema",
-      "community": 84,
-      "community_name": "ensure_adjustment_base_schema",
+      "community": 7,
+      "community_name": "app.py",
       "norm_label": "ensure_adjustment_base_schema()"
     },
     {
@@ -2688,8 +2688,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_migrate_booking_adjustments_to_rows",
-      "community": 69,
-      "community_name": "sync_appointment_adjustments",
+      "community": 4,
+      "community_name": "test_abonos_ajustes.py",
       "norm_label": "migrate_booking_adjustments_to_rows()"
     },
     {
@@ -2712,7 +2712,7 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_users_list",
-      "community": 12,
+      "community": 1,
       "community_name": "Base Layout Template",
       "norm_label": "users_list()"
     },
@@ -2808,8 +2808,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_es_marketing",
-      "community": 58,
-      "community_name": "puede_ver_finanzas",
+      "community": 45,
+      "community_name": "analytics_dashboard",
       "norm_label": "es_marketing()"
     },
     {
@@ -2821,7 +2821,7 @@
       "_origin": "ast",
       "id": "app_es_operario",
       "community": 48,
-      "community_name": "Appointment",
+      "community_name": "appointment_money",
       "norm_label": "es_operario()"
     },
     {
@@ -2831,8 +2831,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "template_global",
-      "community": 58,
-      "community_name": "puede_ver_finanzas",
+      "community": 45,
+      "community_name": "analytics_dashboard",
       "norm_label": "template_global"
     },
     {
@@ -2843,8 +2843,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_puede_ver_finanzas",
-      "community": 58,
-      "community_name": "puede_ver_finanzas",
+      "community": 45,
+      "community_name": "analytics_dashboard",
       "norm_label": "puede_ver_finanzas()"
     },
     {
@@ -2856,7 +2856,7 @@
       "_origin": "ast",
       "id": "app_puede_ver_precios",
       "community": 48,
-      "community_name": "Appointment",
+      "community_name": "appointment_money",
       "norm_label": "puede_ver_precios()"
     },
     {
@@ -2866,8 +2866,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "before_request",
-      "community": 89,
-      "community_name": "require_login",
+      "community": 7,
+      "community_name": "app.py",
       "norm_label": "before_request"
     },
     {
@@ -2878,8 +2878,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_require_login",
-      "community": 89,
-      "community_name": "require_login",
+      "community": 7,
+      "community_name": "app.py",
       "norm_label": "require_login()"
     },
     {
@@ -2889,8 +2889,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "context_processor",
-      "community": 88,
-      "community_name": "inject_user",
+      "community": 7,
+      "community_name": "app.py",
       "norm_label": "context_processor"
     },
     {
@@ -2901,8 +2901,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_inject_user",
-      "community": 88,
-      "community_name": "inject_user",
+      "community": 7,
+      "community_name": "app.py",
       "norm_label": "inject_user()"
     },
     {
@@ -2925,8 +2925,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_is_safe_redirect_target",
-      "community": 13,
-      "community_name": "User",
+      "community": 55,
+      "community_name": "api_notifications",
       "norm_label": "_is_safe_redirect_target()"
     },
     {
@@ -2936,8 +2936,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "limit",
-      "community": 10,
-      "community_name": "route",
+      "community": 55,
+      "community_name": "api_notifications",
       "norm_label": "limit"
     },
     {
@@ -2948,8 +2948,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_login",
-      "community": 13,
-      "community_name": "User",
+      "community": 55,
+      "community_name": "api_notifications",
       "norm_label": "login()"
     },
     {
@@ -2960,7 +2960,7 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_logout",
-      "community": 12,
+      "community": 1,
       "community_name": "Base Layout Template",
       "norm_label": "logout()"
     },
@@ -2984,7 +2984,7 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_vales_list",
-      "community": 12,
+      "community": 1,
       "community_name": "Base Layout Template",
       "norm_label": "vales_list()"
     },
@@ -3020,7 +3020,7 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_quality_errors_list",
-      "community": 12,
+      "community": 1,
       "community_name": "Base Layout Template",
       "norm_label": "quality_errors_list()"
     },
@@ -3044,8 +3044,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_quality_errors_delete",
-      "community": 49,
-      "community_name": "quality_errors_new",
+      "community": 25,
+      "community_name": "payroll_detail.html",
       "norm_label": "quality_errors_delete()"
     },
     {
@@ -3152,7 +3152,7 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_normalize_whatsapp_number",
-      "community": 30,
+      "community": 72,
       "community_name": "_normalize_whatsapp_number",
       "norm_label": "_normalize_whatsapp_number()"
     },
@@ -3164,7 +3164,7 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_twilio_from_number",
-      "community": 46,
+      "community": 56,
       "community_name": "send_whatsapp",
       "norm_label": "_twilio_from_number()"
     },
@@ -3176,8 +3176,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_public_base_url",
-      "community": 55,
-      "community_name": "_status_callback_url",
+      "community": 17,
+      "community_name": "promotions_list",
       "norm_label": "_public_base_url()"
     },
     {
@@ -3188,8 +3188,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_status_callback_url",
-      "community": 55,
-      "community_name": "_status_callback_url",
+      "community": 17,
+      "community_name": "promotions_list",
       "norm_label": "_status_callback_url()"
     },
     {
@@ -3212,7 +3212,7 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_send_whatsapp",
-      "community": 46,
+      "community": 56,
       "community_name": "send_whatsapp",
       "norm_label": "send_whatsapp()"
     },
@@ -3296,8 +3296,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_fetch_twilio_media_base64",
-      "community": 87,
-      "community_name": "_fetch_twilio_media_base64",
+      "community": 7,
+      "community_name": "app.py",
       "norm_label": "_fetch_twilio_media_base64()"
     },
     {
@@ -3320,8 +3320,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_diagnostic_service",
-      "community": 48,
-      "community_name": "Appointment",
+      "community": 31,
+      "community_name": "_transacciones_citas",
       "norm_label": "_diagnostic_service()"
     },
     {
@@ -3404,8 +3404,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_fecha_hoy_para_prompt",
-      "community": 18,
-      "community_name": "get_claude_reply",
+      "community": 65,
+      "community_name": "_build_message_history",
       "norm_label": "_fecha_hoy_para_prompt()"
     },
     {
@@ -3547,8 +3547,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_phone_for_display",
-      "community": 72,
-      "community_name": "book_diagnostic_from_bot",
+      "community": 18,
+      "community_name": "get_claude_reply",
       "norm_label": "_phone_for_display()"
     },
     {
@@ -3560,7 +3560,7 @@
       "_origin": "ast",
       "id": "app_clean_phone_or_default",
       "community": 72,
-      "community_name": "book_diagnostic_from_bot",
+      "community_name": "_normalize_whatsapp_number",
       "norm_label": "_clean_phone_or_default()"
     },
     {
@@ -3572,7 +3572,7 @@
       "_origin": "ast",
       "id": "app_looks_like_welcome_menu",
       "community": 46,
-      "community_name": "send_whatsapp",
+      "community_name": "_generate_and_send_reply",
       "norm_label": "_looks_like_welcome_menu()"
     },
     {
@@ -3584,7 +3584,7 @@
       "_origin": "ast",
       "id": "app_parse_agendar_marker",
       "community": 46,
-      "community_name": "send_whatsapp",
+      "community_name": "_generate_and_send_reply",
       "norm_label": "_parse_agendar_marker()"
     },
     {
@@ -3595,7 +3595,7 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_book_diagnostic_from_bot",
-      "community": 72,
+      "community": 20,
       "community_name": "book_diagnostic_from_bot",
       "norm_label": "book_diagnostic_from_bot()"
     },
@@ -3607,8 +3607,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_find_active_appointment_by_plate",
-      "community": 50,
-      "community_name": "bogota_now",
+      "community": 20,
+      "community_name": "book_diagnostic_from_bot",
       "norm_label": "_find_active_appointment_by_plate()"
     },
     {
@@ -3619,8 +3619,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_reschedule_diagnostic_from_bot",
-      "community": 50,
-      "community_name": "bogota_now",
+      "community": 20,
+      "community_name": "book_diagnostic_from_bot",
       "norm_label": "reschedule_diagnostic_from_bot()"
     },
     {
@@ -3632,7 +3632,7 @@
       "_origin": "ast",
       "id": "app_notify_admin_bot_reschedule",
       "community": 46,
-      "community_name": "send_whatsapp",
+      "community_name": "_generate_and_send_reply",
       "norm_label": "notify_admin_bot_reschedule()"
     },
     {
@@ -3644,7 +3644,7 @@
       "_origin": "ast",
       "id": "app_notify_admin_bot_booking",
       "community": 46,
-      "community_name": "send_whatsapp",
+      "community_name": "_generate_and_send_reply",
       "norm_label": "notify_admin_bot_booking()"
     },
     {
@@ -3656,7 +3656,7 @@
       "_origin": "ast",
       "id": "app_notify_admin_escalation",
       "community": 46,
-      "community_name": "send_whatsapp",
+      "community_name": "_generate_and_send_reply",
       "norm_label": "notify_admin_escalation()"
     },
     {
@@ -3728,7 +3728,7 @@
       "_origin": "ast",
       "id": "app_meta_firma_valida",
       "community": 30,
-      "community_name": "_normalize_whatsapp_number",
+      "community_name": "_procesar_lead_de_meta",
       "norm_label": "_meta_firma_valida()"
     },
     {
@@ -3740,7 +3740,7 @@
       "_origin": "ast",
       "id": "app_meta_traer_lead",
       "community": 30,
-      "community_name": "_normalize_whatsapp_number",
+      "community_name": "_procesar_lead_de_meta",
       "norm_label": "_meta_traer_lead()"
     },
     {
@@ -3752,7 +3752,7 @@
       "_origin": "ast",
       "id": "app_meta_parsear_lead",
       "community": 30,
-      "community_name": "_normalize_whatsapp_number",
+      "community_name": "_procesar_lead_de_meta",
       "norm_label": "_meta_parsear_lead()"
     },
     {
@@ -3764,7 +3764,7 @@
       "_origin": "ast",
       "id": "app_api_public_meta_lead",
       "community": 30,
-      "community_name": "_normalize_whatsapp_number",
+      "community_name": "_procesar_lead_de_meta",
       "norm_label": "api_public_meta_lead()"
     },
     {
@@ -3776,7 +3776,7 @@
       "_origin": "ast",
       "id": "app_procesar_lead_de_meta",
       "community": 30,
-      "community_name": "_normalize_whatsapp_number",
+      "community_name": "_procesar_lead_de_meta",
       "norm_label": "_procesar_lead_de_meta()"
     },
     {
@@ -3788,7 +3788,7 @@
       "_origin": "ast",
       "id": "app_generate_and_send_reply",
       "community": 46,
-      "community_name": "send_whatsapp",
+      "community_name": "_generate_and_send_reply",
       "norm_label": "_generate_and_send_reply()"
     },
     {
@@ -3799,8 +3799,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_validate_twilio_signature",
-      "community": 83,
-      "community_name": "_validate_twilio_signature",
+      "community": 17,
+      "community_name": "promotions_list",
       "norm_label": "_validate_twilio_signature()"
     },
     {
@@ -3811,8 +3811,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_whatsapp_status_webhook",
-      "community": 83,
-      "community_name": "_validate_twilio_signature",
+      "community": 17,
+      "community_name": "promotions_list",
       "norm_label": "whatsapp_status_webhook()"
     },
     {
@@ -3835,8 +3835,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_whatsapp_rows",
-      "community": 73,
-      "community_name": "whatsapp_conversation",
+      "community": 59,
+      "community_name": "whatsapp_messages_json",
       "norm_label": "_whatsapp_rows()"
     },
     {
@@ -3847,8 +3847,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_whatsapp_inbox",
-      "community": 73,
-      "community_name": "whatsapp_conversation",
+      "community": 59,
+      "community_name": "whatsapp_messages_json",
       "norm_label": "whatsapp_inbox()"
     },
     {
@@ -3871,8 +3871,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_estados_entrega",
-      "community": 73,
-      "community_name": "whatsapp_conversation",
+      "community": 59,
+      "community_name": "whatsapp_messages_json",
       "norm_label": "_estados_entrega()"
     },
     {
@@ -3883,8 +3883,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_whatsapp_conversation",
-      "community": 73,
-      "community_name": "whatsapp_conversation",
+      "community": 59,
+      "community_name": "whatsapp_messages_json",
       "norm_label": "whatsapp_conversation()"
     },
     {
@@ -3895,8 +3895,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_whatsapp_media",
-      "community": 10,
-      "community_name": "route",
+      "community": 44,
+      "community_name": "_can_see_notifications",
       "norm_label": "whatsapp_media()"
     },
     {
@@ -3979,8 +3979,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_job_admin_reminder",
-      "community": 50,
-      "community_name": "bogota_now",
+      "community": 56,
+      "community_name": "send_whatsapp",
       "norm_label": "_job_admin_reminder()"
     },
     {
@@ -4039,8 +4039,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_job_post_service_followup",
-      "community": 48,
-      "community_name": "Appointment",
+      "community": 31,
+      "community_name": "_transacciones_citas",
       "norm_label": "_job_post_service_followup()"
     },
     {
@@ -4146,8 +4146,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_filtro_dia_bogota",
-      "community": 59,
-      "community_name": "whatsapp_messages_json",
+      "community": 50,
+      "community_name": "bogota_now",
       "norm_label": "_filtro_dia_bogota()"
     },
     {
@@ -4170,8 +4170,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_promo_image",
-      "community": 10,
-      "community_name": "route",
+      "community": 44,
+      "community_name": "_can_see_notifications",
       "norm_label": "promo_image()"
     },
     {
@@ -4182,7 +4182,7 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_save_promo_image",
-      "community": 19,
+      "community": 17,
       "community_name": "promotions_list",
       "norm_label": "_save_promo_image()"
     },
@@ -4194,8 +4194,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_categoria_de_servicio",
-      "community": 58,
-      "community_name": "puede_ver_finanzas",
+      "community": 45,
+      "community_name": "analytics_dashboard",
       "norm_label": "categoria_de_servicio()"
     },
     {
@@ -4207,7 +4207,7 @@
       "_origin": "ast",
       "id": "app_semaforo",
       "community": 45,
-      "community_name": "Analytics Dashboard",
+      "community_name": "analytics_dashboard",
       "norm_label": "semaforo()"
     },
     {
@@ -4218,8 +4218,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_agrupar_servicios",
-      "community": 58,
-      "community_name": "puede_ver_finanzas",
+      "community": 45,
+      "community_name": "analytics_dashboard",
       "norm_label": "agrupar_servicios()"
     },
     {
@@ -4230,7 +4230,7 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_parse_fecha",
-      "community": 19,
+      "community": 17,
       "community_name": "promotions_list",
       "norm_label": "_parse_fecha()"
     },
@@ -4242,7 +4242,7 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_promotions_list",
-      "community": 19,
+      "community": 17,
       "community_name": "promotions_list",
       "norm_label": "promotions_list()"
     },
@@ -4254,8 +4254,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_promotions_toggle",
-      "community": 10,
-      "community_name": "route",
+      "community": 44,
+      "community_name": "_can_see_notifications",
       "norm_label": "promotions_toggle()"
     },
     {
@@ -4266,8 +4266,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_promotions_delete",
-      "community": 10,
-      "community_name": "route",
+      "community": 44,
+      "community_name": "_can_see_notifications",
       "norm_label": "promotions_delete()"
     },
     {
@@ -4278,8 +4278,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_can_see_notifications",
-      "community": 10,
-      "community_name": "route",
+      "community": 44,
+      "community_name": "_can_see_notifications",
       "norm_label": "_can_see_notifications()"
     },
     {
@@ -4290,8 +4290,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_api_notifications",
-      "community": 10,
-      "community_name": "route",
+      "community": 55,
+      "community_name": "api_notifications",
       "norm_label": "api_notifications()"
     },
     {
@@ -4302,8 +4302,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_notification_mark_read",
-      "community": 10,
-      "community_name": "route",
+      "community": 44,
+      "community_name": "_can_see_notifications",
       "norm_label": "notification_mark_read()"
     },
     {
@@ -4314,8 +4314,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_notifications_mark_all_read",
-      "community": 10,
-      "community_name": "route",
+      "community": 44,
+      "community_name": "_can_see_notifications",
       "norm_label": "notifications_mark_all_read()"
     },
     {
@@ -4326,8 +4326,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_notifications_list",
-      "community": 10,
-      "community_name": "route",
+      "community": 1,
+      "community_name": "Base Layout Template",
       "norm_label": "notifications_list()"
     },
     {
@@ -4338,8 +4338,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_whatsapp_outbox",
-      "community": 10,
-      "community_name": "route",
+      "community": 55,
+      "community_name": "api_notifications",
       "norm_label": "whatsapp_outbox()"
     },
     {
@@ -4350,7 +4350,7 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_test_whatsapp",
-      "community": 46,
+      "community": 56,
       "community_name": "send_whatsapp",
       "norm_label": "test_whatsapp()"
     },
@@ -4362,8 +4362,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_plans_list",
-      "community": 58,
-      "community_name": "puede_ver_finanzas",
+      "community": 50,
+      "community_name": "bogota_now",
       "norm_label": "plans_list()"
     },
     {
@@ -4387,7 +4387,7 @@
       "_origin": "ast",
       "id": "app_api_plans_by_plate",
       "community": 57,
-      "community_name": "normalize_plate",
+      "community_name": "api_plans_by_plate",
       "norm_label": "api_plans_by_plate()"
     },
     {
@@ -4399,7 +4399,7 @@
       "_origin": "ast",
       "id": "app_plan_sell",
       "community": 20,
-      "community_name": "plan_sell",
+      "community_name": "book_diagnostic_from_bot",
       "norm_label": "plan_sell()"
     },
     {
@@ -4410,8 +4410,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_plan_toggle",
-      "community": 58,
-      "community_name": "puede_ver_finanzas",
+      "community": 45,
+      "community_name": "analytics_dashboard",
       "norm_label": "plan_toggle()"
     },
     {
@@ -4530,8 +4530,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "app_diagnostico_anthropic",
-      "community": 38,
-      "community_name": "_clasificar_conversacion_historica",
+      "community": 16,
+      "community_name": "estado_servicios",
       "norm_label": "_diagnostico_anthropic()"
     },
     {
@@ -4610,7 +4610,7 @@
       "label": "_job_check_saldos()",
       "file_type": "code",
       "source_file": "noxadetail-app/app.py",
-      "source_location": "L10455",
+      "source_location": "L10457",
       "_callable": true,
       "_origin": "ast",
       "id": "app_job_check_saldos",
@@ -4658,8 +4658,8 @@
       "source_location": "L113",
       "_origin": "ast",
       "id": "app_rationale_113",
-      "community": 64,
-      "community_name": "motivo_dia_cerrado",
+      "community": 61,
+      "community_name": "date",
       "norm_label": "nombre del festivo si esa fecha lo es, o none."
     },
     {
@@ -4680,8 +4680,8 @@
       "source_location": "L127",
       "_origin": "ast",
       "id": "app_rationale_127",
-      "community": 64,
-      "community_name": "motivo_dia_cerrado",
+      "community": 51,
+      "community_name": "api_public_mb_book",
       "norm_label": "por que esta cerrado ese dia, en texto para el cliente. none si se atiende."
     },
     {
@@ -4702,8 +4702,8 @@
       "source_location": "L358",
       "_origin": "ast",
       "id": "app_rationale_358",
-      "community": 80,
-      "community_name": "_reparar_service_sales_appointment_id",
+      "community": 7,
+      "community_name": "app.py",
       "norm_label": "quita el not null viejo de service_sales.appointment_id. la tabla se creo..."
     },
     {
@@ -4713,8 +4713,8 @@
       "source_location": "L561",
       "_origin": "ast",
       "id": "app_rationale_561",
-      "community": 10,
-      "community_name": "route",
+      "community": 62,
+      "community_name": "apply_agreement_discount_split",
       "norm_label": "alias para compatibilidad con el frontend. delega en /api/agreements/quick-..."
     },
     {
@@ -4724,8 +4724,8 @@
       "source_location": "L862",
       "_origin": "ast",
       "id": "app_rationale_862",
-      "community": 85,
-      "community_name": "ensure_appointment_plan_schema",
+      "community": 7,
+      "community_name": "app.py",
       "norm_label": "columnas que vinculan una cita con el plan prepagado que la cubre."
     },
     {
@@ -4735,8 +4735,8 @@
       "source_location": "L952",
       "_origin": "ast",
       "id": "app_rationale_952",
-      "community": 78,
-      "community_name": "MaintenancePlan",
+      "community": 7,
+      "community_name": "app.py",
       "norm_label": "catalogo de planes de mantenimiento de ceramico. cada plan es una bolsa..."
     },
     {
@@ -4779,8 +4779,8 @@
       "source_location": "L1119",
       "_origin": "ast",
       "id": "app_rationale_1119",
-      "community": 69,
-      "community_name": "sync_appointment_adjustments",
+      "community": 4,
+      "community_name": "test_abonos_ajustes.py",
       "norm_label": "un descuento o recargo de una cita. son varios por cita: antes cabia uno solo y..."
     },
     {
@@ -4790,8 +4790,8 @@
       "source_location": "L1141",
       "_origin": "ast",
       "id": "app_rationale_1141",
-      "community": 74,
-      "community_name": "sync_appointment_payments",
+      "community": 4,
+      "community_name": "test_abonos_ajustes.py",
       "norm_label": "un abono: plata que el cliente ya entrego a cuenta del servicio. ojo \u2014 esto no..."
     },
     {
@@ -4890,7 +4890,7 @@
       "_origin": "ast",
       "id": "app_rationale_1425",
       "community": 17,
-      "community_name": "Promotion",
+      "community_name": "promotions_list",
       "norm_label": "promociones que el equipo monta a mano y mariana usa para cerrar. el texto va..."
     },
     {
@@ -4900,8 +4900,8 @@
       "source_location": "L1444",
       "_origin": "ast",
       "id": "app_rationale_1444",
-      "community": 17,
-      "community_name": "Promotion",
+      "community": 50,
+      "community_name": "bogota_now",
       "norm_label": "activa y dentro de fechas. las fechas vacias significan \"sin limite\"."
     },
     {
@@ -4912,7 +4912,7 @@
       "_origin": "ast",
       "id": "app_rationale_1456",
       "community": 17,
-      "community_name": "Promotion",
+      "community_name": "promotions_list",
       "norm_label": "url absoluta: twilio la descarga desde internet, no sirve una ruta local."
     },
     {
@@ -4999,8 +4999,8 @@
       "source_location": "L1816",
       "_origin": "ast",
       "id": "app_rationale_1816",
-      "community": 57,
-      "community_name": "normalize_plate",
+      "community": 20,
+      "community_name": "book_diagnostic_from_bot",
       "norm_label": "normaliza placa: trim, sin espacios internos, mayusculas."
     },
     {
@@ -5011,7 +5011,7 @@
       "_origin": "ast",
       "id": "app_rationale_1829",
       "community": 20,
-      "community_name": "plan_sell",
+      "community_name": "book_diagnostic_from_bot",
       "norm_label": "crea o actualiza el cliente por placa."
     },
     {
@@ -5033,7 +5033,7 @@
       "_origin": "ast",
       "id": "app_rationale_1900",
       "community": 48,
-      "community_name": "Appointment",
+      "community_name": "appointment_money",
       "norm_label": "calcula el precio base real usando serviceprice. estrategia: - suma los precios..."
     },
     {
@@ -5043,8 +5043,8 @@
       "source_location": "L1926",
       "_origin": "ast",
       "id": "app_rationale_1926",
-      "community": 51,
-      "community_name": "api_public_mb_book",
+      "community": 62,
+      "community_name": "apply_agreement_discount_split",
       "norm_label": "busca en produccion el agreement activo que corresponde al tier del socio."
     },
     {
@@ -5054,8 +5054,8 @@
       "source_location": "L1935",
       "_origin": "ast",
       "id": "app_rationale_1935",
-      "community": 51,
-      "community_name": "api_public_mb_book",
+      "community": 56,
+      "community_name": "send_whatsapp",
       "norm_label": "avisa por whatsapp al admin cuando un socio del club mercedes-benz se..."
     },
     {
@@ -5121,7 +5121,7 @@
       "_origin": "ast",
       "id": "app_rationale_2130",
       "community": 48,
-      "community_name": "Appointment",
+      "community_name": "appointment_money",
       "norm_label": "aplica una lista de descuentos/recargos sobre el subtotal. cada linea en..."
     },
     {
@@ -5132,7 +5132,7 @@
       "_origin": "ast",
       "id": "app_rationale_2181",
       "community": 48,
-      "community_name": "Appointment",
+      "community_name": "appointment_money",
       "norm_label": "todo el desglose de plata de una cita, en un solo lugar. la distincion que..."
     },
     {
@@ -5143,7 +5143,7 @@
       "_origin": "ast",
       "id": "app_rationale_2236",
       "community": 48,
-      "community_name": "Appointment",
+      "community_name": "appointment_money",
       "norm_label": "lo que vale el servicio: precio de lista, menos convenio, mas/menos los..."
     },
     {
@@ -5153,8 +5153,8 @@
       "source_location": "L2261",
       "_origin": "ast",
       "id": "app_rationale_2261",
-      "community": 48,
-      "community_name": "Appointment",
+      "community": 69,
+      "community_name": "abreviar_servicios",
       "norm_label": "un nombre de servicio que quepa en el cajon de una cita."
     },
     {
@@ -5165,7 +5165,7 @@
       "_origin": "ast",
       "id": "app_rationale_2276",
       "community": 48,
-      "community_name": "Appointment",
+      "community_name": "appointment_money",
       "norm_label": "una cita es de diagnostico solo si no trae nada mas. si el cliente aprovecho y..."
     },
     {
@@ -5175,8 +5175,8 @@
       "source_location": "L2292",
       "_origin": "ast",
       "id": "app_rationale_2292",
-      "community": 48,
-      "community_name": "Appointment",
+      "community": 69,
+      "community_name": "abreviar_servicios",
       "norm_label": "varios servicios en una linea: los dos primeros y cuantos faltan."
     },
     {
@@ -5186,8 +5186,8 @@
       "source_location": "L2304",
       "_origin": "ast",
       "id": "app_rationale_2304",
-      "community": 20,
-      "community_name": "plan_sell",
+      "community": 70,
+      "community_name": "edit_appointment",
       "norm_label": "los campos de plata llegan del formulario como texto y a veces con puntos de..."
     },
     {
@@ -5197,8 +5197,8 @@
       "source_location": "L2313",
       "_origin": "ast",
       "id": "app_rationale_2313",
-      "community": 69,
-      "community_name": "sync_appointment_adjustments",
+      "community": 70,
+      "community_name": "edit_appointment",
       "norm_label": "reemplaza los descuentos/recargos de la cita por los que trae el formulario...."
     },
     {
@@ -5208,8 +5208,8 @@
       "source_location": "L2340",
       "_origin": "ast",
       "id": "app_rationale_2340",
-      "community": 74,
-      "community_name": "sync_appointment_payments",
+      "community": 70,
+      "community_name": "edit_appointment",
       "norm_label": "igual que los ajustes, pero para los abonos. un abono sin fecha se toma como de..."
     },
     {
@@ -5220,7 +5220,7 @@
       "_origin": "ast",
       "id": "app_rationale_2359",
       "community": 57,
-      "community_name": "normalize_plate",
+      "community_name": "api_plans_by_plate",
       "norm_label": "planes que esa placa puede usar hoy: activos, sin vencer y con algun cupo."
     },
     {
@@ -5241,8 +5241,8 @@
       "source_location": "L2429",
       "_origin": "ast",
       "id": "app_rationale_2429",
-      "community": 48,
-      "community_name": "Appointment",
+      "community": 70,
+      "community_name": "edit_appointment",
       "norm_label": "devuelve el cupo cuando la cita se cancela o se borra."
     },
     {
@@ -5253,7 +5253,7 @@
       "_origin": "ast",
       "id": "app_rationale_2632",
       "community": 12,
-      "community_name": "Base Layout Template",
+      "community_name": "Calendar View (FullCalendar)",
       "norm_label": "la agenda de siempre: todo lo que factura."
     },
     {
@@ -5263,7 +5263,7 @@
       "source_location": "L2638",
       "_origin": "ast",
       "id": "app_rationale_2638",
-      "community": 12,
+      "community": 1,
       "community_name": "Base Layout Template",
       "norm_label": "la misma agenda, pero solo con los diagnosticos. van aparte porque se leen..."
     },
@@ -5274,8 +5274,8 @@
       "source_location": "L2647",
       "_origin": "ast",
       "id": "app_rationale_2647",
-      "community": 64,
-      "community_name": "motivo_dia_cerrado",
+      "community": 51,
+      "community_name": "api_public_mb_book",
       "norm_label": "\u00bfse atiende ese dia? lo consulta el formulario de citas para avisar antes de..."
     },
     {
@@ -5285,8 +5285,8 @@
       "source_location": "L2664",
       "_origin": "ast",
       "id": "app_rationale_2664",
-      "community": 64,
-      "community_name": "motivo_dia_cerrado",
+      "community": 70,
+      "community_name": "edit_appointment",
       "norm_label": "guardia de servidor para las citas creadas a mano. el aviso en pantalla se..."
     },
     {
@@ -5307,8 +5307,8 @@
       "source_location": "L2824",
       "_origin": "ast",
       "id": "app_rationale_2824",
-      "community": 82,
-      "community_name": "public_booking_mercedes",
+      "community": 7,
+      "community_name": "app.py",
       "norm_label": "{service_id: [vehicle_type_id, ...]} solo con combinaciones que tienen precio..."
     },
     {
@@ -5319,7 +5319,7 @@
       "_origin": "ast",
       "id": "app_rationale_3087",
       "community": 12,
-      "community_name": "Base Layout Template",
+      "community_name": "Calendar View (FullCalendar)",
       "norm_label": "lista simple en tabla de las proximas citas."
     },
     {
@@ -5330,7 +5330,7 @@
       "_origin": "ast",
       "id": "app_rationale_3109",
       "community": 12,
-      "community_name": "Base Layout Template",
+      "community_name": "Calendar View (FullCalendar)",
       "norm_label": "borrar una cita es irreversible y se pierde el historial del cliente, asi que..."
     },
     {
@@ -5340,8 +5340,8 @@
       "source_location": "L3253",
       "_origin": "ast",
       "id": "app_rationale_3253",
-      "community": 15,
-      "community_name": "Service",
+      "community": 1,
+      "community_name": "Base Layout Template",
       "norm_label": "gestion simple de servicios: ver y agregar nuevos."
     },
     {
@@ -5352,7 +5352,7 @@
       "_origin": "ast",
       "id": "app_rationale_3348",
       "community": 9,
-      "community_name": "_parse_date",
+      "community_name": "Expenses List (DataTable)",
       "norm_label": "listado de gastos con filtros (sin limite) y busqueda simple."
     },
     {
@@ -5362,7 +5362,7 @@
       "source_location": "L3407",
       "_origin": "ast",
       "id": "app_rationale_3407",
-      "community": 31,
+      "community": 45,
       "community_name": "analytics_dashboard",
       "norm_label": "duracion del periodo en meses, con decimales. nunca menos de un mes para no..."
     },
@@ -5373,8 +5373,8 @@
       "source_location": "L3415",
       "_origin": "ast",
       "id": "app_rationale_3415",
-      "community": 48,
-      "community_name": "Appointment",
+      "community": 31,
+      "community_name": "_transacciones_citas",
       "norm_label": "toda cita agendada cuenta como servicio prestado \u2014 asi opera el negocio. el..."
     },
     {
@@ -5384,7 +5384,7 @@
       "source_location": "L3471",
       "_origin": "ast",
       "id": "app_rationale_3471",
-      "community": 31,
+      "community": 45,
       "community_name": "analytics_dashboard",
       "norm_label": "solo lo que factura: las citas de diagnostico quedan fuera."
     },
@@ -5395,7 +5395,7 @@
       "source_location": "L3476",
       "_origin": "ast",
       "id": "app_rationale_3476",
-      "community": 31,
+      "community": 45,
       "community_name": "analytics_dashboard",
       "norm_label": "metricas del periodo sobre las citas agendadas, que es como opera el negocio:..."
     },
@@ -5406,8 +5406,8 @@
       "source_location": "L3589",
       "_origin": "ast",
       "id": "app_rationale_3589",
-      "community": 68,
-      "community_name": "_kpis_embudo",
+      "community": 45,
+      "community_name": "analytics_dashboard",
       "norm_label": "limites para campos guardados en hora local de bogota, como..."
     },
     {
@@ -5417,8 +5417,8 @@
       "source_location": "L3596",
       "_origin": "ast",
       "id": "app_rationale_3596",
-      "community": 68,
-      "community_name": "_kpis_embudo",
+      "community": 45,
+      "community_name": "analytics_dashboard",
       "norm_label": "limites para campos guardados en utc (los `created_at`, que usan utcnow). sin..."
     },
     {
@@ -5428,7 +5428,7 @@
       "source_location": "L3608",
       "_origin": "ast",
       "id": "app_rationale_3608",
-      "community": 31,
+      "community": 45,
       "community_name": "analytics_dashboard",
       "norm_label": "ingresos contra gastos. es la unica cifra que dice si el negocio gana plata; el..."
     },
@@ -5439,8 +5439,8 @@
       "source_location": "L3644",
       "_origin": "ast",
       "id": "app_rationale_3644",
-      "community": 68,
-      "community_name": "_kpis_embudo",
+      "community": 45,
+      "community_name": "analytics_dashboard",
       "norm_label": "de conversacion de whatsapp a plata. conecta el trabajo de mariana con el..."
     },
     {
@@ -5450,8 +5450,8 @@
       "source_location": "L3677",
       "_origin": "ast",
       "id": "app_rationale_3677",
-      "community": 68,
-      "community_name": "_kpis_embudo",
+      "community": 45,
+      "community_name": "analytics_dashboard",
       "norm_label": "como se esta usando la capacidad instalada: cancelaciones, cuando llega la..."
     },
     {
@@ -5462,7 +5462,7 @@
       "_origin": "ast",
       "id": "app_rationale_3744",
       "community": 31,
-      "community_name": "analytics_dashboard",
+      "community_name": "_transacciones_citas",
       "norm_label": "el diagnostico es la puerta de entrada del negocio: es gratis y solo se..."
     },
     {
@@ -5472,7 +5472,7 @@
       "source_location": "L3807",
       "_origin": "ast",
       "id": "app_rationale_3807",
-      "community": 31,
+      "community": 45,
       "community_name": "analytics_dashboard",
       "norm_label": "recurrencia: en detailing conseguir un cliente cuesta mucho mas que hacerlo..."
     },
@@ -5483,8 +5483,8 @@
       "source_location": "L3878",
       "_origin": "ast",
       "id": "app_rationale_3878",
-      "community": 9,
-      "community_name": "_parse_date",
+      "community": 44,
+      "community_name": "_can_see_notifications",
       "norm_label": "los pocos numeros que un dueno necesita para saber si el negocio va bien. cada..."
     },
     {
@@ -5494,8 +5494,8 @@
       "source_location": "L3934",
       "_origin": "ast",
       "id": "app_rationale_3934",
-      "community": 48,
-      "community_name": "Appointment",
+      "community": 22,
+      "community_name": "_parse_date",
       "norm_label": "que hay detras de un punto de una grafica. un numero agregado sin poder abrirlo..."
     },
     {
@@ -5505,7 +5505,7 @@
       "source_location": "L4011",
       "_origin": "ast",
       "id": "app_rationale_4011",
-      "community": 9,
+      "community": 22,
       "community_name": "_parse_date",
       "norm_label": "listado de ingresos (ventas de servicios) con filtros basicos."
     },
@@ -5516,7 +5516,7 @@
       "source_location": "L4053",
       "_origin": "ast",
       "id": "app_rationale_4053",
-      "community": 9,
+      "community": 22,
       "community_name": "_parse_date",
       "norm_label": "export csv de ingresos (service_sales) con los mismos filtros del listado."
     },
@@ -5528,7 +5528,7 @@
       "_origin": "ast",
       "id": "app_rationale_4289",
       "community": 9,
-      "community_name": "_parse_date",
+      "community_name": "Expenses List (DataTable)",
       "norm_label": "export csv por filtros (para google sheets / looker studio)."
     },
     {
@@ -5539,7 +5539,7 @@
       "_origin": "ast",
       "id": "app_rationale_4445",
       "community": 48,
-      "community_name": "Appointment",
+      "community_name": "appointment_money",
       "norm_label": "devuelve las citas en formato json para fullcalendar. las lineas van sueltas y..."
     },
     {
@@ -5549,8 +5549,8 @@
       "source_location": "L4564",
       "_origin": "ast",
       "id": "app_rationale_4564",
-      "community": 57,
-      "community_name": "normalize_plate",
+      "community": 20,
+      "community_name": "book_diagnostic_from_bot",
       "norm_label": "devuelve datos de cliente por placa. uso: /api/clients/by-plate?plate=abc123"
     },
     {
@@ -5561,7 +5561,7 @@
       "_origin": "ast",
       "id": "app_rationale_4667",
       "community": 48,
-      "community_name": "Appointment",
+      "community_name": "appointment_money",
       "norm_label": "calcula el precio estimado segun: - servicios seleccionados - tipo de vehiculo..."
     },
     {
@@ -5571,8 +5571,8 @@
       "source_location": "L4969",
       "_origin": "ast",
       "id": "app_rationale_4969",
-      "community": 86,
-      "community_name": "ensure_payroll_schema",
+      "community": 7,
+      "community_name": "app.py",
       "norm_label": "agrega columnas de nomina a users si no existen."
     },
     {
@@ -5582,8 +5582,8 @@
       "source_location": "L4983",
       "_origin": "ast",
       "id": "app_rationale_4983",
-      "community": 84,
-      "community_name": "ensure_adjustment_base_schema",
+      "community": 7,
+      "community_name": "app.py",
       "norm_label": "agrega `base` a los descuentos/recargos ya guardados. ojo con el valor que se..."
     },
     {
@@ -5593,8 +5593,8 @@
       "source_location": "L5001",
       "_origin": "ast",
       "id": "app_rationale_5001",
-      "community": 69,
-      "community_name": "sync_appointment_adjustments",
+      "community": 4,
+      "community_name": "test_abonos_ajustes.py",
       "norm_label": "el ajuste al crear la cita era uno solo y vivia en tres columnas de..."
     },
     {
@@ -5604,8 +5604,8 @@
       "source_location": "L5486",
       "_origin": "ast",
       "id": "app_rationale_5486",
-      "community": 58,
-      "community_name": "puede_ver_finanzas",
+      "community": 45,
+      "community_name": "analytics_dashboard",
       "norm_label": "marketing ve conversion y comportamiento de clientes, no la caja."
     },
     {
@@ -5616,7 +5616,7 @@
       "_origin": "ast",
       "id": "app_rationale_5492",
       "community": 48,
-      "community_name": "Appointment",
+      "community_name": "appointment_money",
       "norm_label": "el operario agenda y trabaja citas, pero no ve cuanto valen los servicios."
     },
     {
@@ -5626,8 +5626,8 @@
       "source_location": "L5570",
       "_origin": "ast",
       "id": "app_rationale_5570",
-      "community": 13,
-      "community_name": "User",
+      "community": 55,
+      "community_name": "api_notifications",
       "norm_label": "evita \"open redirect\": el 'next' debe ser una ruta propia (/algo), nunca una..."
     },
     {
@@ -5637,7 +5637,7 @@
       "source_location": "L6032",
       "_origin": "ast",
       "id": "app_rationale_6032",
-      "community": 30,
+      "community": 72,
       "community_name": "_normalize_whatsapp_number",
       "norm_label": "normaliza un numero al formato e.164 que usa twilio/whatsapp (+57 por defecto,..."
     },
@@ -5648,7 +5648,7 @@
       "source_location": "L6057",
       "_origin": "ast",
       "id": "app_rationale_6057",
-      "community": 46,
+      "community": 56,
       "community_name": "send_whatsapp",
       "norm_label": "devuelve (numero_sin_prefijo, error). el sender de produccion de noxa es el..."
     },
@@ -5659,8 +5659,8 @@
       "source_location": "L6075",
       "_origin": "ast",
       "id": "app_rationale_6075",
-      "community": 55,
-      "community_name": "_status_callback_url",
+      "community": 17,
+      "community_name": "promotions_list",
       "norm_label": "dominio publico de la app, para que twilio sepa a donde devolver los callbacks..."
     },
     {
@@ -5681,7 +5681,7 @@
       "source_location": "L6108",
       "_origin": "ast",
       "id": "app_rationale_6108",
-      "community": 46,
+      "community": 56,
       "community_name": "send_whatsapp",
       "norm_label": "envia un mensaje de whatsapp via twilio. ojo con el valor de retorno: `ok=true`..."
     },
@@ -5747,8 +5747,8 @@
       "source_location": "L6887",
       "_origin": "ast",
       "id": "app_rationale_6887",
-      "community": 87,
-      "community_name": "_fetch_twilio_media_base64",
+      "community": 7,
+      "community_name": "app.py",
       "norm_label": "descarga una imagen de un mensaje de whatsapp (requiere auth de twilio) y la..."
     },
     {
@@ -5769,8 +5769,8 @@
       "source_location": "L6945",
       "_origin": "ast",
       "id": "app_rationale_6945",
-      "community": 48,
-      "community_name": "Appointment",
+      "community": 31,
+      "community_name": "_transacciones_citas",
       "norm_label": "servicio con el que se agendan los diagnosticos. se busca por nombre..."
     },
     {
@@ -5846,8 +5846,8 @@
       "source_location": "L7180",
       "_origin": "ast",
       "id": "app_rationale_7180",
-      "community": 18,
-      "community_name": "get_claude_reply",
+      "community": 65,
+      "community_name": "_build_message_history",
       "norm_label": "que dia es hoy, en hora de bogota y en espanol. el modelo no tiene reloj: si no..."
     },
     {
@@ -5967,8 +5967,8 @@
       "source_location": "L7628",
       "_origin": "ast",
       "id": "app_rationale_7628",
-      "community": 72,
-      "community_name": "book_diagnostic_from_bot",
+      "community": 18,
+      "community_name": "get_claude_reply",
       "norm_label": "pasa un numero e.164 al formato local que se usa en la agenda. twilio necesita..."
     },
     {
@@ -5979,7 +5979,7 @@
       "_origin": "ast",
       "id": "app_rationale_7640",
       "community": 72,
-      "community_name": "book_diagnostic_from_bot",
+      "community_name": "_normalize_whatsapp_number",
       "norm_label": "devuelve el celular normalizado solo si parece un telefono de verdad...."
     },
     {
@@ -5990,7 +5990,7 @@
       "_origin": "ast",
       "id": "app_rationale_7658",
       "community": 46,
-      "community_name": "send_whatsapp",
+      "community_name": "_generate_and_send_reply",
       "norm_label": "\u00bfeste mensaje es el modelo reescribiendo el menu de bienvenida? no se compara..."
     },
     {
@@ -6001,7 +6001,7 @@
       "_origin": "ast",
       "id": "app_rationale_7669",
       "community": 46,
-      "community_name": "send_whatsapp",
+      "community_name": "_generate_and_send_reply",
       "norm_label": "nombre=x; celular=y; ...\" -> dict. tolerante con el orden y los espacios."
     },
     {
@@ -6011,7 +6011,7 @@
       "source_location": "L7680",
       "_origin": "ast",
       "id": "app_rationale_7680",
-      "community": 72,
+      "community": 20,
       "community_name": "book_diagnostic_from_bot",
       "norm_label": "crea la cita de diagnostico que mariana cerro con el cliente. nunca confia en..."
     },
@@ -6022,8 +6022,8 @@
       "source_location": "L7789",
       "_origin": "ast",
       "id": "app_rationale_7789",
-      "community": 50,
-      "community_name": "bogota_now",
+      "community": 20,
+      "community_name": "book_diagnostic_from_bot",
       "norm_label": "cita futura vigente de un vehiculo. la placa es la identidad real: el nombre..."
     },
     {
@@ -6033,8 +6033,8 @@
       "source_location": "L7807",
       "_origin": "ast",
       "id": "app_rationale_7807",
-      "community": 50,
-      "community_name": "bogota_now",
+      "community": 20,
+      "community_name": "book_diagnostic_from_bot",
       "norm_label": "mueve una cita existente a otra fecha/hora. se ubica por placa y se revalida el..."
     },
     {
@@ -6045,7 +6045,7 @@
       "_origin": "ast",
       "id": "app_rationale_7876",
       "community": 46,
-      "community_name": "send_whatsapp",
+      "community_name": "_generate_and_send_reply",
       "norm_label": "toda cita que mariana mueva queda registrada en la campanita, si o si."
     },
     {
@@ -6056,7 +6056,7 @@
       "_origin": "ast",
       "id": "app_rationale_7897",
       "community": 46,
-      "community_name": "send_whatsapp",
+      "community_name": "_generate_and_send_reply",
       "norm_label": "avisa al admin cuando mariana deja un diagnostico agendado sola."
     },
     {
@@ -6067,7 +6067,7 @@
       "_origin": "ast",
       "id": "app_rationale_7927",
       "community": 46,
-      "community_name": "send_whatsapp",
+      "community_name": "_generate_and_send_reply",
       "norm_label": "avisa al admin por whatsapp cuando mariana detecta una senal de negocio que..."
     },
     {
@@ -6122,7 +6122,7 @@
       "_origin": "ast",
       "id": "app_rationale_8156",
       "community": 30,
-      "community_name": "_normalize_whatsapp_number",
+      "community_name": "_procesar_lead_de_meta",
       "norm_label": "verifica x-hub-signature-256 contra meta_app_secret. no es opcional: este..."
     },
     {
@@ -6133,7 +6133,7 @@
       "_origin": "ast",
       "id": "app_rationale_8173",
       "community": 30,
-      "community_name": "_normalize_whatsapp_number",
+      "community_name": "_procesar_lead_de_meta",
       "norm_label": "trae los datos del lead desde la graph api. lanza si no se puede."
     },
     {
@@ -6144,7 +6144,7 @@
       "_origin": "ast",
       "id": "app_rationale_8188",
       "community": 30,
-      "community_name": "_normalize_whatsapp_number",
+      "community_name": "_procesar_lead_de_meta",
       "norm_label": "de la respuesta de meta saca (nombre, telefono, texto de la encuesta)...."
     },
     {
@@ -6155,7 +6155,7 @@
       "_origin": "ast",
       "id": "app_rationale_8282",
       "community": 46,
-      "community_name": "send_whatsapp",
+      "community_name": "_generate_and_send_reply",
       "norm_label": "genera la respuesta con claude y manda todos los mensajes. devuelve false si..."
     },
     {
@@ -6165,8 +6165,8 @@
       "source_location": "L8547",
       "_origin": "ast",
       "id": "app_rationale_8547",
-      "community": 83,
-      "community_name": "_validate_twilio_signature",
+      "community": 17,
+      "community_name": "promotions_list",
       "norm_label": "valida la firma de twilio contra la url exacta que nosotros le dimos como..."
     },
     {
@@ -6176,8 +6176,8 @@
       "source_location": "L8741",
       "_origin": "ast",
       "id": "app_rationale_8741",
-      "community": 73,
-      "community_name": "whatsapp_conversation",
+      "community": 59,
+      "community_name": "whatsapp_messages_json",
       "norm_label": "orden cronologico, mas reciente primero \u2014 el orden por defecto de cualquier..."
     },
     {
@@ -6198,8 +6198,8 @@
       "source_location": "L8818",
       "_origin": "ast",
       "id": "app_rationale_8818",
-      "community": 73,
-      "community_name": "whatsapp_conversation",
+      "community": 59,
+      "community_name": "whatsapp_messages_json",
       "norm_label": "{texto del mensaje: estado de entrega} para una conversacion. message y..."
     },
     {
@@ -6209,8 +6209,8 @@
       "source_location": "L8854",
       "_origin": "ast",
       "id": "app_rationale_8854",
-      "community": 10,
-      "community_name": "route",
+      "community": 44,
+      "community_name": "_can_see_notifications",
       "norm_label": "sirve una foto que mando un cliente. a diferencia de las promociones, esto si..."
     },
     {
@@ -6253,8 +6253,8 @@
       "source_location": "L8999",
       "_origin": "ast",
       "id": "app_rationale_8999",
-      "community": 50,
-      "community_name": "bogota_now",
+      "community": 56,
+      "community_name": "send_whatsapp",
       "norm_label": "corre cada 5 minutos. notifica al admin si hay cita en los proximos 30 min."
     },
     {
@@ -6308,8 +6308,8 @@
       "source_location": "L9230",
       "_origin": "ast",
       "id": "app_rationale_9230",
-      "community": 48,
-      "community_name": "Appointment",
+      "community": 31,
+      "community_name": "_transacciones_citas",
       "norm_label": "corre diariamente a las 10:30 am (bogota). a los 7 dias de entregar el vehiculo..."
     },
     {
@@ -6396,8 +6396,8 @@
       "source_location": "L9462",
       "_origin": "ast",
       "id": "app_rationale_9462",
-      "community": 59,
-      "community_name": "whatsapp_messages_json",
+      "community": 50,
+      "community_name": "bogota_now",
       "norm_label": "etiqueta del separador de dia en el chat: \"hoy\", \"ayer\" o la fecha."
     },
     {
@@ -6418,8 +6418,8 @@
       "source_location": "L9499",
       "_origin": "ast",
       "id": "app_rationale_9499",
-      "community": 10,
-      "community_name": "route",
+      "community": 44,
+      "community_name": "_can_see_notifications",
       "norm_label": "sirve la imagen de una promocion. es publica a proposito: twilio la descarga..."
     },
     {
@@ -6429,7 +6429,7 @@
       "source_location": "L9507",
       "_origin": "ast",
       "id": "app_rationale_9507",
-      "community": 19,
+      "community": 17,
       "community_name": "promotions_list",
       "norm_label": "guarda la imagen de apoyo y devuelve el nombre con el que quedo. el nombre..."
     },
@@ -6441,7 +6441,7 @@
       "_origin": "ast",
       "id": "app_rationale_9566",
       "community": 45,
-      "community_name": "Analytics Dashboard",
+      "community_name": "analytics_dashboard",
       "norm_label": "ok' | 'warn' | 'bad' segun los umbrales del negocio. devuelve cadena vacia si..."
     },
     {
@@ -6451,8 +6451,8 @@
       "source_location": "L9585",
       "_origin": "ast",
       "id": "app_rationale_9585",
-      "community": 58,
-      "community_name": "puede_ver_finanzas",
+      "community": 45,
+      "community_name": "analytics_dashboard",
       "norm_label": "[(categoria, [servicios]), ...] en el orden de service_category_rules, saltando..."
     },
     {
@@ -6462,8 +6462,8 @@
       "source_location": "L9656",
       "_origin": "ast",
       "id": "app_rationale_9656",
-      "community": 10,
-      "community_name": "route",
+      "community": 44,
+      "community_name": "_can_see_notifications",
       "norm_label": "las alertas son de supervision del negocio: las ve todo el que no sea operario..."
     },
     {
@@ -6473,8 +6473,8 @@
       "source_location": "L9664",
       "_origin": "ast",
       "id": "app_rationale_9664",
-      "community": 10,
-      "community_name": "route",
+      "community": 55,
+      "community_name": "api_notifications",
       "norm_label": "alimenta la campanita. se consulta cada 30s desde el navegador."
     },
     {
@@ -6484,8 +6484,8 @@
       "source_location": "L9713",
       "_origin": "ast",
       "id": "app_rationale_9713",
-      "community": 10,
-      "community_name": "route",
+      "community": 1,
+      "community_name": "Base Layout Template",
       "norm_label": "historial completo, para cuando la campanita se queda corta."
     },
     {
@@ -6495,8 +6495,8 @@
       "source_location": "L9812",
       "_origin": "ast",
       "id": "app_rationale_9812",
-      "community": 58,
-      "community_name": "puede_ver_finanzas",
+      "community": 50,
+      "community_name": "bogota_now",
       "norm_label": "planes vendidos, con su saldo. lo primero que se necesita saber es a quien le..."
     },
     {
@@ -6518,7 +6518,7 @@
       "_origin": "ast",
       "id": "app_rationale_9853",
       "community": 57,
-      "community_name": "normalize_plate",
+      "community_name": "api_plans_by_plate",
       "norm_label": "planes que puede usar una placa, para el formulario de la cita. incluye el plan..."
     },
     {
@@ -6529,7 +6529,7 @@
       "_origin": "ast",
       "id": "app_rationale_9884",
       "community": 20,
-      "community_name": "plan_sell",
+      "community_name": "book_diagnostic_from_bot",
       "norm_label": "vende un plan y registra el ingreso. la plata entra hoy, completa: es prepago...."
     },
     {
@@ -6539,8 +6539,8 @@
       "source_location": "L9970",
       "_origin": "ast",
       "id": "app_rationale_9970",
-      "community": 58,
-      "community_name": "puede_ver_finanzas",
+      "community": 45,
+      "community_name": "analytics_dashboard",
       "norm_label": "desactiva un plan vendido (venta anulada, cliente que se fue)."
     },
     {
@@ -6649,8 +6649,8 @@
       "source_location": "L10236",
       "_origin": "ast",
       "id": "app_rationale_10236",
-      "community": 38,
-      "community_name": "_clasificar_conversacion_historica",
+      "community": 16,
+      "community_name": "estado_servicios",
       "norm_label": "prueba la api de claude con la peticion mas barata posible. devuelve (ok,..."
     },
     {
@@ -6723,9 +6723,9 @@
       "label": "Corre diariamente a las 8 AM (Bogot\u00e1). Avisa ANTES de que se acabe, no despu\u00e9s:\u2026",
       "file_type": "rationale",
       "source_file": "noxadetail-app/app.py",
-      "source_location": "L10456",
+      "source_location": "L10458",
       "_origin": "ast",
-      "id": "app_rationale_10456",
+      "id": "app_rationale_10458",
       "community": 16,
       "community_name": "estado_servicios",
       "norm_label": "corre diariamente a las 8 am (bogota). avisa antes de que se acabe, no despues:..."
@@ -6759,8 +6759,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "tests_conftest",
-      "community": 40,
-      "community_name": "login_as",
+      "community": 68,
+      "community_name": "conftest.py",
       "norm_label": "conftest.py"
     },
     {
@@ -6770,8 +6770,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "tests_conftest_py_fixture",
-      "community": 40,
-      "community_name": "login_as",
+      "community": 68,
+      "community_name": "conftest.py",
       "norm_label": "fixture"
     },
     {
@@ -6782,8 +6782,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "tests_conftest_session_setup",
-      "community": 40,
-      "community_name": "login_as",
+      "community": 68,
+      "community_name": "conftest.py",
       "norm_label": "_session_setup()"
     },
     {
@@ -6794,8 +6794,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "tests_conftest_clean_db",
-      "community": 40,
-      "community_name": "login_as",
+      "community": 68,
+      "community_name": "conftest.py",
       "norm_label": "_clean_db()"
     },
     {
@@ -6806,8 +6806,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "tests_conftest_client",
-      "community": 40,
-      "community_name": "login_as",
+      "community": 68,
+      "community_name": "conftest.py",
       "norm_label": "client()"
     },
     {
@@ -6818,7 +6818,7 @@
       "_callable": true,
       "_origin": "ast",
       "id": "tests_conftest_make_user",
-      "community": 26,
+      "community": 19,
       "community_name": "make_user",
       "norm_label": "make_user()"
     },
@@ -6841,8 +6841,8 @@
       "source_location": "L40",
       "_origin": "ast",
       "id": "tests_conftest_rationale_40",
-      "community": 40,
-      "community_name": "login_as",
+      "community": 68,
+      "community_name": "conftest.py",
       "norm_label": "cada test arranca con las tablas de nomina/usuarios vacias, y corre dentro de..."
     },
     {
@@ -6852,7 +6852,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "tests_test_abonos_ajustes",
-      "community": 41,
+      "community": 4,
       "community_name": "test_abonos_ajustes.py",
       "norm_label": "test_abonos_ajustes.py"
     },
@@ -6864,7 +6864,7 @@
       "_origin": "ast",
       "id": "tests_test_abonos_ajustes_py_fixture",
       "community": 4,
-      "community_name": "_ajuste",
+      "community_name": "test_abonos_ajustes.py",
       "norm_label": "fixture"
     },
     {
@@ -6876,7 +6876,7 @@
       "_origin": "ast",
       "id": "tests_test_abonos_ajustes_catalogo",
       "community": 4,
-      "community_name": "_ajuste",
+      "community_name": "test_abonos_ajustes.py",
       "norm_label": "catalogo()"
     },
     {
@@ -6887,7 +6887,7 @@
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_abonos_ajustes_cita",
-      "community": 41,
+      "community": 4,
       "community_name": "test_abonos_ajustes.py",
       "norm_label": "cita()"
     },
@@ -6900,7 +6900,7 @@
       "_origin": "ast",
       "id": "tests_test_abonos_ajustes_ajuste",
       "community": 4,
-      "community_name": "_ajuste",
+      "community_name": "test_abonos_ajustes.py",
       "norm_label": "_ajuste()"
     },
     {
@@ -6911,7 +6911,7 @@
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_abonos_ajustes_abono",
-      "community": 41,
+      "community": 4,
       "community_name": "test_abonos_ajustes.py",
       "norm_label": "_abono()"
     },
@@ -6924,7 +6924,7 @@
       "_callable_class": true,
       "_origin": "ast",
       "id": "tests_test_abonos_ajustes_testabonovsdescuento",
-      "community": 41,
+      "community": 4,
       "community_name": "test_abonos_ajustes.py",
       "norm_label": "testabonovsdescuento"
     },
@@ -6936,7 +6936,7 @@
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_abonos_ajustes_testabonovsdescuento_test_el_abono_no_baja_el_valor_del_servicio",
-      "community": 41,
+      "community": 4,
       "community_name": "test_abonos_ajustes.py",
       "norm_label": ".test_el_abono_no_baja_el_valor_del_servicio()"
     },
@@ -6948,7 +6948,7 @@
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_abonos_ajustes_testabonovsdescuento_test_el_descuento_si_baja_el_valor_del_servicio",
-      "community": 41,
+      "community": 4,
       "community_name": "test_abonos_ajustes.py",
       "norm_label": ".test_el_descuento_si_baja_el_valor_del_servicio()"
     },
@@ -6960,7 +6960,7 @@
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_abonos_ajustes_testabonovsdescuento_test_abonar_de_mas_deja_saldo_a_favor",
-      "community": 41,
+      "community": 4,
       "community_name": "test_abonos_ajustes.py",
       "norm_label": ".test_abonar_de_mas_deja_saldo_a_favor()"
     },
@@ -6974,7 +6974,7 @@
       "_origin": "ast",
       "id": "tests_test_abonos_ajustes_testvariosajustes",
       "community": 4,
-      "community_name": "_ajuste",
+      "community_name": "test_abonos_ajustes.py",
       "norm_label": "testvariosajustes"
     },
     {
@@ -6986,7 +6986,7 @@
       "_origin": "ast",
       "id": "tests_test_abonos_ajustes_testvariosajustes_test_se_acumulan_descuentos_y_recargos",
       "community": 4,
-      "community_name": "_ajuste",
+      "community_name": "test_abonos_ajustes.py",
       "norm_label": ".test_se_acumulan_descuentos_y_recargos()"
     },
     {
@@ -6998,7 +6998,7 @@
       "_origin": "ast",
       "id": "tests_test_abonos_ajustes_testvariosajustes_test_los_porcentajes_no_se_encadenan",
       "community": 4,
-      "community_name": "_ajuste",
+      "community_name": "test_abonos_ajustes.py",
       "norm_label": ".test_los_porcentajes_no_se_encadenan()"
     },
     {
@@ -7010,7 +7010,7 @@
       "_origin": "ast",
       "id": "tests_test_abonos_ajustes_testvariosajustes_test_el_orden_no_cambia_el_total",
       "community": 4,
-      "community_name": "_ajuste",
+      "community_name": "test_abonos_ajustes.py",
       "norm_label": ".test_el_orden_no_cambia_el_total()"
     },
     {
@@ -7022,7 +7022,7 @@
       "_origin": "ast",
       "id": "tests_test_abonos_ajustes_testvariosajustes_test_los_descuentos_no_dejan_el_total_en_negativo",
       "community": 4,
-      "community_name": "_ajuste",
+      "community_name": "test_abonos_ajustes.py",
       "norm_label": ".test_los_descuentos_no_dejan_el_total_en_negativo()"
     },
     {
@@ -7034,7 +7034,7 @@
       "_origin": "ast",
       "id": "tests_test_abonos_ajustes_testvariosajustes_test_se_ignoran_las_filas_vacias_o_invalidas",
       "community": 4,
-      "community_name": "_ajuste",
+      "community_name": "test_abonos_ajustes.py",
       "norm_label": ".test_se_ignoran_las_filas_vacias_o_invalidas()"
     },
     {
@@ -7047,7 +7047,7 @@
       "_origin": "ast",
       "id": "tests_test_abonos_ajustes_testbasedelporcentaje",
       "community": 4,
-      "community_name": "_ajuste",
+      "community_name": "test_abonos_ajustes.py",
       "norm_label": "testbasedelporcentaje"
     },
     {
@@ -7059,7 +7059,7 @@
       "_origin": "ast",
       "id": "tests_test_abonos_ajustes_testbasedelporcentaje_con_convenio",
       "community": 4,
-      "community_name": "_ajuste",
+      "community_name": "test_abonos_ajustes.py",
       "norm_label": ".con_convenio()"
     },
     {
@@ -7071,7 +7071,7 @@
       "_origin": "ast",
       "id": "tests_test_abonos_ajustes_testbasedelporcentaje_test_sobre_lista_ignora_el_convenio",
       "community": 4,
-      "community_name": "_ajuste",
+      "community_name": "test_abonos_ajustes.py",
       "norm_label": ".test_sobre_lista_ignora_el_convenio()"
     },
     {
@@ -7083,7 +7083,7 @@
       "_origin": "ast",
       "id": "tests_test_abonos_ajustes_testbasedelporcentaje_test_sobre_subtotal_usa_el_valor_ya_con_convenio",
       "community": 4,
-      "community_name": "_ajuste",
+      "community_name": "test_abonos_ajustes.py",
       "norm_label": ".test_sobre_subtotal_usa_el_valor_ya_con_convenio()"
     },
     {
@@ -7095,7 +7095,7 @@
       "_origin": "ast",
       "id": "tests_test_abonos_ajustes_testbasedelporcentaje_test_las_dos_bases_dan_montos_distintos",
       "community": 4,
-      "community_name": "_ajuste",
+      "community_name": "test_abonos_ajustes.py",
       "norm_label": ".test_las_dos_bases_dan_montos_distintos()"
     },
     {
@@ -7107,7 +7107,7 @@
       "_origin": "ast",
       "id": "tests_test_abonos_ajustes_testbasedelporcentaje_test_en_valor_fijo_la_base_no_cambia_nada",
       "community": 4,
-      "community_name": "_ajuste",
+      "community_name": "test_abonos_ajustes.py",
       "norm_label": ".test_en_valor_fijo_la_base_no_cambia_nada()"
     },
     {
@@ -7119,7 +7119,7 @@
       "_origin": "ast",
       "id": "tests_test_abonos_ajustes_testbasedelporcentaje_test_sin_precio_de_lista_cae_al_subtotal",
       "community": 4,
-      "community_name": "_ajuste",
+      "community_name": "test_abonos_ajustes.py",
       "norm_label": ".test_sin_precio_de_lista_cae_al_subtotal()"
     },
     {
@@ -7131,7 +7131,7 @@
       "_origin": "ast",
       "id": "tests_test_abonos_ajustes_testbasedelporcentaje_test_el_detalle_reporta_la_base_solo_en_porcentaje",
       "community": 4,
-      "community_name": "_ajuste",
+      "community_name": "test_abonos_ajustes.py",
       "norm_label": ".test_el_detalle_reporta_la_base_solo_en_porcentaje()"
     },
     {
@@ -7143,8 +7143,8 @@
       "_callable_class": true,
       "_origin": "ast",
       "id": "tests_test_abonos_ajustes_testformulario",
-      "community": 1,
-      "community_name": "TestFormulario",
+      "community": 40,
+      "community_name": "login_as",
       "norm_label": "testformulario"
     },
     {
@@ -7155,8 +7155,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_abonos_ajustes_testformulario_post",
-      "community": 1,
-      "community_name": "TestFormulario",
+      "community": 40,
+      "community_name": "login_as",
       "norm_label": "._post()"
     },
     {
@@ -7167,8 +7167,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_abonos_ajustes_testformulario_test_guarda_varias_filas_de_cada_tipo",
-      "community": 1,
-      "community_name": "TestFormulario",
+      "community": 40,
+      "community_name": "login_as",
       "norm_label": ".test_guarda_varias_filas_de_cada_tipo()"
     },
     {
@@ -7179,8 +7179,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_abonos_ajustes_testformulario_test_sin_base_en_el_form_queda_sobre_lista",
-      "community": 1,
-      "community_name": "TestFormulario",
+      "community": 40,
+      "community_name": "login_as",
       "norm_label": ".test_sin_base_en_el_form_queda_sobre_lista()"
     },
     {
@@ -7191,8 +7191,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_abonos_ajustes_testformulario_test_una_base_inventada_cae_a_lista",
-      "community": 1,
-      "community_name": "TestFormulario",
+      "community": 40,
+      "community_name": "login_as",
       "norm_label": ".test_una_base_inventada_cae_a_lista()"
     },
     {
@@ -7203,8 +7203,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_abonos_ajustes_testformulario_test_una_fila_sin_valor_se_descarta",
-      "community": 1,
-      "community_name": "TestFormulario",
+      "community": 40,
+      "community_name": "login_as",
       "norm_label": ".test_una_fila_sin_valor_se_descarta()"
     },
     {
@@ -7215,8 +7215,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_abonos_ajustes_testformulario_test_un_abono_sin_fecha_queda_con_la_de_hoy",
-      "community": 1,
-      "community_name": "TestFormulario",
+      "community": 40,
+      "community_name": "login_as",
       "norm_label": ".test_un_abono_sin_fecha_queda_con_la_de_hoy()"
     },
     {
@@ -7227,8 +7227,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_abonos_ajustes_testformulario_test_editar_reemplaza_lo_que_habia",
-      "community": 1,
-      "community_name": "TestFormulario",
+      "community": 40,
+      "community_name": "login_as",
       "norm_label": ".test_editar_reemplaza_lo_que_habia()"
     },
     {
@@ -7240,7 +7240,7 @@
       "_callable_class": true,
       "_origin": "ast",
       "id": "tests_test_abonos_ajustes_testborrado",
-      "community": 41,
+      "community": 4,
       "community_name": "test_abonos_ajustes.py",
       "norm_label": "testborrado"
     },
@@ -7252,7 +7252,7 @@
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_abonos_ajustes_testborrado_test_borrar_la_cita_arrastra_ajustes_y_abonos",
-      "community": 41,
+      "community": 4,
       "community_name": "test_abonos_ajustes.py",
       "norm_label": ".test_borrar_la_cita_arrastra_ajustes_y_abonos()"
     },
@@ -7265,7 +7265,7 @@
       "_callable_class": true,
       "_origin": "ast",
       "id": "tests_test_abonos_ajustes_testanalitica",
-      "community": 41,
+      "community": 4,
       "community_name": "test_abonos_ajustes.py",
       "norm_label": "testanalitica"
     },
@@ -7277,7 +7277,7 @@
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_abonos_ajustes_testanalitica_test_el_abono_no_mueve_ingresos_ni_descuentos",
-      "community": 41,
+      "community": 4,
       "community_name": "test_abonos_ajustes.py",
       "norm_label": ".test_el_abono_no_mueve_ingresos_ni_descuentos()"
     },
@@ -7290,7 +7290,7 @@
       "_origin": "ast",
       "id": "tests_test_abonos_ajustes_testanalitica_test_un_recargo_no_borra_los_descuentos_del_kpi",
       "community": 4,
-      "community_name": "_ajuste",
+      "community_name": "test_abonos_ajustes.py",
       "norm_label": ".test_un_recargo_no_borra_los_descuentos_del_kpi()"
     },
     {
@@ -7302,7 +7302,7 @@
       "_callable_class": true,
       "_origin": "ast",
       "id": "tests_test_abonos_ajustes_testmigraciondelajusteviejo",
-      "community": 41,
+      "community": 4,
       "community_name": "test_abonos_ajustes.py",
       "norm_label": "testmigraciondelajusteviejo"
     },
@@ -7314,7 +7314,7 @@
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_abonos_ajustes_testmigraciondelajusteviejo_test_pasa_la_columna_vieja_a_una_fila_y_no_se_repite",
-      "community": 41,
+      "community": 4,
       "community_name": "test_abonos_ajustes.py",
       "norm_label": ".test_pasa_la_columna_vieja_a_una_fila_y_no_se_repite()"
     },
@@ -7325,7 +7325,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "tests_test_abonos_ajustes_rationale_1",
-      "community": 41,
+      "community": 4,
       "community_name": "test_abonos_ajustes.py",
       "norm_label": "plata de una cita: descuentos/recargos contra abonos. la regla que estos tests..."
     },
@@ -7337,7 +7337,7 @@
       "_origin": "ast",
       "id": "tests_test_abonos_ajustes_rationale_19",
       "community": 4,
-      "community_name": "_ajuste",
+      "community_name": "test_abonos_ajustes.py",
       "norm_label": "un servicio con precio real para un tipo de vehiculo, del seed."
     },
     {
@@ -7348,7 +7348,7 @@
       "_origin": "ast",
       "id": "tests_test_abonos_ajustes_rationale_137",
       "community": 4,
-      "community_name": "_ajuste",
+      "community_name": "test_abonos_ajustes.py",
       "norm_label": "con convenio de por medio, un 10% sobre lista y un 10% sobre subtotal son plata..."
     },
     {
@@ -7359,7 +7359,7 @@
       "_origin": "ast",
       "id": "tests_test_abonos_ajustes_rationale_194",
       "community": 4,
-      "community_name": "_ajuste",
+      "community_name": "test_abonos_ajustes.py",
       "norm_label": "apply_adjustments se puede llamar sin lista (cierres viejos): en ese caso la..."
     },
     {
@@ -7369,8 +7369,8 @@
       "source_location": "L212",
       "_origin": "ast",
       "id": "tests_test_abonos_ajustes_rationale_212",
-      "community": 1,
-      "community_name": "TestFormulario",
+      "community": 40,
+      "community_name": "login_as",
       "norm_label": "el formulario manda listas paralelas; aca se prueba el parseo."
     },
     {
@@ -7380,8 +7380,8 @@
       "source_location": "L250",
       "_origin": "ast",
       "id": "tests_test_abonos_ajustes_rationale_250",
-      "community": 1,
-      "community_name": "TestFormulario",
+      "community": 40,
+      "community_name": "login_as",
       "norm_label": "el default acordado con la operacion: si nadie elige, es sobre lista."
     },
     {
@@ -7392,7 +7392,7 @@
       "_origin": "ast",
       "id": "tests_test_abonos_ajustes_rationale_343",
       "community": 4,
-      "community_name": "_ajuste",
+      "community_name": "test_abonos_ajustes.py",
       "norm_label": "el bug que aparece si se calcula `lista \u2212 cobrado`: un recargo grande deja la..."
     },
     {
@@ -7402,8 +7402,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "tests_test_agenda_cajon",
-      "community": 40,
-      "community_name": "login_as",
+      "community": 41,
+      "community_name": "datetime",
       "norm_label": "test_agenda_cajon.py"
     },
     {
@@ -7512,7 +7512,7 @@
       "_origin": "ast",
       "id": "tests_test_agenda_cajon_testlineasdelevento",
       "community": 41,
-      "community_name": "test_abonos_ajustes.py",
+      "community_name": "datetime",
       "norm_label": "testlineasdelevento"
     },
     {
@@ -7522,8 +7522,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "tests_test_agenda_cajon_py_fixture",
-      "community": 41,
-      "community_name": "test_abonos_ajustes.py",
+      "community": 26,
+      "community_name": "TestAgendaDeDiagnosticos",
       "norm_label": "fixture"
     },
     {
@@ -7535,7 +7535,7 @@
       "_origin": "ast",
       "id": "tests_test_agenda_cajon_testlineasdelevento_cita",
       "community": 41,
-      "community_name": "test_abonos_ajustes.py",
+      "community_name": "datetime",
       "norm_label": ".cita()"
     },
     {
@@ -7547,7 +7547,7 @@
       "_origin": "ast",
       "id": "tests_test_agenda_cajon_testlineasdelevento_lineas",
       "community": 41,
-      "community_name": "test_abonos_ajustes.py",
+      "community_name": "datetime",
       "norm_label": "._lineas()"
     },
     {
@@ -7559,7 +7559,7 @@
       "_origin": "ast",
       "id": "tests_test_agenda_cajon_testlineasdelevento_test_manda_las_cinco_lineas",
       "community": 41,
-      "community_name": "test_abonos_ajustes.py",
+      "community_name": "datetime",
       "norm_label": ".test_manda_las_cinco_lineas()"
     },
     {
@@ -7571,7 +7571,7 @@
       "_origin": "ast",
       "id": "tests_test_agenda_cajon_testlineasdelevento_test_las_notas_van_en_una_sola_linea",
       "community": 41,
-      "community_name": "test_abonos_ajustes.py",
+      "community_name": "datetime",
       "norm_label": ".test_las_notas_van_en_una_sola_linea()"
     },
     {
@@ -7583,7 +7583,7 @@
       "_origin": "ast",
       "id": "tests_test_agenda_cajon_testlineasdelevento_test_sin_abonos_la_cifra_va_sola",
       "community": 41,
-      "community_name": "test_abonos_ajustes.py",
+      "community_name": "datetime",
       "norm_label": ".test_sin_abonos_la_cifra_va_sola()"
     },
     {
@@ -7595,7 +7595,7 @@
       "_origin": "ast",
       "id": "tests_test_agenda_cajon_testlineasdelevento_test_con_abono_se_dice_que_es_un_saldo",
       "community": 41,
-      "community_name": "test_abonos_ajustes.py",
+      "community_name": "datetime",
       "norm_label": ".test_con_abono_se_dice_que_es_un_saldo()"
     },
     {
@@ -7607,7 +7607,7 @@
       "_origin": "ast",
       "id": "tests_test_agenda_cajon_testlineasdelevento_test_si_abonaron_de_mas_dice_a_favor",
       "community": 41,
-      "community_name": "test_abonos_ajustes.py",
+      "community_name": "datetime",
       "norm_label": ".test_si_abonaron_de_mas_dice_a_favor()"
     },
     {
@@ -7620,7 +7620,7 @@
       "_origin": "ast",
       "id": "tests_test_agenda_cajon_testagendadediagnosticos",
       "community": 26,
-      "community_name": "make_user",
+      "community_name": "TestAgendaDeDiagnosticos",
       "norm_label": "testagendadediagnosticos"
     },
     {
@@ -7631,8 +7631,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_agenda_cajon_testagendadediagnosticos_escenario",
-      "community": 41,
-      "community_name": "test_abonos_ajustes.py",
+      "community": 26,
+      "community_name": "TestAgendaDeDiagnosticos",
       "norm_label": ".escenario()"
     },
     {
@@ -7644,7 +7644,7 @@
       "_origin": "ast",
       "id": "tests_test_agenda_cajon_testagendadediagnosticos_placas",
       "community": 26,
-      "community_name": "make_user",
+      "community_name": "TestAgendaDeDiagnosticos",
       "norm_label": "._placas()"
     },
     {
@@ -7656,7 +7656,7 @@
       "_origin": "ast",
       "id": "tests_test_agenda_cajon_testagendadediagnosticos_test_cada_agenda_ve_lo_suyo",
       "community": 26,
-      "community_name": "make_user",
+      "community_name": "TestAgendaDeDiagnosticos",
       "norm_label": ".test_cada_agenda_ve_lo_suyo()"
     },
     {
@@ -7668,7 +7668,7 @@
       "_origin": "ast",
       "id": "tests_test_agenda_cajon_testagendadediagnosticos_test_una_cita_mixta_cuenta_como_cita",
       "community": 26,
-      "community_name": "make_user",
+      "community_name": "TestAgendaDeDiagnosticos",
       "norm_label": ".test_una_cita_mixta_cuenta_como_cita()"
     },
     {
@@ -7680,7 +7680,7 @@
       "_origin": "ast",
       "id": "tests_test_agenda_cajon_testagendadediagnosticos_test_sin_modo_se_asume_la_agenda_de_citas",
       "community": 26,
-      "community_name": "make_user",
+      "community_name": "TestAgendaDeDiagnosticos",
       "norm_label": ".test_sin_modo_se_asume_la_agenda_de_citas()"
     },
     {
@@ -7692,7 +7692,7 @@
       "_origin": "ast",
       "id": "tests_test_agenda_cajon_testagendadediagnosticos_test_en_diagnosticos_no_se_repite_la_palabra_diagnostico",
       "community": 26,
-      "community_name": "make_user",
+      "community_name": "TestAgendaDeDiagnosticos",
       "norm_label": ".test_en_diagnosticos_no_se_repite_la_palabra_diagnostico()"
     },
     {
@@ -7704,7 +7704,7 @@
       "_origin": "ast",
       "id": "tests_test_agenda_cajon_testagendadediagnosticos_test_un_diagnostico_gratis_no_muestra_cero",
       "community": 26,
-      "community_name": "make_user",
+      "community_name": "TestAgendaDeDiagnosticos",
       "norm_label": ".test_un_diagnostico_gratis_no_muestra_cero()"
     },
     {
@@ -7716,7 +7716,7 @@
       "_origin": "ast",
       "id": "tests_test_agenda_cajon_testagendadediagnosticos_test_marketing_no_entra_a_la_agenda",
       "community": 26,
-      "community_name": "make_user",
+      "community_name": "TestAgendaDeDiagnosticos",
       "norm_label": ".test_marketing_no_entra_a_la_agenda()"
     },
     {
@@ -7726,8 +7726,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "tests_test_agenda_cajon_rationale_1",
-      "community": 40,
-      "community_name": "login_as",
+      "community": 41,
+      "community_name": "datetime",
       "norm_label": "lo que va dentro del cajon de una cita en la agenda. el recorte por alto lo..."
     },
     {
@@ -7738,7 +7738,7 @@
       "_origin": "ast",
       "id": "tests_test_agenda_cajon_rationale_121",
       "community": 26,
-      "community_name": "make_user",
+      "community_name": "TestAgendaDeDiagnosticos",
       "norm_label": "dos agendas con la misma pantalla: la que factura y la de diagnosticos."
     },
     {
@@ -7749,7 +7749,7 @@
       "_origin": "ast",
       "id": "tests_test_agenda_cajon_rationale_177",
       "community": 26,
-      "community_name": "make_user",
+      "community_name": "TestAgendaDeDiagnosticos",
       "norm_label": "si el cliente aprovecho y agendo tambien un servicio, ya factura."
     },
     {
@@ -7760,7 +7760,7 @@
       "_origin": "ast",
       "id": "tests_test_agenda_cajon_rationale_189",
       "community": 26,
-      "community_name": "make_user",
+      "community_name": "TestAgendaDeDiagnosticos",
       "norm_label": "todos los cajones dirian lo mismo; el renglon rinde mas con las notas."
     },
     {
@@ -7793,8 +7793,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_archivar_conversaciones_admin",
-      "community": 40,
-      "community_name": "login_as",
+      "community": 8,
+      "community_name": "test_archivar_conversaciones.py",
       "norm_label": "admin()"
     },
     {
@@ -8884,8 +8884,8 @@
       "_callable_class": true,
       "_origin": "ast",
       "id": "tests_test_backfill_calificacion_testrutabackfill",
-      "community": 11,
-      "community_name": "test_backfill_calificacion.py",
+      "community": 19,
+      "community_name": "make_user",
       "norm_label": "testrutabackfill"
     },
     {
@@ -8896,8 +8896,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_backfill_calificacion_testrutabackfill_test_requiere_admin",
-      "community": 11,
-      "community_name": "test_backfill_calificacion.py",
+      "community": 19,
+      "community_name": "make_user",
       "norm_label": ".test_requiere_admin()"
     },
     {
@@ -8908,8 +8908,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_backfill_calificacion_testrutabackfill_test_clasifica_solo_las_que_no_tienen_calificacion",
-      "community": 11,
-      "community_name": "test_backfill_calificacion.py",
+      "community": 19,
+      "community_name": "make_user",
       "norm_label": ".test_clasifica_solo_las_que_no_tienen_calificacion()"
     },
     {
@@ -8921,8 +8921,8 @@
       "_callable_class": true,
       "_origin": "ast",
       "id": "tests_test_backfill_calificacion_testregresionproduccion",
-      "community": 11,
-      "community_name": "test_backfill_calificacion.py",
+      "community": 64,
+      "community_name": "TestRegresionProduccion",
       "norm_label": "testregresionproduccion"
     },
     {
@@ -8933,8 +8933,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_backfill_calificacion_testregresionproduccion_test_build_message_history_salta_mensajes_con_body_vacio",
-      "community": 11,
-      "community_name": "test_backfill_calificacion.py",
+      "community": 64,
+      "community_name": "TestRegresionProduccion",
       "norm_label": ".test_build_message_history_salta_mensajes_con_body_vacio()"
     },
     {
@@ -8945,8 +8945,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_backfill_calificacion_testregresionproduccion_test_service_tag_heredado_del_catalogo_viejo_no_tumba_la_ruta",
-      "community": 11,
-      "community_name": "test_backfill_calificacion.py",
+      "community": 64,
+      "community_name": "TestRegresionProduccion",
       "norm_label": ".test_service_tag_heredado_del_catalogo_viejo_no_tumba_la_ruta()"
     },
     {
@@ -8957,8 +8957,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_backfill_calificacion_testregresionproduccion_test_una_conversacion_con_error_no_tumba_el_resto_del_lote",
-      "community": 11,
-      "community_name": "test_backfill_calificacion.py",
+      "community": 64,
+      "community_name": "TestRegresionProduccion",
       "norm_label": ".test_una_conversacion_con_error_no_tumba_el_resto_del_lote()"
     },
     {
@@ -8970,8 +8970,8 @@
       "_callable_class": true,
       "_origin": "ast",
       "id": "tests_test_backfill_calificacion_testmatchvalorcerrado",
-      "community": 44,
-      "community_name": "TestMatchValorCerrado",
+      "community": 11,
+      "community_name": "test_backfill_calificacion.py",
       "norm_label": "testmatchvalorcerrado"
     },
     {
@@ -8982,8 +8982,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_backfill_calificacion_testmatchvalorcerrado_test_coincide_ignorando_mayusculas",
-      "community": 44,
-      "community_name": "TestMatchValorCerrado",
+      "community": 11,
+      "community_name": "test_backfill_calificacion.py",
       "norm_label": ".test_coincide_ignorando_mayusculas()"
     },
     {
@@ -8994,8 +8994,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_backfill_calificacion_testmatchvalorcerrado_test_coincide_ignorando_espacios_de_mas",
-      "community": 44,
-      "community_name": "TestMatchValorCerrado",
+      "community": 11,
+      "community_name": "test_backfill_calificacion.py",
       "norm_label": ".test_coincide_ignorando_espacios_de_mas()"
     },
     {
@@ -9006,8 +9006,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_backfill_calificacion_testmatchvalorcerrado_test_valor_que_de_verdad_no_esta_en_la_lista_no_matchea",
-      "community": 44,
-      "community_name": "TestMatchValorCerrado",
+      "community": 11,
+      "community_name": "test_backfill_calificacion.py",
       "norm_label": ".test_valor_que_de_verdad_no_esta_en_la_lista_no_matchea()"
     },
     {
@@ -9018,8 +9018,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_backfill_calificacion_testmatchvalorcerrado_test_devuelve_la_capitalizacion_canonica_no_la_que_llego",
-      "community": 44,
-      "community_name": "TestMatchValorCerrado",
+      "community": 11,
+      "community_name": "test_backfill_calificacion.py",
       "norm_label": ".test_devuelve_la_capitalizacion_canonica_no_la_que_llego()"
     },
     {
@@ -9030,8 +9030,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_backfill_calificacion_testmatchvalorcerrado_test_clasificar_conversacion_aplica_marca_con_minuscula",
-      "community": 44,
-      "community_name": "TestMatchValorCerrado",
+      "community": 11,
+      "community_name": "test_backfill_calificacion.py",
       "norm_label": ".test_clasificar_conversacion_aplica_marca_con_minuscula()"
     },
     {
@@ -9063,8 +9063,8 @@
       "source_location": "L120",
       "_origin": "ast",
       "id": "tests_test_backfill_calificacion_rationale_120",
-      "community": 11,
-      "community_name": "test_backfill_calificacion.py",
+      "community": 19,
+      "community_name": "make_user",
       "norm_label": "idempotencia: una conversacion que ya tiene calificacion no se toca, asi que..."
     },
     {
@@ -9074,8 +9074,8 @@
       "source_location": "L163",
       "_origin": "ast",
       "id": "tests_test_backfill_calificacion_rationale_163",
-      "community": 11,
-      "community_name": "test_backfill_calificacion.py",
+      "community": 64,
+      "community_name": "TestRegresionProduccion",
       "norm_label": "dos fallas vistas en vivo el 2026-08-18 al correr el backfill contra..."
     },
     {
@@ -9085,8 +9085,8 @@
       "source_location": "L191",
       "_origin": "ast",
       "id": "tests_test_backfill_calificacion_rationale_191",
-      "community": 11,
-      "community_name": "test_backfill_calificacion.py",
+      "community": 64,
+      "community_name": "TestRegresionProduccion",
       "norm_label": "otro servicio' y 'ppf o wrap' existian en el service_tags de antes de ampliar..."
     },
     {
@@ -9096,8 +9096,8 @@
       "source_location": "L219",
       "_origin": "ast",
       "id": "tests_test_backfill_calificacion_rationale_219",
-      "community": 11,
-      "community_name": "test_backfill_calificacion.py",
+      "community": 64,
+      "community_name": "TestRegresionProduccion",
       "norm_label": "antes del fix, el try/except solo cubria la llamada a claude \u2014 un valueerror..."
     },
     {
@@ -9107,8 +9107,8 @@
       "source_location": "L254",
       "_origin": "ast",
       "id": "tests_test_backfill_calificacion_rationale_254",
-      "community": 44,
-      "community_name": "TestMatchValorCerrado",
+      "community": 11,
+      "community_name": "test_backfill_calificacion.py",
       "norm_label": "caso real visto en produccion: un cliente dijo que su carro era un 'spark life'..."
     },
     {
@@ -9118,8 +9118,8 @@
       "source_location": "L271",
       "_origin": "ast",
       "id": "tests_test_backfill_calificacion_rationale_271",
-      "community": 44,
-      "community_name": "TestMatchValorCerrado",
+      "community": 11,
+      "community_name": "test_backfill_calificacion.py",
       "norm_label": "importante para que lo guardado siempre calce con marca_abreviatura y con el..."
     },
     {
@@ -9382,8 +9382,8 @@
       "_callable_class": true,
       "_origin": "ast",
       "id": "tests_test_festivos_testcalendario",
-      "community": 61,
-      "community_name": "date",
+      "community": 58,
+      "community_name": "TestCalendario",
       "norm_label": "testcalendario"
     },
     {
@@ -9393,8 +9393,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "tests_test_festivos_py_parametrize",
-      "community": 66,
-      "community_name": "TestPanelManual",
+      "community": 58,
+      "community_name": "TestCalendario",
       "norm_label": "parametrize"
     },
     {
@@ -9405,8 +9405,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_festivos_testcalendario_test_calendario_completo_del_anio",
-      "community": 66,
-      "community_name": "TestPanelManual",
+      "community": 58,
+      "community_name": "TestCalendario",
       "norm_label": ".test_calendario_completo_del_anio()"
     },
     {
@@ -9417,8 +9417,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_festivos_testcalendario_test_domingo_de_pascua",
-      "community": 66,
-      "community_name": "TestPanelManual",
+      "community": 58,
+      "community_name": "TestCalendario",
       "norm_label": ".test_domingo_de_pascua()"
     },
     {
@@ -9429,8 +9429,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_festivos_testcalendario_test_ley_emiliani_corre_al_lunes",
-      "community": 61,
-      "community_name": "date",
+      "community": 58,
+      "community_name": "TestCalendario",
       "norm_label": ".test_ley_emiliani_corre_al_lunes()"
     },
     {
@@ -9441,8 +9441,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_festivos_testcalendario_test_festivos_de_fecha_fija_no_se_mueven",
-      "community": 61,
-      "community_name": "date",
+      "community": 58,
+      "community_name": "TestCalendario",
       "norm_label": ".test_festivos_de_fecha_fija_no_se_mueven()"
     },
     {
@@ -9453,8 +9453,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_festivos_testcalendario_test_jueves_y_viernes_santo_no_se_mueven",
-      "community": 61,
-      "community_name": "date",
+      "community": 58,
+      "community_name": "TestCalendario",
       "norm_label": ".test_jueves_y_viernes_santo_no_se_mueven()"
     },
     {
@@ -9465,8 +9465,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_festivos_testcalendario_test_cada_anio_tiene_al_menos_17_festivos",
-      "community": 61,
-      "community_name": "date",
+      "community": 58,
+      "community_name": "TestCalendario",
       "norm_label": ".test_cada_anio_tiene_al_menos_17_festivos()"
     },
     {
@@ -9538,8 +9538,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_festivos_testdiahabil_test_acepta_datetime_ademas_de_date",
-      "community": 61,
-      "community_name": "date",
+      "community": 41,
+      "community_name": "datetime",
       "norm_label": ".test_acepta_datetime_ademas_de_date()"
     },
     {
@@ -9585,8 +9585,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "tests_test_festivos_py_fixture",
-      "community": 40,
-      "community_name": "login_as",
+      "community": 33,
+      "community_name": "TestBloqueoAlAgendarDesdeElBot",
       "norm_label": "fixture"
     },
     {
@@ -9597,8 +9597,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_festivos_festivo_en_la_ventana",
-      "community": 40,
-      "community_name": "login_as",
+      "community": 33,
+      "community_name": "TestBloqueoAlAgendarDesdeElBot",
       "norm_label": "festivo_en_la_ventana()"
     },
     {
@@ -9609,8 +9609,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_festivos_servicio_diagnostico",
-      "community": 40,
-      "community_name": "login_as",
+      "community": 33,
+      "community_name": "TestBloqueoAlAgendarDesdeElBot",
       "norm_label": "servicio_diagnostico()"
     },
     {
@@ -9959,8 +9959,8 @@
       "source_location": "L111",
       "_origin": "ast",
       "id": "tests_test_festivos_rationale_111",
-      "community": 40,
-      "community_name": "login_as",
+      "community": 33,
+      "community_name": "TestBloqueoAlAgendarDesdeElBot",
       "norm_label": "marca como festivo un dia habil proximo, inyectandolo en el cache. el..."
     },
     {
@@ -9970,8 +9970,8 @@
       "source_location": "L129",
       "_origin": "ast",
       "id": "tests_test_festivos_rationale_129",
-      "community": 40,
-      "community_name": "login_as",
+      "community": 33,
+      "community_name": "TestBloqueoAlAgendarDesdeElBot",
       "norm_label": "la bd semilla no trae servicio de diagnostico, asi que se crea uno. sin esto..."
     },
     {
@@ -10882,7 +10882,7 @@
       "_callable_class": true,
       "_origin": "ast",
       "id": "tests_test_payroll_testintrial",
-      "community": 26,
+      "community": 19,
       "community_name": "make_user",
       "norm_label": "testintrial"
     },
@@ -10894,7 +10894,7 @@
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_payroll_testintrial_test_in_trial_true_within_30_days",
-      "community": 26,
+      "community": 19,
       "community_name": "make_user",
       "norm_label": ".test_in_trial_true_within_30_days()"
     },
@@ -10906,7 +10906,7 @@
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_payroll_testintrial_test_in_trial_false_after_30_days",
-      "community": 26,
+      "community": 19,
       "community_name": "make_user",
       "norm_label": ".test_in_trial_false_after_30_days()"
     },
@@ -10918,7 +10918,7 @@
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_payroll_testintrial_test_in_trial_boundary_exactly_30_days_is_false",
-      "community": 26,
+      "community": 19,
       "community_name": "make_user",
       "norm_label": ".test_in_trial_boundary_exactly_30_days_is_false()"
     },
@@ -10930,7 +10930,7 @@
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_payroll_testintrial_test_in_trial_boundary_29_days_is_true",
-      "community": 26,
+      "community": 19,
       "community_name": "make_user",
       "norm_label": ".test_in_trial_boundary_29_days_is_true()"
     },
@@ -10942,7 +10942,7 @@
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_payroll_testintrial_test_in_trial_falls_back_to_manual_flag_without_hire_date",
-      "community": 26,
+      "community": 19,
       "community_name": "make_user",
       "norm_label": ".test_in_trial_falls_back_to_manual_flag_without_hire_date()"
     },
@@ -12216,8 +12216,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "tests_test_saldos",
-      "community": 40,
-      "community_name": "login_as",
+      "community": 35,
+      "community_name": "test_saldos.py",
       "norm_label": "test_saldos.py"
     },
     {
@@ -12227,8 +12227,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "tests_test_saldos_py_fixture",
-      "community": 56,
-      "community_name": "TestCostoRailway",
+      "community": 35,
+      "community_name": "test_saldos.py",
       "norm_label": "fixture"
     },
     {
@@ -12239,8 +12239,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_saldos_sin_notificaciones_previas",
-      "community": 56,
-      "community_name": "TestCostoRailway",
+      "community": 35,
+      "community_name": "test_saldos.py",
       "norm_label": "_sin_notificaciones_previas()"
     },
     {
@@ -12252,7 +12252,7 @@
       "_origin": "ast",
       "id": "tests_test_saldos_correr_job",
       "community": 35,
-      "community_name": "_correr_job",
+      "community_name": "test_saldos.py",
       "norm_label": "_correr_job()"
     },
     {
@@ -12265,7 +12265,7 @@
       "_origin": "ast",
       "id": "tests_test_saldos_testsaldotwilio",
       "community": 35,
-      "community_name": "_correr_job",
+      "community_name": "test_saldos.py",
       "norm_label": "testsaldotwilio"
     },
     {
@@ -12277,7 +12277,7 @@
       "_origin": "ast",
       "id": "tests_test_saldos_testsaldotwilio_test_saldo_bajo_avisa_por_campanita_y_whatsapp",
       "community": 35,
-      "community_name": "_correr_job",
+      "community_name": "test_saldos.py",
       "norm_label": ".test_saldo_bajo_avisa_por_campanita_y_whatsapp()"
     },
     {
@@ -12289,7 +12289,7 @@
       "_origin": "ast",
       "id": "tests_test_saldos_testsaldotwilio_test_saldo_suficiente_no_molesta",
       "community": 35,
-      "community_name": "_correr_job",
+      "community_name": "test_saldos.py",
       "norm_label": ".test_saldo_suficiente_no_molesta()"
     },
     {
@@ -12301,7 +12301,7 @@
       "_origin": "ast",
       "id": "tests_test_saldos_testsaldotwilio_test_saldo_ilegible_tambien_es_alerta",
       "community": 35,
-      "community_name": "_correr_job",
+      "community_name": "test_saldos.py",
       "norm_label": ".test_saldo_ilegible_tambien_es_alerta()"
     },
     {
@@ -12314,7 +12314,7 @@
       "_origin": "ast",
       "id": "tests_test_saldos_testdiagnosticoanthropic",
       "community": 35,
-      "community_name": "_correr_job",
+      "community_name": "test_saldos.py",
       "norm_label": "testdiagnosticoanthropic"
     },
     {
@@ -12326,7 +12326,7 @@
       "_origin": "ast",
       "id": "tests_test_saldos_testdiagnosticoanthropic_test_sin_credito_avisa_por_whatsapp",
       "community": 35,
-      "community_name": "_correr_job",
+      "community_name": "test_saldos.py",
       "norm_label": ".test_sin_credito_avisa_por_whatsapp()"
     },
     {
@@ -12338,7 +12338,7 @@
       "_origin": "ast",
       "id": "tests_test_saldos_testdiagnosticoanthropic_test_rate_limit_queda_en_la_campanita_pero_no_en_whatsapp",
       "community": 35,
-      "community_name": "_correr_job",
+      "community_name": "test_saldos.py",
       "norm_label": ".test_rate_limit_queda_en_la_campanita_pero_no_en_whatsapp()"
     },
     {
@@ -12350,7 +12350,7 @@
       "_origin": "ast",
       "id": "tests_test_saldos_testdiagnosticoanthropic_test_error_de_credito_se_clasifica_como_sin_credito",
       "community": 35,
-      "community_name": "_correr_job",
+      "community_name": "test_saldos.py",
       "norm_label": ".test_error_de_credito_se_clasifica_como_sin_credito()"
     },
     {
@@ -12362,7 +12362,7 @@
       "_origin": "ast",
       "id": "tests_test_saldos_testdiagnosticoanthropic_test_otro_400_no_se_confunde_con_falta_de_credito",
       "community": 35,
-      "community_name": "_correr_job",
+      "community_name": "test_saldos.py",
       "norm_label": ".test_otro_400_no_se_confunde_con_falta_de_credito()"
     },
     {
@@ -12423,8 +12423,8 @@
       "_callable_class": true,
       "_origin": "ast",
       "id": "tests_test_saldos_testpaginaestado",
-      "community": 40,
-      "community_name": "login_as",
+      "community": 19,
+      "community_name": "make_user",
       "norm_label": "testpaginaestado"
     },
     {
@@ -12435,8 +12435,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_saldos_testpaginaestado_test_muestra_los_dos_servicios_en_problemas",
-      "community": 40,
-      "community_name": "login_as",
+      "community": 19,
+      "community_name": "make_user",
       "norm_label": ".test_muestra_los_dos_servicios_en_problemas()"
     },
     {
@@ -12447,8 +12447,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_saldos_testpaginaestado_test_muestra_los_dos_servicios_sanos",
-      "community": 40,
-      "community_name": "login_as",
+      "community": 19,
+      "community_name": "make_user",
       "norm_label": ".test_muestra_los_dos_servicios_sanos()"
     },
     {
@@ -12459,8 +12459,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_saldos_testpaginaestado_test_muestra_el_costo_de_railway_y_la_comparacion",
-      "community": 40,
-      "community_name": "login_as",
+      "community": 19,
+      "community_name": "make_user",
       "norm_label": ".test_muestra_el_costo_de_railway_y_la_comparacion()"
     },
     {
@@ -12471,8 +12471,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_saldos_testpaginaestado_test_sin_token_de_railway_explica_como_activarlo",
-      "community": 40,
-      "community_name": "login_as",
+      "community": 19,
+      "community_name": "make_user",
       "norm_label": ".test_sin_token_de_railway_explica_como_activarlo()"
     },
     {
@@ -12483,8 +12483,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_saldos_testpaginaestado_test_solo_para_admin",
-      "community": 40,
-      "community_name": "login_as",
+      "community": 19,
+      "community_name": "make_user",
       "norm_label": ".test_solo_para_admin()"
     },
     {
@@ -12496,8 +12496,8 @@
       "_callable_class": true,
       "_origin": "ast",
       "id": "tests_test_saldos_testcostorailway",
-      "community": 56,
-      "community_name": "TestCostoRailway",
+      "community": 35,
+      "community_name": "test_saldos.py",
       "norm_label": "testcostorailway"
     },
     {
@@ -12508,8 +12508,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_saldos_testcostorailway_limpio",
-      "community": 56,
-      "community_name": "TestCostoRailway",
+      "community": 35,
+      "community_name": "test_saldos.py",
       "norm_label": "._limpio()"
     },
     {
@@ -12520,8 +12520,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_saldos_testcostorailway_snap",
-      "community": 56,
-      "community_name": "TestCostoRailway",
+      "community": 35,
+      "community_name": "test_saldos.py",
       "norm_label": "._snap()"
     },
     {
@@ -12532,8 +12532,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_saldos_testcostorailway_test_costo_diario_es_la_diferencia_entre_fotos",
-      "community": 56,
-      "community_name": "TestCostoRailway",
+      "community": 35,
+      "community_name": "test_saldos.py",
       "norm_label": ".test_costo_diario_es_la_diferencia_entre_fotos()"
     },
     {
@@ -12544,8 +12544,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_saldos_testcostorailway_test_el_primer_dia_de_un_ciclo_nuevo_no_se_resta",
-      "community": 56,
-      "community_name": "TestCostoRailway",
+      "community": 35,
+      "community_name": "test_saldos.py",
       "norm_label": ".test_el_primer_dia_de_un_ciclo_nuevo_no_se_resta()"
     },
     {
@@ -12556,93 +12556,105 @@
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_saldos_testcostorailway_test_compara_promedio_antes_y_despues_del_corte",
-      "community": 56,
-      "community_name": "TestCostoRailway",
+      "community": 35,
+      "community_name": "test_saldos.py",
       "norm_label": ".test_compara_promedio_antes_y_despues_del_corte()"
+    },
+    {
+      "label": ".test_la_comparacion_sobrevive_al_cambio_de_ciclo()",
+      "file_type": "code",
+      "source_file": "noxadetail-app/tests/test_saldos.py",
+      "source_location": "L241",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "tests_test_saldos_testcostorailway_test_la_comparacion_sobrevive_al_cambio_de_ciclo",
+      "community": 35,
+      "community_name": "test_saldos.py",
+      "norm_label": ".test_la_comparacion_sobrevive_al_cambio_de_ciclo()"
     },
     {
       "label": ".test_sin_foto_del_corte_no_inventa_comparacion()",
       "file_type": "code",
       "source_file": "noxadetail-app/tests/test_saldos.py",
-      "source_location": "L243",
+      "source_location": "L261",
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_saldos_testcostorailway_test_sin_foto_del_corte_no_inventa_comparacion",
-      "community": 56,
-      "community_name": "TestCostoRailway",
+      "community": 35,
+      "community_name": "test_saldos.py",
       "norm_label": ".test_sin_foto_del_corte_no_inventa_comparacion()"
     },
     {
       "label": ".test_la_foto_del_dia_es_idempotente()",
       "file_type": "code",
       "source_file": "noxadetail-app/tests/test_saldos.py",
-      "source_location": "L248",
+      "source_location": "L264",
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_saldos_testcostorailway_test_la_foto_del_dia_es_idempotente",
-      "community": 56,
-      "community_name": "TestCostoRailway",
+      "community": 35,
+      "community_name": "test_saldos.py",
       "norm_label": ".test_la_foto_del_dia_es_idempotente()"
     },
     {
       "label": "TestConsultaRailway",
       "file_type": "code",
       "source_file": "noxadetail-app/tests/test_saldos.py",
-      "source_location": "L260",
+      "source_location": "L276",
       "_callable": true,
       "_callable_class": true,
       "_origin": "ast",
       "id": "tests_test_saldos_testconsultarailway",
-      "community": 76,
-      "community_name": "TestConsultaRailway",
+      "community": 35,
+      "community_name": "test_saldos.py",
       "norm_label": "testconsultarailway"
     },
     {
       "label": ".test_sin_token_lo_dice_en_vez_de_fallar()",
       "file_type": "code",
       "source_file": "noxadetail-app/tests/test_saldos.py",
-      "source_location": "L261",
+      "source_location": "L277",
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_saldos_testconsultarailway_test_sin_token_lo_dice_en_vez_de_fallar",
-      "community": 76,
-      "community_name": "TestConsultaRailway",
+      "community": 35,
+      "community_name": "test_saldos.py",
       "norm_label": ".test_sin_token_lo_dice_en_vez_de_fallar()"
     },
     {
       "label": ".test_un_error_de_graphql_no_pasa_como_exito()",
       "file_type": "code",
       "source_file": "noxadetail-app/tests/test_saldos.py",
-      "source_location": "L266",
+      "source_location": "L282",
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_saldos_testconsultarailway_test_un_error_de_graphql_no_pasa_como_exito",
-      "community": 76,
-      "community_name": "TestConsultaRailway",
+      "community": 35,
+      "community_name": "test_saldos.py",
       "norm_label": ".test_un_error_de_graphql_no_pasa_como_exito()"
     },
     {
       "label": ".test_lee_el_consumo_y_el_periodo()",
       "file_type": "code",
       "source_file": "noxadetail-app/tests/test_saldos.py",
-      "source_location": "L275",
+      "source_location": "L291",
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_saldos_testconsultarailway_test_lee_el_consumo_y_el_periodo",
-      "community": 76,
-      "community_name": "TestConsultaRailway",
+      "community": 35,
+      "community_name": "test_saldos.py",
       "norm_label": ".test_lee_el_consumo_y_el_periodo()"
     },
     {
       "label": "A_bad_request()",
       "file_type": "code",
       "source_file": "noxadetail-app/tests/test_saldos.py",
-      "source_location": "L289",
+      "source_location": "L305",
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_saldos_a_bad_request",
       "community": 35,
-      "community_name": "_correr_job",
+      "community_name": "test_saldos.py",
       "norm_label": "a_bad_request()"
     },
     {
@@ -12652,8 +12664,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "tests_test_saldos_rationale_1",
-      "community": 40,
-      "community_name": "login_as",
+      "community": 35,
+      "community_name": "test_saldos.py",
       "norm_label": "vigilancia del saldo de twilio y del credito de anthropic. si cualquiera de los..."
     },
     {
@@ -12664,7 +12676,7 @@
       "_origin": "ast",
       "id": "tests_test_saldos_rationale_35",
       "community": 35,
-      "community_name": "_correr_job",
+      "community_name": "test_saldos.py",
       "norm_label": "corre el job con los dos servicios simulados. devuelve (notificaciones,..."
     },
     {
@@ -12675,7 +12687,7 @@
       "_origin": "ast",
       "id": "tests_test_saldos_rationale_67",
       "community": 35,
-      "community_name": "_correr_job",
+      "community_name": "test_saldos.py",
       "norm_label": "no poder leer el saldo es un problema por si mismo: deja al negocio ciego justo..."
     },
     {
@@ -12686,7 +12698,7 @@
       "_origin": "ast",
       "id": "tests_test_saldos_rationale_90",
       "community": 35,
-      "community_name": "_correr_job",
+      "community_name": "test_saldos.py",
       "norm_label": "la api no da un codigo propio para 'se acabo el credito': llega como un 400..."
     },
     {
@@ -12707,8 +12719,8 @@
       "source_location": "L182",
       "_origin": "ast",
       "id": "tests_test_saldos_rationale_182",
-      "community": 40,
-      "community_name": "login_as",
+      "community": 19,
+      "community_name": "make_user",
       "norm_label": "los saldos son informacion de la cuenta, no de la operacion diaria."
     },
     {
@@ -12718,8 +12730,8 @@
       "source_location": "L189",
       "_origin": "ast",
       "id": "tests_test_saldos_rationale_189",
-      "community": 56,
-      "community_name": "TestCostoRailway",
+      "community": 35,
+      "community_name": "test_saldos.py",
       "norm_label": "railway solo publica el gasto como acumulado del periodo. el costo por dia sale..."
     },
     {
@@ -12729,41 +12741,52 @@
       "source_location": "L218",
       "_origin": "ast",
       "id": "tests_test_saldos_rationale_218",
-      "community": 56,
-      "community_name": "TestCostoRailway",
+      "community": 35,
+      "community_name": "test_saldos.py",
       "norm_label": "sin esto, el reinicio del acumulado se veria como un dia de gasto negativo \u2014 y..."
+    },
+    {
+      "label": "Antes esto se calculaba restando el acumulado de hoy menos el del corte, as\u00ed\u2026",
+      "file_type": "rationale",
+      "source_file": "noxadetail-app/tests/test_saldos.py",
+      "source_location": "L242",
+      "_origin": "ast",
+      "id": "tests_test_saldos_rationale_242",
+      "community": 35,
+      "community_name": "test_saldos.py",
+      "norm_label": "antes esto se calculaba restando el acumulado de hoy menos el del corte, asi..."
     },
     {
       "label": "Abrir /estado varias veces el mismo d\u00eda no puede duplicar filas: la serie se\u2026",
       "file_type": "rationale",
       "source_file": "noxadetail-app/tests/test_saldos.py",
-      "source_location": "L249",
+      "source_location": "L265",
       "_origin": "ast",
-      "id": "tests_test_saldos_rationale_249",
-      "community": 56,
-      "community_name": "TestCostoRailway",
+      "id": "tests_test_saldos_rationale_265",
+      "community": 35,
+      "community_name": "test_saldos.py",
       "norm_label": "abrir /estado varias veces el mismo dia no puede duplicar filas: la serie se..."
     },
     {
       "label": "GraphQL responde 200 aunque la consulta falle \u2014 el error viene en el cuerpo.\u2026",
       "file_type": "rationale",
       "source_file": "noxadetail-app/tests/test_saldos.py",
-      "source_location": "L267",
+      "source_location": "L283",
       "_origin": "ast",
-      "id": "tests_test_saldos_rationale_267",
-      "community": 76,
-      "community_name": "TestConsultaRailway",
+      "id": "tests_test_saldos_rationale_283",
+      "community": 35,
+      "community_name": "test_saldos.py",
       "norm_label": "graphql responde 200 aunque la consulta falle \u2014 el error viene en el cuerpo...."
     },
     {
       "label": "Un BadRequestError real del SDK (necesita una respuesta httpx de verdad).",
       "file_type": "rationale",
       "source_file": "noxadetail-app/tests/test_saldos.py",
-      "source_location": "L290",
+      "source_location": "L306",
       "_origin": "ast",
-      "id": "tests_test_saldos_rationale_290",
+      "id": "tests_test_saldos_rationale_306",
       "community": 35,
-      "community_name": "_correr_job",
+      "community_name": "test_saldos.py",
       "norm_label": "un badrequesterror real del sdk (necesita una respuesta httpx de verdad)."
     },
     {
@@ -13083,8 +13106,8 @@
       "captured_at": null,
       "author": null,
       "contributor": null,
-      "community": 12,
-      "community_name": "Base Layout Template",
+      "community": 10,
+      "community_name": "route",
       "norm_label": "agreements (convenios) management page",
       "_origin": "semantic",
       "id": "templates_agreements"
@@ -13098,8 +13121,8 @@
       "captured_at": null,
       "author": null,
       "contributor": null,
-      "community": 12,
-      "community_name": "Base Layout Template",
+      "community": 10,
+      "community_name": "route",
       "norm_label": "new agreement inline form",
       "_origin": "semantic",
       "id": "templates_agreements_new_agreement_form"
@@ -13113,8 +13136,8 @@
       "captured_at": null,
       "author": null,
       "contributor": null,
-      "community": 12,
-      "community_name": "Base Layout Template",
+      "community": 10,
+      "community_name": "route",
       "norm_label": "agreements table with activate/deactivate toggle",
       "_origin": "semantic",
       "id": "templates_agreements_agreements_table"
@@ -13129,7 +13152,7 @@
       "author": null,
       "contributor": null,
       "community": 45,
-      "community_name": "Analytics Dashboard",
+      "community_name": "analytics_dashboard",
       "norm_label": "analytics dashboard",
       "_origin": "semantic",
       "id": "templates_analytics"
@@ -13145,7 +13168,7 @@
       "contributor": null,
       "rationale": "The exact numeric value is stored in the data-v attribute; JS decides at render time whether to show it abbreviated or exact, so toggling the format never requires a page reload.",
       "community": 45,
-      "community_name": "Analytics Dashboard",
+      "community_name": "analytics_dashboard",
       "norm_label": "money formatting macro (data-v attribute)",
       "_origin": "semantic",
       "id": "templates_analytics_money_macro"
@@ -13161,7 +13184,7 @@
       "contributor": null,
       "rationale": "A fixed strip of headline numbers answers 'how is the business doing' regardless of which tab the user has open; kept sticky (position:sticky) so it survives scrolling.",
       "community": 45,
-      "community_name": "Analytics Dashboard",
+      "community_name": "analytics_dashboard",
       "norm_label": "sticky kpi strip",
       "_origin": "semantic",
       "id": "templates_analytics_kpi_strip"
@@ -13177,7 +13200,7 @@
       "contributor": null,
       "rationale": "Content is split into tabs so the user answers one question at a time instead of everything competing for attention on one screen; charts are lazily instantiated only when their tab is first shown because Chart.js measures 0x0 (and renders blank) inside a display:none container.",
       "community": 45,
-      "community_name": "Analytics Dashboard",
+      "community_name": "analytics_dashboard",
       "norm_label": "tabbed sections (resumen/comercial/clientes/operacion/servicios)",
       "_origin": "semantic",
       "id": "templates_analytics_tabs"
@@ -13193,7 +13216,7 @@
       "contributor": null,
       "rationale": "Daily series is the fine grain, re-bucketed client-side; default granularity is 'week' because a single month at daily resolution is one uninformative point. Dates are parsed by parts (not `new Date('YYYY-MM-DD')`) to avoid a UTC/Bogot\u00e1 off-by-one-day bug. Empty buckets are still emitted (as zero) rather than skipped so a day with no sales isn't rendered as a gap.",
       "community": 45,
-      "community_name": "Analytics Dashboard",
+      "community_name": "analytics_dashboard",
       "norm_label": "revenue chart with selectable granularity (day/week/month/quarter/year)",
       "_origin": "semantic",
       "id": "templates_analytics_ingresos_chart_granularity"
@@ -13209,7 +13232,7 @@
       "contributor": null,
       "rationale": "Chart click detection uses mode 'index' without intersect so clicking anywhere in a column opens the detail, since short/thin bars make pixel-perfect clicks unreliable.",
       "community": 45,
-      "community_name": "Analytics Dashboard",
+      "community_name": "analytics_dashboard",
       "norm_label": "detail drill-down modal (click chart bar/point)",
       "_origin": "semantic",
       "id": "templates_analytics_detalle_modal"
@@ -13224,7 +13247,7 @@
       "author": null,
       "contributor": null,
       "community": 45,
-      "community_name": "Analytics Dashboard",
+      "community_name": "analytics_dashboard",
       "norm_label": "traffic-light status indicator (ok/warn/bad)",
       "_origin": "semantic",
       "id": "templates_analytics_semaforo_indicator"
@@ -13348,7 +13371,7 @@
       "author": null,
       "contributor": null,
       "community": 12,
-      "community_name": "Base Layout Template",
+      "community_name": "Calendar View (FullCalendar)",
       "norm_label": "appointments list (datatable)",
       "_origin": "semantic",
       "id": "templates_appointments_list"
@@ -13364,7 +13387,7 @@
       "contributor": null,
       "rationale": "Filter inputs bind to their column via an explicit data-col attribute instead of the <th> position, because DataTables removes the hidden Timestamp column's header from the DOM, which used to shift every filter input onto the wrong column. Search terms are also accent-stripped so users don't have to type Spanish tildes.",
       "community": 12,
-      "community_name": "Base Layout Template",
+      "community_name": "Calendar View (FullCalendar)",
       "norm_label": "per-column filter row (text/select/date-range)",
       "_origin": "semantic",
       "id": "templates_appointments_list_datatable_filters"
@@ -13379,7 +13402,7 @@
       "author": null,
       "contributor": null,
       "community": 12,
-      "community_name": "Base Layout Template",
+      "community_name": "Calendar View (FullCalendar)",
       "norm_label": "work status timer controls (iniciar/pausar/terminar)",
       "_origin": "semantic",
       "id": "templates_appointments_list_work_status_control"
@@ -13394,7 +13417,7 @@
       "author": null,
       "contributor": null,
       "community": 12,
-      "community_name": "Base Layout Template",
+      "community_name": "Calendar View (FullCalendar)",
       "norm_label": "excel/csv export buttons",
       "_origin": "semantic",
       "id": "templates_appointments_list_export_buttons"
@@ -13408,7 +13431,7 @@
       "captured_at": null,
       "author": null,
       "contributor": null,
-      "community": 12,
+      "community": 1,
       "community_name": "Base Layout Template",
       "norm_label": "base layout template",
       "_origin": "semantic",
@@ -13423,7 +13446,7 @@
       "captured_at": null,
       "author": null,
       "contributor": null,
-      "community": 12,
+      "community": 1,
       "community_name": "Base Layout Template",
       "norm_label": "desktop navbar with role-scoped dropdowns",
       "_origin": "semantic",
@@ -13438,7 +13461,7 @@
       "captured_at": null,
       "author": null,
       "contributor": null,
-      "community": 12,
+      "community": 1,
       "community_name": "Base Layout Template",
       "norm_label": "mobile bottom navigation + 'more' sheet",
       "_origin": "semantic",
@@ -13454,7 +13477,7 @@
       "author": null,
       "contributor": null,
       "rationale": "Polls /api/notifications every 30s and also refreshes immediately on tab visibilitychange so badge counts don't go stale while the tab was backgrounded. A notification without a url is informative-only: clicking marks it read but does not navigate.",
-      "community": 12,
+      "community": 1,
       "community_name": "Base Layout Template",
       "norm_label": "notification bell dropdown (polling)",
       "_origin": "semantic",
@@ -13470,7 +13493,7 @@
       "author": null,
       "contributor": null,
       "community": 12,
-      "community_name": "Base Layout Template",
+      "community_name": "Calendar View (FullCalendar)",
       "norm_label": "appointment detail modal shell (#appointmentmodal)",
       "_origin": "semantic",
       "id": "templates_base_appointment_detail_modal"
@@ -13485,7 +13508,7 @@
       "author": null,
       "contributor": null,
       "rationale": "The logo link and menu items branch by current_user.role because a marketing user has no appointments agenda to return to, and showing links the server would reject anyway is just noise.",
-      "community": 12,
+      "community": 1,
       "community_name": "Base Layout Template",
       "norm_label": "role-conditional menu visibility (admin/operario/marketing)",
       "_origin": "semantic",
@@ -13501,7 +13524,7 @@
       "author": null,
       "contributor": null,
       "community": 12,
-      "community_name": "Base Layout Template",
+      "community_name": "Calendar View (FullCalendar)",
       "norm_label": "calendar view (fullcalendar)",
       "_origin": "semantic",
       "id": "templates_calendar"
@@ -13516,7 +13539,7 @@
       "author": null,
       "contributor": null,
       "community": 12,
-      "community_name": "Base Layout Template",
+      "community_name": "Calendar View (FullCalendar)",
       "norm_label": "fullcalendar timegrid day/week view",
       "_origin": "semantic",
       "id": "templates_calendar_fullcalendar_view"
@@ -13532,7 +13555,7 @@
       "contributor": null,
       "rationale": "A ResizeObserver re-measures each event box because at mount time FullCalendar hasn't given it its final height yet. Lines are hidden (not removed) bottom-up as space runs out, with the client's name protected as the last line to drop; notes get a variable line-clamp tried from most to fewest lines to use whatever space remains.",
       "community": 12,
-      "community_name": "Base Layout Template",
+      "community_name": "Calendar View (FullCalendar)",
       "norm_label": "adaptive event box line truncation",
       "_origin": "semantic",
       "id": "templates_calendar_event_box_truncation"
@@ -13548,7 +13571,7 @@
       "contributor": null,
       "rationale": "Deleting an appointment is permanent, so the client prompts for an admin keyword before submitting; this client-side prompt is described as 'the gate, not the lock' \u2014 real validation happens server-side.",
       "community": 12,
-      "community_name": "Base Layout Template",
+      "community_name": "Calendar View (FullCalendar)",
       "norm_label": "admin keyword delete confirmation",
       "_origin": "semantic",
       "id": "templates_calendar_delete_confirmation"
@@ -13563,7 +13586,7 @@
       "author": null,
       "contributor": null,
       "community": 12,
-      "community_name": "Base Layout Template",
+      "community_name": "Calendar View (FullCalendar)",
       "norm_label": "event click \u2192 fetch appointment json \u2192 populate modal",
       "_origin": "semantic",
       "id": "templates_calendar_appointment_detail_fetch"
@@ -13639,7 +13662,7 @@
       "author": null,
       "contributor": null,
       "community": 9,
-      "community_name": "_parse_date",
+      "community_name": "Expenses List (DataTable)",
       "norm_label": "edit expense page",
       "_origin": "semantic",
       "id": "templates_expenses_edit"
@@ -13654,7 +13677,7 @@
       "author": null,
       "contributor": null,
       "community": 9,
-      "community_name": "_parse_date",
+      "community_name": "Expenses List (DataTable)",
       "norm_label": "conditional required notes for 'caja menor' category",
       "_origin": "semantic",
       "id": "templates_expenses_edit_caja_menor_notes_rule"
@@ -13669,7 +13692,7 @@
       "author": null,
       "contributor": null,
       "community": 9,
-      "community_name": "_parse_date",
+      "community_name": "Expenses List (DataTable)",
       "norm_label": "'other vendor' conditional text input",
       "_origin": "semantic",
       "id": "templates_expenses_edit_vendor_other_field"
@@ -13684,7 +13707,7 @@
       "author": null,
       "contributor": null,
       "community": 9,
-      "community_name": "_parse_date",
+      "community_name": "Expenses List (DataTable)",
       "norm_label": "expenses list (datatable)",
       "_origin": "semantic",
       "id": "templates_expenses_list"
@@ -13699,7 +13722,7 @@
       "author": null,
       "contributor": null,
       "community": 12,
-      "community_name": "Base Layout Template",
+      "community_name": "Calendar View (FullCalendar)",
       "norm_label": "expenses datatable with server-side query filters",
       "_origin": "semantic",
       "id": "templates_expenses_list_expenses_datatable"
@@ -13714,7 +13737,7 @@
       "author": null,
       "contributor": null,
       "community": 9,
-      "community_name": "_parse_date",
+      "community_name": "Expenses List (DataTable)",
       "norm_label": "csv export link (carries current filters)",
       "_origin": "semantic",
       "id": "templates_expenses_list_csv_export"
@@ -13729,7 +13752,7 @@
       "author": null,
       "contributor": null,
       "community": 9,
-      "community_name": "_parse_date",
+      "community_name": "Expenses List (DataTable)",
       "norm_label": "new expense page",
       "_origin": "semantic",
       "id": "templates_expenses_new"
@@ -13744,7 +13767,7 @@
       "author": null,
       "contributor": null,
       "community": 9,
-      "community_name": "_parse_date",
+      "community_name": "Expenses List (DataTable)",
       "norm_label": "conditional required notes for 'caja menor' category",
       "_origin": "semantic",
       "id": "templates_expenses_new_caja_menor_notes_rule"
@@ -13760,7 +13783,7 @@
       "contributor": null,
       "rationale": "Designed to be read in 30 seconds and answer 'are we doing well?'; every figure is compared to the immediately preceding period of equal length because a number alone says nothing \u2014 the direction of change does.",
       "community": 45,
-      "community_name": "Analytics Dashboard",
+      "community_name": "analytics_dashboard",
       "norm_label": "managerial dashboard (tablero gerencial)",
       "_origin": "semantic",
       "id": "templates_gerencial"
@@ -13776,7 +13799,7 @@
       "contributor": null,
       "rationale": "delta() macro takes a 'mejor' (better-is-higher vs. better-is-lower) parameter so metrics like cancellation rate, where a drop is good, still color correctly as an improvement.",
       "community": 45,
-      "community_name": "Analytics Dashboard",
+      "community_name": "analytics_dashboard",
       "norm_label": "period-over-period delta indicator (\u25b2/\u25bc %)",
       "_origin": "semantic",
       "id": "templates_gerencial_period_comparison_delta"
@@ -13792,7 +13815,7 @@
       "contributor": null,
       "rationale": "Alerts that demand a decision are placed above every other section so they can't be missed by scrolling past them.",
       "community": 45,
-      "community_name": "Analytics Dashboard",
+      "community_name": "analytics_dashboard",
       "norm_label": "conditional business alerts (losses, cold leads, high cancellation)",
       "_origin": "semantic",
       "id": "templates_gerencial_alerts_section"
@@ -13807,7 +13830,7 @@
       "author": null,
       "contributor": null,
       "community": 45,
-      "community_name": "Analytics Dashboard",
+      "community_name": "analytics_dashboard",
       "norm_label": "traffic-light status indicator (ok/warn/bad)",
       "_origin": "semantic",
       "id": "templates_gerencial_semaforo_indicator"
@@ -13821,8 +13844,8 @@
       "captured_at": null,
       "author": null,
       "contributor": null,
-      "community": 13,
-      "community_name": "User",
+      "community": 55,
+      "community_name": "api_notifications",
       "norm_label": "login page",
       "_origin": "semantic",
       "id": "templates_login"
@@ -13852,8 +13875,8 @@
       "author": null,
       "contributor": null,
       "rationale": "Lists everything Mariana (the WhatsApp bot) does that needs human supervision \u2014 escalations, diagnostic bookings, web leads, failed replies \u2014 so it's captured here even if the WhatsApp alert itself fails to deliver.",
-      "community": 10,
-      "community_name": "route",
+      "community": 1,
+      "community_name": "Base Layout Template",
       "norm_label": "notifications list page",
       "_origin": "semantic",
       "id": "templates_notifications"
@@ -13867,8 +13890,8 @@
       "captured_at": null,
       "author": null,
       "contributor": null,
-      "community": 10,
-      "community_name": "route",
+      "community": 1,
+      "community_name": "Base Layout Template",
       "norm_label": "'solo no leidas' / 'todas' filter toggle",
       "_origin": "semantic",
       "id": "templates_notifications_filter_toggle"
@@ -13883,7 +13906,7 @@
       "author": null,
       "contributor": null,
       "community": 22,
-      "community_name": "parking_new",
+      "community_name": "_parse_date",
       "norm_label": "overnight parking registry",
       "_origin": "semantic",
       "id": "templates_parking_list"
@@ -13898,7 +13921,7 @@
       "author": null,
       "contributor": null,
       "community": 22,
-      "community_name": "parking_new",
+      "community_name": "_parse_date",
       "norm_label": "new parking record form",
       "_origin": "semantic",
       "id": "templates_parking_list_parking_form"
@@ -13913,7 +13936,7 @@
       "author": null,
       "contributor": null,
       "community": 22,
-      "community_name": "parking_new",
+      "community_name": "_parse_date",
       "norm_label": "date range / plate filter with filtered total",
       "_origin": "semantic",
       "id": "templates_parking_list_parking_filters"
@@ -13972,8 +13995,8 @@
       "captured_at": null,
       "author": null,
       "contributor": null,
-      "community": 10,
-      "community_name": "route",
+      "community": 44,
+      "community_name": "_can_see_notifications",
       "norm_label": "promotions.html",
       "_origin": "semantic",
       "id": "templates_promotions"
@@ -14002,8 +14025,8 @@
       "captured_at": null,
       "author": null,
       "contributor": null,
-      "community": 49,
-      "community_name": "quality_errors_new",
+      "community": 25,
+      "community_name": "payroll_detail.html",
       "norm_label": "quality_errors.html",
       "_origin": "semantic",
       "id": "templates_quality_errors"
@@ -14017,8 +14040,8 @@
       "captured_at": null,
       "author": null,
       "contributor": null,
-      "community": 71,
-      "community_name": "service_prices.html",
+      "community": 10,
+      "community_name": "route",
       "norm_label": "service_prices.html",
       "_origin": "semantic",
       "id": "templates_service_prices"
@@ -14032,7 +14055,7 @@
       "captured_at": null,
       "author": null,
       "contributor": null,
-      "community": 9,
+      "community": 22,
       "community_name": "_parse_date",
       "norm_label": "service_sales_list.html",
       "_origin": "semantic",
@@ -14092,8 +14115,8 @@
       "captured_at": null,
       "author": null,
       "contributor": null,
-      "community": 71,
-      "community_name": "service_prices.html",
+      "community": 10,
+      "community_name": "route",
       "norm_label": "vehicle_types.html",
       "_origin": "semantic",
       "id": "templates_vehicle_types"
@@ -14107,8 +14130,8 @@
       "captured_at": null,
       "author": null,
       "contributor": null,
-      "community": 53,
-      "community_name": "push_notification",
+      "community": 71,
+      "community_name": "whatsapp.html",
       "norm_label": "whatsapp.html",
       "_origin": "semantic",
       "id": "templates_whatsapp"
@@ -14122,8 +14145,8 @@
       "captured_at": null,
       "author": null,
       "contributor": null,
-      "community": 10,
-      "community_name": "route",
+      "community": 55,
+      "community_name": "api_notifications",
       "norm_label": "whatsapp_outbox.html",
       "_origin": "semantic",
       "id": "templates_whatsapp_outbox"
@@ -14152,8 +14175,8 @@
       "captured_at": null,
       "author": null,
       "contributor": null,
-      "community": 49,
-      "community_name": "quality_errors_new",
+      "community": 25,
+      "community_name": "payroll_detail.html",
       "norm_label": "precios de descuento por error de calidad: leve $5.000 / grave $10.000",
       "_origin": "semantic",
       "id": "templates_quality_errors_deduction_pricing"
@@ -14182,8 +14205,8 @@
       "captured_at": null,
       "author": null,
       "contributor": null,
-      "community": 10,
-      "community_name": "route",
+      "community": 5,
+      "community_name": "mariana-base-conocimiento.md",
       "norm_label": "uso de promociones por mariana: solo ante duda/objecion de precio, nunca en el saludo",
       "_origin": "semantic",
       "id": "templates_promotions_mariana_usage"
@@ -14437,8 +14460,8 @@
       "captured_at": null,
       "author": null,
       "contributor": null,
-      "community": 71,
-      "community_name": "service_prices.html",
+      "community": 10,
+      "community_name": "route",
       "norm_label": "seccion 15: catalogo (clasificacion de vehiculo camioneta/suv/auto/moto + servicios; ceramico ya incluye la correccion)",
       "_origin": "semantic",
       "id": "docs_mariana_base_conocimiento_catalogo"
@@ -14467,8 +14490,8 @@
       "captured_at": null,
       "author": null,
       "contributor": null,
-      "community": 53,
-      "community_name": "push_notification",
+      "community": 71,
+      "community_name": "whatsapp.html",
       "norm_label": "seccion 17: escalamiento a humano (6 casos, marcador [escalar:], pausa el bot)",
       "_origin": "semantic",
       "id": "docs_mariana_base_conocimiento_escalamiento"
@@ -14482,8 +14505,8 @@
       "captured_at": null,
       "author": null,
       "contributor": null,
-      "community": 53,
-      "community_name": "push_notification",
+      "community": 71,
+      "community_name": "whatsapp.html",
       "norm_label": "seccion 18: marcadores internos [meta: estado=...; servicios=...] y [nombre: ...]",
       "_origin": "semantic",
       "id": "docs_mariana_base_conocimiento_marcadores_internos"
@@ -14497,8 +14520,8 @@
       "captured_at": "2026-08-03",
       "author": null,
       "contributor": null,
-      "community": 71,
-      "community_name": "service_prices.html",
+      "community": 10,
+      "community_name": "route",
       "norm_label": "precios de polarizado (nanoceramica hd $650.000 / spectra $790.000 / ultraoptic $900.000, +$120.000 techo panoramico)",
       "_origin": "semantic",
       "id": "docs_mariana_base_conocimiento_polarizado_precios"
@@ -14542,8 +14565,8 @@
       "captured_at": null,
       "author": null,
       "contributor": null,
-      "community": 10,
-      "community_name": "route",
+      "community": 5,
+      "community_name": "mariana-base-conocimiento.md",
       "norm_label": "manejo de objecion de precio: ancla de valor por costo diario, invitacion a ver carro aplicado, prohibido ofrecer descuento",
       "_origin": "semantic",
       "id": "docs_mariana_base_conocimiento_objecion_precio"
@@ -16216,7 +16239,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "noxadetail-app/app.py",
-      "source_location": "L10455",
+      "source_location": "L10457",
       "weight": 1.0,
       "_origin": "ast",
       "source": "app",
@@ -18494,18 +18517,6 @@
       "relation": "calls",
       "context": "call",
       "confidence": "EXTRACTED",
-      "source_file": "noxadetail-app/app.py",
-      "source_location": "L10437",
-      "weight": 1.0,
-      "_origin": "ast",
-      "source": "app_comparacion_serverless",
-      "target": "date",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "calls",
-      "context": "call",
-      "confidence": "EXTRACTED",
       "source_file": "app.py",
       "source_location": "L3746",
       "weight": 1.0,
@@ -19036,7 +19047,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "noxadetail-app/tests/test_saldos.py",
-      "source_location": "L286",
+      "source_location": "L302",
       "weight": 1.0,
       "_origin": "ast",
       "source": "tests_test_saldos_testconsultarailway_test_lee_el_consumo_y_el_periodo",
@@ -19072,22 +19083,10 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "noxadetail-app/tests/test_saldos.py",
-      "source_location": "L251",
+      "source_location": "L267",
       "weight": 1.0,
       "_origin": "ast",
       "source": "tests_test_saldos_testcostorailway_test_la_foto_del_dia_es_idempotente",
-      "target": "date"
-    },
-    {
-      "relation": "calls",
-      "context": "call",
-      "confidence": "INFERRED",
-      "confidence_score": 0.8,
-      "source_file": "noxadetail-app/tests/test_saldos.py",
-      "source_location": "L244",
-      "weight": 1.0,
-      "_origin": "ast",
-      "source": "tests_test_saldos_testcostorailway_test_sin_foto_del_corte_no_inventa_comparacion",
       "target": "date"
     },
     {
@@ -19372,18 +19371,6 @@
       "confidence_score": 1.0,
       "source": "app_clientplan_vencido",
       "target": "app_bogota_now"
-    },
-    {
-      "relation": "calls",
-      "context": "call",
-      "confidence": "EXTRACTED",
-      "source_file": "noxadetail-app/app.py",
-      "source_location": "L10437",
-      "weight": 1.0,
-      "_origin": "ast",
-      "source": "app_comparacion_serverless",
-      "target": "app_bogota_now",
-      "confidence_score": 1.0
     },
     {
       "relation": "calls",
@@ -23069,7 +23056,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "noxadetail-app/app.py",
-      "source_location": "L10467",
+      "source_location": "L10469",
       "weight": 1.0,
       "_origin": "ast",
       "source": "app_job_check_saldos",
@@ -26894,7 +26881,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "noxadetail-app/app.py",
-      "source_location": "L10479",
+      "source_location": "L10481",
       "weight": 1.0,
       "_origin": "ast",
       "source": "app_job_check_saldos",
@@ -29639,7 +29626,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "noxadetail-app/app.py",
-      "source_location": "L10465",
+      "source_location": "L10467",
       "weight": 1.0,
       "_origin": "ast",
       "source": "app_job_check_saldos",
@@ -29662,7 +29649,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "noxadetail-app/app.py",
-      "source_location": "L10486",
+      "source_location": "L10488",
       "weight": 1.0,
       "_origin": "ast",
       "source": "app_job_check_saldos",
@@ -29708,7 +29695,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "noxadetail-app/app.py",
-      "source_location": "L10508",
+      "source_location": "L10510",
       "weight": 1.0,
       "_origin": "ast",
       "source": "app_job_check_saldos",
@@ -29742,7 +29729,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "noxadetail-app/app.py",
-      "source_location": "L10510",
+      "source_location": "L10512",
       "weight": 1.0,
       "_origin": "ast",
       "source": "app_job_check_saldos",
@@ -29758,6 +29745,18 @@
       "_origin": "ast",
       "source": "app_rationale_10388",
       "target": "app_tomar_snapshot_costo_railway",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "noxadetail-app/app.py",
+      "source_location": "L10441",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "app_comparacion_serverless",
+      "target": "app_serie_costos_railway",
       "confidence_score": 1.0
     },
     {
@@ -29786,10 +29785,10 @@
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "noxadetail-app/app.py",
-      "source_location": "L10456",
+      "source_location": "L10458",
       "weight": 1.0,
       "_origin": "ast",
-      "source": "app_rationale_10456",
+      "source": "app_rationale_10458",
       "target": "app_job_check_saldos",
       "confidence_score": 1.0
     },
@@ -39921,7 +39920,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "noxadetail-app/tests/test_saldos.py",
-      "source_location": "L289",
+      "source_location": "L305",
       "weight": 1.0,
       "_origin": "ast",
       "source": "tests_test_saldos",
@@ -39954,7 +39953,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "noxadetail-app/tests/test_saldos.py",
-      "source_location": "L260",
+      "source_location": "L276",
       "weight": 1.0,
       "_origin": "ast",
       "source": "tests_test_saldos",
@@ -40425,7 +40424,18 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "noxadetail-app/tests/test_saldos.py",
-      "source_location": "L248",
+      "source_location": "L241",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "tests_test_saldos_testcostorailway",
+      "target": "tests_test_saldos_testcostorailway_test_la_comparacion_sobrevive_al_cambio_de_ciclo",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "source_file": "noxadetail-app/tests/test_saldos.py",
+      "source_location": "L264",
       "weight": 1.0,
       "_origin": "ast",
       "source": "tests_test_saldos_testcostorailway",
@@ -40436,7 +40446,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "noxadetail-app/tests/test_saldos.py",
-      "source_location": "L243",
+      "source_location": "L261",
       "weight": 1.0,
       "_origin": "ast",
       "source": "tests_test_saldos_testcostorailway",
@@ -40480,6 +40490,18 @@
       "confidence_score": 1.0
     },
     {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "noxadetail-app/tests/test_saldos.py",
+      "source_location": "L248",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "tests_test_saldos_testcostorailway_test_la_comparacion_sobrevive_al_cambio_de_ciclo",
+      "target": "tests_test_saldos_testcostorailway_snap",
+      "confidence_score": 1.0
+    },
+    {
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "noxadetail-app/tests/test_saldos.py",
@@ -40494,10 +40516,21 @@
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "noxadetail-app/tests/test_saldos.py",
-      "source_location": "L249",
+      "source_location": "L242",
       "weight": 1.0,
       "_origin": "ast",
-      "source": "tests_test_saldos_rationale_249",
+      "source": "tests_test_saldos_rationale_242",
+      "target": "tests_test_saldos_testcostorailway_test_la_comparacion_sobrevive_al_cambio_de_ciclo",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "noxadetail-app/tests/test_saldos.py",
+      "source_location": "L265",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "tests_test_saldos_rationale_265",
       "target": "tests_test_saldos_testcostorailway_test_la_foto_del_dia_es_idempotente",
       "confidence_score": 1.0
     },
@@ -40505,7 +40538,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "noxadetail-app/tests/test_saldos.py",
-      "source_location": "L275",
+      "source_location": "L291",
       "weight": 1.0,
       "_origin": "ast",
       "source": "tests_test_saldos_testconsultarailway",
@@ -40516,7 +40549,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "noxadetail-app/tests/test_saldos.py",
-      "source_location": "L261",
+      "source_location": "L277",
       "weight": 1.0,
       "_origin": "ast",
       "source": "tests_test_saldos_testconsultarailway",
@@ -40527,7 +40560,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "noxadetail-app/tests/test_saldos.py",
-      "source_location": "L266",
+      "source_location": "L282",
       "weight": 1.0,
       "_origin": "ast",
       "source": "tests_test_saldos_testconsultarailway",
@@ -40538,10 +40571,10 @@
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "noxadetail-app/tests/test_saldos.py",
-      "source_location": "L267",
+      "source_location": "L283",
       "weight": 1.0,
       "_origin": "ast",
-      "source": "tests_test_saldos_rationale_267",
+      "source": "tests_test_saldos_rationale_283",
       "target": "tests_test_saldos_testconsultarailway_test_un_error_de_graphql_no_pasa_como_exito",
       "confidence_score": 1.0
     },
@@ -40549,10 +40582,10 @@
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "noxadetail-app/tests/test_saldos.py",
-      "source_location": "L290",
+      "source_location": "L306",
       "weight": 1.0,
       "_origin": "ast",
-      "source": "tests_test_saldos_rationale_290",
+      "source": "tests_test_saldos_rationale_306",
       "target": "tests_test_saldos_a_bad_request",
       "confidence_score": 1.0
     },
@@ -42257,5 +42290,5 @@
       "source_file": "docs/mariana-base-conocimiento.md"
     }
   ],
-  "built_at_commit": "f5d0831e2652b3dedfec5b6443ebb97d591e028e"
+  "built_at_commit": "89eaad22f7eca829e6f51ddfb6bbac4b007e57c1"
 }

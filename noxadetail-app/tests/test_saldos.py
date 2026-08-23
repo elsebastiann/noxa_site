@@ -228,22 +228,38 @@ class TestCostoRailway:
         periodo = corte - timedelta(days=20)
         # En el corte llevaba 4 USD en 20 días dormida => 0.20 USD/día.
         self._snap(corte, 4.00, periodo)
-        hoy = A.bogota_now().date()
-        dias = (hoy - corte).days
+        self._snap(corte + timedelta(days=1), 4.50, periodo)
+        self._snap(corte + timedelta(days=2), 5.00, periodo)
 
-        datos = {"usage_usd": 4.00 + 0.50 * max(dias, 1), "periodo_inicio": periodo,
-                 "credito_usd": 0.0, "workspace": "x", "periodo_fin": None}
-        comp = A._comparacion_serverless(datos)
+        comp = A._comparacion_serverless()
 
         assert comp["antes_diario"] == 0.20
-        if dias >= 1:
-            assert comp["despues_diario"] == 0.50
-            assert comp["incremento_pct"] == 150
+        assert comp["despues_diario"] == 0.50
+        assert comp["incremento_pct"] == 150
+        assert comp["dias_despues"] == 2
+
+    def test_la_comparacion_sobrevive_al_cambio_de_ciclo(self):
+        """Antes esto se calculaba restando el acumulado de hoy menos el del
+        corte, así que al facturar (acumulado de vuelta a cero) la comparación
+        desaparecía justo cuando ya había más días de datos."""
+        corte = A.SERVERLESS_APAGADO
+        p1 = corte - timedelta(days=20)
+        p2 = corte + timedelta(days=2)
+        self._snap(corte, 4.00, p1)
+        self._snap(corte + timedelta(days=1), 4.50, p1)
+        # Empieza un ciclo nuevo: el acumulado se reinicia.
+        self._snap(p2, 0.00, p2)
+        self._snap(p2 + timedelta(days=1), 0.60, p2)
+
+        comp = A._comparacion_serverless()
+
+        # Promedia los días medibles (0.50 y 0.60), ignorando el día del
+        # reinicio, que no tiene contra qué restarse.
+        assert comp["despues_diario"] == 0.55
+        assert comp["dias_despues"] == 2
 
     def test_sin_foto_del_corte_no_inventa_comparacion(self):
-        datos = {"usage_usd": 9.0, "periodo_inicio": date(2026, 8, 1),
-                 "credito_usd": 0.0, "workspace": "x", "periodo_fin": None}
-        assert A._comparacion_serverless(datos) is None
+        assert A._comparacion_serverless() is None
 
     def test_la_foto_del_dia_es_idempotente(self):
         """Abrir /estado varias veces el mismo día no puede duplicar filas: la

@@ -169,6 +169,10 @@
           {% endif %}
           Con {{ railway_comparacion.dias_despues }} día{{ 's' if railway_comparacion.dias_despues != 1 }}
           de datos después del corte — mientras menos días, menos confiable el promedio.
+          <br><br>
+          <strong>Ojo con el alcance:</strong> Railway solo publica el gasto en dólares
+          por cuenta completa, no por servicio. Esta cifra incluye los otros proyectos
+          del workspace, así que si alguno de ellos cambia su consumo, se mezcla acá.
         </div>
       {% else %}
         <p class="st-sub">Todavía no hay con qué comparar.</p>

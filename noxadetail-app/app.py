@@ -10040,7 +10040,7 @@ def estado_servicios():
         anthropic_detalle=anthropic_detalle,
         railway=railway, railway_err=railway_err,
         railway_serie=list(reversed(_serie_costos_railway()))[:30],
-        railway_comparacion=_comparacion_serverless(railway),
+        railway_comparacion=_comparacion_serverless(),
         serverless_apagado=SERVERLESS_APAGADO,
     )
 
@@ -10413,18 +10413,23 @@ def _serie_costos_railway() -> list[dict]:
     return serie
 
 
-def _comparacion_serverless(datos: dict | None) -> dict | None:
+def _comparacion_serverless() -> dict | None:
     """Promedio de gasto diario antes vs. después de apagar Serverless.
 
     El 'antes' no sale de fotos diarias (no existían todavía) sino de repartir
     el acumulado del corte entre los días transcurridos del periodo. Es el mismo
     dinero de la factura, solo que promediado — suficiente para ver si encender
-    la app 24/7 duplicó el costo o lo movió apenas."""
+    la app 24/7 duplicó el costo o lo movió apenas.
+
+    El 'después' se promedia sobre los costos diarios ya calculados, NO restando
+    el acumulado de hoy menos el del corte. Esa resta funcionaba solo mientras
+    no cambiara el ciclo de facturación: al empezar uno nuevo el acumulado se
+    reinicia y la comparación desaparecía justo cuando más días de datos había."""
     corte = (RailwayCostSnapshot.query
              .filter(RailwayCostSnapshot.fecha >= SERVERLESS_APAGADO)
              .order_by(RailwayCostSnapshot.fecha)
              .first())
-    if corte is None or not datos:
+    if corte is None:
         return None
 
     antes = None
@@ -10433,16 +10438,13 @@ def _comparacion_serverless(datos: dict | None) -> dict | None:
         if dias_antes >= 1:
             antes = round(corte.usage_usd / dias_antes, 4)
 
-    despues = None
-    dias_despues = (bogota_now().date() - corte.fecha).days
-    # Solo tiene sentido si seguimos en el mismo periodo: si ya facturaron, el
-    # acumulado actual arrancó de cero y restarle el del corte da negativo.
-    if dias_despues >= 1 and datos["periodo_inicio"] == corte.periodo_inicio:
-        despues = round((datos["usage_usd"] - corte.usage_usd) / dias_despues, 4)
+    diarios = [d["costo"] for d in _serie_costos_railway()
+               if d["fecha"] > corte.fecha and d["costo"] is not None]
+    despues = round(sum(diarios) / len(diarios), 4) if diarios else None
 
     return {
         "fecha_corte": corte.fecha,
-        "dias_despues": dias_despues,
+        "dias_despues": len(diarios),
         "antes_diario": antes,
         "despues_diario": despues,
         "incremento_pct": (round((despues - antes) / antes * 100)
