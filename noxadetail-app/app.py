@@ -1196,6 +1196,11 @@ class Installer(db.Model):
 MATERIAL_INSTALADOR = "instalador"
 MATERIAL_NOXA       = "noxa"
 
+# Valor del selector de instalador cuando el trabajo lo hace el equipo de Noxa.
+# El servicio sigue catalogado como tercerizado —normalmente lo es— pero este
+# trabajo puntual no se reparte con nadie.
+INSTALADOR_INTERNO = "noxa"
+
 
 class AppointmentOutsourcing(db.Model):
     """El reparto de UN servicio tercerizado dentro de una cita.
@@ -2289,6 +2294,22 @@ def _guardar_tercerizacion(appt: Appointment, services: list) -> None:
             continue
         prefijo = f"terc_{svc.id}_"
         material = request.form.get(prefijo + "material") or MATERIAL_INSTALADOR
+        crudo_instalador = (request.form.get(prefijo + "installer") or "").strip()
+
+        # "Lo instala Noxa": el servicio está catalogado como tercerizado, pero
+        # ESTE trabajo lo hizo el equipo. No hay comisión y todo el ingreso
+        # queda. Se marca explícito y no con un instalador ficticio al 0%,
+        # que ensuciaría la lista y la liquidación con alguien a quien nunca
+        # se le paga.
+        if crudo_instalador == INSTALADOR_INTERNO:
+            db.session.add(AppointmentOutsourcing(
+                appointment_id=appt.id, service_name=svc.name,
+                installer_id=None, installer_pct=0, material_por=MATERIAL_NOXA,
+                amount=(_int_o_cero(request.form.get(prefijo + "amount")) or None
+                        if svc.is_custom_price else None),
+                description=(request.form.get(prefijo + "desc") or "").strip() or None,
+            ))
+            continue
 
         # El % se manda desde el form ya resuelto, pero se recalcula acá por si
         # el POST llega sin JS: sin esto quedaría en 0 y el instalador no
@@ -2302,7 +2323,7 @@ def _guardar_tercerizacion(appt: Appointment, services: list) -> None:
                    else 100 - svc.default_installer_share)
 
         try:
-            installer_id = int(request.form.get(prefijo + "installer") or 0) or None
+            installer_id = int(crudo_instalador or 0) or None
         except ValueError:
             installer_id = None
 
@@ -2345,10 +2366,18 @@ def _reparto_tercerizacion(appt: Appointment, services: list, lista: int, total:
         else:
             svc = por_nombre.get((o.service_name or "").strip().lower())
             base = _precio_de_lista(svc.id if svc else None, appt.vehicle_type_id)
+        if o.installer:
+            quien = o.installer.name
+        elif not o.installer_pct:
+            # Sin instalador y sin comisión: lo hizo el equipo. Distinto de
+            # "sin asignar", que sí es un pendiente por resolver.
+            quien = "Lo instaló Noxa"
+        else:
+            quien = "Sin asignar"
         crudas.append({
             "id": o.id,
             "servicio": o.service_name,
-            "instalador": o.installer.name if o.installer else "Sin asignar",
+            "instalador": quien,
             "installer_id": o.installer_id,
             "pct": o.installer_pct or 0,
             "material_por": o.material_por,
@@ -3702,6 +3731,17 @@ def reclasificar_tercerizacion():
             for svc in Service.query.filter_by(is_outsourced=True).all():
                 if svc.name not in nombres:
                     continue
+                # Trabajos viejos que instaló el propio equipo: sin comisión y
+                # con el ingreso intacto. Hay que poder marcarlos, o la
+                # reclasificación les restaría una plata que nunca se pagó.
+                if (request.form.get(f"installer_{appt_id}") or "") == INSTALADOR_INTERNO:
+                    db.session.add(AppointmentOutsourcing(
+                        appointment_id=appt.id, service_name=svc.name,
+                        installer_id=None, installer_pct=0, material_por=MATERIAL_NOXA,
+                        description="Reclasificación del histórico — lo instaló Noxa",
+                    ))
+                    aplicadas += 1
+                    continue
                 material = request.form.get(f"material_{appt_id}") or MATERIAL_INSTALADOR
                 try:
                     pct = int(request.form.get(f"pct_{appt_id}") or 0)
@@ -4023,6 +4063,10 @@ def _liquidacion_instaladores(date_from, date_to) -> list[dict]:
         if not (date_from <= fecha <= date_to):
             continue
         for linea in appointment_money(a)["tercerizado"]:
+            # Los trabajos que hizo el propio equipo no generan cuenta por
+            # pagar: en una liquidación solo estorban.
+            if not linea["costo_instalador"]:
+                continue
             nombre = linea["instalador"]
             grupo = por_instalador.setdefault(nombre, {
                 "instalador": nombre, "trabajos": [], "total": 0, "queda_noxa": 0,

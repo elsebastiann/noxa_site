@@ -248,8 +248,15 @@
               <div class="row g-2">
                 <div class="col-sm-4">
                   <label class="form-label mb-1">Instalador</label>
-                  <select class="form-select form-select-sm" name="terc_{{ svc.id }}_installer">
+                  {# "Lo instala Noxa" no es un instalador más: es decir que este
+                     trabajo puntual no se reparte, aunque el servicio esté
+                     catalogado como tercerizado. #}
+                  <select class="form-select form-select-sm terc-installer" name="terc_{{ svc.id }}_installer">
                     <option value="">Sin asignar</option>
+                    <option value="noxa"
+                      {% if prev and not prev.installer_id and not prev.installer_pct %}selected{% endif %}>
+                      Lo instala Noxa (sin comisión)
+                    </option>
                     {% for ins in installers %}
                       <option value="{{ ins.id }}"
                         {% if prev and prev.installer_id == ins.id %}selected{% endif %}>{{ ins.name }}</option>
@@ -301,8 +308,15 @@
                 {% endif %}
               </div>
               <div class="terc-hint">
-                El cliente paga el total a Noxa. Este porcentaje es lo que queda
-                debiéndosele al instalador — no lo registres además como gasto.
+                <span class="terc-hint-externo">
+                  El cliente paga el total a Noxa. Este porcentaje es lo que queda
+                  debiéndosele al instalador — no lo registres además como gasto.
+                </span>
+                <span class="terc-hint-interno" hidden>
+                  Lo instala el equipo de Noxa: no hay comisión y el ingreso queda
+                  completo. Si quieres dejar constancia de quién lo hizo, márcalo
+                  abajo en Operarios.
+                </span>
               </div>
             </div>
           {% endfor %}
@@ -791,7 +805,9 @@
       // lo que de verdad le queda a Noxa.
       const filaTerc = document.getElementById("rowTerc");
       if (filaTerc) {
-        const lineas = data.outsourcing || [];
+        // Las líneas sin comisión (las que instala Noxa) no se listan: una
+        // línea de "−$0" solo distrae, y el ingreso ya sale completo abajo.
+        const lineas = (data.outsourcing || []).filter(l => l.costo_instalador > 0);
         filaTerc.classList.toggle("d-none", lineas.length === 0);
         const cont = document.getElementById("tercDetalle");
         if (cont) {
@@ -877,6 +893,25 @@
   document.querySelectorAll(".terc-card").forEach(card => {
     const material = card.querySelector(".terc-material");
     const pct = card.querySelector(".terc-pct");
+    const quien = card.querySelector(".terc-installer");
+
+    // Si lo instala Noxa no hay nada que repartir: el % y el material se
+    // apagan en vez de dejarlos editables mostrando un número que no aplica.
+    function syncInterno() {
+      const interno = quien && quien.value === "noxa";
+      if (pct) {
+        pct.disabled = interno;
+        if (interno) pct.value = 0;
+        else if (pct.value === "0") pct.value = card.dataset.share || 65;
+      }
+      if (material) material.disabled = interno;
+      const externo = card.querySelector(".terc-hint-externo");
+      const propio  = card.querySelector(".terc-hint-interno");
+      if (externo) externo.hidden = interno;
+      if (propio)  propio.hidden  = !interno;
+    }
+    if (quien) quien.addEventListener("change", () => { syncInterno(); updatePrice(); });
+    syncInterno();
 
     // Quién pone el material define el reparto: si lo pone Noxa, los
     // porcentajes se voltean. Queda editable porque no siempre se negocia igual.

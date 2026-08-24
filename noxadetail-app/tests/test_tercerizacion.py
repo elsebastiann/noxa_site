@@ -487,3 +487,73 @@ class TestVistaPreviaDelPrecio:
 
         assert d["outsourcing"] == []
         assert d["noxa_income"] == d["final_price"]
+
+
+class TestInstaladoPorNoxa:
+    """Algunos PPF los instala el propio equipo: no hay comisión y el ingreso
+    queda completo. Se marca explícito y no con un instalador ficticio al 0%,
+    que ensuciaría la lista y la liquidación con alguien a quien nunca se paga."""
+
+    def test_todo_el_ingreso_queda_para_noxa(self, catalogo, client):
+        login_as(client, make_user("admin_interno", role="admin"))
+        manana = A.bogota_now().date() + dt.timedelta(days=1)
+        sid = catalogo["ppf"]
+        client.post("/appointments/new", data={
+            "customer_name": "Cliente Interno", "plate": "TERINT", "phone": "3001112233",
+            "date": manana.isoformat(), "start_time": "10:00",
+            "service_ids": [str(sid)], "vehicle_type_id": str(catalogo["vt"]),
+            "confirmar_dia_cerrado": "1",
+            f"terc_{sid}_installer": "noxa",
+            f"terc_{sid}_amount": "600000",
+            f"terc_{sid}_desc": "Capó, lo hice yo",
+        }, follow_redirects=True)
+
+        with A.app.app_context():
+            appt = A.Appointment.query.filter_by(plate="TERINT").first()
+            m = A.appointment_money(appt)
+            assert m["total"] == 600_000
+            assert m["costo_tercerizacion"] == 0
+            assert m["ingreso_noxa"] == 600_000
+            assert appt.outsourcings[0].installer_id is None
+            assert appt.outsourcings[0].installer_pct == 0
+
+    def test_no_aparece_en_la_liquidacion(self, catalogo):
+        """En una liquidación solo estorba: no hay nada que pagarle a nadie."""
+        appt = _cita(catalogo, "PPF a Medida Test", [
+            {"service_name": "PPF a Medida Test", "installer_id": None,
+             "installer_pct": 0, "material_por": A.MATERIAL_NOXA, "amount": 600_000},
+        ])
+        dia = appt.start_datetime.date()
+
+        assert A._liquidacion_instaladores(dia, dia) == []
+
+    def test_se_distingue_de_un_pendiente_por_asignar(self, catalogo):
+        """Sin instalador y sin comisión = lo hizo el equipo. Sin instalador
+        pero con comisión = falta decir a quién pagarle."""
+        propio = _cita(catalogo, "PPF a Medida Test", [
+            {"service_name": "PPF a Medida Test", "installer_id": None,
+             "installer_pct": 0, "material_por": A.MATERIAL_NOXA, "amount": 500_000},
+        ])
+        assert A.appointment_money(propio)["tercerizado"][0]["instalador"] == "Lo instaló Noxa"
+
+        pendiente = _cita(catalogo, "Polarizado Test", [
+            {"service_name": "Polarizado Test", "installer_id": None,
+             "installer_pct": 65, "material_por": A.MATERIAL_INSTALADOR},
+        ])
+        assert A.appointment_money(pendiente)["tercerizado"][0]["instalador"] == "Sin asignar"
+
+    def test_el_historico_tambien_se_puede_marcar_como_propio(self, catalogo, client):
+        login_as(client, make_user("admin_interno2", role="admin"))
+        appt = _cita(catalogo, "Polarizado Test")
+        dia = appt.start_datetime.date()
+
+        client.post("/tercerizacion/reclasificar", data={
+            "aplicar": [str(appt.id)],
+            f"installer_{appt.id}": "noxa",
+        }, follow_redirects=True)
+
+        # El ingreso no se toca: nunca se le pagó comisión a nadie.
+        assert A._kpis_rentabilidad(dia, dia)["ingresos"] == 975_000
+        with A.app.app_context():
+            linea = A.AppointmentOutsourcing.query.filter_by(appointment_id=appt.id).first()
+            assert linea.installer_pct == 0

@@ -1,7 +1,7 @@
 {
   "app.py": {
-    "mtime": 1787539118.8697436,
-    "ast_hash": "a6bd9b163aa7a50e3dbcbfe1a6ec39c4",
+    "mtime": 1787540882.4115698,
+    "ast_hash": "999dd4762d08cc40709ec7c07082b3ef",
     "semantic_hash": ""
   },
   "migrate_prices.py": {
@@ -65,8 +65,8 @@
     "semantic_hash": ""
   },
   "templates/appointment_form.html": {
-    "mtime": 1787538044.8484838,
-    "ast_hash": "0605126a0e76cf61079b08e23cfbc712",
+    "mtime": 1787540868.6055567,
+    "ast_hash": "e94a17d91ed4895cda4d1db607b46577",
     "semantic_hash": ""
   },
   "templates/appointments_list.html": {
@@ -285,8 +285,8 @@
     "semantic_hash": ""
   },
   "tests/test_tercerizacion.py": {
-    "mtime": 1787538102.5326743,
-    "ast_hash": "911eb6f29828fe1bd64785d49df6d885",
+    "mtime": 1787541223.3973978,
+    "ast_hash": "495ebf58622907e466a4f9c1f0426525",
     "semantic_hash": ""
   },
   "templates/installers.html": {
@@ -300,8 +300,8 @@
     "semantic_hash": ""
   },
   "templates/reclasificar_tercerizacion.html": {
-    "mtime": 1787532640.879897,
-    "ast_hash": "c31f75e1f0ff7728e83733c165f00cc6",
+    "mtime": 1787540874.568726,
+    "ast_hash": "b1bdcd82f599ff2b8b7de541d9dc5d33",
     "semantic_hash": ""
   },
   "tests/test_lista_precios.py": {

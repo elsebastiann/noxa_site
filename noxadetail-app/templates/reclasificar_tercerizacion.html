@@ -73,8 +73,9 @@
               <td>{{ c.servicios }}</td>
               <td class="num">{{ money(c.total) }}</td>
               <td>
-                <select class="form-select form-select-sm" name="installer_{{ c.id }}">
+                <select class="form-select form-select-sm rc-installer" name="installer_{{ c.id }}">
                   <option value="">Sin asignar</option>
+                  <option value="noxa">Lo instaló Noxa (sin comisión)</option>
                   {% for ins in installers %}
                     <option value="{{ ins.id }}">{{ ins.name }}</option>
                   {% endfor %}
