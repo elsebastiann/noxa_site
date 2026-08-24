@@ -7955,27 +7955,68 @@ def _build_message_history(conversation: "Conversation") -> list[dict]:
     return messages
 
 
+CLAUDE_MAX_TOKENS = 600
+# Reintento con el techo al doble cuando la respuesta se corta SIN alcanzar a
+# escribir nada. Ver _call_claude.
+CLAUDE_MAX_TOKENS_REINTENTO = 1600
+
+
+def _texto_de(response) -> str:
+    return "\n".join(b.text for b in response.content if b.type == "text").strip()
+
+
+def _diagnostico_de(response) -> str:
+    """Por qué vino una respuesta sin texto, en una línea para el log.
+
+    Esto existe porque el error decía solo "Claude no devolvió texto" y
+    descartaba justo el dato que lo explica. Falló cuatro veces una tarde en
+    producción (2026-08-19) sin dejar rastro de la causa, y las dos
+    explicaciones posibles —techo de tokens o negativa del modelo— se arreglan
+    de forma opuesta."""
+    bloques = [b.type for b in response.content] or ["(ninguno)"]
+    salida = getattr(getattr(response, "usage", None), "output_tokens", "?")
+    return (f"stop_reason={response.stop_reason}; bloques={bloques}; "
+            f"tokens_salida={salida}")
+
+
 def _call_claude(messages: list[dict], extra_system_text: str) -> list[str]:
     """Llama a Claude con la base de conocimiento de NOXA + contexto puntual, y
     parte la respuesta en varios mensajes cortos de WhatsApp (separados por "---")."""
-    response = _get_claude_client().messages.create(
-        model="claude-sonnet-5",
-        max_tokens=600,
-        system=[
-            {
-                "type": "text",
-                "text": NOXA_SYSTEM_PROMPT,
-                "cache_control": {"type": "ephemeral"},
-            },
-            {
-                "type": "text",
-                "text": extra_system_text,
-            },
-        ],
-        messages=messages,
-    )
-    text_blocks = [block.text for block in response.content if block.type == "text"]
-    full_text = "\n".join(text_blocks).strip()
+
+    def pedir(max_tokens: int):
+        return _get_claude_client().messages.create(
+            model="claude-sonnet-5",
+            max_tokens=max_tokens,
+            system=[
+                {
+                    "type": "text",
+                    "text": NOXA_SYSTEM_PROMPT,
+                    "cache_control": {"type": "ephemeral"},
+                },
+                {
+                    "type": "text",
+                    "text": extra_system_text,
+                },
+            ],
+            messages=messages,
+        )
+
+    response = pedir(CLAUDE_MAX_TOKENS)
+    full_text = _texto_de(response)
+
+    # Sin texto Y cortado por el techo de tokens: el modelo se quedó sin espacio
+    # antes de escribir nada. Reintentar con el MISMO techo daría lo mismo —así
+    # se gastaron tres llamadas idénticas por turno el 2026-08-19—, así que se
+    # reintenta una sola vez con el techo al doble. Si la causa es otra (una
+    # negativa del modelo, por ejemplo), no se reintenta y se falla de una con
+    # el motivo en el log.
+    if not full_text and response.stop_reason == "max_tokens":
+        app.logger.warning(
+            f"[Claude] Respuesta vacía por techo de tokens ({_diagnostico_de(response)}). "
+            f"Reintentando con max_tokens={CLAUDE_MAX_TOKENS_REINTENTO}."
+        )
+        response = pedir(CLAUDE_MAX_TOKENS_REINTENTO)
+        full_text = _texto_de(response)
 
     if response.stop_reason == "max_tokens" and full_text:
         # Se cortó a mitad de frase — recorta al último punto/salto de línea completo
@@ -7986,9 +8027,12 @@ def _call_claude(messages: list[dict], extra_system_text: str) -> list[str]:
             full_text = full_text[:cut + 1].strip()
 
     if not full_text:
-        # Puede pasar si el modelo solo devolvió un bloque de pensamiento sin texto
-        # (p.ej. cortado por max_tokens). Nunca se debe mandar un mensaje vacío a Twilio.
-        raise ValueError("Claude no devolvió texto en la respuesta")
+        # Nunca se le manda un mensaje vacío a Twilio. El motivo va en el
+        # mensaje del error para que llegue al log Y a la campanita del admin,
+        # que es por donde se ve un fallo en producción.
+        diag = _diagnostico_de(response)
+        app.logger.error(f"[Claude] Respuesta sin texto utilizable — {diag}")
+        raise ValueError(f"Claude no devolvió texto en la respuesta ({diag})")
 
     # El separador tiene que reconocerse también al principio y al final del
     # texto, no solo entre dos saltos de línea: si el modelo cierra con un "---"

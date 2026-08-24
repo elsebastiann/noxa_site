@@ -1,7 +1,7 @@
 {
   "app.py": {
-    "mtime": 1787599711.3356547,
-    "ast_hash": "ad79be28763cdcbf0e9860082786a608",
+    "mtime": 1787600328.8056908,
+    "ast_hash": "d0f9495c974b4492582ddc86e79cd8d7",
     "semantic_hash": ""
   },
   "migrate_prices.py": {
@@ -337,6 +337,16 @@
   "tests/test_colores_agenda.py": {
     "mtime": 1787597827.8830578,
     "ast_hash": "2f04bbb01cdcb48c0c94adf0d4bb2491",
+    "semantic_hash": ""
+  },
+  "tests/test_call_claude.py": {
+    "mtime": 1787600308.7590635,
+    "ast_hash": "98bc05b10cd64ead0015547d913ccbd4",
+    "semantic_hash": ""
+  },
+  "requirements-dev.txt": {
+    "mtime": 1787600118.9656196,
+    "ast_hash": "c41d0423082df58b3c5c73b071bf2868",
     "semantic_hash": ""
   }
 }
