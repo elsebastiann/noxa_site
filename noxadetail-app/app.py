@@ -2338,40 +2338,72 @@ def _reparto_tercerizacion(appt: Appointment, services: list, lista: int, total:
         return []
 
     por_nombre = {s.name.strip().lower(): s for s in services}
-    # Un recargo hace el factor > 1 y un descuento < 1; ambos son correctos.
-    factor = (total / lista) if lista > 0 else 1.0
-
-    salida = []
+    crudas = []
     for o in lineas:
         if o.amount:
             base = int(o.amount)          # trabajo a medida: el valor cotizado
         else:
             svc = por_nombre.get((o.service_name or "").strip().lower())
-            base = 0
-            if svc and appt.vehicle_type_id:
-                sp = (ServicePrice.query
-                      .filter_by(service_id=svc.id, vehicle_type_id=appt.vehicle_type_id,
-                                 is_active=True)
-                      .first())
-                base = sp.price if sp else 0
-
-        cobrado = int(round(base * factor))
-        costo = int(round(cobrado * (o.installer_pct or 0) / 100))
-        salida.append({
+            base = _precio_de_lista(svc.id if svc else None, appt.vehicle_type_id)
+        crudas.append({
             "id": o.id,
             "servicio": o.service_name,
             "instalador": o.installer.name if o.installer else "Sin asignar",
             "installer_id": o.installer_id,
-            "pct": o.installer_pct,
+            "pct": o.installer_pct or 0,
             "material_por": o.material_por,
             "a_medida": bool(o.amount),
             "descripcion": o.description or "",
             "base": base,
-            "cobrado": cobrado,
-            "costo_instalador": costo,
-            "queda_noxa": cobrado - costo,
         })
+    return _repartir(crudas, lista, total)
+
+
+def _precio_de_lista(service_id, vehicle_type_id) -> int:
+    if not service_id or not vehicle_type_id:
+        return 0
+    sp = (ServicePrice.query
+          .filter_by(service_id=service_id, vehicle_type_id=vehicle_type_id, is_active=True)
+          .first())
+    return sp.price if sp else 0
+
+
+def _repartir(crudas: list[dict], lista: int, total: int) -> list[dict]:
+    """Reparte cada línea entre instalador y Noxa, prorrateando los ajustes.
+
+    Vive aparte porque lo usan dos caminos: el cálculo de una cita guardada y
+    la vista previa del formulario. Si cada uno llevara su propia fórmula, el
+    número que se ve al agendar terminaría difiriendo del que queda grabado."""
+    # Un recargo hace el factor > 1 y un descuento < 1; ambos son correctos.
+    factor = (total / lista) if lista > 0 else 1.0
+    salida = []
+    for c in crudas:
+        cobrado = int(round(c["base"] * factor))
+        costo = int(round(cobrado * c["pct"] / 100))
+        salida.append({**c, "cobrado": cobrado,
+                       "costo_instalador": costo, "queda_noxa": cobrado - costo})
     return salida
+
+
+def _simular_tercerizacion(lineas: list[dict], vehicle_type_id, lista: int, total: int) -> list[dict]:
+    """El mismo reparto, pero sobre lo que hay en pantalla y sin guardar nada."""
+    crudas = []
+    for o in lineas:
+        try:
+            service_id = int(o.get("service_id") or 0) or None
+        except (TypeError, ValueError):
+            service_id = None
+        monto = _int_o_cero(o.get("amount"))
+        svc = Service.query.get(service_id) if service_id else None
+        crudas.append({
+            "servicio": svc.name if svc else "",
+            "instalador": o.get("installer_name") or "Sin asignar",
+            "pct": _int_o_cero(o.get("pct")),
+            "material_por": o.get("material") or MATERIAL_INSTALADOR,
+            "a_medida": bool(monto),
+            "base": monto or _precio_de_lista(service_id, vehicle_type_id),
+        })
+    return _repartir(crudas, lista, total)
 
 
 def appointment_money(appt: Appointment) -> dict:
@@ -5194,11 +5226,26 @@ def api_estimate_price():
             self.value = _int_o_cero(d.get("value"))
             self.description = d.get("description") or ""
 
+    # Igual que en appointment_money: los trabajos a medida no tienen fila en
+    # ServicePrice, así que arriba pesaron 0. Sin sumarlos acá, la vista previa
+    # mostraría $0 para un PPF cotizado y el usuario creería que no se guardó.
+    lineas_terc = [o for o in (data.get("outsourcings") or []) if isinstance(o, dict)]
+    a_medida = sum(_int_o_cero(o.get("amount")) for o in lineas_terc)
+    base_price += a_medida
+    subtotal   += a_medida
+
     ajustes = [_Aj(a) for a in (data.get("adjustments") or []) if isinstance(a, dict)]
     final_price, detalle = apply_adjustments(subtotal, ajustes, base_price)
 
     abonado = sum(_int_o_cero(a.get("amount")) for a in (data.get("payments") or [])
                   if isinstance(a, dict))
+
+    # Reparto con el instalador, calculado acá y no en JS: una copia de la
+    # fórmula en el navegador se desviaría de la que guarda, y el usuario vería
+    # una cifra distinta a la que queda registrada.
+    tercerizado = _simular_tercerizacion(
+        lineas_terc, vehicle_type_id, base_price, final_price)
+    costo_tercerizacion = sum(t["costo_instalador"] for t in tercerizado)
 
     if not puede_ver_precios():
         # El operario arma la cita, pero no ve cuánto vale: ni en la vista
@@ -5216,6 +5263,9 @@ def api_estimate_price():
         "final_price": final_price,
         "paid": abonado,
         "balance": final_price - abonado,
+        "outsourcing": tercerizado,
+        "outsourcing_cost": costo_tercerizacion,
+        "noxa_income": final_price - costo_tercerizacion,
     })
 
 @app.route("/appointments/<int:appointment_id>/close", methods=["POST"])

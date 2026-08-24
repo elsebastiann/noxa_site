@@ -1,7 +1,7 @@
 {
   "app.py": {
-    "mtime": 1787532612.0091703,
-    "ast_hash": "4395136f95e737c943f841c4eca04b7e",
+    "mtime": 1787538000.2828474,
+    "ast_hash": "be7a6194fbc20508dee15fed6591b177",
     "semantic_hash": ""
   },
   "migrate_prices.py": {
@@ -65,8 +65,8 @@
     "semantic_hash": ""
   },
   "templates/appointment_form.html": {
-    "mtime": 1787532303.2478852,
-    "ast_hash": "fe7254291d84a42a2d994bfc251fbebc",
+    "mtime": 1787538044.8484838,
+    "ast_hash": "0605126a0e76cf61079b08e23cfbc712",
     "semantic_hash": ""
   },
   "templates/appointments_list.html": {
@@ -285,8 +285,8 @@
     "semantic_hash": ""
   },
   "tests/test_tercerizacion.py": {
-    "mtime": 1787532747.297373,
-    "ast_hash": "dc2e85577ebf1be79c282ddd2076d541",
+    "mtime": 1787538102.5326743,
+    "ast_hash": "911eb6f29828fe1bd64785d49df6d885",
     "semantic_hash": ""
   },
   "templates/installers.html": {

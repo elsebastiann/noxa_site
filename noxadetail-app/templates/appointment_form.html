@@ -442,6 +442,18 @@
           <span class="text-secondary">Valor del servicio</span>
           <span class="fs-5 fw-bold text-success" id="pricePreview">$0</span>
         </div>
+
+        {# ---- Reparto con el instalador ----
+           Solo aparece si hay servicio tercerizado. El "valor del servicio" de
+           arriba es lo que cobra el cliente; lo de abajo es a quién le queda. #}
+        <div class="d-none" id="rowTerc">
+          <hr class="my-2" style="border-color:var(--border);">
+          <div id="tercDetalle"></div>
+          <div class="d-flex justify-content-between align-items-center mt-1">
+            <span class="text-secondary">Ingreso real de Noxa</span>
+            <span class="fs-5 fw-bold" style="color:var(--accent);" id="sumNoxa">$0</span>
+          </div>
+        </div>
         <div class="d-flex justify-content-between small text-secondary mt-2 d-none" id="rowAbonado">
           <span>Abonado</span><span id="sumAbonado">$0</span>
         </div>
@@ -746,6 +758,7 @@
           { campo: "adj_value", destino: "value" },
         ]),
         payments: leerFilas(".pay-row", [{ campo: "pay_amount", destino: "amount" }]),
+        outsourcings: leerTercerizados(),
       })
     })
     .then(r => r.json())
@@ -773,6 +786,28 @@
             data.adjustments.filter(a => a.kind === "discount").reduce((s, a) => s + a.amount, 0), "−");
       poner("rowRec", "sumRec",
             data.adjustments.filter(a => a.kind === "surcharge").reduce((s, a) => s + a.amount, 0), "+");
+
+      // Desglose del reparto: una línea por servicio tercerizado y, al final,
+      // lo que de verdad le queda a Noxa.
+      const filaTerc = document.getElementById("rowTerc");
+      if (filaTerc) {
+        const lineas = data.outsourcing || [];
+        filaTerc.classList.toggle("d-none", lineas.length === 0);
+        const cont = document.getElementById("tercDetalle");
+        if (cont) {
+          // Los nombres vienen del catálogo, que lo edita un humano: se escapan
+          // antes de meterlos al DOM.
+          const esc = s => String(s || "").replace(/[&<>"]/g,
+            c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+          cont.innerHTML = lineas.map(l => `
+            <div class="d-flex justify-content-between small text-secondary mb-1">
+              <span>${esc(l.servicio || "Tercerizado")} — ${esc(l.instalador)} (${l.pct}%)</span>
+              <span>−${pesos(l.costo_instalador)}</span>
+            </div>`).join("");
+        }
+        const noxa = document.getElementById("sumNoxa");
+        if (noxa) noxa.textContent = pesos(data.noxa_income);
+      }
       poner("rowAbonado", "sumAbonado", data.paid, "−");
 
       // El saldo solo aparece si hay abonos: sin abonos, saldo y total son lo
@@ -807,6 +842,24 @@
   checkboxes.forEach(c => c.addEventListener("change", updateGroupCounts));
   updateGroupCounts();
 
+  // Lo que hay en pantalla de cada bloque de reparto, para que la vista previa
+  // lo calcule el servidor con la misma fórmula que usa al guardar.
+  function leerTercerizados() {
+    return Array.from(document.querySelectorAll(".terc-card"))
+      .filter(card => !card.hidden)
+      .map(card => {
+        const sel = card.querySelector("select[name$='_installer']");
+        const monto = card.querySelector(".terc-amount");
+        return {
+          service_id: parseInt(card.dataset.svc, 10),
+          installer_name: sel && sel.selectedIndex > 0 ? sel.options[sel.selectedIndex].text : "",
+          pct: parseInt((card.querySelector(".terc-pct") || {}).value || "0", 10),
+          material: (card.querySelector(".terc-material") || {}).value || "instalador",
+          amount: monto ? parseInt(monto.value || "0", 10) : 0,
+        };
+      });
+  }
+
   // ---- Tercerizados ----
   // El bloque de reparto sigue al checkbox de su servicio: aparece al marcarlo
   // y se esconde al desmarcarlo. Escondido no estorba, pero sus campos igual se
@@ -818,18 +871,28 @@
       card.hidden = !(cb && cb.checked);
     });
   }
-  checkboxes.forEach(c => c.addEventListener("change", syncTercCards));
+  checkboxes.forEach(c => c.addEventListener("change", () => { syncTercCards(); updatePrice(); }));
   syncTercCards();
 
-  // Quién pone el material define el reparto: si lo pone Noxa, los porcentajes
-  // se voltean. Queda editable porque no siempre se negocia igual.
   document.querySelectorAll(".terc-card").forEach(card => {
     const material = card.querySelector(".terc-material");
     const pct = card.querySelector(".terc-pct");
-    if (!material || !pct) return;
-    material.addEventListener("change", () => {
-      const base = parseInt(card.dataset.share || "65", 10);
-      pct.value = material.value === "noxa" ? (100 - base) : base;
+
+    // Quién pone el material define el reparto: si lo pone Noxa, los
+    // porcentajes se voltean. Queda editable porque no siempre se negocia igual.
+    if (material && pct) {
+      material.addEventListener("change", () => {
+        const base = parseInt(card.dataset.share || "65", 10);
+        pct.value = material.value === "noxa" ? (100 - base) : base;
+        updatePrice();
+      });
+    }
+    // Cualquier cambio del bloque mueve el desglose de abajo: el % , el
+    // instalador y —en los a medida— el valor cotizado, que además cambia el
+    // total de la cita.
+    card.querySelectorAll("input, select").forEach(el => {
+      el.addEventListener("change", updatePrice);
+      if (el.tagName === "INPUT") el.addEventListener("input", updatePrice);
     });
   });
   if (vehicleSelect) vehicleSelect.addEventListener("change", updatePrice);

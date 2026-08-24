@@ -423,3 +423,67 @@ class TestReclasificacionHistorica:
             linea = A.AppointmentOutsourcing.query.filter_by(appointment_id=appt.id).first()
             assert linea.installer_pct == 35
             assert linea.material_por == A.MATERIAL_NOXA
+
+
+class TestVistaPreviaDelPrecio:
+    """El desglose que se ve al agendar sale del servidor, con la misma fórmula
+    que guarda. Una copia en JS terminaría mostrando una cifra distinta a la
+    que queda registrada."""
+
+    def _estimar(self, client, catalogo, service_id, outsourcings, extra=None):
+        payload = {
+            "service_ids": [service_id],
+            "vehicle_type_id": catalogo["vt"],
+            "agreement_id": None,
+            "outsourcings": outsourcings,
+        }
+        payload.update(extra or {})
+        return client.post("/api/estimate-price", json=payload).get_json()
+
+    def test_devuelve_el_reparto_y_el_ingreso_de_noxa(self, catalogo, client):
+        login_as(client, make_user("admin_prev", role="admin"))
+        d = self._estimar(client, catalogo, catalogo["polarizado"], [
+            {"service_id": catalogo["polarizado"], "pct": 65,
+             "material": "instalador", "installer_name": "Camilo"},
+        ])
+
+        assert d["final_price"] == 975_000
+        assert d["outsourcing_cost"] == 633_750
+        assert d["noxa_income"] == 341_250
+        assert d["outsourcing"][0]["instalador"] == "Camilo"
+
+    def test_un_trabajo_a_medida_no_se_previsualiza_en_cero(self, catalogo, client):
+        """Sin sumar el valor cotizado, el PPF a medida mostraría $0 y el
+        usuario creería que no se guardó."""
+        login_as(client, make_user("admin_prev2", role="admin"))
+        d = self._estimar(client, catalogo, catalogo["ppf"], [
+            {"service_id": catalogo["ppf"], "pct": 65,
+             "material": "instalador", "amount": 480_000},
+        ])
+
+        assert d["final_price"] == 480_000
+        assert d["noxa_income"] == 168_000
+
+    def test_la_vista_previa_coincide_con_lo_que_se_guarda(self, catalogo, client):
+        """Es la razón de que el cálculo esté compartido: si divergen, el número
+        que se ve al agendar no es el que queda en la contabilidad."""
+        login_as(client, make_user("admin_prev3", role="admin"))
+        previa = self._estimar(client, catalogo, catalogo["polarizado"], [
+            {"service_id": catalogo["polarizado"], "pct": 35, "material": "noxa"},
+        ])
+
+        appt = _cita(catalogo, "Polarizado Test", [
+            {"service_name": "Polarizado Test", "installer_id": catalogo["instalador"],
+             "installer_pct": 35, "material_por": A.MATERIAL_NOXA},
+        ])
+        guardado = A.appointment_money(appt)
+
+        assert previa["outsourcing_cost"] == guardado["costo_tercerizacion"]
+        assert previa["noxa_income"] == guardado["ingreso_noxa"]
+
+    def test_sin_tercerizacion_no_manda_desglose(self, catalogo, client):
+        login_as(client, make_user("admin_prev4", role="admin"))
+        d = self._estimar(client, catalogo, catalogo["lavado"], [])
+
+        assert d["outsourcing"] == []
+        assert d["noxa_income"] == d["final_price"]
