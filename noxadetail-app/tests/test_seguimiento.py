@@ -425,3 +425,50 @@ class TestFiltroLeadsClientes:
         assert 'data-filtro="leads"' in html
         assert 'data-filtro="clientes"' in html
         assert 'data-grupo="leads"' in html
+
+
+class TestFechaRealDeLaConversacion:
+    """La tarjeta decía "sin moverse hace 5 días" en una conversación cuyo
+    último mensaje era de hacía casi dos meses.
+
+    `updated_at` se toca cada vez que cambia CUALQUIER columna de la fila: un
+    intento de seguimiento que sube el contador, una reclasificación, un cambio
+    de estado. Nada de eso es actividad con el cliente."""
+
+    def test_cuenta_desde_el_ultimo_mensaje_y_no_desde_updated_at(self):
+        import datetime as _dt
+        c = _conv("+573001100060", priority="Alta")
+        # Último mensaje real: hace 53 días (como el caso reportado)
+        A.db.session.add(A.Message(
+            conversation_id=c.id, direction="in", body="ahh esta forrado",
+            created_at=_dt.datetime.utcnow() - _dt.timedelta(days=53)))
+        A.db.session.commit()
+        # Y la fila se tocó hace un rato, como haría un job de seguimiento
+        c.followup_count = 3
+        A.db.session.commit()
+
+        col = _columna(A._tablero_seguimiento(), "caliente")
+        tarjeta = next(t for t in col["tarjetas"] if t["telefono"] == "+573001100060")
+
+        assert tarjeta["dias"] == 53
+        assert "53" in tarjeta["detalle"]
+
+    def test_sin_mensajes_cae_a_updated_at(self):
+        """Una conversación creada sin mensajes (ej. un lead importado) no puede
+        quedarse sin fecha."""
+        _conv("+573001100061", priority="Alta")
+        col = _columna(A._tablero_seguimiento(), "caliente")
+        tarjeta = next(t for t in col["tarjetas"] if t["telefono"] == "+573001100061")
+        assert tarjeta["dias"] >= 0
+
+    def test_nunca_da_negativo(self):
+        import datetime as _dt
+        c = _conv("+573001100062", priority="Alta")
+        A.db.session.add(A.Message(
+            conversation_id=c.id, direction="in", body="hola",
+            created_at=_dt.datetime.utcnow()))
+        A.db.session.commit()
+
+        col = _columna(A._tablero_seguimiento(), "caliente")
+        tarjeta = next(t for t in col["tarjetas"] if t["telefono"] == "+573001100062")
+        assert tarjeta["dias"] == 0

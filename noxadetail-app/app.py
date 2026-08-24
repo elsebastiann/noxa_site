@@ -4360,6 +4360,19 @@ def _tablero_seguimiento() -> dict:
         if c.messages:
             ultimo_msg[c.id] = c.messages[-1]
 
+    def dias_sin_moverse(c):
+        """Días desde el último mensaje REAL de la conversación.
+
+        No se usa `updated_at`: ese campo se toca cada vez que cambia cualquier
+        columna de la fila —un intento de seguimiento que incrementa el
+        contador, una reclasificación, un cambio de estado— aunque no haya
+        pasado nada con el cliente. Una conversación cuyo último mensaje era de
+        julio aparecía como "sin moverse hace 5 días", que es justo lo que hace
+        desconfiar del tablero: no coincidía con lo que muestra Mensajes."""
+        msg = ultimo_msg.get(c.id)
+        referencia = msg.created_at if msg else c.updated_at
+        return max((ahora_utc - referencia).days, 0)
+
     tarjetas = {}   # telefono -> tarjeta (la primera que gane, por precedencia)
 
     def poner(tipo, telefono, nombre, detalle, dias, extra=None):
@@ -4410,9 +4423,9 @@ def _tablero_seguimiento() -> dict:
                         or (c.priority == "Sin calificar" and (c.carro or "").strip()))
         if not vale_la_pena:
             continue
-        dias = (ahora_utc - c.updated_at).days
+        dias = dias_sin_moverse(c)
         poner("caliente", tel, c.profile_name,
-              f"{c.status} · sin moverse hace {dias} día(s)", dias,
+              f"{c.status} · último mensaje hace {dias} día(s)", dias,
               {"carro": c.carro, "marca": c.marca, "calificacion": c.calificacion,
                "conv_id": c.id, "estado": c.status})
 
@@ -4457,7 +4470,7 @@ def _tablero_seguimiento() -> dict:
     for tel, c in conversaciones.items():
         if c.status != "Esperando":
             continue
-        dias = (ahora_utc - c.updated_at).days
+        dias = dias_sin_moverse(c)
         poner("enfriado", tel, c.profile_name,
               f"{c.followup_count} seguimiento(s) sin respuesta", dias,
               {"carro": c.carro, "marca": c.marca, "calificacion": c.calificacion,
@@ -4467,7 +4480,7 @@ def _tablero_seguimiento() -> dict:
     for tel, c in conversaciones.items():
         if c.priority != "Remarketing":
             continue
-        dias = (ahora_utc - c.updated_at).days
+        dias = dias_sin_moverse(c)
         poner("remarketing", tel, c.profile_name,
               f"No interesado · calificación {c.calificacion}", dias,
               {"carro": c.carro, "marca": c.marca, "calificacion": c.calificacion,
