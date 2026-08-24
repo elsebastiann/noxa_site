@@ -1,0 +1,235 @@
+{% extends "base.html" %}
+
+{% block extra_head %}
+<style>
+  .sg-head { display:flex; align-items:baseline; gap:14px; flex-wrap:wrap; margin:16px 0 4px; }
+  .sg-total { font-size:2rem; font-weight:800; color:var(--accent); line-height:1; }
+  .sg-note { color:var(--text2); font-size:.85rem; max-width:74ch; line-height:1.55; margin:6px 0 18px; }
+
+  /* Barra-resumen: de un vistazo, dónde está la plata parada. Es también el
+     índice — al hacer clic salta a esa columna. */
+  .sg-resumen { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:20px; }
+  .sg-chip { display:flex; align-items:center; gap:7px; padding:7px 13px;
+             border:1px solid var(--border); border-radius:999px; background:var(--surface2);
+             font-size:.78rem; cursor:pointer; text-decoration:none; color:var(--text2);
+             transition:border-color .15s, color .15s; }
+  .sg-chip:hover { border-color:var(--accent); color:var(--text); }
+  .sg-chip .punto { width:9px; height:9px; border-radius:50%; flex:none; }
+  .sg-chip .n { font-weight:800; color:var(--text); }
+  .sg-chip.vacio { opacity:.45; }
+
+  /* Tablero: columnas que scrollean en horizontal en escritorio y se apilan
+     en móvil. */
+  .sg-board { display:flex; gap:14px; overflow-x:auto; padding-bottom:14px; align-items:flex-start; }
+  .sg-col { flex:0 0 300px; border:1px solid var(--border); border-radius:var(--radius);
+            background:var(--surface); display:flex; flex-direction:column; max-height:72vh; }
+  .sg-col-head { padding:12px 14px; border-bottom:1px solid var(--border);
+                 border-top:3px solid var(--col); border-radius:var(--radius) var(--radius) 0 0; }
+  .sg-col-title { display:flex; align-items:center; justify-content:space-between; gap:8px;
+                  font-size:.86rem; font-weight:700; color:var(--text); }
+  .sg-col-count { background:var(--col); color:#0a0c0f; font-weight:800; font-size:.72rem;
+                  padding:1px 9px; border-radius:999px; }
+  .sg-col-sub { font-size:.72rem; color:var(--text2); margin-top:3px; line-height:1.4; }
+  .sg-col-body { overflow-y:auto; padding:10px; display:flex; flex-direction:column; gap:9px; }
+
+  .sg-card { border:1px solid var(--border); border-radius:var(--radius-sm);
+             background:var(--surface2); padding:11px 12px; }
+  .sg-card.hecha { opacity:.35; }
+  .sg-card-top { display:flex; align-items:flex-start; gap:9px; }
+  .sg-avatar { width:34px; height:34px; border-radius:50%; flex:none; display:flex;
+               align-items:center; justify-content:center; font-size:.62rem; font-weight:800;
+               background:var(--accent-bg); color:var(--accent); letter-spacing:.3px; }
+  .sg-nombre { font-size:.85rem; font-weight:700; color:var(--text); line-height:1.25;
+               word-break:break-word; }
+  .sg-carro { font-size:.72rem; color:var(--text2); margin-top:1px; }
+  .sg-detalle { font-size:.73rem; color:var(--text2); margin-top:7px; line-height:1.45; }
+  .sg-dias { display:inline-block; font-size:.68rem; font-weight:700; padding:1px 7px;
+             border-radius:999px; background:rgba(255,255,255,0.06); color:var(--text2); }
+  .sg-dias.urgente { background:rgba(224,82,82,0.18); color:#e05252; }
+
+  /* El botón de escribir manda: es la acción del 90% de las veces. Los demás
+     son iconos de ancho fijo — antes todos competían por el mismo espacio con
+     flex:1 y "Escribir" salía cortado. */
+  .sg-acciones { display:flex; gap:6px; margin-top:10px; align-items:stretch; }
+  .sg-btn { flex:0 0 32px; padding:6px 0; font-size:.7rem; font-weight:700;
+            border-radius:6px; border:1px solid var(--border); background:var(--bg2);
+            color:var(--text2); cursor:pointer; white-space:nowrap; text-align:center;
+            text-decoration:none; display:flex; align-items:center; justify-content:center; gap:4px; }
+  .sg-btn-wa { flex:1 1 auto; padding:6px 10px; }
+  .sg-btn:hover { border-color:var(--accent); color:var(--text); }
+  .sg-btn-wa { background:rgba(102,187,106,0.14) !important; border-color:rgba(102,187,106,0.4); color:#66bb6a; }
+  .sg-btn-wa:hover { background:rgba(102,187,106,0.25); color:#8fdc93; }
+  .sg-btn-ok { background:var(--accent-bg); border-color:rgba(212,180,108,0.4); color:var(--accent); }
+
+  .sg-vacia { padding:22px 12px; text-align:center; color:var(--text3); font-size:.76rem; }
+  .sg-cero { border:1px solid rgba(102,187,106,0.35); background:rgba(102,187,106,0.07);
+             border-radius:var(--radius); padding:30px; text-align:center; }
+  .sg-cero .t { font-size:1.05rem; font-weight:700; color:#66bb6a; }
+
+  @media (max-width: 780px) {
+    .sg-board { flex-direction:column; overflow-x:visible; }
+    .sg-col { flex:1 1 auto; width:100%; max-height:none; }
+    .sg-col-body { max-height:420px; }
+    /* 44px es el mínimo para acertarle con el pulgar. Este panel se usa sobre
+       todo desde el celular, así que acá no es un detalle. */
+    .sg-btn { flex-basis:44px; min-height:44px; font-size:.8rem; }
+    .sg-btn-wa { min-height:44px; }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="sg-head">
+  <h2 style="margin:0;">Seguimiento</h2>
+  <span class="sg-total">{{ total }}</span>
+  <span style="color:var(--text2);font-size:.85rem;">pendiente{{ 's' if total != 1 }} de contactar</span>
+</div>
+<p class="sg-note">
+  Cada tarjeta es alguien a quien hay que escribirle hoy. Al gestionarla desaparece,
+  y si no la resuelves sigue acá mañana — a diferencia de una alerta, que suena una
+  vez y se pierde. Una persona aparece en una sola columna: la más urgente.
+</p>
+
+{% if total %}
+  <div class="sg-resumen">
+    {% for col in columnas %}
+      <a class="sg-chip {{ 'vacio' if not col.tarjetas }}" href="#col-{{ col.clave }}">
+        <span class="punto" style="background:{{ col.color }};"></span>
+        <span class="n">{{ col.tarjetas|length }}</span> {{ col.titulo }}
+      </a>
+    {% endfor %}
+  </div>
+{% endif %}
+
+{% if not total %}
+  <div class="sg-cero">
+    <div class="t">Todo al día</div>
+    <p style="margin:8px 0 0;color:var(--text2);font-size:.85rem;">
+      No hay nadie pendiente de contactar. Las tarjetas vuelven solas cuando un
+      cliente cumpla su trimestre, se pase de la lavada o un lead se quede sin respuesta.
+    </p>
+  </div>
+{% else %}
+  <div class="sg-board">
+    {% for col in columnas %}
+      <section class="sg-col" id="col-{{ col.clave }}" style="--col:{{ col.color }};">
+        <header class="sg-col-head">
+          <div class="sg-col-title">
+            <span>{{ col.titulo }}</span>
+            <span class="sg-col-count">{{ col.tarjetas|length }}</span>
+          </div>
+          <div class="sg-col-sub">{{ col.subtitulo }}</div>
+        </header>
+        <div class="sg-col-body">
+          {% for t in col.tarjetas %}
+            {% set texto = mensajes_sugeridos.get(col.clave, '') | replace('{nombre}', (t.nombre.split(' ')[0] if t.nombre else '')) %}
+            <article class="sg-card" data-tipo="{{ col.clave }}" data-telefono="{{ t.telefono }}">
+              <div class="sg-card-top">
+                <div class="sg-avatar">{{ (t.marca[:3] if t.marca else (t.nombre[:2] if t.nombre else '??')) | upper }}</div>
+                <div style="min-width:0;flex:1;">
+                  <div class="sg-nombre">{{ t.nombre }}</div>
+                  <div class="sg-carro">
+                    {{ t.carro or t.placa or '' }}
+                    {% if t.calificacion is not none %} · {{ t.calificacion }}/5{% endif %}
+                  </div>
+                </div>
+                <span class="sg-dias {{ 'urgente' if t.dias >= 7 and col.clave in ('sin_responder','caliente') }}">
+                  {{ t.dias }}d
+                </span>
+              </div>
+              <div class="sg-detalle">{{ t.detalle }}</div>
+              <div class="sg-acciones">
+                {# Por defecto abre WhatsApp con el mensaje ya escrito: es el
+                   camino de menos fricción, que es lo que hace que se use. #}
+                <a class="sg-btn sg-btn-wa"
+                   href="https://wa.me/{{ t.telefono | replace('+','') }}?text={{ texto | urlencode }}"
+                   target="_blank" rel="noopener"
+                   onclick="marcar(this,'contactado')">
+                  <i class="bi bi-whatsapp"></i> Escribir
+                </a>
+                {% if t.conv_id %}
+                  <a class="sg-btn" href="{{ url_for('whatsapp_conversation', conversation_id=t.conv_id) }}"
+                     title="Abrir en el panel de Mensajes">
+                    <i class="bi bi-chat-dots"></i>
+                  </a>
+                {% endif %}
+                <button class="sg-btn sg-btn-ok" onclick="marcar(this,'contactado')" title="Ya lo contacté">
+                  <i class="bi bi-check2"></i>
+                </button>
+                <button class="sg-btn" onclick="posponer(this)" title="Recordarme después">
+                  <i class="bi bi-clock"></i>
+                </button>
+                <button class="sg-btn" onclick="descartar(this)" title="Descartar">
+                  <i class="bi bi-x"></i>
+                </button>
+              </div>
+            </article>
+          {% else %}
+            <div class="sg-vacia">Nada pendiente acá</div>
+          {% endfor %}
+        </div>
+      </section>
+    {% endfor %}
+  </div>
+{% endif %}
+
+<script>
+  function enviar(card, accion, extra) {
+    const cuerpo = Object.assign({
+      tipo: card.dataset.tipo, telefono: card.dataset.telefono, accion: accion
+    }, extra || {});
+    return fetch("{{ url_for('seguimiento_gestionar') }}", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(cuerpo)
+    }).then(r => r.json());
+  }
+
+  // La tarjeta se apaga en el sitio en vez de desaparecer de golpe: así se ve
+  // qué se acaba de hacer y no da la sensación de haber perdido algo.
+  function apagar(card, etiqueta) {
+    card.classList.add("hecha");
+    const acciones = card.querySelector(".sg-acciones");
+    acciones.innerHTML = '<span style="font-size:.7rem;color:var(--text2);">' + etiqueta + "</span>";
+    actualizarContadores(card);
+  }
+
+  function actualizarContadores(card) {
+    const col = card.closest(".sg-col");
+    const vivas = col.querySelectorAll(".sg-card:not(.hecha)").length;
+    col.querySelector(".sg-col-count").textContent = vivas;
+    const clave = card.dataset.tipo;
+    const chip = document.querySelector('.sg-chip[href="#col-' + clave + '"] .n');
+    if (chip) chip.textContent = vivas;
+  }
+
+  function marcar(el, accion) {
+    const card = el.closest(".sg-card");
+    if (card.classList.contains("hecha")) return;
+    enviar(card, accion).then(d => {
+      if (!d.ok) { alert(d.error || "No se pudo guardar."); return; }
+      apagar(card, "✓ Contactado" + (d.vuelve ? " · vuelve el " + d.vuelve : ""));
+    });
+  }
+
+  function posponer(el) {
+    const card = el.closest(".sg-card");
+    const dias = prompt("¿En cuántos días te lo recuerdo?", "3");
+    if (dias === null) return;
+    enviar(card, "pospuesto", { dias: parseInt(dias, 10) || 3 }).then(d => {
+      if (!d.ok) { alert(d.error || "No se pudo guardar."); return; }
+      apagar(card, "⏱ Vuelve el " + d.vuelve);
+    });
+  }
+
+  function descartar(el) {
+    const card = el.closest(".sg-card");
+    const motivo = prompt("¿Por qué lo descartas? (queda registrado)");
+    if (motivo === null) return;
+    enviar(card, "descartado", { motivo: motivo }).then(d => {
+      if (!d.ok) { alert(d.error || "No se pudo guardar."); return; }
+      apagar(card, "✕ Descartado");
+    });
+  }
+</script>
+{% endblock %}

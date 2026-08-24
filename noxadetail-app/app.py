@@ -1475,6 +1475,40 @@ class Conversation(db.Model):
         return self.archived_at is not None
 
 
+class SeguimientoGestion(db.Model):
+    """Lo que un humano hizo con una tarjeta del tablero de seguimiento.
+
+    Existe porque los avisos que ya había (WhatsApp a Diana, campanita) son
+    EVENTOS: suenan una vez y se van. Nada guardaba "a este todavía hay que
+    llamarlo", así que un día ocupado se llevaba el cliente por delante. Esta
+    tabla es el estado que faltaba, y por eso el tablero se puede vaciar.
+
+    OJO — no toca `Conversation.status` a propósito. Ese campo lo reescribe
+    Mariana en cada turno vía [META:], así que cualquier decisión humana
+    guardada ahí la borra el siguiente mensaje del cliente. Es el mismo motivo
+    por el que el archivado vive en `archived_at` y no en `status`.
+
+    La llave es (tipo, telefono): la misma persona puede estar pendiente por
+    dos motivos distintos y cada uno se gestiona por separado."""
+    __tablename__ = "seguimiento_gestiones"
+    id           = db.Column(db.Integer, primary_key=True)
+    tipo         = db.Column(db.String(30), nullable=False, index=True)
+    telefono     = db.Column(db.String(40), nullable=False, index=True)
+    # contactado | pospuesto | descartado
+    accion       = db.Column(db.String(20), nullable=False)
+    # Hasta cuándo se esconde la tarjeta. NULL en 'descartado' = para siempre,
+    # mientras la condición no cambie.
+    oculta_hasta = db.Column(db.Date, nullable=True)
+    motivo       = db.Column(db.String(255), nullable=True)
+    usuario      = db.Column(db.String(80), nullable=True)
+    created_at   = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+
+    __table_args__ = (db.UniqueConstraint("tipo", "telefono", name="uix_seg_tipo_tel"),)
+
+    def __repr__(self):
+        return f"<SeguimientoGestion {self.tipo} {self.telefono} {self.accion}>"
+
+
 class Message(db.Model):
     """Un mensaje individual, entrante o saliente, de una conversación."""
     __tablename__ = "whatsapp_messages"
@@ -3642,6 +3676,69 @@ def edit_appointment(appointment_id):
     )
 
 
+def _puede_ver_seguimiento() -> bool:
+    return bool(getattr(g, "current_user", None)) and g.current_user.role in ("admin", "lider")
+
+
+@app.route("/seguimiento")
+def seguimiento_tablero():
+    """El tablero de pipeline: leads y clientes que necesitan que alguien los
+    contacte hoy."""
+    if not _puede_ver_seguimiento():
+        flash("Acceso restringido.", "danger")
+        return redirect(url_for("calendar_view"))
+
+    tablero = _tablero_seguimiento()
+    return render_template("seguimiento.html", **tablero,
+                           mensajes_sugeridos=MENSAJES_SUGERIDOS)
+
+
+@app.route("/seguimiento/gestionar", methods=["POST"])
+def seguimiento_gestionar():
+    """Marca una tarjeta como contactada, pospuesta o descartada.
+
+    Se hace upsert sobre (tipo, teléfono): volver a gestionar la misma tarjeta
+    corrige la decisión anterior en vez de acumular filas que se contradicen."""
+    if not _puede_ver_seguimiento():
+        return {"ok": False, "error": "Acceso restringido"}, 403
+
+    data = request.get_json(silent=True) or {}
+    tipo = (data.get("tipo") or "").strip()
+    telefono = (data.get("telefono") or "").strip()
+    accion = (data.get("accion") or "").strip()
+    if tipo not in [c[0] for c in COLUMNAS_SEGUIMIENTO] or not telefono:
+        return {"ok": False, "error": "Datos inválidos"}, 400
+    if accion not in ("contactado", "pospuesto", "descartado"):
+        return {"ok": False, "error": "Acción inválida"}, 400
+
+    hoy = bogota_now().date()
+    if accion == "contactado":
+        # Un lead se enfría rápido; a un cliente perseguirlo cada semana lo quema.
+        dias = DIAS_SILENCIO_LEAD if tipo in ("sin_responder", "caliente", "enfriado",
+                                              "remarketing") else DIAS_SILENCIO_CLIENTE
+        oculta = hoy + timedelta(days=dias)
+    elif accion == "pospuesto":
+        try:
+            dias = max(int(data.get("dias") or 3), 1)
+        except (TypeError, ValueError):
+            dias = 3
+        oculta = hoy + timedelta(days=dias)
+    else:
+        oculta = None   # descartado: no vuelve mientras la condición no cambie
+
+    g_row = SeguimientoGestion.query.filter_by(tipo=tipo, telefono=telefono).first()
+    if g_row is None:
+        g_row = SeguimientoGestion(tipo=tipo, telefono=telefono)
+        db.session.add(g_row)
+    g_row.accion = accion
+    g_row.oculta_hasta = oculta
+    g_row.motivo = (data.get("motivo") or "").strip()[:255] or None
+    g_row.usuario = g.current_user.username
+    db.session.commit()
+
+    return {"ok": True, "vuelve": oculta.isoformat() if oculta else None}
+
+
 @app.route("/instaladores", methods=["GET", "POST"])
 def installers_view():
     """Los instaladores externos que hacen polarizado, PPF y wrap."""
@@ -4082,6 +4179,228 @@ def _transacciones_citas(vehicle_type: str = ""):
             "es_diagnostico": es_diag,
         })
     return salida
+
+
+# ── Tablero de seguimiento ───────────────────────────────────────────────────
+# Las columnas NO son estados de Mariana: son cosas por hacer, y se calculan
+# solas. Un kanban editable sobre `Conversation.status` no podía funcionar —
+# ese campo lo reescribe el modelo en cada turno, así que arrastrar una tarjeta
+# habría durado hasta el siguiente mensaje del cliente.
+#
+# Umbrales, según cómo opera el negocio: lavada premium cada 3-4 semanas
+# (avisa a las 4), mantenimiento de cerámico trimestral, y "dormido" a los 3
+# meses sin volver.
+DIAS_LAVADA_PREMIUM   = 28
+DIAS_MANT_CERAMICO    = 90
+DIAS_CLIENTE_DORMIDO  = 90
+# Cuánto se calla una tarjeta tras marcarla contactada. Un lead se enfría
+# rápido y hay que volver pronto; a un cliente perseguirlo cada semana lo
+# quema.
+DIAS_SILENCIO_LEAD    = 7
+DIAS_SILENCIO_CLIENTE = 30
+
+# El orden importa dos veces: es el orden de las columnas en pantalla y es la
+# precedencia para no repetir a la misma persona en varias. Un cliente de
+# cerámico que no viene hace 4 meses califica para tres columnas a la vez;
+# aparece solo en la más urgente, o el tablero sería una lista de duplicados
+# que nadie termina de vaciar.
+COLUMNAS_SEGUIMIENTO = [
+    ("sin_responder",  "Sin responder",        "Escribió y nadie contestó",            "#e05252"),
+    ("caliente",       "Caliente sin cita",    "Buen lead, todavía sin agendar",       "#d4b46c"),
+    ("ceramico_mant",  "Cerámico por mantener","Cumplió el trimestre",                 "#4a9eff"),
+    ("lavada_premium", "Lavada premium",       "Cliente de cerámico sin venir",        "#66bb6a"),
+    ("dormido",        "Dormido",              "Ya compró, no vuelve hace 3 meses",    "#9575cd"),
+    ("enfriado",       "Se enfrió",            "Se agotaron los seguimientos",         "#78909c"),
+    ("remarketing",    "Remarketing",          "Dijo que no, pero valía la pena",      "#ff8a65"),
+]
+
+
+# Texto que va precargado en el WhatsApp según por qué está la tarjeta ahí.
+# Escribir desde cero cada mensaje es la fricción que hace que un panel se
+# abandone; que quede editable es lo que evita que suene a plantilla.
+MENSAJES_SUGERIDOS = {
+    "sin_responder":  "Hola {nombre}, disculpa la demora en responderte. "
+                      "¿Seguimos con lo que hablábamos?",
+    "caliente":       "Hola {nombre}, te escribo de NOXA. ¿Te gustaría que "
+                      "agendemos para revisar tu carro esta semana?",
+    "ceramico_mant":  "Hola {nombre}, ya tu carro cumple el trimestre desde el "
+                      "cerámico. Es momento del mantenimiento para que el "
+                      "recubrimiento siga rindiendo. ¿Te agendo?",
+    "lavada_premium": "Hola {nombre}, para que el cerámico se mantenga como el "
+                      "primer día lo ideal es la lavada premium cada 3 o 4 "
+                      "semanas. ¿Te separo un espacio?",
+    "dormido":        "Hola {nombre}, hace rato no vemos tu carro por NOXA. "
+                      "¿Cómo va? Cuéntame si quieres que le demos una revisada.",
+    "enfriado":       "Hola {nombre}, te escribo por última vez por si sigue en "
+                      "pie lo que hablamos. Si no es el momento, sin problema.",
+    "remarketing":    "Hola {nombre}, te comparto una promoción que creo que le "
+                      "queda bien a tu carro. ¿Te cuento?",
+}
+
+
+def _gestiones_activas() -> dict:
+    """{(tipo, telefono): gestión} de lo que hoy debe seguir oculto."""
+    hoy = bogota_now().date()
+    activas = {}
+    for g in SeguimientoGestion.query.all():
+        vigente = (g.accion == "descartado") or (g.oculta_hasta and g.oculta_hasta > hoy)
+        if vigente:
+            activas[(g.tipo, g.telefono)] = g
+    return activas
+
+
+def _ultima_visita_por_telefono() -> dict:
+    """{telefono: (fecha_ultima_visita, servicios, monto)} de citas completadas."""
+    filas = (Appointment.query
+             .filter(Appointment.status == "completed",
+                     Appointment.phone.isnot(None), Appointment.phone != "")
+             .order_by(Appointment.start_datetime)
+             .all())
+    ultima = {}
+    for a in filas:
+        ultima[_normalize_whatsapp_number(a.phone)] = a
+    return ultima
+
+
+def _historial_ceramico() -> dict:
+    """{telefono: fecha del último cerámico o de su último mantenimiento}.
+
+    Se mira el último y no el primero para que el ciclo se reinicie solo: tres
+    meses después de CADA mantenimiento vuelve a tocar."""
+    filas = (Appointment.query
+             .filter(Appointment.status == "completed",
+                     Appointment.services.ilike("%ceramico%"),
+                     Appointment.phone.isnot(None), Appointment.phone != "")
+             .order_by(Appointment.start_datetime)
+             .all())
+    return {_normalize_whatsapp_number(a.phone): a for a in filas}
+
+
+def _tablero_seguimiento() -> dict:
+    """Arma el tablero completo. Cada persona cae en UNA sola columna."""
+    hoy = bogota_now().date()
+    # `updated_at` y `Message.created_at` se guardan en UTC (datetime.utcnow),
+    # mientras que `start_datetime` de las citas es hora local de Bogotá. Restar
+    # una contra la otra daba cinco horas de desfase: en lo reciente salían
+    # "hace -1 día(s)".
+    ahora_utc = datetime.utcnow()
+    gestiones = _gestiones_activas()
+    ultima_visita = _ultima_visita_por_telefono()
+    ceramicos = _historial_ceramico()
+
+    conversaciones = {}
+    for c in Conversation.query.filter(Conversation.archived_at.is_(None)).all():
+        conversaciones[_normalize_whatsapp_number(c.phone)] = c
+
+    # Último mensaje de cada conversación, para saber si quedó sin respuesta.
+    ultimo_msg = {}
+    for c in conversaciones.values():
+        if c.messages:
+            ultimo_msg[c.id] = c.messages[-1]
+
+    tarjetas = {}   # telefono -> tarjeta (la primera que gane, por precedencia)
+
+    def poner(tipo, telefono, nombre, detalle, dias, extra=None):
+        if not telefono or telefono in tarjetas:
+            return
+        if (tipo, telefono) in gestiones:
+            return
+        tarjetas[telefono] = {
+            "tipo": tipo, "telefono": telefono,
+            "nombre": nombre or _phone_for_display(telefono),
+            "detalle": detalle, "dias": dias,
+            **(extra or {}),
+        }
+
+    # 1. Sin responder — el bot está pausado (Diana la tomó) y el último
+    #    mensaje es del cliente. Es la fuga más cara: ya escribió.
+    for tel, c in conversaciones.items():
+        msg = ultimo_msg.get(c.id)
+        if c.bot_active or not msg or msg.direction != "in":
+            continue
+        dias = (ahora_utc - msg.created_at).days
+        poner("sin_responder", tel, c.profile_name,
+              f"Último mensaje suyo hace {dias} día(s)", dias,
+              {"carro": c.carro, "marca": c.marca, "calificacion": c.calificacion,
+               "conv_id": c.id, "estado": c.status})
+
+    # 2. Caliente sin cita — vale la pena y todavía no agendó.
+    for tel, c in conversaciones.items():
+        if c.status in ESTADOS_CON_CITA or c.status in ("No interesado", "Esperando"):
+            continue
+        if c.priority not in ("Alta", "Media"):
+            continue
+        dias = (ahora_utc - c.updated_at).days
+        poner("caliente", tel, c.profile_name,
+              f"{c.status} · sin moverse hace {dias} día(s)", dias,
+              {"carro": c.carro, "marca": c.marca, "calificacion": c.calificacion,
+               "conv_id": c.id, "estado": c.status})
+
+    # 3. Cerámico por mantener — trimestral, contado desde el último cerámico
+    #    o mantenimiento.
+    for tel, appt in ceramicos.items():
+        dias = (hoy - appt.start_datetime.date()).days
+        if dias < DIAS_MANT_CERAMICO:
+            continue
+        c = conversaciones.get(tel)
+        poner("ceramico_mant", tel, appt.customer_name,
+              f"Cerámico hace {dias // 30} mes(es) · {appt.plate or 'sin placa'}", dias,
+              {"placa": appt.plate, "conv_id": c.id if c else None,
+               "carro": c.carro if c else "", "marca": c.marca if c else ""})
+
+    # 4. Lavada premium — cliente de cerámico que se pasó de la cadencia.
+    for tel, appt_cer in ceramicos.items():
+        visita = ultima_visita.get(tel)
+        if not visita:
+            continue
+        dias = (hoy - visita.start_datetime.date()).days
+        if dias < DIAS_LAVADA_PREMIUM:
+            continue
+        c = conversaciones.get(tel)
+        poner("lavada_premium", tel, visita.customer_name,
+              f"Sin venir hace {dias} días · {visita.plate or 'sin placa'}", dias,
+              {"placa": visita.plate, "conv_id": c.id if c else None,
+               "carro": c.carro if c else "", "marca": c.marca if c else ""})
+
+    # 5. Dormido — ya compró y lleva un trimestre sin aparecer.
+    for tel, visita in ultima_visita.items():
+        dias = (hoy - visita.start_datetime.date()).days
+        if dias < DIAS_CLIENTE_DORMIDO:
+            continue
+        c = conversaciones.get(tel)
+        poner("dormido", tel, visita.customer_name,
+              f"Última visita hace {dias // 30} mes(es) · {visita.services or ''}"[:90], dias,
+              {"placa": visita.plate, "conv_id": c.id if c else None,
+               "carro": c.carro if c else "", "marca": c.marca if c else ""})
+
+    # 6. Se enfrió — Mariana ya lo persiguió y no hubo caso.
+    for tel, c in conversaciones.items():
+        if c.status != "Esperando":
+            continue
+        dias = (ahora_utc - c.updated_at).days
+        poner("enfriado", tel, c.profile_name,
+              f"{c.followup_count} seguimiento(s) sin respuesta", dias,
+              {"carro": c.carro, "marca": c.marca, "calificacion": c.calificacion,
+               "conv_id": c.id, "estado": c.status})
+
+    # 7. Remarketing — dijo que no, pero el perfil sí interesaba.
+    for tel, c in conversaciones.items():
+        if c.priority != "Remarketing":
+            continue
+        dias = (ahora_utc - c.updated_at).days
+        poner("remarketing", tel, c.profile_name,
+              f"No interesado · calificación {c.calificacion}", dias,
+              {"carro": c.carro, "marca": c.marca, "calificacion": c.calificacion,
+               "conv_id": c.id, "estado": c.status})
+
+    columnas = []
+    for clave, titulo, subtitulo, color in COLUMNAS_SEGUIMIENTO:
+        items = [t for t in tarjetas.values() if t["tipo"] == clave]
+        # Lo más viejo primero: es lo que lleva más tiempo esperando.
+        items.sort(key=lambda t: t["dias"], reverse=True)
+        columnas.append({"clave": clave, "titulo": titulo, "subtitulo": subtitulo,
+                         "color": color, "tarjetas": items})
+    return {"columnas": columnas, "total": len(tarjetas)}
 
 
 def _liquidacion_instaladores(date_from, date_to) -> list[dict]:

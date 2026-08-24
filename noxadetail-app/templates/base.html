@@ -604,6 +604,12 @@
         {% endif %}
         {% if not current_user or current_user.role != 'operario' %}
         <a class="nav-link-custom" href="{{ url_for('whatsapp_inbox') }}">Mensajes</a>
+        {# Va en la barra y no dentro de "Más": es la pantalla que hay que abrir
+           todos los días, y un panel de seguimiento enterrado a dos clics es un
+           panel que se deja de usar. #}
+        {% if current_user and current_user.role in ('admin', 'lider') %}
+        <a class="nav-link-custom" href="{{ url_for('seguimiento_tablero') }}">Seguimiento</a>
+        {% endif %}
         {% endif %}
         {% if not current_user or current_user.role not in ('operario', 'marketing') %}
         <a class="nav-link-custom" href="{{ url_for('quality_errors_list') }}">Errores</a>
@@ -788,6 +794,9 @@
   {% endif %}
   {% if not current_user or current_user.role != 'operario' %}
   <a href="{{ url_for('whatsapp_inbox') }}"><i class="bi bi-whatsapp"></i>Mensajes</a>
+  {% if current_user and current_user.role in ('admin', 'lider') %}
+  <a href="{{ url_for('seguimiento_tablero') }}"><i class="bi bi-bullseye"></i>Seguimiento</a>
+  {% endif %}
   <a href="{{ url_for('notifications_list') }}"><i class="bi bi-bell"></i>Notificaciones</a>
   <a href="{{ url_for('analytics_dashboard') }}"><i class="bi bi-bar-chart-line"></i>Analítica</a>
   {% endif %}
