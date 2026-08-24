@@ -32,6 +32,9 @@
           <th class="text-center">Diagnóstico</th>
           <th class="text-center">Widget club</th>
           <th class="text-center">Curado 1 día</th>
+          <th class="text-center" title="Lo hace un instalador externo y se reparte lo cobrado">Tercerizado</th>
+          <th class="text-center" title="Porcentaje para el instalador cuando él pone el material">% instalador</th>
+          <th class="text-center" title="Sin precio de lista: se cotiza al agendar">A medida</th>
           <th class="text-center">Acción</th>
         </tr>
       </thead>
@@ -78,6 +81,40 @@
                   action="{{ url_for('toggle_service_single_day', service_id=s.id) }}">
               {% if s.occupies_single_day %}
                 <button type="submit" class="btn btn-sm btn-outline-info">Sí</button>
+              {% else %}
+                <button type="submit" class="btn btn-sm btn-outline-secondary">No</button>
+              {% endif %}
+            </form>
+          </td>
+          <td class="text-center">
+            <form method="POST"
+                  action="{{ url_for('toggle_service_outsourced', service_id=s.id) }}">
+              {% if s.is_outsourced %}
+                <button type="submit" class="btn btn-sm btn-outline-warning">Sí</button>
+              {% else %}
+                <button type="submit" class="btn btn-sm btn-outline-secondary">No</button>
+              {% endif %}
+            </form>
+          </td>
+          <td class="text-center">
+            {% if s.is_outsourced %}
+              <form method="POST"
+                    action="{{ url_for('update_service_installer_share', service_id=s.id) }}"
+                    class="d-flex gap-1 justify-content-center">
+                <input type="number" min="1" max="100" name="default_installer_share"
+                       class="form-control form-control-sm" style="width:72px;"
+                       value="{{ s.default_installer_share }}">
+                <button type="submit" class="btn btn-sm btn-outline-secondary">OK</button>
+              </form>
+            {% else %}
+              <span class="text-secondary">—</span>
+            {% endif %}
+          </td>
+          <td class="text-center">
+            <form method="POST"
+                  action="{{ url_for('toggle_service_custom_price', service_id=s.id) }}">
+              {% if s.is_custom_price %}
+                <button type="submit" class="btn btn-sm btn-outline-warning">Sí</button>
               {% else %}
                 <button type="submit" class="btn btn-sm btn-outline-secondary">No</button>
               {% endif %}

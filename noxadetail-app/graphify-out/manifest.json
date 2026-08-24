@@ -1,7 +1,7 @@
 {
   "app.py": {
-    "mtime": 1787531995.2994945,
-    "ast_hash": "897d646981608bacf109e3c65030eb8b",
+    "mtime": 1787532417.3305006,
+    "ast_hash": "a7541eeb49df1d79ae05ac669a0f1e41",
     "semantic_hash": ""
   },
   "migrate_prices.py": {
@@ -65,8 +65,8 @@
     "semantic_hash": ""
   },
   "templates/appointment_form.html": {
-    "mtime": 1787108546.69648,
-    "ast_hash": "c68df48bf8ea9bf83ea22d0632104bd5",
+    "mtime": 1787532303.2478852,
+    "ast_hash": "fe7254291d84a42a2d994bfc251fbebc",
     "semantic_hash": ""
   },
   "templates/appointments_list.html": {
@@ -75,8 +75,8 @@
     "semantic_hash": ""
   },
   "templates/base.html": {
-    "mtime": 1787430764.6995447,
-    "ast_hash": "fd13b82b79c86519c9458c36670f49e9",
+    "mtime": 1787532388.43452,
+    "ast_hash": "6eb3836476551ee07285a2e032248520",
     "semantic_hash": ""
   },
   "templates/calendar.html": {
@@ -175,8 +175,8 @@
     "semantic_hash": ""
   },
   "templates/services.html": {
-    "mtime": 1786228381.3845725,
-    "ast_hash": "84c63d6cfe0b6a146d97b92a177b854b",
+    "mtime": 1787532442.6922462,
+    "ast_hash": "9789848fbedc46d96020b34ee33918c8",
     "semantic_hash": ""
   },
   "templates/users.html": {
@@ -285,8 +285,18 @@
     "semantic_hash": ""
   },
   "tests/test_tercerizacion.py": {
-    "mtime": 1787532048.4641113,
-    "ast_hash": "5205e406c796cf789fa1e527091e4461",
+    "mtime": 1787532469.2273462,
+    "ast_hash": "6be8aa30ee0e3bc1746b36a9fa5c1d96",
+    "semantic_hash": ""
+  },
+  "templates/installers.html": {
+    "mtime": 1787532346.2556655,
+    "ast_hash": "96417a9d50eec2fae776b7f3e98a69ba",
+    "semantic_hash": ""
+  },
+  "templates/liquidacion_instaladores.html": {
+    "mtime": 1787532368.4737644,
+    "ast_hash": "d25baf82d483aa7a68b9d8eccd2b8ab4",
     "semantic_hash": ""
   }
 }

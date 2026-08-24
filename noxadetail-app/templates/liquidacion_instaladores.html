@@ -1,0 +1,110 @@
+{% extends "base.html" %}
+
+{% macro money(v) %}${{ '{:,.0f}'.format(v).replace(',', '.') }}{% endmacro %}
+
+{% block extra_head %}
+<style>
+  .lq-note { color:var(--text2); font-size:.85rem; max-width:72ch; line-height:1.5; margin:8px 0 20px; }
+  .lq-filtros { display:flex; gap:10px; flex-wrap:wrap; align-items:flex-end; margin-bottom:22px; }
+  .lq-tot { display:flex; gap:26px; flex-wrap:wrap; margin-bottom:24px; }
+  .lq-tot div { border:1px solid var(--border); border-radius:var(--radius);
+                padding:14px 20px; background:var(--surface2); }
+  .lq-tot .lbl { font-size:.75rem; color:var(--text2); text-transform:uppercase; letter-spacing:.4px; }
+  .lq-tot .val { font-size:1.6rem; font-weight:700; line-height:1.2; }
+  .lq-grupo { margin-bottom:26px; }
+  .lq-cab { display:flex; justify-content:space-between; align-items:baseline;
+            gap:14px; flex-wrap:wrap; margin-bottom:8px; }
+  .lq-cab h3 { font-size:1rem; margin:0; }
+  .lq-cab .debe { font-size:1.1rem; font-weight:700; color:var(--accent); }
+  .lq-wrap { overflow-x:auto; border:1px solid var(--border); border-radius:var(--radius); }
+  table.lq { width:100%; border-collapse:collapse; font-size:.85rem; min-width:720px; }
+  table.lq th { background:var(--surface2); color:var(--text2); text-align:left;
+                padding:9px 12px; font-weight:600; white-space:nowrap; }
+  table.lq td { padding:9px 12px; border-top:1px solid var(--border); }
+  table.lq td.num { text-align:right; white-space:nowrap; }
+  .lq-mat { font-size:.7rem; padding:2px 7px; border-radius:20px;
+            background:var(--accent-bg); color:var(--accent-dk); font-weight:700; }
+</style>
+{% endblock %}
+
+{% block content %}
+<h2 style="margin-top:16px;">Liquidación de instaladores</h2>
+<p class="lq-note">
+  Lo que se le debe a cada instalador por los polarizados, PPF y wraps del periodo.
+  Sale de las mismas líneas que alimentan el tablero, así que no puede decir una
+  cosa acá y otra en el margen.
+</p>
+
+<form method="GET" class="lq-filtros">
+  <div>
+    <label class="form-label mb-1">Desde</label>
+    <input type="date" class="form-control form-control-sm" name="from" value="{{ desde.isoformat() }}">
+  </div>
+  <div>
+    <label class="form-label mb-1">Hasta</label>
+    <input type="date" class="form-control form-control-sm" name="to" value="{{ hasta.isoformat() }}">
+  </div>
+  <button type="submit" class="btn btn-sm btn-primary">Ver</button>
+</form>
+
+{% if grupos %}
+  <div class="lq-tot">
+    <div>
+      <div class="lbl">Total a instaladores</div>
+      <div class="val">{{ money(total_general) }}</div>
+    </div>
+    <div>
+      <div class="lbl">Le queda a Noxa</div>
+      <div class="val">{{ money(queda_noxa) }}</div>
+    </div>
+  </div>
+
+  {% for g in grupos %}
+    <div class="lq-grupo">
+      <div class="lq-cab">
+        <h3>{{ g.instalador }}</h3>
+        <span class="debe">{{ money(g.total) }}</span>
+      </div>
+      <div class="lq-wrap">
+        <table class="lq">
+          <thead>
+            <tr>
+              <th>Fecha</th><th>Placa</th><th>Servicio</th><th>Detalle</th>
+              <th class="num">Cobrado</th><th class="num">%</th><th class="num">Le corresponde</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for t in g.trabajos %}
+              <tr>
+                <td>{{ t.fecha.strftime('%d/%m') }}</td>
+                <td>{{ t.placa or '—' }}</td>
+                <td>
+                  {{ t.servicio }}
+                  {% if t.material_por == 'noxa' %}
+                    <span class="lq-mat">material Noxa</span>
+                  {% endif %}
+                </td>
+                <td style="color:var(--text2);">{{ t.descripcion or '—' }}</td>
+                <td class="num">{{ money(t.cobrado) }}</td>
+                <td class="num">{{ t.pct }}%</td>
+                <td class="num"><strong>{{ money(t.costo) }}</strong></td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  {% endfor %}
+
+  <p class="lq-note">
+    Estos valores <strong>no se registran como gastos</strong>: ya están descontados
+    del ingreso que muestra el tablero. Anotarlos también en Gastos los restaría
+    dos veces.
+  </p>
+{% else %}
+  <div style="padding:34px;text-align:center;color:var(--text2);
+              border:1px solid var(--border);border-radius:var(--radius);">
+    No hay trabajos tercerizados en este periodo.
+  </div>
+{% endif %}
+{% endblock %}

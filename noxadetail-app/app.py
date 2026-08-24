@@ -2273,6 +2273,57 @@ def apply_adjustments(subtotal: int, adjustments, lista: int | None = None) -> t
     return max(total, 0), detalle
 
 
+def _guardar_tercerizacion(appt: Appointment, services: list) -> None:
+    """Lee del formulario el bloque de reparto de cada servicio tercerizado.
+
+    Se reescriben todas las líneas en vez de editarlas una por una: si se
+    quitó un servicio de la cita, su línea tiene que desaparecer, o seguiría
+    liquidándosele al instalador un trabajo que ya no existe.
+
+    Los campos llegan como terc_<service_id>_<campo>, así que quedan atados al
+    servicio y no a un índice de fila que se desordena al des/marcar."""
+    AppointmentOutsourcing.query.filter_by(appointment_id=appt.id).delete()
+
+    for svc in services:
+        if not svc.is_outsourced:
+            continue
+        prefijo = f"terc_{svc.id}_"
+        material = request.form.get(prefijo + "material") or MATERIAL_INSTALADOR
+
+        # El % se manda desde el form ya resuelto, pero se recalcula acá por si
+        # el POST llega sin JS: sin esto quedaría en 0 y el instalador no
+        # cobraría nada.
+        try:
+            pct = int(request.form.get(prefijo + "pct") or 0)
+        except ValueError:
+            pct = 0
+        if not 0 < pct <= 100:
+            pct = (svc.default_installer_share if material == MATERIAL_INSTALADOR
+                   else 100 - svc.default_installer_share)
+
+        try:
+            installer_id = int(request.form.get(prefijo + "installer") or 0) or None
+        except ValueError:
+            installer_id = None
+
+        monto = None
+        if svc.is_custom_price:
+            try:
+                monto = int(request.form.get(prefijo + "amount") or 0) or None
+            except ValueError:
+                monto = None
+
+        db.session.add(AppointmentOutsourcing(
+            appointment_id=appt.id,
+            service_name=svc.name,
+            installer_id=installer_id,
+            installer_pct=pct,
+            material_por=material,
+            amount=monto,
+            description=(request.form.get(prefijo + "desc") or "").strip() or None,
+        ))
+
+
 def _reparto_tercerizacion(appt: Appointment, services: list, lista: int, total: int) -> list[dict]:
     """Cuánto de esta cita le corresponde al instalador, línea por línea.
 
@@ -2957,6 +3008,8 @@ def new_appointment():
             except Exception:
                 pass
 
+        _guardar_tercerizacion(appt, selected_services)
+
         db.session.commit()
 
         return redirect(url_for("calendar_view"))
@@ -2967,6 +3020,7 @@ def new_appointment():
         vehicle_types=vehicle_types,
         agreements=agreements,
         operators_list=operators_list,
+        installers=Installer.query.filter_by(is_active=True).order_by(Installer.name).all(),
         today=date.today().isoformat()
     )
 
@@ -3401,6 +3455,8 @@ def edit_appointment(appointment_id):
             except Exception:
                 pass
 
+        _guardar_tercerizacion(appointment, selected_services)
+
         db.session.commit()
         return redirect(url_for("calendar_view"))
 
@@ -3411,8 +3467,79 @@ def edit_appointment(appointment_id):
         vehicle_types=vehicle_types,
         agreements=agreements,
         operators_list=operators_list,
+        installers=Installer.query.filter_by(is_active=True).order_by(Installer.name).all(),
         mode="edit",
         today=appointment.start_datetime.date().isoformat()
+    )
+
+
+@app.route("/instaladores", methods=["GET", "POST"])
+def installers_view():
+    """Los instaladores externos que hacen polarizado, PPF y wrap."""
+    if not getattr(g, "current_user", None) or g.current_user.role != "admin":
+        flash("Acceso restringido.", "danger")
+        return redirect(url_for("calendar_view"))
+
+    if request.method == "POST":
+        nombre = (request.form.get("name") or "").strip()
+        if not nombre:
+            flash("Debes ingresar el nombre del instalador.", "danger")
+            return redirect(url_for("installers_view"))
+        if Installer.query.filter(db.func.lower(Installer.name) == nombre.lower()).first():
+            flash(f"Ya existe un instalador llamado {nombre}.", "warning")
+            return redirect(url_for("installers_view"))
+        try:
+            share = int(request.form.get("default_share") or 65)
+        except ValueError:
+            share = 65
+        db.session.add(Installer(
+            name=nombre,
+            phone=(request.form.get("phone") or "").strip() or None,
+            default_share=share if 0 < share <= 100 else 65,
+            notes=(request.form.get("notes") or "").strip() or None,
+        ))
+        db.session.commit()
+        flash(f"Instalador {nombre} agregado.", "success")
+        return redirect(url_for("installers_view"))
+
+    return render_template(
+        "installers.html",
+        installers=Installer.query.order_by(Installer.is_active.desc(), Installer.name).all(),
+    )
+
+
+@app.route("/instaladores/<int:installer_id>/toggle", methods=["POST"])
+def installer_toggle(installer_id):
+    """Desactivar en vez de borrar: las citas viejas siguen apuntando a él y
+    borrarlo dejaría su liquidación histórica sin nombre."""
+    if not getattr(g, "current_user", None) or g.current_user.role != "admin":
+        flash("Acceso restringido.", "danger")
+        return redirect(url_for("calendar_view"))
+    ins = Installer.query.get_or_404(installer_id)
+    ins.is_active = not ins.is_active
+    db.session.commit()
+    flash(f"{ins.name} {'activado' if ins.is_active else 'desactivado'}.", "success")
+    return redirect(url_for("installers_view"))
+
+
+@app.route("/liquidacion-instaladores")
+def liquidacion_instaladores_view():
+    """Cuánto se le debe a cada instalador en el periodo, trabajo por trabajo."""
+    if not puede_ver_finanzas():
+        flash("Acceso restringido.", "danger")
+        return redirect(url_for("calendar_view"))
+
+    hoy = bogota_now().date()
+    desde = _parse_date(request.args.get("from")) or hoy.replace(day=1)
+    hasta = _parse_date(request.args.get("to")) or hoy
+
+    grupos = _liquidacion_instaladores(desde, hasta)
+    return render_template(
+        "liquidacion_instaladores.html",
+        grupos=grupos,
+        total_general=sum(g["total"] for g in grupos),
+        queda_noxa=sum(g["queda_noxa"] for g in grupos),
+        desde=desde, hasta=hasta,
     )
 
 
@@ -3453,6 +3580,40 @@ def toggle_service_diagnostic(service_id):
     s = Service.query.get_or_404(service_id)
     s.is_diagnostic = not s.is_diagnostic
     db.session.commit()
+    return redirect(url_for("services_view"))
+
+
+@app.route("/services/<int:service_id>/toggle-outsourced", methods=["POST"])
+def toggle_service_outsourced(service_id):
+    """Marca un servicio como tercerizado: al agendarlo aparecerá solo el
+    bloque de reparto con el instalador."""
+    s = Service.query.get_or_404(service_id)
+    s.is_outsourced = not s.is_outsourced
+    db.session.commit()
+    return redirect(url_for("services_view"))
+
+
+@app.route("/services/<int:service_id>/toggle-custom-price", methods=["POST"])
+def toggle_service_custom_price(service_id):
+    """Servicios sin precio de lista: el valor se cotiza al agendar."""
+    s = Service.query.get_or_404(service_id)
+    s.is_custom_price = not s.is_custom_price
+    db.session.commit()
+    return redirect(url_for("services_view"))
+
+
+@app.route("/services/<int:service_id>/installer-share", methods=["POST"])
+def update_service_installer_share(service_id):
+    s = Service.query.get_or_404(service_id)
+    try:
+        share = int(request.form.get("default_installer_share") or 65)
+    except ValueError:
+        share = 65
+    if 0 < share <= 100:
+        s.default_installer_share = share
+        db.session.commit()
+    else:
+        flash("El porcentaje debe estar entre 1 y 100.", "danger")
     return redirect(url_for("services_view"))
 
 

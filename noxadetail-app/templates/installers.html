@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+
+{% block extra_head %}
+<style>
+  .ins-note { color:var(--text2); font-size:.85rem; max-width:70ch; line-height:1.5; margin:8px 0 20px; }
+  .ins-wrap { overflow-x:auto; border:1px solid var(--border); border-radius:var(--radius); }
+  table.ins { width:100%; border-collapse:collapse; font-size:.88rem; min-width:560px; }
+  table.ins th { background:var(--surface2); color:var(--text2); text-align:left;
+                 padding:10px 14px; font-weight:600; white-space:nowrap; }
+  table.ins td { padding:10px 14px; border-top:1px solid var(--border); }
+  .ins-off td { opacity:.5; }
+  .ins-pill { font-size:.7rem; font-weight:700; text-transform:uppercase; letter-spacing:.3px;
+              padding:2px 8px; border-radius:20px; background:var(--accent-bg); color:var(--accent-dk); }
+  .ins-form { border:1px solid var(--border); border-radius:var(--radius);
+              padding:16px 18px; background:var(--surface2); margin-bottom:22px; }
+</style>
+{% endblock %}
+
+{% block content %}
+<h2 style="margin-top:16px;">Instaladores</h2>
+<p class="ins-note">
+  Quienes hacen los polarizados, PPF y wraps. El porcentaje es lo que se llevan
+  cuando <strong>ellos</strong> ponen el material; si el material lo pone Noxa,
+  el reparto se voltea solo al agendar.
+</p>
+
+<form method="POST" class="ins-form">
+  <div class="row g-2">
+    <div class="col-sm-4">
+      <label class="form-label mb-1">Nombre *</label>
+      <input type="text" class="form-control form-control-sm" name="name" required>
+    </div>
+    <div class="col-sm-3">
+      <label class="form-label mb-1">Teléfono</label>
+      <input type="text" class="form-control form-control-sm" name="phone">
+    </div>
+    <div class="col-sm-2">
+      <label class="form-label mb-1">% para él</label>
+      <input type="number" min="1" max="100" class="form-control form-control-sm"
+             name="default_share" value="65">
+    </div>
+    <div class="col-sm-3 d-flex align-items-end">
+      <button type="submit" class="btn btn-sm btn-primary w-100">Agregar</button>
+    </div>
+    <div class="col-12">
+      <label class="form-label mb-1">Notas</label>
+      <input type="text" class="form-control form-control-sm" name="notes"
+             placeholder="Ej: solo hace PPF, trabaja fines de semana">
+    </div>
+  </div>
+</form>
+
+{% if installers %}
+  <div class="ins-wrap">
+    <table class="ins">
+      <thead>
+        <tr><th>Nombre</th><th>Teléfono</th><th>% por defecto</th><th>Notas</th><th></th></tr>
+      </thead>
+      <tbody>
+        {% for ins in installers %}
+          <tr {% if not ins.is_active %}class="ins-off"{% endif %}>
+            <td>
+              {{ ins.name }}
+              {% if not ins.is_active %}<span class="ins-pill">inactivo</span>{% endif %}
+            </td>
+            <td>{{ ins.phone or '—' }}</td>
+            <td>{{ ins.default_share }}%</td>
+            <td style="color:var(--text2);">{{ ins.notes or '—' }}</td>
+            <td>
+              <form method="POST" action="{{ url_for('installer_toggle', installer_id=ins.id) }}"
+                    style="margin:0;">
+                <button type="submit" class="btn btn-sm btn-outline-secondary">
+                  {{ 'Desactivar' if ins.is_active else 'Activar' }}
+                </button>
+              </form>
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <p class="ins-note" style="margin-top:10px;">
+    Se desactivan en vez de borrarse: las citas viejas siguen apuntando a ellos y
+    borrarlos dejaría la liquidación histórica sin nombre.
+  </p>
+{% else %}
+  <div style="padding:34px;text-align:center;color:var(--text2);
+              border:1px solid var(--border);border-radius:var(--radius);">
+    Todavía no hay instaladores. Agrega el primero arriba para poder asignarlo al
+    agendar un polarizado, PPF o wrap.
+  </div>
+{% endif %}
+{% endblock %}

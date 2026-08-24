@@ -82,6 +82,11 @@
     border-radius: 999px; padding: 1px 8px; font-size: .68rem; font-weight: 700;
   }
   .svc-group .row { padding-bottom: 10px; }
+
+  .terc-card { border: 1px solid rgba(212,180,108,0.35); background: rgba(212,180,108,0.06);
+               border-radius: var(--radius); padding: 12px 14px; }
+  .terc-title { font-size: .85rem; font-weight: 700; color: var(--accent-dk); margin-bottom: 8px; }
+  .terc-hint { font-size: .75rem; color: var(--text2); margin-top: 8px; line-height: 1.45; }
 </style>
 
 <div class="row justify-content-center">
@@ -217,6 +222,92 @@
           </details>
         {% endfor %}
       </div>
+
+      {# ---- Servicios tercerizados (polarizado, PPF, wrap) ----
+         Un bloque por servicio tercerizado, que aparece solo cuando ese
+         servicio queda marcado arriba. No son filas que haya que agregar a
+         mano: si el catálogo dice que el servicio se terceriza, el bloque sale
+         solo con el % ya puesto, y quien agenda solo confirma o corrige. #}
+      {% set tercerizados = services | selectattr('is_outsourced') | list %}
+      {% if tercerizados %}
+        {% set lineas_previas = {} %}
+        {% if is_edit %}
+          {% for o in appointment.outsourcings %}
+            {% set _ = lineas_previas.update({o.service_name: o}) %}
+          {% endfor %}
+        {% endif %}
+        <div id="tercBox" class="mb-3">
+          {% for svc in tercerizados %}
+            {% set prev = lineas_previas.get(svc.name) %}
+            <div class="terc-card mb-2" id="terc_card_{{ svc.id }}" data-svc="{{ svc.id }}"
+                 data-share="{{ svc.default_installer_share }}"
+                 {% if not (is_edit and svc.name in selected_services) %}hidden{% endif %}>
+              <div class="terc-title">
+                <i class="bi bi-people-fill"></i> {{ svc.name }} — reparto con el instalador
+              </div>
+              <div class="row g-2">
+                <div class="col-sm-4">
+                  <label class="form-label mb-1">Instalador</label>
+                  <select class="form-select form-select-sm" name="terc_{{ svc.id }}_installer">
+                    <option value="">Sin asignar</option>
+                    {% for ins in installers %}
+                      <option value="{{ ins.id }}"
+                        {% if prev and prev.installer_id == ins.id %}selected{% endif %}>{{ ins.name }}</option>
+                    {% endfor %}
+                  </select>
+                </div>
+                <div class="col-sm-4">
+                  <label class="form-label mb-1">¿Quién pone el material?</label>
+                  <select class="form-select form-select-sm terc-material" name="terc_{{ svc.id }}_material">
+                    <option value="instalador"
+                      {% if not prev or prev.material_por == 'instalador' %}selected{% endif %}>El instalador</option>
+                    <option value="noxa"
+                      {% if prev and prev.material_por == 'noxa' %}selected{% endif %}>Noxa</option>
+                  </select>
+                </div>
+                <div class="col-sm-4">
+                  <label class="form-label mb-1">% para el instalador</label>
+                  <input type="number" min="1" max="100"
+                         class="form-control form-control-sm terc-pct"
+                         name="terc_{{ svc.id }}_pct"
+                         value="{{ prev.installer_pct if prev else svc.default_installer_share }}">
+                </div>
+                {% if svc.is_custom_price %}
+                  <div class="col-sm-4">
+                    <label class="form-label mb-1">Valor cotizado *</label>
+                    <input type="number" min="0" step="1000"
+                           class="form-control form-control-sm terc-amount"
+                           name="terc_{{ svc.id }}_amount"
+                           value="{{ prev.amount if prev and prev.amount else '' }}"
+                           placeholder="Este servicio no tiene precio de lista">
+                  </div>
+                  <div class="col-sm-8">
+                    <label class="form-label mb-1">¿Qué se va a forrar?</label>
+                    <input type="text" maxlength="255"
+                           class="form-control form-control-sm"
+                           name="terc_{{ svc.id }}_desc"
+                           value="{{ prev.description if prev and prev.description else '' }}"
+                           placeholder="Ej: bomper delantero, retrovisores y estribos">
+                  </div>
+                {% else %}
+                  <div class="col-12">
+                    <label class="form-label mb-1">Nota (opcional)</label>
+                    <input type="text" maxlength="255"
+                           class="form-control form-control-sm"
+                           name="terc_{{ svc.id }}_desc"
+                           value="{{ prev.description if prev and prev.description else '' }}"
+                           placeholder="Detalle del trabajo, si aplica">
+                  </div>
+                {% endif %}
+              </div>
+              <div class="terc-hint">
+                El cliente paga el total a Noxa. Este porcentaje es lo que queda
+                debiéndosele al instalador — no lo registres además como gasto.
+              </div>
+            </div>
+          {% endfor %}
+        </div>
+      {% endif %}
 
       {# ---- Plan prepagado ----
          Solo aparece si la placa tiene un plan vigente con cupos. La cita
@@ -715,6 +806,32 @@
   }
   checkboxes.forEach(c => c.addEventListener("change", updateGroupCounts));
   updateGroupCounts();
+
+  // ---- Tercerizados ----
+  // El bloque de reparto sigue al checkbox de su servicio: aparece al marcarlo
+  // y se esconde al desmarcarlo. Escondido no estorba, pero sus campos igual se
+  // envían — por eso el servidor solo lee los de servicios efectivamente
+  // seleccionados.
+  function syncTercCards() {
+    document.querySelectorAll(".terc-card").forEach(card => {
+      const cb = document.getElementById("svc_" + card.dataset.svc);
+      card.hidden = !(cb && cb.checked);
+    });
+  }
+  checkboxes.forEach(c => c.addEventListener("change", syncTercCards));
+  syncTercCards();
+
+  // Quién pone el material define el reparto: si lo pone Noxa, los porcentajes
+  // se voltean. Queda editable porque no siempre se negocia igual.
+  document.querySelectorAll(".terc-card").forEach(card => {
+    const material = card.querySelector(".terc-material");
+    const pct = card.querySelector(".terc-pct");
+    if (!material || !pct) return;
+    material.addEventListener("change", () => {
+      const base = parseInt(card.dataset.share || "65", 10);
+      pct.value = material.value === "noxa" ? (100 - base) : base;
+    });
+  });
   if (vehicleSelect) vehicleSelect.addEventListener("change", updatePrice);
   if (agreementSel)  agreementSel.addEventListener("change", updatePrice);
 

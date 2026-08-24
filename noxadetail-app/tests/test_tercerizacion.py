@@ -16,6 +16,7 @@ import datetime as dt
 import pytest
 
 from conftest import app_module as A
+from conftest import login_as, make_user
 
 
 @pytest.fixture
@@ -281,3 +282,87 @@ class TestLiquidacion:
         assert trabajo["descripcion"] == "Espejos"
         assert trabajo["material_por"] == A.MATERIAL_NOXA
         assert trabajo["costo"] == 105_000
+
+
+class TestPantallas:
+    def test_liquidacion_lista_los_trabajos(self, catalogo, client):
+        login_as(client, make_user("admin_liq", role="admin"))
+        appt = _cita(catalogo, "PPF a Medida Test", [
+            {"service_name": "PPF a Medida Test", "installer_id": catalogo["instalador"],
+             "installer_pct": 65, "material_por": A.MATERIAL_INSTALADOR,
+             "amount": 400_000, "description": "Capó y guardabarros"},
+        ])
+        dia = appt.start_datetime.date().isoformat()
+
+        html = client.get(f"/liquidacion-instaladores?from={dia}&to={dia}").get_data(as_text=True)
+
+        assert "Instalador Test" in html
+        assert "Capó y guardabarros" in html
+        assert "260.000" in html          # 65% de 400.000
+
+    def test_la_liquidacion_no_es_para_cualquiera(self, catalogo, client):
+        login_as(client, make_user("operario_liq", role="operario"))
+        assert client.get("/liquidacion-instaladores").status_code == 302
+
+    def test_pagina_de_instaladores(self, catalogo, client):
+        login_as(client, make_user("admin_ins", role="admin"))
+        html = client.get("/instaladores").get_data(as_text=True)
+        assert "Instalador Test" in html
+
+    def test_desactivar_no_borra(self, catalogo, client):
+        """Borrarlo dejaría sin nombre la liquidación de las citas viejas."""
+        login_as(client, make_user("admin_ins2", role="admin"))
+        client.post(f"/instaladores/{catalogo['instalador']}/toggle")
+
+        with A.app.app_context():
+            ins = A.Installer.query.get(catalogo["instalador"])
+            assert ins is not None
+            assert ins.is_active is False
+            ins.is_active = True
+            A.db.session.commit()
+
+
+class TestGuardadoDesdeElFormulario:
+    def _form_base(self, catalogo, service_id, extra):
+        manana = A.bogota_now().date() + dt.timedelta(days=1)
+        data = {
+            "customer_name": "Cliente Form", "plate": "TERFRM", "phone": "3001112233",
+            "date": manana.isoformat(), "start_time": "09:00",
+            "service_ids": [str(service_id)],
+            "vehicle_type_id": str(catalogo["vt"]),
+            "confirmar_dia_cerrado": "1",
+        }
+        data.update(extra)
+        return data
+
+    def test_guarda_el_reparto_al_crear_la_cita(self, catalogo, client):
+        login_as(client, make_user("admin_form", role="admin"))
+        sid = catalogo["polarizado"]
+        client.post("/appointments/new", data=self._form_base(catalogo, sid, {
+            f"terc_{sid}_installer": str(catalogo["instalador"]),
+            f"terc_{sid}_material": "instalador",
+            f"terc_{sid}_pct": "65",
+        }), follow_redirects=True)
+
+        with A.app.app_context():
+            appt = A.Appointment.query.filter_by(plate="TERFRM").first()
+            assert appt is not None
+            m = A.appointment_money(appt)
+            assert m["costo_tercerizacion"] == 633_750
+            assert m["ingreso_noxa"] == 341_250
+
+    def test_sin_porcentaje_valido_cae_al_del_catalogo(self, catalogo, client):
+        """Un POST sin JS llegaría con el pct vacío. Sin este respaldo quedaría
+        en 0 y el instalador no cobraría nada."""
+        login_as(client, make_user("admin_form2", role="admin"))
+        sid = catalogo["polarizado"]
+        client.post("/appointments/new", data=self._form_base(catalogo, sid, {
+            f"terc_{sid}_installer": str(catalogo["instalador"]),
+            f"terc_{sid}_material": "noxa",
+            f"terc_{sid}_pct": "",
+        }), follow_redirects=True)
+
+        with A.app.app_context():
+            appt = A.Appointment.query.filter_by(plate="TERFRM").first()
+            linea = appt.outsourcings[0]
+            assert linea.installer_pct == 35   # material de Noxa => reparto volteado
