@@ -3618,13 +3618,30 @@ def _transacciones_citas(vehicle_type: str = ""):
             # El convenio también es plata que se dejó de facturar.
             descuento = m["convenio"] + m["descuentos"]
             recargo = m["recargos"]
+        # Lo que de esta cita se le queda debiendo al instalador externo. Solo
+        # se calcula si hay líneas tercerizadas: la gran mayoría de citas no
+        # las tiene y no vale la pena recalcularles la plata entera.
+        costo_terc = 0
+        if a.outsourcings:
+            m_terc = appointment_money(a)
+            costo_terc = m_terc["costo_tercerizacion"]
+            # Con venta cerrada manda lo que se facturó de verdad, no el precio
+            # de hoy: el reparto se escala a esa cifra.
+            if venta and m_terc["total"] > 0:
+                costo_terc = int(round(costo_terc * (cobrado / m_terc["total"])))
+
         # Un diagnóstico no es una venta: es gratis y es un paso del embudo. Si
         # entrara acá inflaría los clientes nuevos y hundiría el ticket promedio.
         es_diag = es_cita_de_diagnostico(a.services, nombre_diag)
         salida.append({
             "fecha": a.start_datetime.date(),
             "placa": a.plate,
+            # `monto` es lo FACTURADO al cliente — sirve para ticket promedio y
+            # tamaño de venta. `ingreso_noxa` es lo que le queda al negocio, y
+            # es lo que debe mirar cualquier cifra de rentabilidad.
             "monto": cobrado,
+            "costo_tercerizacion": costo_terc,
+            "ingreso_noxa": cobrado - costo_terc,
             "lista": lista or cobrado,
             "descuento": descuento,
             "recargo": recargo,
@@ -3633,6 +3650,45 @@ def _transacciones_citas(vehicle_type: str = ""):
             "es_diagnostico": es_diag,
         })
     return salida
+
+
+def _liquidacion_instaladores(date_from, date_to) -> list[dict]:
+    """Cuánto se le debe a cada instalador por el periodo, trabajo por trabajo.
+
+    Sale de las mismas líneas que alimentan la analítica, así que no hay forma
+    de que la liquidación diga una cosa y el margen otra."""
+    citas = (Appointment.query
+             .filter(Appointment.status != "cancelled")
+             .order_by(Appointment.start_datetime)
+             .all())
+
+    por_instalador: dict = {}
+    for a in citas:
+        if not a.outsourcings:
+            continue
+        fecha = a.start_datetime.date()
+        if not (date_from <= fecha <= date_to):
+            continue
+        for linea in appointment_money(a)["tercerizado"]:
+            nombre = linea["instalador"]
+            grupo = por_instalador.setdefault(nombre, {
+                "instalador": nombre, "trabajos": [], "total": 0, "queda_noxa": 0,
+            })
+            grupo["trabajos"].append({
+                "fecha": fecha,
+                "placa": a.plate or "",
+                "cliente": a.customer_name or "",
+                "servicio": linea["servicio"],
+                "descripcion": linea["descripcion"],
+                "cobrado": linea["cobrado"],
+                "pct": linea["pct"],
+                "material_por": linea["material_por"],
+                "costo": linea["costo_instalador"],
+            })
+            grupo["total"] += linea["costo_instalador"]
+            grupo["queda_noxa"] += linea["queda_noxa"]
+
+    return sorted(por_instalador.values(), key=lambda g: g["total"], reverse=True)
 
 
 def _servicios_facturables(vehicle_type: str = ""):
@@ -3777,7 +3833,13 @@ def _kpis_rentabilidad(date_from, date_to, vehicle_type: str = ""):
     plata; el resto del tablero mide actividad, no resultado."""
     servicios = [t for t in _servicios_facturables(vehicle_type)
                  if date_from <= t["fecha"] <= date_to]
-    ingresos = sum(t["monto"] for t in servicios)
+    # `facturado` es lo que pagaron los clientes; `ingresos` es lo que le queda
+    # a Noxa después de la parte del instalador externo. Un polarizado de
+    # 975.000 factura 975.000 pero solo ingresa 341.250, y el margen tiene que
+    # calcularse contra lo segundo.
+    facturado = sum(t["monto"] for t in servicios)
+    tercerizacion = sum(t["costo_tercerizacion"] for t in servicios)
+    ingresos = sum(t["ingreso_noxa"] for t in servicios)
     bruto = sum(t["lista"] for t in servicios)
     descuentos = sum(t["descuento"] for t in servicios)
     recargos = sum(t["recargo"] for t in servicios)
@@ -3795,6 +3857,10 @@ def _kpis_rentabilidad(date_from, date_to, vehicle_type: str = ""):
     margen = ingresos - gastos
     return {
         "ingresos": ingresos,
+        "facturado": facturado,
+        # Lo que se le debe a los instaladores externos. No es un Expense: sale
+        # de acá. Registrarlo además como gasto lo restaría dos veces.
+        "tercerizacion": tercerizacion,
         "gastos": gastos,
         "margen": margen,
         "margen_pct": (margen / ingresos * 100) if ingresos else 0,

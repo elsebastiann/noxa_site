@@ -58,6 +58,17 @@ def catalogo():
         A.db.session.commit()
 
 
+@pytest.fixture(autouse=True)
+def _sin_citas_de_otros_tests():
+    """Las citas de prueba caen todas en el mismo día, así que si una sobrevive
+    al test que la creó se suma a los KPIs del siguiente y los descuadra."""
+    yield
+    with A.app.app_context():
+        for appt in A.Appointment.query.filter(A.Appointment.plate.like("TER%")).all():
+            A.db.session.delete(appt)   # cascade se lleva líneas y ajustes
+        A.db.session.commit()
+
+
 def _cita(ids, servicios, outsourcings=(), adjustments=()):
     inicio = dt.datetime.combine(A.bogota_now().date() + dt.timedelta(days=1), dt.time(9, 0))
     appt = A.Appointment(
@@ -192,3 +203,81 @@ class TestDescuentos:
         # El polarizado bajó a 877.500 (su 90%), no absorbió el descuento del lavado.
         assert m["tercerizado"][0]["cobrado"] == 877_500
         assert m["costo_tercerizacion"] == 570_375
+
+
+class TestAnalitica:
+    """El problema original: el tablero mostraba el polarizado completo como
+    ingreso de Noxa."""
+
+    def test_el_ingreso_del_periodo_descuenta_al_instalador(self, catalogo):
+        appt = _cita(catalogo, "Polarizado Test", [
+            {"service_name": "Polarizado Test", "installer_id": catalogo["instalador"],
+             "installer_pct": 65, "material_por": A.MATERIAL_INSTALADOR},
+        ])
+        dia = appt.start_datetime.date()
+
+        kpis = A._kpis_rentabilidad(dia, dia)
+
+        assert kpis["facturado"] == 975_000       # lo que pagó el cliente
+        assert kpis["tercerizacion"] == 633_750   # lo que se le debe al instalador
+        assert kpis["ingresos"] == 341_250        # lo que de verdad ingresó
+
+    def test_el_margen_se_calcula_sobre_el_ingreso_real(self, catalogo):
+        """Si el margen saliera del facturado, un mes lleno de polarizados se
+        vería rentabilísimo mientras la caja no crece."""
+        appt = _cita(catalogo, "Polarizado Test", [
+            {"service_name": "Polarizado Test", "installer_id": catalogo["instalador"],
+             "installer_pct": 65, "material_por": A.MATERIAL_INSTALADOR},
+        ])
+        dia = appt.start_datetime.date()
+
+        kpis = A._kpis_rentabilidad(dia, dia)
+
+        assert kpis["margen"] == kpis["ingresos"] - kpis["gastos"]
+        assert kpis["margen"] < 975_000
+
+
+class TestLiquidacion:
+    def test_agrupa_lo_que_se_le_debe_a_cada_instalador(self, catalogo):
+        with A.app.app_context():
+            otro = A.Installer(name="Segundo Instalador Test", default_share=65)
+            A.db.session.add(otro)
+            A.db.session.commit()
+            otro_id = otro.id
+
+        a1 = _cita(catalogo, "Polarizado Test", [
+            {"service_name": "Polarizado Test", "installer_id": catalogo["instalador"],
+             "installer_pct": 65, "material_por": A.MATERIAL_INSTALADOR},
+        ])
+        _cita(catalogo, "PPF a Medida Test", [
+            {"service_name": "PPF a Medida Test", "installer_id": otro_id,
+             "installer_pct": 65, "material_por": A.MATERIAL_INSTALADOR,
+             "amount": 400_000, "description": "Capó"},
+        ])
+        dia = a1.start_datetime.date()
+
+        liq = A._liquidacion_instaladores(dia, dia)
+
+        por_nombre = {g["instalador"]: g for g in liq}
+        assert por_nombre["Instalador Test"]["total"] == 633_750
+        assert por_nombre["Segundo Instalador Test"]["total"] == 260_000
+        # Ordenada por lo que más se debe: es el orden en que se paga.
+        assert liq[0]["instalador"] == "Instalador Test"
+
+        with A.app.app_context():
+            A.Installer.query.filter_by(id=otro_id).delete()
+            A.db.session.commit()
+
+    def test_el_detalle_permite_revisar_trabajo_por_trabajo(self, catalogo):
+        appt = _cita(catalogo, "PPF a Medida Test", [
+            {"service_name": "PPF a Medida Test", "installer_id": catalogo["instalador"],
+             "installer_pct": 35, "material_por": A.MATERIAL_NOXA,
+             "amount": 300_000, "description": "Espejos"},
+        ])
+        dia = appt.start_datetime.date()
+
+        trabajo = A._liquidacion_instaladores(dia, dia)[0]["trabajos"][0]
+
+        assert trabajo["descripcion"] == "Espejos"
+        assert trabajo["material_por"] == A.MATERIAL_NOXA
+        assert trabajo["costo"] == 105_000
