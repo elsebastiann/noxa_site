@@ -1,7 +1,7 @@
 {
   "app.py": {
-    "mtime": 1787592691.7307606,
-    "ast_hash": "cd4d28b332c3cbc8a0e77039e6ae5ab7",
+    "mtime": 1787599711.3356547,
+    "ast_hash": "ad79be28763cdcbf0e9860082786a608",
     "semantic_hash": ""
   },
   "migrate_prices.py": {
@@ -80,8 +80,8 @@
     "semantic_hash": ""
   },
   "templates/calendar.html": {
-    "mtime": 1787108546.6979468,
-    "ast_hash": "fe5861790c02f9fb9ebae812d3d985a2",
+    "mtime": 1787599711.3815856,
+    "ast_hash": "17af197b30eadc00322349692c05508a",
     "semantic_hash": ""
   },
   "templates/edit_appointment.html": {
@@ -175,8 +175,8 @@
     "semantic_hash": ""
   },
   "templates/services.html": {
-    "mtime": 1787532442.6922462,
-    "ast_hash": "9789848fbedc46d96020b34ee33918c8",
+    "mtime": 1787597788.2361517,
+    "ast_hash": "7dd47342db6e7f734a0293b365c79b36",
     "semantic_hash": ""
   },
   "templates/users.html": {
@@ -332,6 +332,11 @@
   "tests/test_meta_parsing.py": {
     "mtime": 1787592296.6193414,
     "ast_hash": "cd58f8a7e236af4a67b9c2cb0a33ea3a",
+    "semantic_hash": ""
+  },
+  "tests/test_colores_agenda.py": {
+    "mtime": 1787597827.8830578,
+    "ast_hash": "2f04bbb01cdcb48c0c94adf0d4bb2491",
     "semantic_hash": ""
   }
 }

@@ -230,6 +230,36 @@ TIER_LABELS = {
     "silver": "Silver",
 }
 
+COLOR_CAJON_DEFECTO = "#A0C8FF"
+_HEX_RE = re.compile(r"^#[0-9A-Fa-f]{6}$")
+
+
+def color_hex_valido(valor: str) -> "str | None":
+    """Normaliza un color a #RRGGBB, o None si no lo es. El valor viaja desde un
+    formulario, así que no puede entrar crudo al CSS de la agenda."""
+    v = (valor or "").strip()
+    return v.upper() if _HEX_RE.match(v) else None
+
+
+def color_texto_legible(hex_fondo: str) -> str:
+    """Negro o blanco, el que contraste con el fondo.
+
+    Es el valor por defecto cuando el servicio no tiene color de texto propio:
+    así un servicio nuevo nace legible sin que nadie lo configure. Usa la
+    luminancia relativa de la WCAG y no el promedio de los canales — el verde
+    pesa mucho más que el azul para el ojo, y promediar deja texto ilegible
+    sobre amarillos y verdes claros, que es justo la mitad de esta paleta."""
+    h = color_hex_valido(hex_fondo) or COLOR_CAJON_DEFECTO
+    r, g, b = (int(h[i:i + 2], 16) / 255 for i in (1, 3, 5))
+    canal = lambda c: c / 12.92 if c <= 0.03928 else ((c + 0.055) / 1.055) ** 2.4
+    lum = 0.2126 * canal(r) + 0.7152 * canal(g) + 0.0722 * canal(b)
+    return "#111111" if lum > 0.45 else "#FFFFFF"
+
+
+# Colores históricos, que vivían fijos acá. Ya no se consultan al pintar la
+# agenda: solo siembran `services.color_fondo` la primera vez, para que al
+# desplegar esto la agenda se vea EXACTAMENTE igual que antes y cambiar un
+# color sea una decisión, no un efecto secundario del deploy.
 COLORS = {
     "wash essential":           "#FFF3B0",
     "wash shine":               "#FFD6E0",
@@ -466,8 +496,58 @@ class Service(db.Model):
     # de buscarlo en ServicePrice (donde no existe y valdría 0).
     is_custom_price = db.Column(db.Boolean, nullable=False, default=False)
 
+    # ── Color del cajón en la agenda ──
+    # Antes vivían en un dict fijo en el código (COLORS), lo que obligaba a un
+    # deploy para cambiar un color y dejaba sin color a todo servicio nuevo.
+    # `color_texto` en NULL significa "elígelo tú": se calcula por luminancia
+    # del fondo, así que un servicio nuevo ya nace legible sin configurar nada.
+    color_fondo = db.Column(db.String(7), nullable=True)
+    color_texto = db.Column(db.String(7), nullable=True)
+
+    @property
+    def color_fondo_efectivo(self) -> str:
+        return self.color_fondo or COLOR_CAJON_DEFECTO
+
+    @property
+    def color_texto_efectivo(self) -> str:
+        return self.color_texto or color_texto_legible(self.color_fondo_efectivo)
+
     def __repr__(self):
         return f"<Service {self.name} ({self.duration_minutes} min)>"
+
+def ensure_service_colors_schema():
+    """Agrega las columnas de color y siembra las de los servicios que ya tenían
+    un color fijo en el código.
+
+    El sembrado es lo que hace que este cambio sea invisible el día del deploy:
+    sin él, todos los cajones pasarían al azul por defecto de golpe y parecería
+    que se rompió la agenda. Solo corre sobre filas con color_fondo en NULL, así
+    que no pisa nada que alguien haya elegido después."""
+    with app.app_context():
+        for col in ("color_fondo", "color_texto"):
+            try:
+                db.session.execute(text(f"SELECT {col} FROM services LIMIT 1"))
+            except Exception:
+                db.session.execute(
+                    text(f"ALTER TABLE services ADD COLUMN {col} VARCHAR(7)")
+                )
+                db.session.commit()
+
+        sin_color = Service.query.filter(
+            db.or_(Service.color_fondo.is_(None), Service.color_fondo == "")
+        ).all()
+        sembrados = 0
+        for s in sin_color:
+            historico = COLORS.get((s.name or "").strip().lower())
+            if historico:
+                s.color_fondo = historico.upper()
+                sembrados += 1
+        if sembrados:
+            db.session.commit()
+            app.logger.warning(
+                f"[Migración] {sembrados} servicio(s) heredaron su color histórico del código."
+            )
+
 
 def ensure_service_diagnostic_schema():
     with app.app_context():
@@ -480,6 +560,7 @@ def ensure_service_diagnostic_schema():
             db.session.commit()
 
 ensure_service_diagnostic_schema()
+ensure_service_colors_schema()
 
 def ensure_service_widget_schema():
     with app.app_context():
@@ -4042,6 +4123,28 @@ def toggle_service_single_day(service_id):
     return redirect(url_for("services_view"))
 
 
+@app.route("/services/<int:service_id>/colors", methods=["POST"])
+def update_service_colors(service_id):
+    """Color del cajón de la cita en la agenda.
+
+    Se valida el hex acá y no solo en el input del navegador: el valor termina
+    dentro de un atributo de estilo, y `<input type="color">` se puede saltar
+    con un POST directo."""
+    s = Service.query.get_or_404(service_id)
+    fondo = color_hex_valido(request.form.get("color_fondo"))
+    if not fondo:
+        flash("El color de fondo no es válido.", "danger")
+        return redirect(url_for("services_view"))
+    s.color_fondo = fondo
+    # La casilla "automático" deja el texto en NULL para que lo elija la
+    # luminancia: es lo que mantiene legible un fondo que se cambie después.
+    s.color_texto = (None if request.form.get("texto_auto")
+                     else color_hex_valido(request.form.get("color_texto")))
+    db.session.commit()
+    flash(f"Colores de «{s.name}» actualizados.", "success")
+    return redirect(url_for("services_view"))
+
+
 @app.route("/services/<int:service_id>/description", methods=["POST"])
 def update_service_description(service_id):
     s = Service.query.get_or_404(service_id)
@@ -5541,6 +5644,12 @@ def api_events():
     nombre_diag = _nombre_servicio_diagnostico()
 
     appointments = Appointment.query.all()
+    # Se arma una sola vez: buscar el servicio por cita eran N queries para
+    # pintar una semana de agenda.
+    colores_por_servicio = {
+        s.name.strip().lower(): (s.color_fondo_efectivo, s.color_texto_efectivo)
+        for s in Service.query.all()
+    }
     events = []
 
     for appt in appointments:
@@ -5548,9 +5657,13 @@ def api_events():
         if (modo == "diagnosticos") != es_diag:
             continue
 
-        # Definir el color según el PRIMER servicio listado
+        # El color lo define el PRIMER servicio listado, igual que siempre; lo
+        # que cambia es de dónde sale: ahora del servicio, configurable desde
+        # el panel, y no de un dict fijo en el código.
         first_service = appt.services.split(",")[0].strip().lower()
-        color = COLORS.get(first_service, "#A0C8FF")  # color por defecto pastel
+        svc_color = colores_por_servicio.get(first_service)
+        color = svc_color[0] if svc_color else COLOR_CAJON_DEFECTO
+        color_texto = svc_color[1] if svc_color else color_texto_legible(color)
 
         first_name = appt.customer_name.strip().split(" ")[0] if appt.customer_name else ""
         plate = appt.plate.upper() if appt.plate else ""
@@ -5585,8 +5698,15 @@ def api_events():
                 "end": appt.end_datetime.isoformat(),
                 "backgroundColor": color,
                 "borderColor": color,
+                "textColor": color_texto,
                 "extendedProps": {
                     "estimated_amount": plata["total"] if puede_ver_precios() else None,
+                    # También va acá y no solo en textColor: FullCalendar no
+                    # aplica textColor cuando el cajón se pinta con un
+                    # eventContent propio (se comprobó en vivo: el style en
+                    # línea salía solo con fondo y borde). El renderer lo lee
+                    # de acá y lo aplica él mismo.
+                    "color_texto": color_texto,
                     "lineas": {
                         "nombre": first_name,
                         "placa": plate,

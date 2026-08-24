@@ -22,7 +22,11 @@
   }
 
   /* Eventos */
-  .fc-event-title, .fc-event-main, .fc-event { color: #fff !important; }
+  /* El color de la letra lo manda cada servicio (textColor del evento). Antes
+     esto forzaba blanco con !important, así que sobre los fondos claros de la
+     paleta —amarillo, blanco, celeste— el texto quedaba ilegible y no había
+     forma de arreglarlo sin tocar código. */
+  .fc-event-title, .fc-event-main { color: inherit; }
   .fc-event { line-height: 1.25; border-radius: 6px !important; border: none !important; }
   /* El texto nunca debe desbordar el cajón: la cita de al lado queda ilegible. */
   .fc-event, .fc-event-main, .fc-timegrid-event-harness { overflow: hidden; }
@@ -210,6 +214,10 @@ document.addEventListener('DOMContentLoaded', function() {
       const L = info.event.extendedProps?.lineas || {};
       const box = document.createElement("div");
       box.className = "ev-box";
+      // El color de la letra lo define el servicio. Se aplica acá porque
+      // FullCalendar no propaga textColor a un eventContent personalizado.
+      const colorTexto = info.event.extendedProps?.color_texto;
+      if (colorTexto) box.style.color = colorTexto;
       [["nombre", L.nombre], ["placa", L.placa], ["servicio", L.servicio],
        ["saldo", L.saldo], ["notas", L.notas]].forEach(([clase, texto]) => {
         if (!texto) return;
