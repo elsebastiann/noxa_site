@@ -4195,8 +4195,78 @@ def services_view():
 
         return redirect(url_for("services_view"))
 
-    services = Service.query.order_by(Service.name).all()
-    return render_template("services.html", services=services)
+    mostrar_inactivos = request.args.get("inactivos") == "1"
+    todos = Service.query.order_by(Service.name).all()
+    # Los inactivos se ocultan por defecto: son los menos y ensucian la lista de
+    # los que sí se usan a diario. El conteo se calcula sobre TODOS para que el
+    # botón pueda decir cuántos hay escondidos.
+    inactivos = sum(1 for s in todos if not s.is_active)
+    services = todos if mostrar_inactivos else [s for s in todos if s.is_active]
+    return render_template("services.html", services=services,
+                           mostrar_inactivos=mostrar_inactivos,
+                           total_inactivos=inactivos,
+                           puede_borrar=puede_borrar_servicios())
+
+
+# Borrar un servicio es irreversible y se lleva su lista de precios. Se limita a
+# las dos personas que responden por el catálogo. Si el usuario de Diana en
+# producción se llama distinto, se ajusta acá y listo.
+USUARIOS_PUEDEN_BORRAR_SERVICIOS = {"sa", "diana"}
+
+
+@app.template_global()
+def puede_borrar_servicios() -> bool:
+    u = getattr(g, "current_user", None)
+    return bool(u) and (u.username or "").strip().lower() in USUARIOS_PUEDEN_BORRAR_SERVICIOS
+
+
+@app.route("/services/<int:service_id>/delete", methods=["POST"])
+def delete_service(service_id):
+    """Elimina un servicio y su lista de precios.
+
+    Tres candados, en orden de qué tan caro es equivocarse:
+
+    1. Solo lo hacen `sa` o Diana. No basta con ser admin.
+    2. El servicio tiene que estar INACTIVO. Obliga a un paso previo consciente
+       —sacarlo de circulación y ver que nada se rompe— antes de borrarlo de
+       verdad. Es el candado que de verdad evita el clic accidental.
+    3. No puede tener citas futuras. Borrar el servicio de un trabajo que está
+       agendado deja esa cita apuntando a algo que ya no existe en el catálogo.
+
+    Las citas pasadas NO se tocan: guardan el nombre del servicio como texto, así
+    que el historial y las ventas sobreviven al borrado.
+    """
+    if not puede_borrar_servicios():
+        flash("Solo sa o Diana pueden eliminar servicios.", "danger")
+        return redirect(url_for("services_view"))
+
+    s = Service.query.get_or_404(service_id)
+
+    if s.is_active:
+        flash(f"Primero desactiva «{s.name}». Solo se puede eliminar un servicio inactivo.", "warning")
+        return redirect(url_for("services_view", inactivos=1))
+
+    futuras = Appointment.query.filter(
+        Appointment.status == "scheduled",
+        Appointment.start_datetime >= bogota_now(),
+        Appointment.services.ilike(f"%{s.name}%"),
+    ).count()
+    if futuras:
+        flash(
+            f"No se puede eliminar «{s.name}»: hay {futuras} cita(s) agendada(s) que lo usan. "
+            f"Atiéndelas o cámbialas primero.",
+            "danger",
+        )
+        return redirect(url_for("services_view", inactivos=1))
+
+    precios = ServicePrice.query.filter_by(service_id=s.id).delete()
+    nombre = s.name
+    db.session.delete(s)
+    db.session.commit()
+
+    app.logger.warning(f"[Servicios] {_quien()} eliminó «{nombre}» y sus {precios} precio(s).")
+    flash(f"Servicio «{nombre}» eliminado, junto con sus {precios} precio(s).", "success")
+    return redirect(url_for("services_view", inactivos=1))
 
 
 @app.route("/services/<int:service_id>/toggle", methods=["POST"])

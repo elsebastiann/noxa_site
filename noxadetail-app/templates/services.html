@@ -25,6 +25,66 @@
     font-size:.7rem; color:var(--text2); cursor:pointer; user-select:none;
   }
   .svc-auto input { cursor:pointer; }
+
+  /* ── Barra de control ── */
+  .svc-barra {
+    display:flex; align-items:center; gap:14px; flex-wrap:wrap;
+    margin:18px 0 10px; padding-bottom:10px; border-bottom:1px solid var(--border);
+  }
+  .svc-conteo { color:var(--text2); font-size:.82rem; }
+
+  /* ── Categorías ── */
+  .svc-cat { margin-top:26px; }
+  .svc-cat-titulo {
+    display:flex; align-items:center; gap:9px;
+    font-size:.74rem; font-weight:800; letter-spacing:.09em; text-transform:uppercase;
+    color:var(--accent-dk); margin:0 0 12px;
+  }
+  .svc-cat-titulo span {
+    background:var(--accent-bg); color:var(--accent); border-radius:999px;
+    padding:1px 8px; font-size:.7rem; letter-spacing:0;
+  }
+
+  /* Grilla que envuelve: es lo que arregla de raíz que se cortara la
+     información. La tabla tenía 11 columnas y crecía hacia el lado hasta
+     salirse de la pantalla; acá cada servicio ocupa su tarjeta y la grilla
+     acomoda las que quepan. */
+  .svc-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(310px, 1fr)); gap:14px; }
+
+  .svc-card {
+    display:flex; flex-direction:column; gap:12px;
+    background:var(--surface); border:1px solid var(--border);
+    border-radius:var(--radius); padding:14px 15px;
+  }
+  .svc-card.is-inactivo { opacity:.62; border-style:dashed; }
+  .svc-card-head { display:flex; align-items:flex-start; justify-content:space-between; gap:10px; }
+  .svc-nombre { font-size:.98rem; font-weight:650; margin:0; line-height:1.25; }
+  .svc-duracion { color:var(--text3); font-size:.74rem; }
+
+  .svc-campo { display:flex; flex-direction:column; gap:4px; }
+  .svc-campo > label {
+    font-size:.68rem; text-transform:uppercase; letter-spacing:.05em; color:var(--text2);
+  }
+
+  .svc-flags { display:flex; flex-wrap:wrap; gap:6px; }
+  .svc-flags form { margin:0; }
+  .svc-flag {
+    display:inline-flex; align-items:center; gap:6px;
+    font-size:.73rem; padding:4px 9px; white-space:nowrap;
+  }
+  /* Un punto encendido/apagado: dice el estado de un vistazo, sin tener que
+     leer "Sí"/"No" en cada botón como en la tabla vieja. */
+  .svc-flag-punto {
+    width:7px; height:7px; border-radius:50%; flex-shrink:0;
+    background:var(--text3); box-shadow:none;
+  }
+  .svc-flag-punto.on { background:currentColor; box-shadow:0 0 6px currentColor; }
+
+  .svc-card-pie {
+    display:flex; gap:8px; justify-content:flex-end;
+    margin-top:auto; padding-top:10px; border-top:1px solid var(--border);
+  }
+  .svc-card-pie form { margin:0; }
 </style>
 {% endblock %}
 
@@ -49,156 +109,150 @@
     </div>
   </form>
 
-  <!-- Tabla de servicios -->
-  <div class="table-responsive">
-    <table class="table table-dark table-hover align-middle">
-      <thead>
-        <tr>
-          <th>Servicio</th>
-          <th style="min-width:220px;">Descripción (tooltip widget)</th>
-          <th class="text-center" style="min-width:190px;" title="Cómo se ve el cajón de la cita en la agenda">Color en la agenda</th>
-          <th class="text-center">Estado</th>
-          <th class="text-center">Diagnóstico</th>
-          <th class="text-center">Widget club</th>
-          <th class="text-center">Curado 1 día</th>
-          <th class="text-center" title="Lo hace un instalador externo y se reparte lo cobrado">Tercerizado</th>
-          <th class="text-center" title="Porcentaje para el instalador cuando él pone el material">% instalador</th>
-          <th class="text-center" title="Sin precio de lista: se cotiza al agendar">A medida</th>
-          <th class="text-center">Acción</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for s in services %}
-        <tr>
-          <td>{{ s.name }}</td>
-          <td>
-            <form method="POST" action="{{ url_for('update_service_description', service_id=s.id) }}" class="d-flex gap-1">
-              <input type="text" name="description" class="form-control form-control-sm"
-                     value="{{ s.description or '' }}" placeholder="Descripción corta...">
-              <button type="submit" class="btn btn-sm btn-outline-secondary">Guardar</button>
-            </form>
-          </td>
-          <td class="text-center">
-            {# La vista previa usa los MISMOS colores que va a usar la agenda,
-               así se ve el resultado sin tener que ir a mirar el calendario. #}
-            <form method="POST" action="{{ url_for('update_service_colors', service_id=s.id) }}"
-                  class="svc-colores" data-servicio="{{ s.id }}">
-              <div class="svc-preview" data-preview
-                   style="background:{{ s.color_fondo_efectivo }}; color:{{ s.color_texto_efectivo }};">
-                {{ s.name }}
-              </div>
-              <div class="svc-colores-controles">
-                <label title="Color de fondo del cajón">
-                  <span>Fondo</span>
-                  <input type="color" name="color_fondo" data-fondo
-                         value="{{ s.color_fondo_efectivo }}">
-                </label>
-                <label title="Color de la letra" data-caja-texto
-                       class="{{ 'is-auto' if not s.color_texto else '' }}">
-                  <span>Letra</span>
-                  <input type="color" name="color_texto" data-texto
-                         value="{{ s.color_texto_efectivo }}"
-                         {{ 'disabled' if not s.color_texto else '' }}>
-                </label>
-              </div>
-              <label class="svc-auto" title="La letra se elige sola según el fondo, para que siempre se lea">
-                <input type="checkbox" name="texto_auto" value="1" data-auto
-                       {{ 'checked' if not s.color_texto else '' }}>
-                <span>Letra automática</span>
-              </label>
-              <button type="submit" class="btn btn-sm btn-outline-secondary w-100">Guardar color</button>
-            </form>
-          </td>
-          <td class="text-center">
-            {% if s.is_active %}
-              <span class="badge bg-success">Activo</span>
-            {% else %}
-              <span class="badge bg-secondary">Inactivo</span>
-            {% endif %}
-          </td>
-          <td class="text-center">
-            <form method="POST"
-                  action="{{ url_for('toggle_service_diagnostic', service_id=s.id) }}">
-              {% if s.is_diagnostic %}
-                <button type="submit" class="btn btn-sm btn-outline-info">Sí</button>
-              {% else %}
-                <button type="submit" class="btn btn-sm btn-outline-secondary">No</button>
-              {% endif %}
-            </form>
-          </td>
-          <td class="text-center">
-            <form method="POST"
-                  action="{{ url_for('toggle_service_online_bookable', service_id=s.id) }}">
-              {% if s.is_online_bookable %}
-                <button type="submit" class="btn btn-sm btn-outline-success">Sí</button>
-              {% else %}
-                <button type="submit" class="btn btn-sm btn-outline-secondary">No</button>
-              {% endif %}
-            </form>
-          </td>
-          <td class="text-center">
-            <form method="POST"
-                  action="{{ url_for('toggle_service_single_day', service_id=s.id) }}">
-              {% if s.occupies_single_day %}
-                <button type="submit" class="btn btn-sm btn-outline-info">Sí</button>
-              {% else %}
-                <button type="submit" class="btn btn-sm btn-outline-secondary">No</button>
-              {% endif %}
-            </form>
-          </td>
-          <td class="text-center">
-            <form method="POST"
-                  action="{{ url_for('toggle_service_outsourced', service_id=s.id) }}">
-              {% if s.is_outsourced %}
-                <button type="submit" class="btn btn-sm btn-outline-warning">Sí</button>
-              {% else %}
-                <button type="submit" class="btn btn-sm btn-outline-secondary">No</button>
-              {% endif %}
-            </form>
-          </td>
-          <td class="text-center">
-            {% if s.is_outsourced %}
-              <form method="POST"
-                    action="{{ url_for('update_service_installer_share', service_id=s.id) }}"
-                    class="d-flex gap-1 justify-content-center">
-                <input type="number" min="1" max="100" name="default_installer_share"
-                       class="form-control form-control-sm" style="width:72px;"
-                       value="{{ s.default_installer_share }}">
-                <button type="submit" class="btn btn-sm btn-outline-secondary">OK</button>
-              </form>
-            {% else %}
-              <span class="text-secondary">—</span>
-            {% endif %}
-          </td>
-          <td class="text-center">
-            <form method="POST"
-                  action="{{ url_for('toggle_service_custom_price', service_id=s.id) }}">
-              {% if s.is_custom_price %}
-                <button type="submit" class="btn btn-sm btn-outline-warning">Sí</button>
-              {% else %}
-                <button type="submit" class="btn btn-sm btn-outline-secondary">No</button>
-              {% endif %}
-            </form>
-          </td>
-          <td class="text-center">
-            <form method="POST"
-                  action="{{ url_for('toggle_service', service_id=s.id) }}">
-              {% if s.is_active %}
-                <button type="submit" class="btn btn-sm btn-outline-warning">
-                  Desactivar
-                </button>
-              {% else %}
-                <button type="submit" class="btn btn-sm btn-outline-success">
-                  Activar
-                </button>
-              {% endif %}
-            </form>
-          </td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
+  <!-- Barra de control: cuántos hay y si se ven los inactivos -->
+  <div class="svc-barra">
+    <span class="svc-conteo">{{ services|length }} servicio{{ '' if services|length == 1 else 's' }} a la vista</span>
+    {% if total_inactivos %}
+      {% if mostrar_inactivos %}
+        <a href="{{ url_for('services_view') }}" class="btn btn-sm btn-outline-secondary">
+          <i class="bi bi-eye-slash"></i> Ocultar inactivos ({{ total_inactivos }})
+        </a>
+      {% else %}
+        <a href="{{ url_for('services_view', inactivos=1) }}" class="btn btn-sm btn-outline-secondary">
+          <i class="bi bi-eye"></i> Mostrar inactivos ({{ total_inactivos }})
+        </a>
+      {% endif %}
+    {% endif %}
   </div>
+
+  {# Agrupado con la MISMA función que usa el formulario de citas: si mañana se
+     agrega una categoría, las dos pantallas la heredan sin tocarlas. #}
+  {% for categoria, svcs in agrupar_servicios(services) %}
+  <section class="svc-cat">
+    <h3 class="svc-cat-titulo">{{ categoria }} <span>{{ svcs|length }}</span></h3>
+    <div class="svc-grid">
+      {% for s in svcs %}
+      <article class="svc-card {{ 'is-inactivo' if not s.is_active else '' }}">
+
+        <header class="svc-card-head">
+          <div>
+            <h4 class="svc-nombre">{{ s.name }}</h4>
+            <span class="svc-duracion">{{ s.duration_minutes }} min</span>
+          </div>
+          {% if s.is_active %}
+            <span class="badge bg-success">Activo</span>
+          {% else %}
+            <span class="badge bg-secondary">Inactivo</span>
+          {% endif %}
+        </header>
+
+        <div class="svc-preview-wrap">
+          <form method="POST" action="{{ url_for('update_service_colors', service_id=s.id) }}"
+                class="svc-colores">
+            <div class="svc-preview" data-preview
+                 style="background:{{ s.color_fondo_efectivo }}; color:{{ s.color_texto_efectivo }};">
+              {{ s.name }}
+            </div>
+            <div class="svc-colores-controles">
+              <label title="Color de fondo del cajón">
+                <span>Fondo</span>
+                <input type="color" name="color_fondo" data-fondo value="{{ s.color_fondo_efectivo }}">
+              </label>
+              <label title="Color de la letra" data-caja-texto
+                     class="{{ 'is-auto' if not s.color_texto else '' }}">
+                <span>Letra</span>
+                <input type="color" name="color_texto" data-texto
+                       value="{{ s.color_texto_efectivo }}"
+                       {{ 'disabled' if not s.color_texto else '' }}>
+              </label>
+            </div>
+            <label class="svc-auto" title="La letra se elige sola según el fondo, para que siempre se lea">
+              <input type="checkbox" name="texto_auto" value="1" data-auto
+                     {{ 'checked' if not s.color_texto else '' }}>
+              <span>Letra automática</span>
+            </label>
+            <button type="submit" class="btn btn-sm btn-outline-secondary w-100">Guardar color</button>
+          </form>
+        </div>
+
+        <form method="POST" action="{{ url_for('update_service_description', service_id=s.id) }}"
+              class="svc-campo">
+          <label>Descripción (tooltip del widget)</label>
+          <div class="d-flex gap-1">
+            <input type="text" name="description" class="form-control form-control-sm"
+                   value="{{ s.description or '' }}" placeholder="Descripción corta...">
+            <button type="submit" class="btn btn-sm btn-outline-secondary">Guardar</button>
+          </div>
+        </form>
+
+        {# Cada interruptor es su propio form: así se ve el estado y se cambia
+           con un clic, sin un "guardar" global que obligue a recordar qué se
+           tocó. Van en grilla que envuelve, que es lo que evita que se corten
+           como pasaba en la tabla. #}
+        <div class="svc-flags">
+          {% for accion, etiqueta, activo, tono, ayuda in [
+              ('toggle_service_diagnostic', 'Diagnóstico', s.is_diagnostic, 'info',
+               'Lo hace el dueño; tiene su propio cupo de concurrencia'),
+              ('toggle_service_online_bookable', 'Widget club', s.is_online_bookable, 'success',
+               'Aparece en el widget público del club Mercedes-Benz'),
+              ('toggle_service_single_day', 'Curado 1 día', s.occupies_single_day, 'info',
+               'Solo ocupa cupo el día que se recibe el vehículo'),
+              ('toggle_service_outsourced', 'Tercerizado', s.is_outsourced, 'warning',
+               'Lo hace un instalador externo y se reparte lo cobrado'),
+              ('toggle_service_custom_price', 'A medida', s.is_custom_price, 'warning',
+               'Sin precio de lista: se cotiza al agendar'),
+          ] %}
+          <form method="POST" action="{{ url_for(accion, service_id=s.id) }}" title="{{ ayuda }}">
+            <button type="submit"
+                    class="svc-flag btn btn-sm {{ 'btn-outline-' ~ tono if activo else 'btn-outline-secondary' }}">
+              <span class="svc-flag-punto {{ 'on' if activo else '' }}"></span>{{ etiqueta }}
+            </button>
+          </form>
+          {% endfor %}
+        </div>
+
+        {% if s.is_outsourced %}
+        <form method="POST" action="{{ url_for('update_service_installer_share', service_id=s.id) }}"
+              class="svc-campo">
+          <label>% para el instalador (cuando él pone el material)</label>
+          <div class="d-flex gap-1">
+            <input type="number" min="1" max="100" name="default_installer_share"
+                   class="form-control form-control-sm" style="width:90px;"
+                   value="{{ s.default_installer_share }}">
+            <button type="submit" class="btn btn-sm btn-outline-secondary">Guardar</button>
+          </div>
+        </form>
+        {% endif %}
+
+        <footer class="svc-card-pie">
+          <form method="POST" action="{{ url_for('toggle_service', service_id=s.id) }}">
+            <button type="submit" class="btn btn-sm {{ 'btn-outline-warning' if s.is_active else 'btn-outline-success' }}">
+              {{ 'Desactivar' if s.is_active else 'Activar' }}
+            </button>
+          </form>
+          {# Solo aparece donde se puede usar: usuario autorizado y servicio ya
+             inactivo. Mostrarlo deshabilitado en los activos invita a intentarlo
+             y a chocar contra un error. #}
+          {% if puede_borrar and not s.is_active %}
+          <form method="POST" action="{{ url_for('delete_service', service_id=s.id) }}"
+                onsubmit="return confirm('Eliminar «{{ s.name }}» y su lista de precios?\n\nEsto no se puede deshacer. Las citas ya registradas conservan el nombre del servicio.');">
+            <button type="submit" class="btn btn-sm btn-outline-danger">
+              <i class="bi bi-trash"></i> Eliminar
+            </button>
+          </form>
+          {% endif %}
+        </footer>
+
+      </article>
+      {% endfor %}
+    </div>
+  </section>
+  {% else %}
+    <p class="text-secondary mt-4">
+      No hay servicios activos.
+      {% if total_inactivos %}Hay {{ total_inactivos }} inactivo(s) — usa el botón de arriba para verlos.{% endif %}
+    </p>
+  {% endfor %}
 
 </div>
 {% endblock %}
