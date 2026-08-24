@@ -366,3 +366,60 @@ class TestGuardadoDesdeElFormulario:
             appt = A.Appointment.query.filter_by(plate="TERFRM").first()
             linea = appt.outsourcings[0]
             assert linea.installer_pct == 35   # material de Noxa => reparto volteado
+
+
+class TestReclasificacionHistorica:
+    """Los polarizados y PPF ya registrados cuentan el ingreso completo como de
+    Noxa. Esta pasada les aplica el reparto."""
+
+    def test_encuentra_las_citas_sin_reparto(self, catalogo):
+        _cita(catalogo, "Polarizado Test")                  # vieja, sin reparto
+        _cita(catalogo, "Lavado Propio Test")               # no se terceriza
+
+        candidatas = A._citas_sin_reclasificar()
+
+        servicios = [c["servicios"] for c in candidatas]
+        assert "Polarizado Test" in servicios
+        assert "Lavado Propio Test" not in servicios
+
+    def test_no_reofrece_una_cita_ya_reclasificada(self, catalogo):
+        """Aplicarla dos veces le duplicaría el costo al instalador."""
+        _cita(catalogo, "Polarizado Test", [
+            {"service_name": "Polarizado Test", "installer_id": catalogo["instalador"],
+             "installer_pct": 65, "material_por": A.MATERIAL_INSTALADOR},
+        ])
+        assert A._citas_sin_reclasificar() == []
+
+    def test_aplicar_baja_el_ingreso_al_real(self, catalogo, client):
+        login_as(client, make_user("admin_rec", role="admin"))
+        appt = _cita(catalogo, "Polarizado Test")
+        dia = appt.start_datetime.date()
+
+        assert A._kpis_rentabilidad(dia, dia)["ingresos"] == 975_000
+
+        client.post("/tercerizacion/reclasificar", data={
+            "aplicar": [str(appt.id)],
+            f"installer_{appt.id}": str(catalogo["instalador"]),
+            f"material_{appt.id}": "instalador",
+            f"pct_{appt.id}": "65",
+        }, follow_redirects=True)
+
+        assert A._kpis_rentabilidad(dia, dia)["ingresos"] == 341_250
+
+    def test_permite_marcar_los_de_material_de_noxa(self, catalogo, client):
+        """El reparto no siempre fue el mismo: aplicar 65% a ciegas cambiaría
+        un error por otro."""
+        login_as(client, make_user("admin_rec2", role="admin"))
+        appt = _cita(catalogo, "Polarizado Test")
+
+        client.post("/tercerizacion/reclasificar", data={
+            "aplicar": [str(appt.id)],
+            f"installer_{appt.id}": str(catalogo["instalador"]),
+            f"material_{appt.id}": "noxa",
+            f"pct_{appt.id}": "35",
+        }, follow_redirects=True)
+
+        with A.app.app_context():
+            linea = A.AppointmentOutsourcing.query.filter_by(appointment_id=appt.id).first()
+            assert linea.installer_pct == 35
+            assert linea.material_por == A.MATERIAL_NOXA

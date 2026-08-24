@@ -1,7 +1,7 @@
 {
   "app.py": {
-    "mtime": 1787532417.3305006,
-    "ast_hash": "a7541eeb49df1d79ae05ac669a0f1e41",
+    "mtime": 1787532612.0091703,
+    "ast_hash": "4395136f95e737c943f841c4eca04b7e",
     "semantic_hash": ""
   },
   "migrate_prices.py": {
@@ -75,8 +75,8 @@
     "semantic_hash": ""
   },
   "templates/base.html": {
-    "mtime": 1787532388.43452,
-    "ast_hash": "6eb3836476551ee07285a2e032248520",
+    "mtime": 1787532650.2592704,
+    "ast_hash": "cb6e5aac22374f85a8aa43c4222a5eb2",
     "semantic_hash": ""
   },
   "templates/calendar.html": {
@@ -285,8 +285,8 @@
     "semantic_hash": ""
   },
   "tests/test_tercerizacion.py": {
-    "mtime": 1787532469.2273462,
-    "ast_hash": "6be8aa30ee0e3bc1746b36a9fa5c1d96",
+    "mtime": 1787532747.297373,
+    "ast_hash": "dc2e85577ebf1be79c282ddd2076d541",
     "semantic_hash": ""
   },
   "templates/installers.html": {
@@ -297,6 +297,11 @@
   "templates/liquidacion_instaladores.html": {
     "mtime": 1787532368.4737644,
     "ast_hash": "d25baf82d483aa7a68b9d8eccd2b8ab4",
+    "semantic_hash": ""
+  },
+  "templates/reclasificar_tercerizacion.html": {
+    "mtime": 1787532640.879897,
+    "ast_hash": "c31f75e1f0ff7728e83733c165f00cc6",
     "semantic_hash": ""
   }
 }

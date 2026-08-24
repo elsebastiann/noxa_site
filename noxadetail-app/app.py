@@ -3543,6 +3543,97 @@ def liquidacion_instaladores_view():
     )
 
 
+def _citas_sin_reclasificar() -> list[dict]:
+    """Citas viejas con un servicio hoy marcado como tercerizado, pero sin línea
+    de reparto: son las que están contando el ingreso completo como de Noxa.
+
+    Se detectan contra el catálogo actual, así que la lista aparece recién se
+    marquen Polarizado/PPF/Wrap como tercerizados — antes de eso no hay contra
+    qué comparar."""
+    tercerizados = {s.name.strip().lower(): s
+                    for s in Service.query.filter_by(is_outsourced=True).all()}
+    if not tercerizados:
+        return []
+
+    candidatas = []
+    for a in (Appointment.query
+              .filter(Appointment.status != "cancelled")
+              .order_by(Appointment.start_datetime.desc())
+              .all()):
+        if a.outsourcings:
+            continue   # ya reclasificada
+        nombres = [n.strip() for n in (a.services or "").split(",") if n.strip()]
+        encontrados = [tercerizados[n.lower()] for n in nombres if n.lower() in tercerizados]
+        if not encontrados:
+            continue
+        m = appointment_money(a)
+        candidatas.append({
+            "id": a.id,
+            "fecha": a.start_datetime.date(),
+            "placa": a.plate or "",
+            "cliente": a.customer_name or "",
+            "servicios": a.services or "",
+            "total": m["total"],
+            "tercerizados": encontrados,
+        })
+    return candidatas
+
+
+@app.route("/tercerizacion/reclasificar", methods=["GET", "POST"])
+def reclasificar_tercerizacion():
+    """Pasada única sobre el histórico: aplicarle el reparto a las citas de
+    polarizado/PPF/wrap que se registraron como ingreso completo de Noxa.
+
+    Es una pantalla de revisión y no un script automático porque el reparto no
+    siempre fue el mismo: hay trabajos donde Noxa puso el material. Aplicarles
+    65% a ciegas cambiaría un error por otro."""
+    if not puede_ver_finanzas():
+        flash("Acceso restringido.", "danger")
+        return redirect(url_for("calendar_view"))
+
+    if request.method == "POST":
+        aplicadas = 0
+        for appt_id in request.form.getlist("aplicar"):
+            appt = Appointment.query.get(int(appt_id))
+            if not appt or appt.outsourcings:
+                continue
+            nombres = [n.strip() for n in (appt.services or "").split(",") if n.strip()]
+            for svc in Service.query.filter_by(is_outsourced=True).all():
+                if svc.name not in nombres:
+                    continue
+                material = request.form.get(f"material_{appt_id}") or MATERIAL_INSTALADOR
+                try:
+                    pct = int(request.form.get(f"pct_{appt_id}") or 0)
+                except ValueError:
+                    pct = 0
+                if not 0 < pct <= 100:
+                    pct = (svc.default_installer_share if material == MATERIAL_INSTALADOR
+                           else 100 - svc.default_installer_share)
+                try:
+                    installer_id = int(request.form.get(f"installer_{appt_id}") or 0) or None
+                except ValueError:
+                    installer_id = None
+                db.session.add(AppointmentOutsourcing(
+                    appointment_id=appt.id, service_name=svc.name,
+                    installer_id=installer_id, installer_pct=pct,
+                    material_por=material,
+                    description="Reclasificación del histórico",
+                ))
+                aplicadas += 1
+        db.session.commit()
+        flash(f"Se aplicó el reparto a {aplicadas} servicio(s).", "success")
+        return redirect(url_for("reclasificar_tercerizacion"))
+
+    candidatas = _citas_sin_reclasificar()
+    return render_template(
+        "reclasificar_tercerizacion.html",
+        candidatas=candidatas,
+        installers=Installer.query.filter_by(is_active=True).order_by(Installer.name).all(),
+        hay_tercerizados=bool(Service.query.filter_by(is_outsourced=True).count()),
+        ingreso_actual=sum(c["total"] for c in candidatas),
+    )
+
+
 @app.route("/services", methods=["GET", "POST"])
 def services_view():
     """Gestión simple de servicios: ver y agregar nuevos."""

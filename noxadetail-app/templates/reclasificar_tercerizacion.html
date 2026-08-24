@@ -1,0 +1,127 @@
+{% extends "base.html" %}
+
+{% macro money(v) %}${{ '{:,.0f}'.format(v).replace(',', '.') }}{% endmacro %}
+
+{% block extra_head %}
+<style>
+  .rc-note { color:var(--text2); font-size:.85rem; max-width:74ch; line-height:1.55; margin:8px 0 18px; }
+  .rc-warn { border:1px solid rgba(212,180,108,0.4); background:rgba(212,180,108,0.08);
+             border-radius:var(--radius); padding:14px 18px; margin-bottom:22px;
+             font-size:.85rem; line-height:1.55; }
+  .rc-wrap { overflow-x:auto; border:1px solid var(--border); border-radius:var(--radius); }
+  table.rc { width:100%; border-collapse:collapse; font-size:.85rem; min-width:860px; }
+  table.rc th { background:var(--surface2); color:var(--text2); text-align:left;
+                padding:9px 12px; font-weight:600; white-space:nowrap; }
+  table.rc td { padding:9px 12px; border-top:1px solid var(--border); vertical-align:middle; }
+  table.rc td.num { text-align:right; white-space:nowrap; }
+  .rc-acciones { display:flex; gap:12px; align-items:center; flex-wrap:wrap; margin:18px 0; }
+</style>
+{% endblock %}
+
+{% block content %}
+<h2 style="margin-top:16px;">Reclasificar histórico de tercerizados</h2>
+
+{% if not hay_tercerizados %}
+  <div class="rc-warn">
+    <strong>Primero marca qué servicios se tercerizan.</strong> En
+    <a href="{{ url_for('services_view') }}">Servicios</a>, pon en «Tercerizado: Sí»
+    los de polarizado, PPF y wrap. Esta lista se arma comparando contra ese
+    catálogo, así que hasta entonces sale vacía.
+  </div>
+{% elif candidatas %}
+  <p class="rc-note">
+    Estas citas tienen un servicio tercerizado pero se registraron como ingreso
+    completo de Noxa. Hoy suman <strong>{{ money(ingreso_actual) }}</strong> de
+    ingreso reportado; al aplicarles el reparto, esa cifra baja a lo que de
+    verdad entró.
+  </p>
+
+  <div class="rc-warn">
+    Revísalas antes de aplicar: el reparto no siempre fue el mismo.
+    En los trabajos donde <strong>Noxa puso el material</strong> hay que cambiar
+    esa columna, o quedarían con el 65% para el instalador cuando fue al revés.
+    Puedes aplicar unas ahora y volver después por el resto.
+  </div>
+
+  <form method="POST">
+    <div class="rc-acciones">
+      <button type="button" class="btn btn-sm btn-outline-secondary" onclick="marcarTodas(true)">
+        Marcar todas
+      </button>
+      <button type="button" class="btn btn-sm btn-outline-secondary" onclick="marcarTodas(false)">
+        Desmarcar todas
+      </button>
+      <button type="submit" class="btn btn-sm btn-primary">Aplicar reparto a las marcadas</button>
+    </div>
+
+    <div class="rc-wrap">
+      <table class="rc">
+        <thead>
+          <tr>
+            <th style="width:36px;"></th>
+            <th>Fecha</th><th>Placa</th><th>Servicios</th>
+            <th class="num">Registrado hoy</th>
+            <th>Instalador</th><th>Material</th><th style="width:92px;">%</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for c in candidatas %}
+            <tr>
+              <td><input type="checkbox" class="rc-check" name="aplicar" value="{{ c.id }}"></td>
+              <td>{{ c.fecha.strftime('%d/%m/%Y') }}</td>
+              <td>{{ c.placa or '—' }}</td>
+              <td>{{ c.servicios }}</td>
+              <td class="num">{{ money(c.total) }}</td>
+              <td>
+                <select class="form-select form-select-sm" name="installer_{{ c.id }}">
+                  <option value="">Sin asignar</option>
+                  {% for ins in installers %}
+                    <option value="{{ ins.id }}">{{ ins.name }}</option>
+                  {% endfor %}
+                </select>
+              </td>
+              <td>
+                <select class="form-select form-select-sm rc-material" name="material_{{ c.id }}"
+                        data-share="{{ c.tercerizados[0].default_installer_share }}">
+                  <option value="instalador" selected>El instalador</option>
+                  <option value="noxa">Noxa</option>
+                </select>
+              </td>
+              <td>
+                <input type="number" min="1" max="100" class="form-control form-control-sm rc-pct"
+                       name="pct_{{ c.id }}" value="{{ c.tercerizados[0].default_installer_share }}">
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </form>
+
+  <p class="rc-note" style="margin-top:14px;">
+    Las líneas creadas quedan marcadas como «Reclasificación del histórico», así
+    que después se distinguen de las que se registraron al agendar.
+  </p>
+{% else %}
+  <div style="padding:34px;text-align:center;color:var(--text2);
+              border:1px solid var(--border);border-radius:var(--radius);">
+    No queda ninguna cita por reclasificar. Todas las de servicios tercerizados
+    ya tienen su reparto registrado.
+  </div>
+{% endif %}
+
+<script>
+  function marcarTodas(v) {
+    document.querySelectorAll(".rc-check").forEach(c => { c.checked = v; });
+  }
+  // Igual que al agendar: quién pone el material voltea el porcentaje.
+  document.querySelectorAll(".rc-material").forEach(sel => {
+    sel.addEventListener("change", () => {
+      const fila = sel.closest("tr");
+      const pct = fila.querySelector(".rc-pct");
+      const base = parseInt(sel.dataset.share || "65", 10);
+      pct.value = sel.value === "noxa" ? (100 - base) : base;
+    });
+  });
+</script>
+{% endblock %}
