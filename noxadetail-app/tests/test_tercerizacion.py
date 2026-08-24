@@ -557,3 +557,70 @@ class TestInstaladoPorNoxa:
         with A.app.app_context():
             linea = A.AppointmentOutsourcing.query.filter_by(appointment_id=appt.id).first()
             assert linea.installer_pct == 0
+
+
+class TestTiempoAdicional:
+    """Un trabajo a medida casi nunca dura lo que dice el catálogo: forrar una
+    consola central no toma lo mismo que un PPF completo."""
+
+    def _agendar(self, client, catalogo, sid, extra, placa="TERDUR"):
+        manana = A.bogota_now().date() + dt.timedelta(days=1)
+        client.post("/appointments/new", data={
+            "customer_name": "Cliente Dur", "plate": placa, "phone": "3001112233",
+            "date": manana.isoformat(), "start_time": "08:00",
+            "service_ids": [str(sid)], "vehicle_type_id": str(catalogo["vt"]),
+            "confirmar_dia_cerrado": "1",
+            f"terc_{sid}_installer": "noxa",
+            f"terc_{sid}_amount": "45000",
+            f"terc_{sid}_dur": extra,
+        }, follow_redirects=True)
+        with A.app.app_context():
+            return A.Appointment.query.filter_by(plate=placa).first()
+
+    def test_alarga_el_cajon_de_la_cita(self, catalogo, client):
+        login_as(client, make_user("admin_dur1", role="admin"))
+        sin_extra = self._agendar(client, catalogo, catalogo["ppf"], "", placa="TERDUR1")
+        base = int((sin_extra.end_datetime - sin_extra.start_datetime).total_seconds() / 60)
+
+        con_extra = self._agendar(client, catalogo, catalogo["ppf"], "90", placa="TERDUR2")
+        total = int((con_extra.end_datetime - con_extra.start_datetime).total_seconds() / 60)
+
+        assert total == base + 90
+
+    def test_se_suma_plano_y_no_entra_al_solapamiento(self, catalogo, client):
+        """La regla del más largo + 50% existe porque dos servicios normales se
+        hacen en paralelo. Un tercerizado no comparte manos con el taller: su
+        tiempo es tiempo que el carro está ocupado de verdad."""
+        login_as(client, make_user("admin_dur2", role="admin"))
+        manana = A.bogota_now().date() + dt.timedelta(days=1)
+        sid = catalogo["ppf"]
+        client.post("/appointments/new", data={
+            "customer_name": "Mixta", "plate": "TERDUR3", "phone": "3001112233",
+            "date": manana.isoformat(), "start_time": "08:00",
+            "service_ids": [str(sid), str(catalogo["lavado"])],
+            "vehicle_type_id": str(catalogo["vt"]),
+            "confirmar_dia_cerrado": "1",
+            f"terc_{sid}_installer": "noxa", f"terc_{sid}_amount": "45000",
+            f"terc_{sid}_dur": "60",
+        }, follow_redirects=True)
+
+        with A.app.app_context():
+            appt = A.Appointment.query.filter_by(plate="TERDUR3").first()
+            base = A.calculate_real_duration_minutes(
+                service_ids=[sid, catalogo["lavado"]], vehicle_type_id=catalogo["vt"])
+            total = int((appt.end_datetime - appt.start_datetime).total_seconds() / 60)
+            assert total == base + 60   # plano, sin el ×0.5
+
+    def test_queda_guardado_para_poder_editarlo(self, catalogo, client):
+        login_as(client, make_user("admin_dur3", role="admin"))
+        appt = self._agendar(client, catalogo, catalogo["ppf"], "45", placa="TERDUR4")
+        with A.app.app_context():
+            linea = A.AppointmentOutsourcing.query.filter_by(appointment_id=appt.id).first()
+            assert linea.duration_minutes == 45
+
+    def test_vacio_no_cambia_nada(self, catalogo, client):
+        login_as(client, make_user("admin_dur4", role="admin"))
+        appt = self._agendar(client, catalogo, catalogo["ppf"], "", placa="TERDUR5")
+        with A.app.app_context():
+            linea = A.AppointmentOutsourcing.query.filter_by(appointment_id=appt.id).first()
+            assert linea.duration_minutes == 0

@@ -279,6 +279,14 @@
                          name="terc_{{ svc.id }}_pct"
                          value="{{ prev.installer_pct if prev else svc.default_installer_share }}">
                 </div>
+                <div class="col-sm-4">
+                  <label class="form-label mb-1">Tiempo adicional (min)</label>
+                  <input type="number" min="0" step="15"
+                         class="form-control form-control-sm"
+                         name="terc_{{ svc.id }}_dur"
+                         value="{{ prev.duration_minutes if prev and prev.duration_minutes else '' }}"
+                         placeholder="0">
+                </div>
                 {% if svc.is_custom_price %}
                   <div class="col-sm-4">
                     <label class="form-label mb-1">Valor cotizado *</label>
@@ -311,6 +319,11 @@
                 <span class="terc-hint-externo">
                   El cliente paga el total a Noxa. Este porcentaje es lo que queda
                   debiéndosele al instalador — no lo registres además como gasto.
+                </span>
+                <br class="terc-hint-externo">
+                <span>
+                  El tiempo adicional se suma al cajón de la cita, encima de lo que
+                  ya aporta el servicio por catálogo. Déjalo vacío si no aplica.
                 </span>
                 <span class="terc-hint-interno" hidden>
                   Lo instala el equipo de Noxa: no hay comisión y el ingreso queda

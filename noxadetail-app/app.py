@@ -512,6 +512,22 @@ def ensure_service_outsourcing_schema():
 
 ensure_service_outsourcing_schema()
 
+def ensure_outsourcing_duration_schema():
+    """La tabla ya existe en producción sin esta columna: db.create_all() solo
+    crea tablas nuevas, no agrega columnas a las que ya están."""
+    with app.app_context():
+        try:
+            db.session.execute(text("SELECT duration_minutes FROM appointment_outsourcings LIMIT 1"))
+        except Exception:
+            try:
+                db.session.execute(text(
+                    "ALTER TABLE appointment_outsourcings ADD COLUMN duration_minutes INTEGER DEFAULT 0"))
+                db.session.commit()
+            except Exception:
+                # La tabla todavía no existe (base nueva): db.create_all() la
+                # creará con la columna incluida.
+                db.session.rollback()
+
 # -----------------------
 # VEHICLE TYPES (CATÁLOGO)
 # -----------------------
@@ -1230,6 +1246,10 @@ class AppointmentOutsourcing(db.Model):
     # Qué se forró exactamente. Es lo que después deja responder "¿qué piezas
     # nos piden más y a cómo las estamos cotizando?".
     description    = db.Column(db.String(255), nullable=True)
+    # Minutos que este trabajo le suma al cajón de la cita, ENCIMA de lo que ya
+    # aporta el servicio. La duración del catálogo es genérica y un trabajo a
+    # medida casi nunca coincide con ella.
+    duration_minutes = db.Column(db.Integer, nullable=False, default=0)
     created_at     = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
 
     installer = db.relationship("Installer")
@@ -1721,6 +1741,9 @@ def ensure_whatsapp_schema():
                 db.session.commit()
 
 ensure_whatsapp_schema()
+# Va después porque ensure_whatsapp_schema() es quien corre db.create_all(): en
+# una base nueva la tabla nace con la columna, y en una que ya existía toca el ALTER.
+ensure_outsourcing_duration_schema()
 
 
 # -----------------------
@@ -2278,6 +2301,17 @@ def apply_adjustments(subtotal: int, adjustments, lista: int | None = None) -> t
     return max(total, 0), detalle
 
 
+def _minutos_extra_tercerizacion(services: list) -> int:
+    """Minutos que los bloques de tercerización le suman al cajón de la cita.
+
+    Se suman PLANOS, después de la regla de solapamiento (el más largo + 50% de
+    los demás). Esa regla existe porque dos servicios normales se hacen en
+    paralelo; un trabajo tercerizado no comparte manos con el resto del taller,
+    así que su tiempo es tiempo que el carro está ocupado de verdad."""
+    return sum(max(_int_o_cero(request.form.get(f"terc_{svc.id}_dur")), 0)
+               for svc in services if svc.is_outsourced)
+
+
 def _guardar_tercerizacion(appt: Appointment, services: list) -> None:
     """Lee del formulario el bloque de reparto de cada servicio tercerizado.
 
@@ -2301,6 +2335,8 @@ def _guardar_tercerizacion(appt: Appointment, services: list) -> None:
         # queda. Se marca explícito y no con un instalador ficticio al 0%,
         # que ensuciaría la lista y la liquidación con alguien a quien nunca
         # se le paga.
+        extra_min = max(_int_o_cero(request.form.get(prefijo + "dur")), 0)
+
         if crudo_instalador == INSTALADOR_INTERNO:
             db.session.add(AppointmentOutsourcing(
                 appointment_id=appt.id, service_name=svc.name,
@@ -2308,6 +2344,7 @@ def _guardar_tercerizacion(appt: Appointment, services: list) -> None:
                 amount=(_int_o_cero(request.form.get(prefijo + "amount")) or None
                         if svc.is_custom_price else None),
                 description=(request.form.get(prefijo + "desc") or "").strip() or None,
+                duration_minutes=extra_min,
             ))
             continue
 
@@ -2342,6 +2379,7 @@ def _guardar_tercerizacion(appt: Appointment, services: list) -> None:
             material_por=material,
             amount=monto,
             description=(request.form.get(prefijo + "desc") or "").strip() or None,
+            duration_minutes=extra_min,
         ))
 
 
@@ -3090,7 +3128,7 @@ def new_appointment():
         total_minutes = calculate_real_duration_minutes(
             service_ids=service_ids,
             vehicle_type_id=int(vehicle_type_id)
-        )
+        ) + _minutos_extra_tercerizacion(selected_services)
 
         estimated_price = calculate_real_price(
             service_ids=service_ids,
@@ -3545,7 +3583,7 @@ def edit_appointment(appointment_id):
             total_duration = calculate_real_duration_minutes(
                 service_ids=service_ids,
                 vehicle_type_id=appointment.vehicle_type_id
-            )
+            ) + _minutos_extra_tercerizacion(selected_services)
         else:
             # fallback si la cita es antigua y no tiene tipo de vehículo
             durations = [s.duration_minutes for s in selected_services]
@@ -3555,6 +3593,7 @@ def edit_appointment(appointment_id):
                 total_duration = longest + int(extras * 0.5)
             else:
                 total_duration = 60
+            total_duration += _minutos_extra_tercerizacion(selected_services)
 
         # Asignar nueva hora final
         appointment.end_datetime = appointment.start_datetime + timedelta(minutes=total_duration)
