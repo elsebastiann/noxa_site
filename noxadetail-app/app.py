@@ -4375,6 +4375,10 @@ def _tablero_seguimiento() -> dict:
             "tipo": tipo, "telefono": telefono,
             "nombre": nombre or _phone_for_display(telefono),
             "detalle": detalle, "dias": dias,
+            # Cliente = ya compró alguna vez. Se decide por persona y no por
+            # columna porque un cliente que escribe y nadie le contesta sigue
+            # siendo seguimiento de cliente, aunque caiga en "Sin responder".
+            "es_cliente": telefono in ultima_visita,
             # Sello para no escribirle dos veces sin darse cuenta. La tarjeta
             # sigue viva: lo que la resuelve es que agende.
             "escrita_hace": (bogota_now().date() - escrita.created_at.date()).days
@@ -4476,7 +4480,12 @@ def _tablero_seguimiento() -> dict:
         items.sort(key=lambda t: t["dias"], reverse=True)
         columnas.append({"clave": clave, "titulo": titulo, "subtitulo": subtitulo,
                          "color": color, "tarjetas": items})
-    return {"columnas": columnas, "total": len(tarjetas)}
+    return {
+        "columnas": columnas,
+        "total": len(tarjetas),
+        "total_clientes": sum(1 for t in tarjetas.values() if t["es_cliente"]),
+        "total_leads": sum(1 for t in tarjetas.values() if not t["es_cliente"]),
+    }
 
 
 def _liquidacion_instaladores(date_from, date_to) -> list[dict]:

@@ -6,6 +6,19 @@
   .sg-total { font-size:2rem; font-weight:800; color:var(--accent); line-height:1; }
   .sg-note { color:var(--text2); font-size:.85rem; max-width:74ch; line-height:1.55; margin:6px 0 18px; }
 
+  /* Selector leads / clientes. Va ARRIBA del resumen porque decide qué está
+     contando el resumen. */
+  .sg-tabs { display:inline-flex; gap:4px; padding:4px; margin-bottom:14px;
+             background:var(--surface2); border:1px solid var(--border);
+             border-radius:999px; }
+  .sg-tab { border:none; background:transparent; color:var(--text2); cursor:pointer;
+            font-size:.8rem; font-weight:600; padding:7px 16px; border-radius:999px;
+            display:flex; align-items:center; gap:7px; transition:background .15s, color .15s; }
+  .sg-tab:hover { color:var(--text); }
+  .sg-tab .n { font-weight:800; font-size:.72rem; opacity:.75; }
+  .sg-tab.activa { background:var(--accent); color:#0a0c0f; }
+  .sg-tab.activa .n { opacity:1; }
+
   /* Barra-resumen: de un vistazo, dónde está la plata parada. Es también el
      índice — al hacer clic salta a esa columna. */
   .sg-resumen { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:20px; }
@@ -117,6 +130,21 @@
 </p>
 
 {% if total %}
+  {# Leads y clientes son dos conversaciones distintas: a uno hay que
+     convencerlo, al otro hacerlo volver. Poder sentarse a hacer una sola tanda
+     es más rápido que ir alternando el chip. #}
+  <div class="sg-tabs">
+    <button class="sg-tab activa" data-filtro="todos">
+      Todos <span class="n">{{ total }}</span>
+    </button>
+    <button class="sg-tab" data-filtro="leads">
+      Leads <span class="n">{{ total_leads }}</span>
+    </button>
+    <button class="sg-tab" data-filtro="clientes">
+      Clientes <span class="n">{{ total_clientes }}</span>
+    </button>
+  </div>
+
   <div class="sg-resumen">
     {% for col in columnas %}
       <a class="sg-chip {{ 'vacio' if not col.tarjetas }}" href="#col-{{ col.clave }}">
@@ -152,7 +180,8 @@
         <div class="sg-col-body">
           {% for t in col.tarjetas %}
             {% set texto = mensajes_sugeridos.get(col.clave, '') | replace('{nombre}', (t.nombre.split(' ')[0] if t.nombre else '')) %}
-            <article class="sg-card" data-tipo="{{ col.clave }}" data-telefono="{{ t.telefono }}">
+            <article class="sg-card" data-tipo="{{ col.clave }}" data-telefono="{{ t.telefono }}"
+                     data-grupo="{{ 'clientes' if t.es_cliente else 'leads' }}">
               <div class="sg-card-top">
                 <div class="sg-avatar">{{ (t.marca[:3] if t.marca else (t.nombre[:2] if t.nombre else '??')) | upper }}</div>
                 <div style="min-width:0;flex:1;">
@@ -264,6 +293,50 @@
 {% endif %}
 
 <script>
+  // ---- Filtro leads / clientes ----
+  // Se filtra en el cliente y no recargando: con 120 tarjetas la respuesta es
+  // instantánea y no se pierde el estado de las columnas abiertas.
+  let filtroActivo = "todos";
+
+  function pasaFiltro(card) {
+    return filtroActivo === "todos" || card.dataset.grupo === filtroActivo;
+  }
+
+  function aplicarFiltro() {
+    document.querySelectorAll(".sg-card").forEach(card => {
+      card.style.display = pasaFiltro(card) ? "" : "none";
+    });
+    // Los contadores tienen que seguir al filtro: un "12" sobre una columna que
+    // muestra 3 tarjetas hace desconfiar de todo el tablero.
+    document.querySelectorAll("details.sg-col").forEach(col => {
+      const vivas = Array.from(col.querySelectorAll(".sg-card"))
+        .filter(c => c.style.display !== "none" && !c.classList.contains("hecha")).length;
+      col.querySelector(".sg-col-count").textContent = vivas;
+      const chip = document.querySelector('.sg-chip[href="#col-' + col.id.replace("col-", "") + '"] .n');
+      if (chip) chip.textContent = vivas;
+      const aviso = col.querySelector(".sg-filtrada");
+      if (aviso) aviso.remove();
+      const vacia = col.querySelector(".sg-vacia");
+      // Una columna que tiene tarjetas pero ninguna del filtro necesita decirlo,
+      // o parece que se perdieron.
+      if (vivas === 0 && !vacia && filtroActivo !== "todos") {
+        const msg = document.createElement("div");
+        msg.className = "sg-vacia sg-filtrada";
+        msg.textContent = "Nada de " + filtroActivo + " en esta columna";
+        col.querySelector(".sg-col-body").appendChild(msg);
+      }
+    });
+  }
+
+  document.querySelectorAll(".sg-tab").forEach(tab => {
+    tab.addEventListener("click", () => {
+      document.querySelectorAll(".sg-tab").forEach(t => t.classList.remove("activa"));
+      tab.classList.add("activa");
+      filtroActivo = tab.dataset.filtro;
+      aplicarFiltro();
+    });
+  });
+
   // ---- Plegado de columnas ----
   // Solo en móvil. En escritorio el tablero se lee de un vistazo y plegar sería
   // esconder trabajo; allá se abren todas y el encabezado deja de responder.
@@ -330,13 +403,11 @@
     actualizarContadores(card);
   }
 
-  function actualizarContadores(card) {
-    const col = card.closest(".sg-col");
-    const vivas = col.querySelectorAll(".sg-card:not(.hecha)").length;
-    col.querySelector(".sg-col-count").textContent = vivas;
-    const clave = card.dataset.tipo;
-    const chip = document.querySelector('.sg-chip[href="#col-' + clave + '"] .n');
-    if (chip) chip.textContent = vivas;
+  // Delega en aplicarFiltro para que gestionar una tarjeta y filtrar usen el
+  // mismo conteo: con dos cálculos distintos los números se desincronizaban en
+  // cuanto se combinaban las dos cosas.
+  function actualizarContadores() {
+    aplicarFiltro();
   }
 
   function marcar(el, accion) {

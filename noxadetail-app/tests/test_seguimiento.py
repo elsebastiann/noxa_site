@@ -374,3 +374,54 @@ class TestReactivar:
         assert "+573001100045" in html
         assert "Vendió el carro" in html
         assert "Reactivar" in html
+
+
+class TestFiltroLeadsClientes:
+    """Leads y clientes son dos conversaciones distintas: a uno hay que
+    convencerlo, al otro hacerlo volver."""
+
+    def test_quien_ya_compro_es_cliente(self):
+        _cita("+573001100050", hace_dias=100, placa="SEG050")
+
+        tablero = A._tablero_seguimiento()
+        tarjeta = next(t for c in tablero["columnas"] for t in c["tarjetas"]
+                       if t["telefono"] == "+573001100050")
+        assert tarjeta["es_cliente"] is True
+
+    def test_quien_nunca_compro_es_lead(self):
+        _conv("+573001100051", priority="Alta")
+
+        tablero = A._tablero_seguimiento()
+        tarjeta = next(t for c in tablero["columnas"] for t in c["tarjetas"]
+                       if t["telefono"] == "+573001100051")
+        assert tarjeta["es_cliente"] is False
+
+    def test_se_decide_por_persona_y_no_por_columna(self):
+        """Un cliente que escribe y nadie le contesta cae en "Sin responder",
+        que es una columna de leads — pero sigue siendo seguimiento de cliente."""
+        c = _conv("+573001100052", bot_active=False)
+        _msg(c, "in", hace_dias=1)
+        _cita("+573001100052", hace_dias=200, placa="SEG052")
+
+        tablero = A._tablero_seguimiento()
+        col = _columna(tablero, "sin_responder")
+        tarjeta = next(t for t in col["tarjetas"] if t["telefono"] == "+573001100052")
+        assert tarjeta["es_cliente"] is True
+
+    def test_los_totales_cuadran(self):
+        _conv("+573001100053", priority="Alta")
+        _cita("+573001100054", hace_dias=100, placa="SEG054")
+
+        t = A._tablero_seguimiento()
+        assert t["total_leads"] + t["total_clientes"] == t["total"]
+        assert t["total_leads"] >= 1
+        assert t["total_clientes"] >= 1
+
+    def test_la_pantalla_trae_el_selector(self, client):
+        login_as(client, make_user("admin_filtro", role="admin"))
+        _conv("+573001100055", priority="Alta")
+
+        html = client.get("/seguimiento").get_data(as_text=True)
+        assert 'data-filtro="leads"' in html
+        assert 'data-filtro="clientes"' in html
+        assert 'data-grupo="leads"' in html
