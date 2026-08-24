@@ -1,7 +1,7 @@
 {
   "app.py": {
-    "mtime": 1787538000.2828474,
-    "ast_hash": "be7a6194fbc20508dee15fed6591b177",
+    "mtime": 1787539118.8697436,
+    "ast_hash": "a6bd9b163aa7a50e3dbcbfe1a6ec39c4",
     "semantic_hash": ""
   },
   "migrate_prices.py": {
@@ -165,8 +165,8 @@
     "semantic_hash": ""
   },
   "templates/service_prices.html": {
-    "mtime": 1786228381.3843665,
-    "ast_hash": "bfe1a78385fd72935663a07cf0918d08",
+    "mtime": 1787539132.4827073,
+    "ast_hash": "17c7b491717d3d36c5f6521fd72c65d7",
     "semantic_hash": ""
   },
   "templates/service_sales_list.html": {
@@ -302,6 +302,11 @@
   "templates/reclasificar_tercerizacion.html": {
     "mtime": 1787532640.879897,
     "ast_hash": "c31f75e1f0ff7728e83733c165f00cc6",
+    "semantic_hash": ""
+  },
+  "tests/test_lista_precios.py": {
+    "mtime": 1787539141.4397724,
+    "ast_hash": "d5c6f80f0b605b2a41285f2fba7c976b",
     "semantic_hash": ""
   }
 }

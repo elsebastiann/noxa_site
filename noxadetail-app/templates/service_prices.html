@@ -1,212 +1,263 @@
 {% extends "base.html" %}
+
+{% block extra_head %}
+<style>
+  .sp-note { color:var(--text2); font-size:.85rem; max-width:76ch; line-height:1.55; margin:8px 0 18px; }
+  .sp-barra { display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-bottom:16px; }
+  .sp-barra input[type="search"] { min-width:240px; }
+  .sp-chip { font-size:.78rem; padding:5px 12px; border-radius:20px; cursor:pointer;
+             border:1px solid var(--border); background:var(--surface2); color:var(--text2);
+             white-space:nowrap; }
+  .sp-chip.on { background:var(--accent); color:#0a0c0f; border-color:var(--accent); font-weight:700; }
+  .sp-huecos { border:1px solid rgba(212,180,108,0.4); background:rgba(212,180,108,0.08);
+               border-radius:var(--radius); padding:12px 16px; margin-bottom:18px;
+               font-size:.85rem; line-height:1.55; }
+
+  .sp-cat { margin:26px 0 8px; font-size:.8rem; font-weight:700; letter-spacing:.5px;
+            text-transform:uppercase; color:var(--accent-dk); }
+  .sp-wrap { overflow-x:auto; border:1px solid var(--border); border-radius:var(--radius); }
+  table.sp { width:100%; border-collapse:collapse; font-size:.86rem; }
+  table.sp th { background:var(--surface2); color:var(--text2); text-align:left;
+                padding:9px 12px; font-weight:600; white-space:nowrap; }
+  table.sp th.num, table.sp td.num { text-align:right; }
+  table.sp td { padding:8px 12px; border-top:1px solid var(--border); vertical-align:middle; }
+  table.sp tr.sp-fila:hover td { background:rgba(255,255,255,0.02); }
+  .sp-nombre { font-weight:600; min-width:230px; }
+  .sp-precio { display:block; cursor:pointer; border-bottom:1px dashed var(--border); }
+  .sp-precio:hover { border-bottom-color:var(--accent); color:var(--accent); }
+  .sp-dur { display:block; font-size:.72rem; color:var(--text2); cursor:pointer;
+            border-bottom:1px dashed transparent; }
+  .sp-dur:hover { border-bottom-color:var(--accent); color:var(--accent); }
+  .sp-vacio { color:#c07a5a; cursor:pointer; font-weight:600; }
+  .sp-vacio:hover { color:var(--accent); }
+  .sp-edit { width:100px; padding:2px 6px; font-size:.85rem; }
+  .sp-secundaria { display:none; }
+  body.sp-todos .sp-secundaria { display:table-cell; }
+  .sp-badge { font-size:.68rem; padding:2px 7px; border-radius:20px; font-weight:700;
+              background:rgba(192,122,90,0.18); color:#c07a5a; margin-left:8px; }
+  .sp-sin-resultados { padding:30px; text-align:center; color:var(--text2); }
+</style>
+{% endblock %}
+
 {% block content %}
+<h2 style="margin-top:16px;">Lista de precios</h2>
+<p class="sp-note">
+  Una fila por servicio y una columna por tipo de vehículo. Haz clic en cualquier
+  valor para editarlo: se guarda al salir del campo.
+</p>
 
-<div class="container mt-4">
-
-  <h2 class="mb-3">Detalle de servicios</h2>
-
-  <!-- Formulario nueva combinación -->
-  <form method="POST" action="{{ url_for('service_prices_new') }}" class="row g-2 mb-4">
-    <div class="col-12 col-md-3">
-      <select name="service_id" class="form-select" required>
-        <option value="">Servicio</option>
-        {% for s in services %}
-          <option value="{{ s.id }}">{{ s.name }}</option>
-        {% endfor %}
-      </select>
-    </div>
-
-    <div class="col-12 col-md-3">
-      <select name="vehicle_type_id" class="form-select" required>
-        <option value="">Tipo de vehículo</option>
-        {% for vt in vehicle_types %}
-          <option value="{{ vt.id }}">{{ vt.name }}</option>
-        {% endfor %}
-      </select>
-    </div>
-
-    <div class="col-6 col-md-2">
-      <input type="number"
-             name="price"
-             class="form-control"
-             placeholder="Precio"
-             min="0"
-             step="1"
-             inputmode="numeric"
-             pattern="[0-9]*"
-             required>
-    </div>
-
-    <div class="col-6 col-md-2">
-      <input type="number"
-             name="duration_minutes"
-             class="form-control"
-             placeholder="Duración (min)"
-             min="1"
-             step="1"
-             inputmode="numeric"
-             pattern="[0-9]*"
-             required>
-    </div>
-
-    <div class="col-12 col-md-2">
-      <button type="submit" class="btn btn-primary w-100">
-        Guardar
-      </button>
-    </div>
-  </form>
-
-  <!-- Tabla de combinaciones -->
-  <div class="table-responsive">
-    <table class="table table-dark table-hover align-middle">
-      <thead>
-        <tr>
-          <th>Servicio</th>
-          <th>Tipo de vehículo</th>
-          <th class="text-end">Precio</th>
-          <th class="text-center">Duración (min)</th>
-          <th class="text-center">Estado</th>
-          <th class="text-center">Acción</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for sp in service_prices %}
-        <tr>
-          <td>{{ sp.service.name }}</td>
-          <td>{{ sp.vehicle_type.name }}</td>
-          <td class="text-end">
-            <span class="editable-cell"
-                  data-id="{{ sp.id }}"
-                  data-field="price"
-                  data-value="{{ sp.price }}">
-              $ {{ "{:,}".format(sp.price).replace(",", ".") }}
-            </span>
-          </td>
-          <td class="text-center">
-            <span class="editable-cell"
-                  data-id="{{ sp.id }}"
-                  data-field="duration_minutes"
-                  data-value="{{ sp.duration_minutes }}">
-              {{ sp.duration_minutes }}
-            </span>
-          </td>
-          <td class="text-center">
-            {% if sp.is_active %}
-              <span class="badge bg-success">Activo</span>
-            {% else %}
-              <span class="badge bg-secondary">Inactivo</span>
-            {% endif %}
-          </td>
-          <td class="text-center">
-            <form method="POST"
-                  action="{{ url_for('service_prices_toggle', price_id=sp.id) }}">
-              {% if sp.is_active %}
-                <button type="submit" class="btn btn-sm btn-outline-warning">
-                  Desactivar
-                </button>
-              {% else %}
-                <button type="submit" class="btn btn-sm btn-outline-success">
-                  Activar
-                </button>
-              {% endif %}
-            </form>
-          </td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
+{% if total_huecos %}
+  <div class="sp-huecos">
+    <strong>{{ total_huecos }} servicio{{ 's' if total_huecos != 1 }}</strong> sin precio
+    en algún tipo de vehículo que sí se cobra.
+    <br><br>
+    Esto no es solo un dato faltante: cuando se agenda un servicio sin precio para
+    ese vehículo, <strong>la cita lo cotiza en $0 y sigue sin avisar</strong>, así que
+    se factura de menos. Los huecos aparecen abajo como
+    <span class="sp-vacio">— poner precio</span>.
   </div>
+{% endif %}
 
+<div class="sp-barra">
+  <input type="search" id="spBuscar" class="form-control form-control-sm"
+         placeholder="Buscar servicio..." autocomplete="off">
+  <span class="sp-chip on" data-cat="">Todas</span>
+  {% for c in categorias %}
+    <span class="sp-chip" data-cat="{{ c }}">{{ c }}</span>
+  {% endfor %}
+  <span class="sp-chip" id="spSoloHuecos">Solo huecos</span>
+  <span class="sp-chip" id="spTodosTipos">Mostrar todos los tipos</span>
 </div>
 
-<style>
-.editable-cell {
-  cursor: pointer;
-  border-bottom: 1px dashed rgba(255,255,255,0.3);
-  padding: 2px 4px;
-  border-radius: 3px;
-  transition: background 0.15s;
-}
-.editable-cell:hover {
-  background: rgba(255,255,255,0.08);
-}
-.editable-input {
-  width: 90px;
-  background: #2c2c2c;
-  color: #fff;
-  border: 1px solid #6c757d;
-  border-radius: 4px;
-  padding: 2px 6px;
-  font-size: 0.9rem;
-  text-align: right;
-}
-</style>
+{% set categoria_actual = namespace(v=None) %}
+{% for f in filas %}
+  {% if f.categoria != categoria_actual.v %}
+    {% if categoria_actual.v %}
+        </tbody></table></div>
+    {% endif %}
+    {% set categoria_actual.v = f.categoria %}
+    <div class="sp-cat sp-seccion" data-cat="{{ f.categoria }}">{{ f.categoria }}</div>
+    <div class="sp-wrap sp-seccion" data-cat="{{ f.categoria }}">
+      <table class="sp">
+        <thead>
+          <tr>
+            <th>Servicio</th>
+            {% for vt in vehicle_types %}
+              <th class="num {{ '' if vt.name|lower in ['automovil','suv','camioneta','moto'] else 'sp-secundaria' }}">
+                {{ vt.name }}
+              </th>
+            {% endfor %}
+          </tr>
+        </thead>
+        <tbody>
+  {% endif %}
+
+        <tr class="sp-fila" data-cat="{{ f.categoria }}"
+            data-nombre="{{ f.servicio.name|lower }}"
+            data-huecos="{{ f.huecos }}">
+          <td class="sp-nombre">
+            {{ f.servicio.name }}
+            {% if f.huecos %}<span class="sp-badge">{{ f.huecos }} sin precio</span>{% endif %}
+          </td>
+          {% for c in f.celdas %}
+            <td class="num {{ '' if c.principal else 'sp-secundaria' }}"
+                data-service="{{ f.servicio.id }}" data-vehicle="{{ c.vehicle_type.id }}"
+                {% if c.precio %}data-con-precio="1"{% endif %}>
+              {% if c.precio %}
+                <span class="sp-precio" data-campo="price"
+                      data-valor="{{ c.precio.price }}">${{ '{:,.0f}'.format(c.precio.price).replace(',', '.') }}</span>
+                <span class="sp-dur" data-campo="duration_minutes"
+                      data-valor="{{ c.precio.duration_minutes }}">{{ c.precio.duration_minutes }} min</span>
+              {% else %}
+                <span class="sp-vacio" data-campo="price" data-valor="">— poner precio</span>
+              {% endif %}
+            </td>
+          {% endfor %}
+        </tr>
+{% endfor %}
+{% if filas %}
+        </tbody>
+      </table>
+    </div>
+{% else %}
+  <div class="sp-sin-resultados" style="border:1px solid var(--border);border-radius:var(--radius);">
+    No hay servicios activos todavía.
+  </div>
+{% endif %}
+
+<div class="sp-sin-resultados d-none" id="spVacio">
+  Ningún servicio coincide con el filtro.
+</div>
 
 <script>
-document.querySelectorAll('.editable-cell').forEach(function(cell) {
-  cell.addEventListener('click', function() {
-    if (cell.querySelector('input')) return;
+(function () {
+  // ---- Filtros (todos en el cliente: la tabla completa ya está en el DOM) ----
+  const buscar = document.getElementById("spBuscar");
+  const chips  = document.querySelectorAll(".sp-chip[data-cat]");
+  const soloHuecos = document.getElementById("spSoloHuecos");
+  let catActiva = "";
 
-    const field = cell.dataset.field;
-    const id = cell.dataset.id;
-    const currentValue = cell.dataset.value;
-    const originalText = cell.textContent.trim();
+  function aplicar() {
+    const texto = (buscar.value || "").trim().toLowerCase();
+    const huecos = soloHuecos.classList.contains("on");
+    let visibles = 0;
 
-    const input = document.createElement('input');
-    input.type = 'number';
-    input.value = currentValue;
+    document.querySelectorAll("tr.sp-fila").forEach(fila => {
+      const okTexto = !texto || fila.dataset.nombre.includes(texto);
+      const okCat   = !catActiva || fila.dataset.cat === catActiva;
+      const okHueco = !huecos || fila.dataset.huecos !== "0";
+      const mostrar = okTexto && okCat && okHueco;
+      fila.style.display = mostrar ? "" : "none";
+      if (mostrar) visibles++;
+    });
+
+    // Una sección cuyo cuerpo quedó vacío no debe dejar el encabezado suelto.
+    document.querySelectorAll(".sp-wrap.sp-seccion").forEach(wrap => {
+      const cat = wrap.dataset.cat;
+      const algo = Array.from(wrap.querySelectorAll("tr.sp-fila"))
+                        .some(f => f.style.display !== "none");
+      wrap.style.display = algo ? "" : "none";
+      const titulo = document.querySelector(`.sp-cat[data-cat="${CSS.escape(cat)}"]`);
+      if (titulo) titulo.style.display = algo ? "" : "none";
+    });
+
+    document.getElementById("spVacio").classList.toggle("d-none", visibles > 0);
+  }
+
+  buscar.addEventListener("input", aplicar);
+  chips.forEach(chip => chip.addEventListener("click", () => {
+    chips.forEach(c => c.classList.remove("on"));
+    chip.classList.add("on");
+    catActiva = chip.dataset.cat;
+    aplicar();
+  }));
+  soloHuecos.addEventListener("click", () => {
+    soloHuecos.classList.toggle("on");
+    aplicar();
+  });
+  document.getElementById("spTodosTipos").addEventListener("click", function () {
+    this.classList.toggle("on");
+    document.body.classList.toggle("sp-todos");
+  });
+
+  // ---- Edición en celda ----
+  // Un solo listener en el documento: las celdas se reescriben al guardar, así
+  // que enganchar el evento a cada <span> los perdería tras la primera edición.
+  const pesos = n => "$" + Number(n || 0).toLocaleString("es-CO");
+
+  document.addEventListener("click", function (e) {
+    const span = e.target.closest(".sp-precio, .sp-dur, .sp-vacio");
+    if (!span || span.dataset.editando) return;
+
+    const celda = span.closest("td");
+    const campo = span.dataset.campo;
+    const input = document.createElement("input");
+    input.type = "number";
+    input.className = "form-control form-control-sm sp-edit";
+    input.value = span.dataset.valor || "";
     input.min = 0;
-    input.step = 1;
-    input.className = 'editable-input';
-    cell.textContent = '';
-    cell.appendChild(input);
+
+    span.dataset.editando = "1";
+    span.replaceWith(input);
     input.focus();
     input.select();
 
-    function save() {
-      const newValue = parseInt(input.value);
-      if (isNaN(newValue) || newValue < 0) {
-        cell.textContent = originalText;
-        cell.dataset.value = currentValue;
-        return;
-      }
+    let guardando = false;
+    function guardar() {
+      if (guardando) return;
+      guardando = true;
+      const valor = input.value.trim();
+      if (valor === "" || valor === span.dataset.valor) { restaurar(span.dataset.valor); return; }
 
-      const body = {};
-      body[field] = newValue;
-
-      fetch('/service-prices/' + id + '/update', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body)
+      fetch("/service-prices/cell", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          service_id: parseInt(celda.dataset.service, 10),
+          vehicle_type_id: parseInt(celda.dataset.vehicle, 10),
+          [campo]: parseInt(valor, 10),
+        })
       })
       .then(r => r.json())
-      .then(data => {
-        if (data.ok) {
-          cell.dataset.value = data[field];
-          if (field === 'price') {
-            cell.textContent = '$ ' + data.price.toLocaleString('es-CL');
-          } else {
-            cell.textContent = data.duration_minutes;
+      .then(d => {
+        if (d.error) { alert(d.error); restaurar(span.dataset.valor); return; }
+        const eraHueco = celda.querySelector(".sp-vacio") !== null || !celda.dataset.conPrecio;
+        // Una celda que estaba vacía pasa a tener precio y duración: se
+        // repinta completa en vez de solo cambiar el número.
+        celda.innerHTML =
+          `<span class="sp-precio" data-campo="price" data-valor="${d.price}">${pesos(d.price)}</span>` +
+          `<span class="sp-dur" data-campo="duration_minutes" data-valor="${d.duration_minutes}">${d.duration_minutes} min</span>`;
+        celda.dataset.conPrecio = "1";
+
+        // El contador de huecos se recalcula acá: si se quedara con el número
+        // que pintó el servidor, el filtro "Solo huecos" seguiría mostrando
+        // filas ya completas hasta que alguien recargue.
+        if (eraHueco && !celda.classList.contains("sp-secundaria")) {
+          const fila = celda.closest("tr.sp-fila");
+          const quedan = Math.max(parseInt(fila.dataset.huecos || "0", 10) - 1, 0);
+          fila.dataset.huecos = quedan;
+          const badge = fila.querySelector(".sp-badge");
+          if (badge) {
+            if (quedan) badge.textContent = quedan + " sin precio";
+            else badge.remove();
           }
-        } else {
-          cell.textContent = originalText;
         }
       })
-      .catch(function() {
-        cell.textContent = originalText;
-      });
+      .catch(() => { alert("Error de red al guardar."); restaurar(span.dataset.valor); });
     }
 
-    input.addEventListener('blur', save);
-    input.addEventListener('keydown', function(e) {
-      if (e.key === 'Enter') { input.blur(); }
-      if (e.key === 'Escape') {
-        cell.textContent = originalText;
-        cell.dataset.value = currentValue;
-      }
+    function restaurar(valor) {
+      delete span.dataset.editando;
+      span.dataset.valor = valor || "";
+      input.replaceWith(span);
+    }
+
+    input.addEventListener("blur", guardar);
+    input.addEventListener("keydown", ev => {
+      if (ev.key === "Enter") input.blur();
+      if (ev.key === "Escape") { guardando = true; restaurar(span.dataset.valor); }
     });
   });
-});
+})();
 </script>
-
 {% endblock %}

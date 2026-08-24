@@ -2786,23 +2786,92 @@ def vehicle_types_toggle(vehicle_type_id):
 
 @app.route("/service-prices")
 def service_prices_list():
-    service_prices = (
-        ServicePrice.query
-        .join(Service)
-        .join(VehicleType)
-        .order_by(Service.name, VehicleType.name)
-        .all()
-    )
+    """La lista de precios como matriz: una fila por servicio, una columna por
+    tipo de vehículo.
 
+    Antes era una fila por combinación servicio×vehículo, que es la misma
+    matriz aplanada: cuatro filas para ver un servicio, y —peor— los huecos
+    eran invisibles porque un precio que falta simplemente no tenía fila. Un
+    hueco no es inofensivo: calculate_real_price cuenta como $0 el servicio sin
+    precio para ese vehículo, así que la cita se factura de menos en silencio."""
     services = Service.query.filter_by(is_active=True).order_by(Service.name).all()
     vehicle_types = VehicleType.query.filter_by(is_active=True).order_by(VehicleType.name).all()
 
+    # Los tipos que se cobran a diario van primero y visibles; el resto existe
+    # pero se despliega con un botón, para que la tabla no nazca con scroll
+    # horizontal por columnas que casi nunca se usan.
+    orden = {n: i for i, n in enumerate(VEHICULOS_PRINCIPALES)}
+    vehicle_types.sort(key=lambda v: (orden.get(v.name.strip().lower(), 99), v.name))
+    principales = [v for v in vehicle_types if v.name.strip().lower() in orden]
+
+    precios = {}
+    for sp in ServicePrice.query.filter_by(is_active=True).all():
+        precios[(sp.service_id, sp.vehicle_type_id)] = sp
+
+    filas = []
+    for categoria, svcs in agrupar_servicios(services):
+        for svc in svcs:
+            celdas = [{"vehicle_type": vt, "precio": precios.get((svc.id, vt.id)),
+                       "principal": vt in principales}
+                      for vt in vehicle_types]
+            # Solo cuentan como hueco los tipos que sí se cobran: nadie espera
+            # tener precio de Jet Ski para un alistamiento.
+            huecos = sum(1 for c in celdas if c["principal"] and not c["precio"])
+            filas.append({"categoria": categoria, "servicio": svc,
+                          "celdas": celdas, "huecos": huecos})
+
     return render_template(
         "service_prices.html",
-        service_prices=service_prices,
+        filas=filas,
+        vehicle_types=vehicle_types,
+        categorias=sorted({f["categoria"] for f in filas},
+                          key=lambda c: [x[0] for x in SERVICE_CATEGORY_RULES].index(c)
+                          if c in [x[0] for x in SERVICE_CATEGORY_RULES] else 99),
+        total_huecos=sum(1 for f in filas if f["huecos"]),
         services=services,
-        vehicle_types=vehicle_types
     )
+
+
+@app.route("/service-prices/cell", methods=["POST"])
+def service_prices_cell():
+    """Crea o actualiza el precio de una celda de la matriz.
+
+    Hace falta aparte de /update porque ese exige un ServicePrice existente, y
+    la gracia de la matriz es poder llenar los huecos ahí mismo — que es justo
+    donde no hay fila todavía."""
+    data = request.get_json(silent=True) or {}
+    try:
+        service_id = int(data["service_id"])
+        vehicle_type_id = int(data["vehicle_type_id"])
+    except (KeyError, TypeError, ValueError):
+        return {"error": "Datos inválidos"}, 400
+
+    sp = ServicePrice.query.filter_by(service_id=service_id,
+                                      vehicle_type_id=vehicle_type_id).first()
+    if sp is None:
+        # La duración arranca en la del servicio, no en cero. Un precio con
+        # duración 0 hace que la cita no ocupe tiempo en el calendario, y al
+        # llenar un hueco solo se escribe el precio — nadie se acuerda de la
+        # duración hasta que ve la agenda descuadrada.
+        svc = Service.query.get(service_id)
+        sp = ServicePrice(service_id=service_id, vehicle_type_id=vehicle_type_id,
+                          price=0, duration_minutes=(svc.duration_minutes if svc else 0),
+                          is_active=True)
+        db.session.add(sp)
+    sp.is_active = True
+
+    try:
+        if data.get("price") not in (None, ""):
+            sp.price = int(data["price"])
+        if data.get("duration_minutes") not in (None, ""):
+            sp.duration_minutes = int(data["duration_minutes"])
+    except (ValueError, TypeError):
+        db.session.rollback()
+        return {"error": "Precio y duración deben ser números enteros"}, 400
+
+    db.session.commit()
+    return {"ok": True, "id": sp.id, "price": sp.price,
+            "duration_minutes": sp.duration_minutes}
 
 
 @app.route("/service-prices/new", methods=["POST"])
@@ -10072,6 +10141,12 @@ SERVICE_CATEGORY_RULES = [
     ("Lavado & Mantenimiento", ("wash", "lavado")),
 ]
 SERVICE_CATEGORY_FALLBACK = "Otros"
+
+# Los tipos de vehículo que se cobran a diario. Definen qué columnas salen
+# visibles en la lista de precios y —más importante— sobre cuáles se cuenta un
+# precio faltante como "hueco": que no haya precio de Jet Ski para un
+# alistamiento no es un error, que no lo haya de Camioneta sí.
+VEHICULOS_PRINCIPALES = ("automovil", "suv", "camioneta", "moto")
 
 
 def categoria_de_servicio(nombre: str) -> str:
