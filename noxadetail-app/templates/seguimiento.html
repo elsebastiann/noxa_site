@@ -61,6 +61,11 @@
   .sg-btn-wa:hover { background:rgba(102,187,106,0.25); color:#8fdc93; }
   .sg-btn-ok { background:var(--accent-bg); border-color:rgba(212,180,108,0.4); color:var(--accent); }
 
+  /* Sello de "ya le escribí". Verde apagado, no de alarma: es información,
+     no un pendiente nuevo. */
+  .sg-sello { margin-top:8px; font-size:.7rem; color:#66bb6a; line-height:1.4;
+              background:rgba(102,187,106,0.09); border-radius:6px; padding:5px 8px; }
+
   .sg-vacia { padding:22px 12px; text-align:center; color:var(--text3); font-size:.76rem; }
   .sg-cero { border:1px solid rgba(102,187,106,0.35); background:rgba(102,187,106,0.07);
              border-radius:var(--radius); padding:30px; text-align:center; }
@@ -138,13 +143,23 @@
                 </span>
               </div>
               <div class="sg-detalle">{{ t.detalle }}</div>
+              {% if t.escrita_hace is not none %}
+                {# La tarjeta sigue viva: escribirle no es cerrarla. El sello
+                   evita escribirle dos veces sin darse cuenta. #}
+                <div class="sg-sello">
+                  <i class="bi bi-send-check"></i>
+                  {% if t.escrita_hace == 0 %}Le escribiste hoy
+                  {% else %}Le escribiste hace {{ t.escrita_hace }} día{{ 's' if t.escrita_hace != 1 }}{% endif %}
+                  · sigue pendiente de agendar
+                </div>
+              {% endif %}
               <div class="sg-acciones">
-                {# Por defecto abre WhatsApp con el mensaje ya escrito: es el
-                   camino de menos fricción, que es lo que hace que se use. #}
+                {# Abre WhatsApp con el mensaje ya escrito: es el camino de menos
+                   fricción, que es lo que hace que el panel se use. #}
                 <a class="sg-btn sg-btn-wa"
                    href="https://wa.me/{{ t.telefono | replace('+','') }}?text={{ texto | urlencode }}"
                    target="_blank" rel="noopener"
-                   onclick="marcar(this,'contactado')">
+                   onclick="marcar(this,'escrito')">
                   <i class="bi bi-whatsapp"></i> Escribir
                 </a>
                 {% if t.conv_id %}
@@ -153,8 +168,9 @@
                     <i class="bi bi-chat-dots"></i>
                   </a>
                 {% endif %}
-                <button class="sg-btn sg-btn-ok" onclick="marcar(this,'contactado')" title="Ya lo contacté">
-                  <i class="bi bi-check2"></i>
+                <button class="sg-btn sg-btn-ok" onclick="marcar(this,'contactado')"
+                        title="Ya agendó — sacar del tablero">
+                  <i class="bi bi-calendar-check"></i>
                 </button>
                 <button class="sg-btn" onclick="posponer(this)" title="Recordarme después">
                   <i class="bi bi-clock"></i>
@@ -173,7 +189,70 @@
   </div>
 {% endif %}
 
+{% if escondidas %}
+  <div style="margin-top:24px;">
+    {% if not ver_ocultas %}
+      <a href="{{ url_for('seguimiento_tablero', ocultas=1) }}" class="sg-chip">
+        <i class="bi bi-eye-slash"></i>
+        <span class="n">{{ escondidas|length }}</span> oculta{{ 's' if escondidas|length != 1 }}
+      </a>
+    {% else %}
+      <h3 style="font-size:.95rem;margin:0 0 10px;">Tarjetas ocultas</h3>
+      <p class="sg-note" style="margin-top:0;">
+        Gestionadas o descartadas. Si alguna se ocultó por error, reactívala y vuelve
+        al tablero — siempre que la condición siga vigente.
+      </p>
+      <div class="sg-wrap" style="border:1px solid var(--border);border-radius:var(--radius);overflow-x:auto;">
+        <table style="width:100%;border-collapse:collapse;font-size:.82rem;min-width:620px;">
+          <thead>
+            <tr>
+              {% for h in ('Columna', 'Teléfono', 'Estado', 'Vuelve', 'Motivo', '') %}
+                <th style="background:var(--surface2);color:var(--text2);text-align:left;
+                           padding:9px 12px;font-weight:600;white-space:nowrap;">{{ h }}</th>
+              {% endfor %}
+            </tr>
+          </thead>
+          <tbody>
+            {% for e in escondidas %}
+              <tr data-tipo="{{ e.tipo }}" data-telefono="{{ e.telefono }}">
+                <td style="padding:9px 12px;border-top:1px solid var(--border);">{{ e.titulo }}</td>
+                <td style="padding:9px 12px;border-top:1px solid var(--border);">{{ e.telefono }}</td>
+                <td style="padding:9px 12px;border-top:1px solid var(--border);">{{ e.accion }}</td>
+                <td style="padding:9px 12px;border-top:1px solid var(--border);color:var(--text2);">
+                  {{ e.vuelve.strftime('%d/%m/%Y') if e.vuelve else 'nunca' }}
+                </td>
+                <td style="padding:9px 12px;border-top:1px solid var(--border);color:var(--text2);">
+                  {{ e.motivo or '—' }}
+                </td>
+                <td style="padding:9px 12px;border-top:1px solid var(--border);">
+                  <button class="btn btn-sm btn-outline-primary" onclick="reactivar(this)">Reactivar</button>
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      <a href="{{ url_for('seguimiento_tablero') }}" class="sg-chip" style="margin-top:12px;">
+        <i class="bi bi-arrow-left"></i> Volver al tablero
+      </a>
+    {% endif %}
+  </div>
+{% endif %}
+
 <script>
+  function reactivar(btn) {
+    const fila = btn.closest("tr");
+    fetch("{{ url_for('seguimiento_gestionar') }}", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ tipo: fila.dataset.tipo, telefono: fila.dataset.telefono,
+                             accion: "reactivar" })
+    }).then(r => r.json()).then(d => {
+      if (!d.ok) { alert(d.error || "No se pudo reactivar."); return; }
+      fila.style.opacity = ".35";
+      btn.outerHTML = '<span style="font-size:.75rem;color:#66bb6a;">✓ De vuelta en el tablero</span>';
+    });
+  }
+
   function enviar(card, accion, extra) {
     const cuerpo = Object.assign({
       tipo: card.dataset.tipo, telefono: card.dataset.telefono, accion: accion
@@ -208,8 +287,22 @@
     if (card.classList.contains("hecha")) return;
     enviar(card, accion).then(d => {
       if (!d.ok) { alert(d.error || "No se pudo guardar."); return; }
-      apagar(card, "✓ Contactado" + (d.vuelve ? " · vuelve el " + d.vuelve : ""));
+      if (accion === "escrito") {
+        // La tarjeta NO se apaga: escribirle no cierra la venta. Solo se le
+        // pone el sello, para no escribirle dos veces sin darse cuenta.
+        sellar(card);
+        return;
+      }
+      apagar(card, "✓ Agendó" + (d.vuelve ? " · revisa de nuevo el " + d.vuelve : ""));
     });
+  }
+
+  function sellar(card) {
+    if (card.querySelector(".sg-sello")) return;
+    const sello = document.createElement("div");
+    sello.className = "sg-sello";
+    sello.innerHTML = '<i class="bi bi-send-check"></i> Le escribiste hoy · sigue pendiente de agendar';
+    card.querySelector(".sg-acciones").before(sello);
   }
 
   function posponer(el) {

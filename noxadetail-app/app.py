@@ -3689,7 +3689,19 @@ def seguimiento_tablero():
         return redirect(url_for("calendar_view"))
 
     tablero = _tablero_seguimiento()
+    # Las ocultas se pueden revisar y devolver al tablero: un clic por error
+    # dejaba a alguien invisible semanas y no había forma de traerlo de vuelta.
+    ocultas, _ = _gestiones_activas()
+    titulos = {c[0]: c[1] for c in COLUMNAS_SEGUIMIENTO}
+    escondidas = sorted(
+        [{"tipo": t, "titulo": titulos.get(t, t), "telefono": tel,
+          "accion": gst.accion, "vuelve": gst.oculta_hasta,
+          "motivo": gst.motivo, "usuario": gst.usuario}
+         for (t, tel), gst in ocultas.items()],
+        key=lambda x: (x["titulo"], x["telefono"]))
     return render_template("seguimiento.html", **tablero,
+                           escondidas=escondidas,
+                           ver_ocultas=request.args.get("ocultas") == "1",
                            mensajes_sugeridos=MENSAJES_SUGERIDOS)
 
 
@@ -3708,11 +3720,23 @@ def seguimiento_gestionar():
     accion = (data.get("accion") or "").strip()
     if tipo not in [c[0] for c in COLUMNAS_SEGUIMIENTO] or not telefono:
         return {"ok": False, "error": "Datos inválidos"}, 400
-    if accion not in ("contactado", "pospuesto", "descartado"):
+    if accion not in ("escrito", "contactado", "pospuesto", "descartado", "reactivar"):
         return {"ok": False, "error": "Acción inválida"}, 400
 
+    # Reactivar borra la gestión: la tarjeta vuelve al tablero si la condición
+    # sigue ahí. Hace falta porque un clic por error dejaba a alguien invisible
+    # semanas, sin forma de traerlo de vuelta.
+    if accion == "reactivar":
+        SeguimientoGestion.query.filter_by(tipo=tipo, telefono=telefono).delete()
+        db.session.commit()
+        return {"ok": True, "reactivada": True}
+
     hoy = bogota_now().date()
-    if accion == "contactado":
+    if accion == "escrito":
+        # Escribirle no resuelve nada: la tarjeta se queda con un sello y sale
+        # del tablero cuando el cliente agende.
+        oculta = None
+    elif accion == "contactado":
         # Un lead se enfría rápido; a un cliente perseguirlo cada semana lo quema.
         dias = DIAS_SILENCIO_LEAD if tipo in ("sin_responder", "caliente", "enfriado",
                                               "remarketing") else DIAS_SILENCIO_CLIENTE
@@ -4238,15 +4262,36 @@ MENSAJES_SUGERIDOS = {
 }
 
 
-def _gestiones_activas() -> dict:
-    """{(tipo, telefono): gestión} de lo que hoy debe seguir oculto."""
+def _gestiones_activas() -> tuple[dict, dict]:
+    """Devuelve (ocultas, escritas).
+
+    Están separadas porque escribirle a alguien NO resuelve la tarjeta: la venta
+    se cierra cuando agenda, no cuando le mandas el mensaje. Antes el botón de
+    WhatsApp escondía la tarjeta y eso hacía perder de vista justo a quien ya
+    mostró interés — el peor momento para dejar de verlo."""
     hoy = bogota_now().date()
-    activas = {}
+    ocultas, escritas = {}, {}
     for g in SeguimientoGestion.query.all():
-        vigente = (g.accion == "descartado") or (g.oculta_hasta and g.oculta_hasta > hoy)
-        if vigente:
-            activas[(g.tipo, g.telefono)] = g
-    return activas
+        if g.accion == "escrito":
+            escritas[(g.tipo, g.telefono)] = g
+            continue
+        if (g.accion == "descartado") or (g.oculta_hasta and g.oculta_hasta > hoy):
+            ocultas[(g.tipo, g.telefono)] = g
+    return ocultas, escritas
+
+
+def _telefonos_con_cita_pendiente() -> set:
+    """Quién ya tiene una cita por delante.
+
+    Es la confirmación objetiva de que la gestión funcionó, y no depende de que
+    alguien se acuerde de marcar la tarjeta: si el cliente agendó, sale del
+    tablero solo."""
+    filas = (Appointment.query
+             .filter(Appointment.status == "scheduled",
+                     Appointment.start_datetime >= bogota_now(),
+                     Appointment.phone.isnot(None), Appointment.phone != "")
+             .all())
+    return {_normalize_whatsapp_number(a.phone) for a in filas}
 
 
 def _ultima_visita_por_telefono() -> dict:
@@ -4284,7 +4329,8 @@ def _tablero_seguimiento() -> dict:
     # una contra la otra daba cinco horas de desfase: en lo reciente salían
     # "hace -1 día(s)".
     ahora_utc = datetime.utcnow()
-    gestiones = _gestiones_activas()
+    ocultas, escritas = _gestiones_activas()
+    con_cita = _telefonos_con_cita_pendiente()
     ultima_visita = _ultima_visita_por_telefono()
     ceramicos = _historial_ceramico()
 
@@ -4303,12 +4349,20 @@ def _tablero_seguimiento() -> dict:
     def poner(tipo, telefono, nombre, detalle, dias, extra=None):
         if not telefono or telefono in tarjetas:
             return
-        if (tipo, telefono) in gestiones:
+        if (tipo, telefono) in ocultas:
             return
+        # Ya agendó: la gestión cumplió su objetivo y no hay nada que perseguir.
+        if telefono in con_cita:
+            return
+        escrita = escritas.get((tipo, telefono))
         tarjetas[telefono] = {
             "tipo": tipo, "telefono": telefono,
             "nombre": nombre or _phone_for_display(telefono),
             "detalle": detalle, "dias": dias,
+            # Sello para no escribirle dos veces sin darse cuenta. La tarjeta
+            # sigue viva: lo que la resuelve es que agende.
+            "escrita_hace": (bogota_now().date() - escrita.created_at.date()).days
+                            if escrita else None,
             **(extra or {}),
         }
 
