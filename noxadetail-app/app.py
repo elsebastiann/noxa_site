@@ -452,6 +452,19 @@ class Service(db.Model):
     # la entrega real (duration_minutes) sea días después.
     occupies_single_day = db.Column(db.Boolean, nullable=False, default=False)
 
+    # ── Tercerización (polarizado, PPF, wrap) ──
+    # Los hace un instalador externo que normalmente pone el material y se
+    # queda con la mayor parte de lo cobrado. Marcar el servicio acá hace que
+    # al agendarlo aparezca solo el bloque de reparto, en vez de depender de
+    # que alguien se acuerde de registrarlo.
+    is_outsourced = db.Column(db.Boolean, nullable=False, default=False)
+    # Qué % se lleva el instalador cuando ÉL pone el material (el caso normal).
+    default_installer_share = db.Column(db.Integer, nullable=False, default=65)
+    # Trabajos sin precio de lista: forrar piezas sueltas, wraps parciales. El
+    # valor se cotiza al cliente en el momento, así que la cita lo pide en vez
+    # de buscarlo en ServicePrice (donde no existe y valdría 0).
+    is_custom_price = db.Column(db.Boolean, nullable=False, default=False)
+
     def __repr__(self):
         return f"<Service {self.name} ({self.duration_minutes} min)>"
 
@@ -482,6 +495,22 @@ def ensure_service_widget_schema():
         db.session.commit()
 
 ensure_service_widget_schema()
+
+def ensure_service_outsourcing_schema():
+    with app.app_context():
+        cols = [
+            ("is_outsourced", "BOOLEAN DEFAULT 0"),
+            ("default_installer_share", "INTEGER DEFAULT 65"),
+            ("is_custom_price", "BOOLEAN DEFAULT 0"),
+        ]
+        for col, ddl in cols:
+            try:
+                db.session.execute(text(f"SELECT {col} FROM services LIMIT 1"))
+            except Exception:
+                db.session.execute(text(f"ALTER TABLE services ADD COLUMN {col} {ddl}"))
+        db.session.commit()
+
+ensure_service_outsourcing_schema()
 
 # -----------------------
 # VEHICLE TYPES (CATÁLOGO)
@@ -773,6 +802,11 @@ class Appointment(db.Model):
     payments = db.relationship(
         "AppointmentPayment", cascade="all, delete-orphan",
         order_by="AppointmentPayment.paid_on, AppointmentPayment.id", lazy="selectin"
+    )
+    # Servicios de esta cita que hace un instalador externo y se reparten.
+    outsourcings = db.relationship(
+        "AppointmentOutsourcing", cascade="all, delete-orphan",
+        order_by="AppointmentOutsourcing.id", lazy="selectin"
     )
 
     def __repr__(self):
@@ -1135,6 +1169,68 @@ class AppointmentAdjustment(db.Model):
 
     def __repr__(self):
         return f"<AppointmentAdjustment appt={self.appointment_id} {self.kind} {self.value}>"
+
+
+class Installer(db.Model):
+    """Un instalador externo: quien hace los polarizados, PPF y wraps.
+
+    Existe como tabla y no como texto libre porque de acá salen dos cosas que
+    un nombre suelto no permite: cuánto hay que liquidarle en el periodo, y
+    cuál instalador deja mejor margen cuando hay más de uno."""
+    __tablename__ = "installers"
+    id         = db.Column(db.Integer, primary_key=True)
+    name       = db.Column(db.String(120), nullable=False, unique=True)
+    phone      = db.Column(db.String(30), nullable=True)
+    # Puede diferir del que trae el servicio: se negocia por instalador.
+    default_share = db.Column(db.Integer, nullable=False, default=65)
+    is_active  = db.Column(db.Boolean, nullable=False, default=True)
+    notes      = db.Column(db.Text, nullable=True)
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+
+    def __repr__(self):
+        return f"<Installer {self.name} {self.default_share}%>"
+
+
+# Quién puso el material. Define el reparto por defecto y, sobre todo, permite
+# comparar después cuál de las dos modalidades deja más plata.
+MATERIAL_INSTALADOR = "instalador"
+MATERIAL_NOXA       = "noxa"
+
+
+class AppointmentOutsourcing(db.Model):
+    """El reparto de UN servicio tercerizado dentro de una cita.
+
+    Va por servicio y no por cita a propósito: una cita puede ser "Polarizado +
+    Wash Essential" y solo el polarizado se reparte. Aplicarlo al total de la
+    cita le regalaría al instalador un pedazo del lavado, que es trabajo propio.
+
+    El cliente le paga a Noxa el total; esto es lo que queda debiéndosele al
+    instalador. NO se registra además como Expense: se descontaría dos veces.
+    """
+    __tablename__ = "appointment_outsourcings"
+    id             = db.Column(db.Integer, primary_key=True)
+    appointment_id = db.Column(db.Integer, db.ForeignKey("appointments.id"),
+                               nullable=False, index=True)
+    # Nombre del servicio dentro de appointments.services (que es texto, no
+    # líneas). Guardar el nombre y no el id lo mantiene legible aunque el
+    # servicio se renombre o se desactive en el catálogo.
+    service_name   = db.Column(db.String(120), nullable=False)
+    installer_id   = db.Column(db.Integer, db.ForeignKey("installers.id"), nullable=True)
+    # % que se lleva el instalador de lo que se le cobró al cliente por ESTA línea.
+    installer_pct  = db.Column(db.Integer, nullable=False, default=65)
+    material_por   = db.Column(db.String(20), nullable=False, default=MATERIAL_INSTALADOR)
+    # Solo para trabajos a medida: el valor cotizado. NULL = el servicio tiene
+    # precio de lista y se toma de ServicePrice.
+    amount         = db.Column(db.Integer, nullable=True)
+    # Qué se forró exactamente. Es lo que después deja responder "¿qué piezas
+    # nos piden más y a cómo las estamos cotizando?".
+    description    = db.Column(db.String(255), nullable=True)
+    created_at     = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+
+    installer = db.relationship("Installer")
+
+    def __repr__(self):
+        return f"<AppointmentOutsourcing appt={self.appointment_id} {self.service_name} {self.installer_pct}%>"
 
 
 class AppointmentPayment(db.Model):
@@ -2177,6 +2273,56 @@ def apply_adjustments(subtotal: int, adjustments, lista: int | None = None) -> t
     return max(total, 0), detalle
 
 
+def _reparto_tercerizacion(appt: Appointment, services: list, lista: int, total: int) -> list[dict]:
+    """Cuánto de esta cita le corresponde al instalador, línea por línea.
+
+    El reparto se calcula sobre lo que el cliente REALMENTE pagó por esa línea,
+    no sobre el precio de lista: si se dio un descuento, el instalador no puede
+    cobrar el 65% de una plata que nunca entró. Como los descuentos de la cita
+    son globales (no por servicio), se prorratean con el mismo factor para
+    todas las líneas — total ÷ lista.
+    """
+    lineas = list(appt.outsourcings or [])
+    if not lineas:
+        return []
+
+    por_nombre = {s.name.strip().lower(): s for s in services}
+    # Un recargo hace el factor > 1 y un descuento < 1; ambos son correctos.
+    factor = (total / lista) if lista > 0 else 1.0
+
+    salida = []
+    for o in lineas:
+        if o.amount:
+            base = int(o.amount)          # trabajo a medida: el valor cotizado
+        else:
+            svc = por_nombre.get((o.service_name or "").strip().lower())
+            base = 0
+            if svc and appt.vehicle_type_id:
+                sp = (ServicePrice.query
+                      .filter_by(service_id=svc.id, vehicle_type_id=appt.vehicle_type_id,
+                                 is_active=True)
+                      .first())
+                base = sp.price if sp else 0
+
+        cobrado = int(round(base * factor))
+        costo = int(round(cobrado * (o.installer_pct or 0) / 100))
+        salida.append({
+            "id": o.id,
+            "servicio": o.service_name,
+            "instalador": o.installer.name if o.installer else "Sin asignar",
+            "installer_id": o.installer_id,
+            "pct": o.installer_pct,
+            "material_por": o.material_por,
+            "a_medida": bool(o.amount),
+            "descripcion": o.description or "",
+            "base": base,
+            "cobrado": cobrado,
+            "costo_instalador": costo,
+            "queda_noxa": cobrado - costo,
+        })
+    return salida
+
+
 def appointment_money(appt: Appointment) -> dict:
     """Todo el desglose de plata de una cita, en un solo lugar.
 
@@ -2191,7 +2337,8 @@ def appointment_money(appt: Appointment) -> dict:
     """
     vacio = {"lista": 0, "convenio": 0, "subtotal": 0, "ajustes": [],
              "descuentos": 0, "recargos": 0, "total": 0,
-             "abonos": [], "abonado": 0, "saldo": 0}
+             "abonos": [], "abonado": 0, "saldo": 0,
+             "tercerizado": [], "costo_tercerizacion": 0, "ingreso_noxa": 0}
     if not appt.vehicle_type_id:
         return vacio
 
@@ -2208,13 +2355,26 @@ def appointment_money(appt: Appointment) -> dict:
     lista = calculate_real_price(service_ids=service_ids, vehicle_type_id=appt.vehicle_type_id)
     subtotal, _ = apply_agreement_discount_split(service_ids, appt.vehicle_type_id, appt.agreement)
 
+    # Los trabajos a medida (forrar una pieza suelta, un wrap parcial) no tienen
+    # fila en ServicePrice, así que arriba pesaron 0. Se suman con el valor que
+    # se le cotizó al cliente, y entran igual a lista y a subtotal: ese precio
+    # ya se negoció caso por caso, aplicarle encima el descuento de convenio
+    # sería descontar dos veces.
+    a_medida = sum(int(o.amount or 0) for o in (appt.outsourcings or []) if o.amount)
+    lista    += a_medida
+    subtotal += a_medida
+
     total, detalle = apply_adjustments(subtotal, appt.adjustments, lista)
+
+    tercerizado = _reparto_tercerizacion(appt, services, lista, total)
 
     abonos = [{"id": p.id, "amount": int(p.amount or 0),
                "paid_on": p.paid_on.isoformat() if p.paid_on else None,
                "description": p.description or ""}
               for p in (appt.payments or [])]
     abonado = sum(a["amount"] for a in abonos)
+
+    costo_tercerizacion = sum(t["costo_instalador"] for t in tercerizado)
 
     return {
         "lista": lista,
@@ -2229,6 +2389,14 @@ def appointment_money(appt: Appointment) -> dict:
         # Puede quedar en negativo si abonaron de más: es un saldo a favor y hay
         # que poder verlo, no esconderlo en un cero.
         "saldo": total - abonado,
+        # ── Tercerización ──
+        # `total` sigue siendo lo que el cliente debe (el cobro no cambia).
+        # `ingreso_noxa` es lo que de verdad le queda al negocio, y es lo único
+        # que debería mirar la analítica: un polarizado de 975.000 no son
+        # 975.000 de ingreso.
+        "tercerizado": tercerizado,
+        "costo_tercerizacion": costo_tercerizacion,
+        "ingreso_noxa": total - costo_tercerizacion,
     }
 
 
