@@ -7318,7 +7318,8 @@ NOXA_SYSTEM_PROMPT = """Te llamas Mariana y eres la asesora comercial de NOXA De
     - Si NO tienes un nombre real (perfil vacío, alias, emojis, algo que no sea nombre de persona): "¡Hola! Soy Mariana, de NØXA Car Care 👋"
   - Detrás de tu saludo, el sistema le manda solo un menú de bienvenida con 4 opciones numeradas para que el cliente elija qué necesita. NO lo escribas tú ni lo repitas: ya se envía automáticamente. Por eso tu saludo no lleva pregunta — el menú es la pregunta de ese turno.
   - ⚠️ ÚNICA EXCEPCIÓN: si en ese primer mensaje el cliente YA dijo qué necesita (ej. "cuánto vale un cerámico", "quiero polarizar mi carro", "info de PPF"), el menú sobra — sería absurdo preguntarle algo que ya te contestó. En ese caso agrega un mensaje separado que diga EXACTAMENTE [SIN_MENU], y arranca tú directo por esa puerta (ver POR DÓNDE ARRANCA EL CLIENTE) con tu pregunta normal. Si el cliente solo escribió algo genérico ("hola", "buenas", "info", "quiero más información"), NO uses [SIN_MENU].
-  - El nombre: si no tenías un nombre real, NO lo pidas en ese primer turno. Pídeselo en el turno siguiente, después de que elija una opción.
+  - El nombre: si no tenías un nombre real, NO lo pidas en ese primer turno. Pídeselo en el turno siguiente, después de que elija una opción — con naturalidad, algo como "Por cierto, ¿cómo te llamas?".
+  - ⚠️ Ante la duda, NO uses el nombre de perfil. Un saludo sin nombre ("¡Hola! Soy Mariana...") siempre suena bien; llamar a alguien por un apodo, por el nombre de su negocio o por un emoji suena a robot y arranca la conversación mal. Prefiere siempre saludar sin nombre y preguntarlo después.
 - Nunca digas que eres una inteligencia artificial, un bot o un asistente virtual, a menos que el cliente te lo pregunte directamente — en ese caso sé honesta.
 - Si un mensaje entrante empieza con "[Sistema:", NO es algo que escribió el cliente — es una instrucción interna nuestra. Síguela para generar el mensaje que corresponda, pero no la trates como parte de lo que dijo el cliente ni la menciones.
 
@@ -8374,11 +8375,7 @@ def get_claude_reply(conversation: "Conversation", media_url: str | None = None,
             )
             messages[-1] = {"role": "user", "content": bloques + [{"type": "text", "text": caption}]}
 
-    profile_line = (
-        f"Nombre de perfil de WhatsApp del cliente: {conversation.profile_name!r}"
-        if conversation.profile_name else
-        "Nombre de perfil de WhatsApp del cliente: no disponible."
-    )
+    profile_line = _linea_perfil(conversation)
     # Este bloque va al final del system prompt, donde más pesa. Cuando solo decía
     # "preséntate por tu nombre", el modelo saludaba y se saltaba el menú de
     # bienvenida aunque estuviera en IDENTIDAD: la instrucción de último momento
@@ -8431,11 +8428,7 @@ def generate_followup_message(conversation: "Conversation", stage: str) -> str:
         "content": f"[Sistema: el cliente quedó en silencio, genera un mensaje de seguimiento — etapa: {stage}. No agregues marcadores de [META], [NOMBRE], [AGENDAR] ni [ESCALAR] aquí, solo el mensaje de seguimiento.]",
     })
 
-    profile_line = (
-        f"Nombre de perfil de WhatsApp del cliente: {conversation.profile_name!r}"
-        if conversation.profile_name else
-        "Nombre de perfil de WhatsApp del cliente: no disponible."
-    )
+    profile_line = _linea_perfil(conversation)
     # Sin la fecha de hoy, el modelo lee una cita del historial y calcula mal a
     # cuántos días queda: le mandó "tu diagnóstico de mañana miércoles" a un
     # cliente cuya cita era en dos días (visto en producción el 2026-08-10). En
@@ -8463,11 +8456,7 @@ def _summarize_conversation_for_admin(conversation: "Conversation") -> str:
             "solo el resumen.]"
         ),
     })
-    profile_line = (
-        f"Nombre de perfil de WhatsApp del cliente: {conversation.profile_name!r}"
-        if conversation.profile_name else
-        "Nombre de perfil de WhatsApp del cliente: no disponible."
-    )
+    profile_line = _linea_perfil(conversation)
     chunks = _call_claude(messages, profile_line)
     return chunks[0]
 
@@ -8574,6 +8563,47 @@ _META_RE = re.compile(
     r"(?:\s*;\s*carro\s*=\s*(.*?)\s*;\s*marca\s*=\s*(.*?)\s*;\s*calificacion\s*=\s*(.*?))?\s*\]$",
     re.IGNORECASE,
 )
+def _nombre_perfil_utilizable(nombre: "str | None") -> "str | None":
+    """El nombre de perfil de WhatsApp lo escribe el cliente y muchas veces no es
+    un nombre: emojis, el nombre de un negocio, un apodo, el propio teléfono.
+
+    Se filtra en CÓDIGO y no solo con instrucciones en el prompt porque la línea
+    del perfil se inyecta al final del system prompt, que es donde más pesa: un
+    dato concreto de último momento ("el cliente se llama X") le gana a la regla
+    general de más arriba. Por eso Mariana saludaba con "Hola 👍👍☀️☀️" aunque el
+    prompt ya decía que no usara emojis como nombre.
+
+    Esto atrapa lo inequívoco (emojis, símbolos, números, cadenas de una letra).
+    Un alias que parece nombre —"Solo Millos"— es indistinguible de un nombre
+    real acá; ese caso lo sigue resolviendo el criterio de Mariana."""
+    limpio = " ".join((nombre or "").split())
+    if not limpio:
+        return None
+    letras = [c for c in limpio if c.isalpha()]
+    if len(letras) < 3:
+        return None
+    # Un número de teléfono o algo con dígitos no es un nombre para saludar.
+    if any(c.isdigit() for c in limpio):
+        return None
+    # Si la mayoría de lo visible no son letras, es un decorado, no un nombre.
+    visibles = [c for c in limpio if not c.isspace()]
+    if len(letras) / len(visibles) < 0.7:
+        return None
+    return limpio
+
+
+def _linea_perfil(conversation: "Conversation") -> str:
+    """La línea de nombre que se le pasa al modelo, ya filtrada."""
+    usable = _nombre_perfil_utilizable(conversation.profile_name)
+    if usable:
+        return f"Nombre de perfil de WhatsApp del cliente: {usable!r}"
+    return (
+        "Nombre de perfil de WhatsApp del cliente: no disponible. "
+        "NO inventes un nombre ni uses nada del perfil para dirigirte a él: "
+        "salúdalo sin nombre y pregúntaselo cuando corresponda."
+    )
+
+
 _NOMBRE_RE = re.compile(r"^\[NOMBRE:\s*(.*?)\]$", re.IGNORECASE)
 _AGENDAR_RE = re.compile(r"^\[AGENDAR:\s*(.*?)\]$", re.IGNORECASE | re.DOTALL)
 _PROMO_RE   = re.compile(r"^\[PROMO:\s*(\d+)\s*\]$", re.IGNORECASE)

@@ -1,7 +1,7 @@
 {
   "app.py": {
-    "mtime": 1787548222.7407925,
-    "ast_hash": "737b47d5ca73c7a228ce9228b278204f",
+    "mtime": 1787584305.062861,
+    "ast_hash": "1f51a0b8165dc3a08a64bd5fea71cf25",
     "semantic_hash": ""
   },
   "migrate_prices.py": {
@@ -317,6 +317,11 @@
   "templates/seguimiento.html": {
     "mtime": 1787548240.9941177,
     "ast_hash": "e0cad95edb2123a469172c5b92fffba5",
+    "semantic_hash": ""
+  },
+  "tests/test_nombre_perfil.py": {
+    "mtime": 1787584321.3324423,
+    "ast_hash": "aa9d46db23f59d123037977adc9070e3",
     "semantic_hash": ""
   }
 }
