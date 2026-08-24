@@ -632,7 +632,13 @@
         {% endif %}
         <div class="dropdown">
           <button class="nav-link-custom border-0 bg-transparent dropdown-toggle"
-                  type="button" data-bs-toggle="dropdown" aria-expanded="false">Más</button>
+                  type="button" data-bs-toggle="dropdown" aria-expanded="false"
+                  {# Por defecto Bootstrap cierra el desplegable ante CUALQUIER
+                     clic dentro, así que abrir un submenú lo cerraba entero: el
+                     <details> quedaba abierto pero sin verse, y solo aparecía al
+                     reabrir "Más". Con "outside" solo cierran los clics de
+                     afuera y la tecla Esc. #}
+                  data-bs-auto-close="outside">Más</button>
           <ul class="dropdown-menu dropdown-menu-end py-2"
               style="background:var(--surface);border:1px solid var(--border);border-radius:14px;min-width:220px;box-shadow:0 8px 24px rgba(0,0,0,0.1);">
             {# Submenús plegables: el menú creció a más de 20 entradas y en una
@@ -647,7 +653,7 @@
             {% set es_admin      = current_user and current_user.role == 'admin' %}
 
             {% if ver_gestion or ver_analitica %}
-            <li><details class="nav-group">
+            <li><details class="nav-group" name="nav-mas">
               <summary><i class="bi bi-cash-coin"></i>Dinero y resultados</summary>
               {% if ver_gestion %}
               <a class="dropdown-item-custom" href="{{ url_for('sales_list') }}"><i class="bi bi-graph-up-arrow"></i>Ingresos</a>
@@ -663,7 +669,7 @@
             {% endif %}
 
             {% if ver_gestion %}
-            <li><details class="nav-group">
+            <li><details class="nav-group" name="nav-mas">
               <summary><i class="bi bi-card-list"></i>Operación</summary>
               <a class="dropdown-item-custom" href="{{ url_for('appointments_list') }}"><i class="bi bi-card-list"></i>Listado de citas</a>
               <a class="dropdown-item-custom" href="{{ url_for('parking_list') }}"><i class="bi bi-p-square"></i>Parqueaderos</a>
@@ -672,7 +678,7 @@
               {% endif %}
             </details></li>
 
-            <li><details class="nav-group">
+            <li><details class="nav-group" name="nav-mas">
               <summary><i class="bi bi-tag"></i>Catálogo y precios</summary>
               <a class="dropdown-item-custom" href="{{ url_for('service_prices_list') }}"><i class="bi bi-tag"></i>Lista de precios</a>
               <a class="dropdown-item-custom" href="{{ url_for('services_view') }}"><i class="bi bi-tools"></i>Servicios</a>
@@ -685,13 +691,13 @@
             {% endif %}
 
             {% if es_admin %}
-            <li><details class="nav-group">
+            <li><details class="nav-group" name="nav-mas">
               <summary><i class="bi bi-people-fill"></i>Tercerizados</summary>
               <a class="dropdown-item-custom" href="{{ url_for('installers_view') }}"><i class="bi bi-people-fill"></i>Instaladores</a>
               <a class="dropdown-item-custom" href="{{ url_for('liquidacion_instaladores_view') }}"><i class="bi bi-cash-stack"></i>Liquidación</a>
             </details></li>
 
-            <li><details class="nav-group">
+            <li><details class="nav-group" name="nav-mas">
               <summary><i class="bi bi-person-badge"></i>Equipo</summary>
               <a class="dropdown-item-custom" href="{{ url_for('users_list') }}"><i class="bi bi-people-fill"></i>Usuarios</a>
               <a class="dropdown-item-custom" href="{{ url_for('payroll_list') }}"><i class="bi bi-cash-coin"></i>Nómina</a>
@@ -699,7 +705,7 @@
               <a class="dropdown-item-custom" href="{{ url_for('vales_list') }}"><i class="bi bi-receipt"></i>Vales</a>
             </details></li>
 
-            <li><details class="nav-group">
+            <li><details class="nav-group" name="nav-mas">
               <summary><i class="bi bi-gear"></i>Sistema</summary>
               <a class="dropdown-item-custom" href="{{ url_for('estado_servicios') }}"><i class="bi bi-activity"></i>Estado y saldos</a>
               <a class="dropdown-item-custom" href="{{ url_for('backups_list') }}"><i class="bi bi-hdd-fill"></i>Backups</a>
@@ -799,7 +805,7 @@
      obligaba a scrollear media pantalla para llegar a cerrar sesión. #}
   {% if not current_user or current_user.role not in ('operario', 'marketing') %}
   <hr>
-  <details class="bn-group">
+  <details class="bn-group" name="nav-movil">
     <summary><i class="bi bi-tag"></i>Catálogo y precios</summary>
     <a href="{{ url_for('service_prices_list') }}"><i class="bi bi-tag"></i>Lista de precios</a>
     <a href="{{ url_for('services_view') }}"><i class="bi bi-tools"></i>Servicios</a>
@@ -812,13 +818,13 @@
   {% endif %}
 
   {% if current_user and current_user.role == 'admin' %}
-  <details class="bn-group">
+  <details class="bn-group" name="nav-movil">
     <summary><i class="bi bi-people-fill"></i>Tercerizados</summary>
     <a href="{{ url_for('installers_view') }}"><i class="bi bi-people-fill"></i>Instaladores</a>
     <a href="{{ url_for('liquidacion_instaladores_view') }}"><i class="bi bi-cash-stack"></i>Liquidación</a>
   </details>
 
-  <details class="bn-group">
+  <details class="bn-group" name="nav-movil">
     <summary><i class="bi bi-person-badge"></i>Equipo</summary>
     <a href="{{ url_for('users_list') }}"><i class="bi bi-people-fill"></i>Usuarios</a>
     <a href="{{ url_for('payroll_list') }}"><i class="bi bi-cash-coin"></i>Nómina</a>
@@ -826,7 +832,7 @@
     <a href="{{ url_for('vales_list') }}"><i class="bi bi-receipt"></i>Vales</a>
   </details>
 
-  <details class="bn-group">
+  <details class="bn-group" name="nav-movil">
     <summary><i class="bi bi-gear"></i>Sistema</summary>
     <a href="{{ url_for('plans_list') }}"><i class="bi bi-award"></i>Planes</a>
     <a href="{{ url_for('whatsapp_outbox') }}"><i class="bi bi-send-check"></i>Bandeja de salida</a>
