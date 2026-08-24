@@ -9830,21 +9830,39 @@ def whatsapp_webhook():
 
     # Si estaba archivada, vuelve a la bandeja: el motivo del archivado no
     # distingue "no le interesó" de "número equivocado", y dejar invisible a
-    # alguien que volvió a escribir es la falla que cuesta plata. El bot NO se
-    # reactiva solo — quien la atienda decide eso con el botón de siempre.
+    # alguien que volvió a escribir es la falla que cuesta plata.
+    #
+    # Y se reactiva a Mariana, porque archivar apaga el bot: sin esto la
+    # conversación reaparecía pero SIN nadie respondiendo, y el cliente se
+    # quedaba esperando hasta que alguien viera la campanita. Archivar significa
+    # "acá terminamos", así que un mensaje nuevo abre un ciclo nuevo y Mariana lo
+    # atiende como a cualquier lead.
+    #
+    # OJO — solo al DESARCHIVAR. Un bot pausado en una conversación que no está
+    # archivada es un humano que la tomó a propósito (escalamiento, un reclamo,
+    # una negociación); ahí reactivar a Mariana sería meterla en medio.
     if conversation.archivada:
         motivo_previo = conversation.archived_reason
         conversation.archived_at = None
         conversation.archived_reason = None
         conversation.archived_by = None
+        bot_reactivado = not conversation.bot_active
+        conversation.bot_active = True
         contacto = conversation.profile_name or conversation.phone
+        detalle = (f"Se había archivado por: {motivo_previo}. "
+                   if motivo_previo else "")
         push_notification(
             kind="conversacion_desarchivada", level="warning",
             title=f"{contacto} escribió en una conversación archivada",
-            body=(f"Volvió a la bandeja. Se había archivado por: {motivo_previo}"
-                  if motivo_previo else "Volvió a la bandeja."),
+            body=(f"{detalle}Volvió a la bandeja y Mariana la está atendiendo"
+                  if bot_reactivado else f"{detalle}Volvió a la bandeja."),
             url=f"/whatsapp/{conversation.id}",
             ref_type="conversation", ref_id=conversation.id,
+        )
+        app.logger.info(
+            f"[WhatsApp] Conversación desarchivada por mensaje entrante de "
+            f"{conversation.phone}"
+            + (" — bot reactivado." if bot_reactivado else ".")
         )
 
     db.session.flush()

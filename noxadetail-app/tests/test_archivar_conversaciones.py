@@ -156,13 +156,28 @@ class TestClienteVuelveAEscribir:
         self._entrante(conv)
         assert _leer(conv).archivada is False
 
-    def test_no_reactiva_el_bot(self, admin, conv):
+    def test_reactiva_el_bot(self, admin, conv):
+        """Archivar apaga el bot, así que sin esto la conversación volvía a la
+        bandeja pero SIN nadie respondiendo: el cliente esperaba hasta que
+        alguien viera la campanita. Archivar es "acá terminamos", y un mensaje
+        nuevo abre un ciclo nuevo."""
         _archivar(admin, conv)
+        assert _leer(conv).bot_active is False   # el archivado lo apagó
+
         self._entrante(conv)
-        assert _leer(conv).bot_active is False, (
-            "que Mariana volviera sola a responder en una conversación archivada "
-            "sorprendería a quien la archivó"
-        )
+
+        assert _leer(conv).bot_active is True
+
+    def test_la_campanita_avisa_que_mariana_la_tomo(self, admin, conv):
+        """No es una sorpresa si se avisa: quien la archivó se entera de que el
+        bot volvió a responder y puede pausarlo otra vez en un clic."""
+        _archivar(admin, conv, "No contestó nunca")
+        with patch.object(A, "push_notification") as campanita:
+            self._entrante(conv)
+
+        cuerpos = [c.kwargs.get("body", "") for c in campanita.call_args_list]
+        assert any("Mariana la está atendiendo" in b for b in cuerpos), cuerpos
+        assert any("No contestó nunca" in b for b in cuerpos), cuerpos
 
     def test_avisa_por_campanita(self, admin, conv):
         _archivar(admin, conv, "Pidió no ser contactado")
@@ -172,3 +187,30 @@ class TestClienteVuelveAEscribir:
         assert "conversacion_desarchivada" in kinds, (
             f"nadie se entera de que volvió; solo salió: {kinds}"
         )
+
+
+class TestUnBotPausadoSinArchivarNoSeToca:
+    """La distinción que hace segura la reactivación automática: un bot pausado
+    en una conversación que NO está archivada es un humano que la tomó a
+    propósito — un reclamo, una negociación, un escalamiento. Meter ahí a
+    Mariana sería interrumpir a alguien trabajando."""
+
+    def _entrante(self, cid, texto="Sigo esperando"):
+        with A.app.app_context():
+            telefono = A.Conversation.query.get(cid).phone
+        with patch.object(A, "_generate_and_send_reply", return_value=True):
+            return A.app.test_client().post("/whatsapp/webhook", data={
+                "From": f"whatsapp:{telefono}", "Body": texto,
+                "ProfileName": "Cliente Escalado", "NumMedia": "0",
+            })
+
+    def test_el_bot_sigue_pausado(self, admin, conv):
+        with A.app.app_context():
+            c = A.Conversation.query.get(conv)
+            c.bot_active = False        # escalada a un humano, sin archivar
+            A.db.session.commit()
+
+        self._entrante(conv)
+
+        assert _leer(conv).bot_active is False
+        assert _leer(conv).archivada is False

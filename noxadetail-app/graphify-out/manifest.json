@@ -1,7 +1,7 @@
 {
   "app.py": {
-    "mtime": 1787592338.2342215,
-    "ast_hash": "9f280b8a2a4ab1f992e1cc58a2c06114",
+    "mtime": 1787592691.7307606,
+    "ast_hash": "cd4d28b332c3cbc8a0e77039e6ae5ab7",
     "semantic_hash": ""
   },
   "migrate_prices.py": {
@@ -260,8 +260,8 @@
     "semantic_hash": ""
   },
   "tests/test_archivar_conversaciones.py": {
-    "mtime": 1787149161.0917284,
-    "ast_hash": "7879789c21bdeab90048ffda08c2cc0d",
+    "mtime": 1787592786.1155345,
+    "ast_hash": "8a3dff3f32fd72a0df98a3542eef43c2",
     "semantic_hash": ""
   },
   "static/img/apple-touch-icon.png": {
