@@ -1520,11 +1520,31 @@ class Vale(db.Model):
     employee    = db.relationship("User")
 
 
+# Canales por los que puede llegar una conversación. La tabla se sigue llamando
+# whatsapp_conversations por historia: renombrarla costaría un rebuild y romper
+# las migraciones que ya existen, sin ganar nada.
+CANAL_WHATSAPP = "whatsapp"
+CANAL_INSTAGRAM = "instagram"
+CANALES = (CANAL_WHATSAPP, CANAL_INSTAGRAM)
+
+
 class Conversation(db.Model):
-    """Una conversación de WhatsApp por número de teléfono."""
+    """Una conversación con un cliente, por WhatsApp o por Instagram.
+
+    La identidad es (canal, external_id), no el teléfono. Un usuario de
+    Instagram NO tiene teléfono —tiene un IGSID— así que `phone` pasó a ser
+    opcional; para WhatsApp `external_id` guarda el mismo número, de modo que
+    todo el código nuevo puede razonar en términos de external_id sin importar
+    el canal, y el viejo sigue leyendo `phone` como siempre.
+    """
     __tablename__ = "whatsapp_conversations"
     id           = db.Column(db.Integer, primary_key=True)
-    phone        = db.Column(db.String(20), nullable=False, unique=True)
+    # Sin unique: el índice único ahora es (canal, external_id). Un mismo número
+    # y un IGSID podrían coincidir en texto sin ser la misma persona.
+    phone        = db.Column(db.String(20), nullable=True)
+    canal        = db.Column(db.String(20), nullable=False, default=CANAL_WHATSAPP)
+    # Teléfono en WhatsApp, IGSID en Instagram.
+    external_id  = db.Column(db.String(64), nullable=True, index=True)
     profile_name = db.Column(db.String(120), nullable=True)
     bot_active   = db.Column(db.Boolean, nullable=False, default=True)
     followup_count = db.Column(db.Integer, nullable=False, default=0)
@@ -1555,6 +1575,23 @@ class Conversation(db.Model):
     @property
     def archivada(self) -> bool:
         return self.archived_at is not None
+
+    @property
+    def es_instagram(self) -> bool:
+        return self.canal == CANAL_INSTAGRAM
+
+    @property
+    def destino(self) -> str:
+        """A dónde se le contesta: el teléfono en WhatsApp, el IGSID en Instagram."""
+        return self.external_id or self.phone or ""
+
+    @property
+    def contacto_visible(self) -> str:
+        """Cómo se identifica en el panel y en los avisos al admin. En Instagram
+        el IGSID no le dice nada a nadie, así que manda el nombre de perfil."""
+        if self.es_instagram:
+            return self.profile_name or f"IG {(self.external_id or '')[-6:]}"
+        return self.profile_name or self.phone or ""
 
 
 class SeguimientoGestion(db.Model):
@@ -1856,7 +1893,112 @@ def ensure_whatsapp_schema():
                 )
                 db.session.commit()
 
+def ensure_whatsapp_canal_schema():
+    """Agrega canal/external_id y hace que `phone` deje de ser obligatorio.
+
+    Lo primero es un ALTER simple. Lo segundo NO: en la tabla física `phone` es
+    NOT NULL UNIQUE, y SQLite no sabe quitar eso con ALTER — hay que reconstruir
+    la tabla. Un usuario de Instagram no tiene teléfono, así que sin esto no se
+    puede guardar su conversación.
+    """
+    with app.app_context():
+        for col, ddl, defecto in (
+            ("canal", "VARCHAR(20)", f"'{CANAL_WHATSAPP}'"),
+            ("external_id", "VARCHAR(64)", "NULL"),
+        ):
+            try:
+                db.session.execute(text(f"SELECT {col} FROM whatsapp_conversations LIMIT 1"))
+            except Exception:
+                db.session.execute(text(
+                    f"ALTER TABLE whatsapp_conversations ADD COLUMN {col} {ddl} DEFAULT {defecto}"
+                ))
+                db.session.commit()
+
+        # Toda conversación existente es de WhatsApp y su external_id es el
+        # teléfono. Sin esto, el código nuevo —que busca por external_id— no
+        # encontraría ninguna de las conversaciones que ya existen.
+        actualizadas = db.session.execute(text(
+            "UPDATE whatsapp_conversations SET canal = :c WHERE canal IS NULL OR canal = ''"
+        ), {"c": CANAL_WHATSAPP}).rowcount
+        actualizadas += db.session.execute(text(
+            "UPDATE whatsapp_conversations SET external_id = phone "
+            "WHERE (external_id IS NULL OR external_id = '') AND phone IS NOT NULL"
+        )).rowcount
+        if actualizadas:
+            db.session.commit()
+            app.logger.warning(
+                f"[Migración] {actualizadas} fila(s) de conversaciones marcadas como canal WhatsApp."
+            )
+
+        # La sesión del ORM queda con una transacción abierta después de los
+        # UPDATE de arriba, y el rebuild usa una conexión aparte para hacer DDL:
+        # sin soltarla acá, las dos se bloquean entre sí y sale "database is
+        # locked" en el arranque, con la app sin levantar.
+        db.session.commit()
+        db.session.remove()
+        _liberar_phone_de_conversaciones()
+
+
+def _liberar_phone_de_conversaciones() -> None:
+    """Reconstruye whatsapp_conversations para que `phone` acepte NULL.
+
+    Mismos dos cuidados que costó aprender con service_sales: se guarda y
+    restaura el valor ORIGINAL de foreign_keys (la conexión sale del pool y se
+    reutiliza; dejarla en ON activa la verificación para el resto de la app, que
+    no la cumple), y se usa legacy_alter_table en el rename para que SQLite no
+    reescriba la referencia de whatsapp_messages hacia la tabla temporal.
+    """
+    insp = sa_inspect(db.engine)
+    col = next((c for c in insp.get_columns("whatsapp_conversations")
+                if c["name"] == "phone"), None)
+    if col is None or col["nullable"]:
+        return  # ya está bien
+
+    app.logger.warning(
+        "[Migración] whatsapp_conversations.phone es NOT NULL; reconstruyendo la "
+        "tabla para poder guardar conversaciones de Instagram."
+    )
+
+    from sqlalchemy import MetaData
+    from sqlalchemy.schema import CreateTable
+
+    scratch = MetaData()
+    tmp_name = "whatsapp_conversations_rebuild"
+    tmp = Conversation.__table__.to_metadata(scratch, name=tmp_name)
+    create_sql = str(CreateTable(tmp).compile(db.engine))
+    cols = ", ".join(f'"{c.name}"' for c in Conversation.__table__.columns)
+
+    raw = db.engine.raw_connection()
+    try:
+        cur = raw.cursor()
+        fk_original = cur.execute("PRAGMA foreign_keys").fetchone()[0]
+        try:
+            cur.execute("PRAGMA foreign_keys=OFF")
+            cur.execute("BEGIN")
+            try:
+                cur.execute(f'DROP TABLE IF EXISTS "{tmp_name}"')
+                cur.execute(create_sql)
+                cur.execute(
+                    f'INSERT INTO "{tmp_name}" ({cols}) SELECT {cols} FROM whatsapp_conversations'
+                )
+                cur.execute("DROP TABLE whatsapp_conversations")
+                cur.execute("PRAGMA legacy_alter_table=ON")
+                cur.execute(f'ALTER TABLE "{tmp_name}" RENAME TO whatsapp_conversations')
+                cur.execute("PRAGMA legacy_alter_table=OFF")
+                raw.commit()
+            except Exception:
+                raw.rollback()
+                raise
+        finally:
+            cur.execute(f"PRAGMA foreign_keys={'ON' if fk_original else 'OFF'}")
+    finally:
+        raw.close()
+
+    app.logger.warning("[Migración] whatsapp_conversations reconstruida: phone ya acepta NULL.")
+
+
 ensure_whatsapp_schema()
+ensure_whatsapp_canal_schema()
 # Va después porque ensure_whatsapp_schema() es quien corre db.create_all(): en
 # una base nueva la tabla nace con la columna, y en una que ya existía toca el ALTER.
 ensure_outsourcing_duration_schema()
