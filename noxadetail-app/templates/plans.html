@@ -43,7 +43,7 @@
   <div class="pl-grid">
     <div>
       <label class="pl-label" for="plan_id">Plan</label>
-      <select id="plan_id" name="plan_id" required>
+      <select class="form-select" id="plan_id" name="plan_id" required>
         <option value="">Elige…</option>
         {% for p in catalogo %}
           <option value="{{ p.id }}">{{ p.name }} — {{ p.wash_count }} wash + {{ p.maintenance_count }} mant. ({{ p.discount_pct }}% OFF)</option>
@@ -52,7 +52,7 @@
     </div>
     <div>
       <label class="pl-label" for="vehicle_type_id">Tipo de vehículo</label>
-      <select id="vehicle_type_id" name="vehicle_type_id" required>
+      <select class="form-select" id="vehicle_type_id" name="vehicle_type_id" required>
         <option value="">Elige…</option>
         {% for vt in vehicle_types %}
           <option value="{{ vt.id }}">{{ vt.name }}</option>
@@ -61,35 +61,35 @@
     </div>
     <div>
       <label class="pl-label" for="plate">Placa</label>
-      <input id="plate" name="plate" required placeholder="ABC123" style="text-transform:uppercase;">
+      <input class="form-control" id="plate" name="plate" required placeholder="ABC123" style="text-transform:uppercase;">
     </div>
     <div>
       <label class="pl-label" for="customer_name">Cliente</label>
-      <input id="customer_name" name="customer_name" placeholder="Nombre completo">
+      <input class="form-control" id="customer_name" name="customer_name" placeholder="Nombre completo">
     </div>
     <div>
       <label class="pl-label" for="phone">Celular</label>
-      <input id="phone" name="phone" placeholder="3001234567">
+      <input class="form-control" id="phone" name="phone" placeholder="3001234567">
     </div>
     <div>
       <label class="pl-label" for="price_paid">Precio cobrado</label>
-      <input id="price_paid" name="price_paid" inputmode="numeric" placeholder="Se calcula solo">
+      <input class="form-control" id="price_paid" name="price_paid" inputmode="numeric" placeholder="Se calcula solo">
       <div class="pl-hint" id="priceHint"></div>
     </div>
     <div>
       <label class="pl-label" for="sold_on">Fecha de venta</label>
-      <input id="sold_on" name="sold_on" type="date" value="{{ hoy.isoformat() }}">
+      <input class="form-control" id="sold_on" name="sold_on" type="date" value="{{ hoy.isoformat() }}">
     </div>
     <div>
       <label class="pl-label" for="payment_method">Medio de pago</label>
-      <input id="payment_method" name="payment_method" placeholder="Efectivo, transferencia…">
+      <input class="form-control" id="payment_method" name="payment_method" placeholder="Efectivo, transferencia…">
     </div>
   </div>
   <div style="margin-top:14px;">
     <label class="pl-label" for="notes">Notas</label>
-    <input id="notes" name="notes" placeholder="Opcional">
+    <input class="form-control" id="notes" name="notes" placeholder="Opcional">
   </div>
-  <button type="submit" class="btn btn-warning" style="margin-top:16px;">Registrar venta</button>
+  <button type="submit" class="btn btn-primary" style="margin-top:16px;">Registrar venta</button>
 </form>
 
 <h3 style="font-size:1rem; margin-bottom:12px;">Planes vendidos</h3>
@@ -130,7 +130,7 @@
             </td>
             <td>
               <form method="POST" action="{{ url_for('plan_toggle', plan_id=cp.id) }}" style="margin:0;">
-                <button type="submit" class="btn btn-sm">
+                <button type="submit" class="btn btn-sm btn-outline-secondary">
                   {{ 'Activar' if not cp.is_active else 'Desactivar' }}
                 </button>
               </form>

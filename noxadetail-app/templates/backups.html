@@ -45,7 +45,7 @@
           <tr>
             <td class="bk-name">{{ b.nombre }}</td>
             <td class="bk-size">{{ b.tamano_kb }} KB</td>
-            <td><a class="btn btn-sm" href="{{ url_for('backup_download', key=b.key) }}">Descargar</a></td>
+            <td><a class="btn btn-sm btn-outline-primary" href="{{ url_for('backup_download', key=b.key) }}">Descargar</a></td>
           </tr>
         {% endfor %}
       </tbody>

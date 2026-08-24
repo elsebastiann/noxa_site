@@ -75,8 +75,8 @@
     "semantic_hash": ""
   },
   "templates/base.html": {
-    "mtime": 1787532650.2592704,
-    "ast_hash": "cb6e5aac22374f85a8aa43c4222a5eb2",
+    "mtime": 1787543242.7178745,
+    "ast_hash": "258567b37358b6d46ee5e3fab6dc1646",
     "semantic_hash": ""
   },
   "templates/calendar.html": {
@@ -225,8 +225,8 @@
     "semantic_hash": ""
   },
   "templates/backups.html": {
-    "mtime": 1786379446.6694567,
-    "ast_hash": "6b579df0706070b29d51e4d217c940dc",
+    "mtime": 1787542981.7117689,
+    "ast_hash": "e1f3268924f744352e304a4813ab8721",
     "semantic_hash": ""
   },
   "tests/test_planes.py": {
@@ -235,8 +235,8 @@
     "semantic_hash": ""
   },
   "templates/plans.html": {
-    "mtime": 1786725278.2120497,
-    "ast_hash": "83381c97facf68f911ec905aae90f45c",
+    "mtime": 1787542976.65379,
+    "ast_hash": "49fb3b0f95cf65ed182d349ad6a4fb2e",
     "semantic_hash": ""
   },
   "tests/test_festivos.py": {

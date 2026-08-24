@@ -185,6 +185,24 @@
     .btn-outline-light:hover { background: var(--bg2) !important; color: var(--ink) !important; }
     .btn-sm { padding: 5px 12px !important; font-size: 0.75rem !important; }
 
+    /* Botón sin variante: Bootstrap no le da fondo ni color, así que sobre el
+       tema oscuro quedaba texto apagado sobre fondo apagado — se veía como
+       texto muerto, no como algo clickeable. Este respaldo hace que un
+       `class="btn"` suelto siempre sea legible. */
+    .btn:not([class*="btn-primary"]):not([class*="btn-secondary"]):not([class*="btn-outline"]):not([class*="btn-accent"]):not([class*="btn-success"]):not([class*="btn-danger"]):not([class*="btn-warning"]):not([class*="btn-info"]):not([class*="btn-light"]):not([class*="btn-link"]) {
+      background: var(--surface2) !important;
+      border: 1px solid var(--border) !important;
+      color: var(--text) !important;
+    }
+
+    /* Un campo apagado tiene que verse apagado: sin esto se lee igual que uno
+       editable y el usuario intenta escribir en él. */
+    .form-control:disabled, .form-select:disabled,
+    .form-control[readonly], .btn:disabled {
+      opacity: 0.5 !important;
+      cursor: not-allowed !important;
+    }
+
     /* ── FORM CONTROLS ── */
     .form-control, .form-select {
       background-color: var(--surface) !important;
