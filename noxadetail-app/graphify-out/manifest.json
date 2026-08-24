@@ -1,7 +1,7 @@
 {
   "app.py": {
-    "mtime": 1787600328.8056908,
-    "ast_hash": "d0f9495c974b4492582ddc86e79cd8d7",
+    "mtime": 1787605019.2293813,
+    "ast_hash": "65d97f8059339de3ff72d79dec07d7e6",
     "semantic_hash": ""
   },
   "migrate_prices.py": {
@@ -45,8 +45,8 @@
     "semantic_hash": ""
   },
   "docs/mariana-base-conocimiento.md": {
-    "mtime": 1786893985.8249419,
-    "ast_hash": "c5ee39e8c335a5208339bfa9fb2728bb",
+    "mtime": 1787605117.5587385,
+    "ast_hash": "abbff64ac571dab46384dcc54d31c52f",
     "semantic_hash": ""
   },
   "requirements.txt": {
@@ -347,6 +347,11 @@
   "requirements-dev.txt": {
     "mtime": 1787600118.9656196,
     "ast_hash": "c41d0423082df58b3c5c73b071bf2868",
+    "semantic_hash": ""
+  },
+  "tests/test_prompt_reglas_venta.py": {
+    "mtime": 1787605043.6924522,
+    "ast_hash": "c5e74b1e189ef3bcf4194de34b3251c3",
     "semantic_hash": ""
   }
 }
