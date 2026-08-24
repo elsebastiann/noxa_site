@@ -1,7 +1,7 @@
 {
   "app.py": {
-    "mtime": 1787584305.062861,
-    "ast_hash": "1f51a0b8165dc3a08a64bd5fea71cf25",
+    "mtime": 1787585781.6739697,
+    "ast_hash": "662cb66fe4ec66d70f98637c110ed8a0",
     "semantic_hash": ""
   },
   "migrate_prices.py": {
@@ -195,8 +195,8 @@
     "semantic_hash": ""
   },
   "templates/whatsapp.html": {
-    "mtime": 1787165016.2578557,
-    "ast_hash": "783fbfac02ffa453313e0b7fe1512dc9",
+    "mtime": 1787585806.7316747,
+    "ast_hash": "e666b29bacc1842abcb532d2d0e34f64",
     "semantic_hash": ""
   },
   "templates/whatsapp_outbox.html": {
@@ -245,8 +245,8 @@
     "semantic_hash": ""
   },
   "tests/test_avisos_admin_bot.py": {
-    "mtime": 1787108546.7014534,
-    "ast_hash": "d68e2ae320d21bc282be51938a39d49f",
+    "mtime": 1787585870.7015042,
+    "ast_hash": "50e52d6ba9d81802190b0c5048123415",
     "semantic_hash": ""
   },
   "tests/test_parqueadero.py": {
@@ -322,6 +322,11 @@
   "tests/test_nombre_perfil.py": {
     "mtime": 1787584321.3324423,
     "ast_hash": "aa9d46db23f59d123037977adc9070e3",
+    "semantic_hash": ""
+  },
+  "tests/test_prioridad.py": {
+    "mtime": 1787585826.5907657,
+    "ast_hash": "d52bc171924b2a9b0f73e34ff6e29ed8",
     "semantic_hash": ""
   }
 }

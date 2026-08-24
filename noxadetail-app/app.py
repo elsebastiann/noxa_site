@@ -1779,6 +1779,22 @@ ensure_whatsapp_schema()
 # una base nueva la tabla nace con la columna, y en una que ya existía toca el ALTER.
 ensure_outsourcing_duration_schema()
 
+def ensure_prioridad_sin_calificar():
+    """`priority` es una columna guardada, no derivada, así que las
+    conversaciones que ya existían siguen diciendo "Baja" aunque nunca se hayan
+    calificado. Se recalculan una vez: son justo las que estaban escondidas."""
+    with app.app_context():
+        try:
+            db.session.execute(text(
+                "UPDATE whatsapp_conversations SET priority='Sin calificar' "
+                "WHERE calificacion IS NULL AND priority='Baja' AND status != 'No interesado'"
+            ))
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+
+ensure_prioridad_sin_calificar()
+
 
 # -----------------------
 # Helper: Get list of existing vendors (for expense forms)
@@ -4382,7 +4398,13 @@ def _tablero_seguimiento() -> dict:
     for tel, c in conversaciones.items():
         if c.status in ESTADOS_CON_CITA or c.status in ("No interesado", "Esperando"):
             continue
-        if c.priority not in ("Alta", "Media"):
+        # Los "Sin calificar" entran si ya hubo conversación real (se sabe qué
+        # carro tiene): son justo los que el bug de prioridad enterraba. Sin
+        # esto, un Renault Arkana 2026 sin calificar no aparecía ni acá ni
+        # arriba en la bandeja.
+        vale_la_pena = (c.priority in ("Alta", "Media")
+                        or (c.priority == "Sin calificar" and (c.carro or "").strip()))
+        if not vale_la_pena:
             continue
         dias = (ahora_utc - c.updated_at).days
         poner("caliente", tel, c.profile_name,
@@ -8677,7 +8699,7 @@ MARCA_ABREVIATURA = {
     "Mini": "MINI", "Jaguar": "JAG",
 }
 
-PRIORITY_LEVELS = ["Alta", "Media", "Baja", "Remarketing"]
+PRIORITY_LEVELS = ["Alta", "Media", "Sin calificar", "Baja", "Remarketing"]
 
 
 def _match_valor_cerrado(candidato: str, valores_validos: list) -> "str | None":
@@ -8707,7 +8729,11 @@ def _compute_priority(estado: str, calificacion: "int | None") -> str:
     if estado == "No interesado":
         return "Remarketing" if (calificacion is not None and calificacion >= 4) else "Baja"
     if calificacion is None:
-        return "Baja"
+        # "Todavía no sé" NO es "no vale la pena". Antes esto devolvía "Baja" y
+        # un Renault Arkana 2026 quedaba enterrado entre los leads de descarte,
+        # indistinguible de ellos. Un lead sin calificar es un lead sin revisar:
+        # tiene que verse como tal para que alguien lo mire.
+        return "Sin calificar"
     if calificacion >= 4:
         return "Alta"
     if calificacion >= 2:

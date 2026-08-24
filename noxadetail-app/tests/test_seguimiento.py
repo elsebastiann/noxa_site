@@ -295,3 +295,82 @@ class TestFechas:
         columnas = [c["clave"] for c in tablero["columnas"]
                     for t in c["tarjetas"] if t["telefono"] == "+573001100031"]
         assert columnas == ["enfriado"]
+
+
+class TestEscribirNoCierraLaVenta:
+    """Escribirle a alguien no es cerrar la venta. El botón de WhatsApp escondía
+    la tarjeta, y eso hacía perder de vista justo a quien ya mostró interés —
+    el peor momento para dejar de verlo."""
+
+    def test_escribir_deja_la_tarjeta_en_el_tablero(self, client):
+        login_as(client, make_user("admin_esc", role="admin"))
+        _conv("+573001100040", priority="Alta")
+
+        client.post("/seguimiento/gestionar", json={
+            "tipo": "caliente", "telefono": "+573001100040", "accion": "escrito"})
+
+        assert A._tablero_seguimiento()["total"] == 1
+
+    def test_pone_el_sello_para_no_escribir_dos_veces(self, client):
+        login_as(client, make_user("admin_esc2", role="admin"))
+        _conv("+573001100041", priority="Alta")
+        client.post("/seguimiento/gestionar", json={
+            "tipo": "caliente", "telefono": "+573001100041", "accion": "escrito"})
+
+        col = _columna(A._tablero_seguimiento(), "caliente")
+        tarjeta = next(t for t in col["tarjetas"] if t["telefono"] == "+573001100041")
+        assert tarjeta["escrita_hace"] == 0
+
+        html = client.get("/seguimiento").get_data(as_text=True)
+        assert "Le escribiste hoy" in html
+
+    def test_agendar_de_verdad_saca_la_tarjeta(self):
+        """La confirmación objetiva: si tiene una cita por delante, no hay nada
+        que perseguir — y no depende de que alguien marque la tarjeta."""
+        _conv("+573001100042", priority="Alta")
+        assert A._tablero_seguimiento()["total"] == 1
+
+        vt = A.VehicleType.query.filter_by(is_active=True).first()
+        inicio = A.bogota_now() + dt.timedelta(days=2)
+        A.db.session.add(A.Appointment(
+            customer_name="Cliente Seg", plate="SEG042", phone="+573001100042",
+            services="Wash Essential", start_datetime=inicio,
+            end_datetime=inicio + dt.timedelta(hours=1),
+            vehicle_type_id=vt.id, status="scheduled"))
+        A.db.session.commit()
+
+        assert A._tablero_seguimiento()["total"] == 0
+
+    def test_una_cita_vieja_no_saca_la_tarjeta(self):
+        """Solo cuenta la cita por delante: una de hace meses es justamente el
+        motivo por el que la tarjeta existe."""
+        _cita("+573001100043", hace_dias=120, placa="SEG043")
+        assert A._tablero_seguimiento()["total"] == 1
+
+
+class TestReactivar:
+    def test_devuelve_al_tablero_una_tarjeta_ocultada_por_error(self, client):
+        login_as(client, make_user("admin_react", role="admin"))
+        _conv("+573001100044", priority="Alta")
+        client.post("/seguimiento/gestionar", json={
+            "tipo": "caliente", "telefono": "+573001100044", "accion": "contactado"})
+        assert A._tablero_seguimiento()["total"] == 0
+
+        client.post("/seguimiento/gestionar", json={
+            "tipo": "caliente", "telefono": "+573001100044", "accion": "reactivar"})
+
+        assert A._tablero_seguimiento()["total"] == 1
+        with A.app.app_context():
+            assert A.SeguimientoGestion.query.filter_by(telefono="+573001100044").first() is None
+
+    def test_las_ocultas_se_pueden_listar(self, client):
+        login_as(client, make_user("admin_react2", role="admin"))
+        _conv("+573001100045", priority="Alta")
+        client.post("/seguimiento/gestionar", json={
+            "tipo": "caliente", "telefono": "+573001100045",
+            "accion": "descartado", "motivo": "Vendió el carro"})
+
+        html = client.get("/seguimiento?ocultas=1").get_data(as_text=True)
+        assert "+573001100045" in html
+        assert "Vendió el carro" in html
+        assert "Reactivar" in html

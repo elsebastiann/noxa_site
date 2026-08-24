@@ -17,8 +17,12 @@
     <span class="wa-priority-pill pr-media" title="Calificación 2-3">👀 Media</span>
   {%- elif priority == 'Remarketing' -%}
     <span class="wa-priority-pill pr-remarketing" title="No interesado, pero carro/servicio de buen ticket — candidato a promociones futuras">Remarketing</span>
+  {%- elif priority == 'Sin calificar' -%}
+    {# No es "Baja": es "todavía nadie lo evaluó". Mezclarlos escondía buenos
+       leads entre los de descarte. #}
+    <span class="wa-priority-pill pr-sincal" title="Nadie lo ha evaluado todavía — puede ser un buen lead">Sin calificar</span>
   {%- else -%}
-    <span class="wa-priority-pill pr-baja" title="Calificación 0-1 o sin dato">Baja</span>
+    <span class="wa-priority-pill pr-baja" title="Calificación 0-1">Baja</span>
   {%- endif -%}
 {%- endmacro %}
 
@@ -66,6 +70,9 @@
   .wa-row[data-priority="Alta"]        { background:rgba(226,75,74,0.09);  border-left-color:#e24b4a; border-left-width:5px; }
   .wa-row[data-priority="Media"]       { background:rgba(230,180,40,0.07); border-left-color:#e6c060; }
   .wa-row[data-priority="Baja"]        { border-left-color:#3b4a54; }
+  /* Azul y no gris: hay algo que hacer con ellos (revisarlos), a diferencia de
+     los de prioridad baja, que ya se evaluaron y se pueden ignorar. */
+  .wa-row[data-priority="Sin calificar"] { background:rgba(74,158,255,0.06); border-left-color:#4a9eff; }
   .wa-row[data-priority="Remarketing"] { background:rgba(150,110,230,0.08); border-left-color:#a07ee0; }
   .wa-row:hover { background:#202c33; }
   .wa-row.active { background:#26333c; }
@@ -98,6 +105,7 @@
   .wa-priority-pill.pr-media       { background:rgba(230,180,40,0.18); color:#e6c060; }
   .wa-priority-pill.pr-baja        { background:rgba(134,150,160,0.14); color:#8696a0; }
   .wa-priority-pill.pr-remarketing { background:rgba(150,110,230,0.20); color:#b39ce8; }
+  .wa-priority-pill.pr-sincal      { background:rgba(74,158,255,0.18);  color:#7cbcff; }
   .wa-calif-pill { display:inline-block; font-size:0.62rem; font-weight:800; padding:1px 7px; border-radius:10px; white-space:nowrap; }
   .wa-calif-pill.cf-alta     { background:rgba(29,158,117,0.20); color:#4fd39a; }
   .wa-calif-pill.cf-media    { background:rgba(230,180,40,0.18); color:#e6c060; }

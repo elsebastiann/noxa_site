@@ -316,13 +316,15 @@ class TestCalificacionDeLead:
         with A.app.app_context():
             assert A.Conversation.query.get(conversacion).priority == "Media"
 
-    def test_sin_calificacion_todavia_la_prioridad_es_baja(self, conversacion):
+    def test_sin_calificacion_queda_como_sin_calificar(self, conversacion):
+        """No como "Baja": un lead sin evaluar todavía puede ser bueno, y
+        mezclarlo con los de descarte lo hacía invisible."""
         _correr_turno(conversacion, [
             "Hola.",
             "[META: estado=Iniciado; servicios=; carro=Sin dato; marca=Sin dato; calificacion=Sin dato]",
         ])
         with A.app.app_context():
-            assert A.Conversation.query.get(conversacion).priority == "Baja"
+            assert A.Conversation.query.get(conversacion).priority == "Sin calificar"
 
 
 class TestComputePriority:
@@ -340,8 +342,11 @@ class TestComputePriority:
         assert A._compute_priority("En proceso", 0) == "Baja"
         assert A._compute_priority("En proceso", 1) == "Baja"
 
-    def test_sin_calificacion_es_baja(self):
-        assert A._compute_priority("En proceso", None) == "Baja"
+    def test_sin_calificacion_es_sin_calificar(self):
+        """"Todavía no sé" y "no vale la pena" son cosas distintas."""
+        assert A._compute_priority("En proceso", None) == "Sin calificar"
+        # Una calificación baja de verdad sí es Baja: ahí hubo juicio.
+        assert A._compute_priority("En proceso", 0) == "Baja"
 
     def test_no_interesado_con_calificacion_4_o_5_es_remarketing(self):
         assert A._compute_priority("No interesado", 4) == "Remarketing"
