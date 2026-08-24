@@ -24,7 +24,13 @@
   .sg-col { flex:0 0 300px; border:1px solid var(--border); border-radius:var(--radius);
             background:var(--surface); display:flex; flex-direction:column; max-height:72vh; }
   .sg-col-head { padding:12px 14px; border-bottom:1px solid var(--border);
-                 border-top:3px solid var(--col); border-radius:var(--radius) var(--radius) 0 0; }
+                 border-top:3px solid var(--col); border-radius:var(--radius) var(--radius) 0 0;
+                 list-style:none; }
+  .sg-col-head::-webkit-details-marker { display:none; }
+  /* En escritorio el JS deja las columnas abiertas y esto quita cualquier
+     señal de que se pueden plegar: ahí no hace falta y sería un clic que
+     esconde trabajo. */
+  .sg-col-head { cursor:default; }
   .sg-col-title { display:flex; align-items:center; justify-content:space-between; gap:8px;
                   font-size:.86rem; font-weight:700; color:var(--text); }
   .sg-col-count { background:var(--col); color:#0a0c0f; font-weight:800; font-size:.72rem;
@@ -75,6 +81,21 @@
     .sg-board { flex-direction:column; overflow-x:visible; }
     .sg-col { flex:1 1 auto; width:100%; max-height:none; }
     .sg-col-body { max-height:420px; }
+
+    /* Acá el encabezado sí es un botón: pliega la columna. Con 70 tarjetas en
+       una, sin esto hay que scrollear media pantalla para llegar a la
+       siguiente. */
+    .sg-col-head { cursor:pointer; min-height:56px; position:relative; padding-right:42px; }
+    .sg-col-head::after {
+      content:"›"; position:absolute; right:16px; top:50%;
+      transform:translateY(-50%); color:var(--text2);
+      font-size:1.5rem; line-height:1; transition:transform .15s;
+    }
+    .sg-col[open] > .sg-col-head::after { transform:translateY(-50%) rotate(90deg); }
+    /* Una columna cerrada se lee como una fila del índice, no como un bloque. */
+    .sg-col:not([open]) > .sg-col-head { border-bottom:none;
+                                         border-radius:var(--radius); }
+    .sg-col-head:active { background:var(--surface2); }
     /* 44px es el mínimo para acertarle con el pulgar. Este panel se usa sobre
        todo desde el celular, así que acá no es un detalle. */
     .sg-btn { flex-basis:44px; min-height:44px; font-size:.8rem; }
@@ -117,14 +138,17 @@
 {% else %}
   <div class="sg-board">
     {% for col in columnas %}
-      <section class="sg-col" id="col-{{ col.clave }}" style="--col:{{ col.color }};">
-        <header class="sg-col-head">
+      {# <details> y no <section>: en el celular las columnas se apilan y una de
+         70 tarjetas obliga a scrollear media hora para llegar a la siguiente.
+         En escritorio el JS las abre todas y desactiva el plegado. #}
+      <details class="sg-col" id="col-{{ col.clave }}" style="--col:{{ col.color }};">
+        <summary class="sg-col-head">
           <div class="sg-col-title">
             <span>{{ col.titulo }}</span>
             <span class="sg-col-count">{{ col.tarjetas|length }}</span>
           </div>
           <div class="sg-col-sub">{{ col.subtitulo }}</div>
-        </header>
+        </summary>
         <div class="sg-col-body">
           {% for t in col.tarjetas %}
             {% set texto = mensajes_sugeridos.get(col.clave, '') | replace('{nombre}', (t.nombre.split(' ')[0] if t.nombre else '')) %}
@@ -184,7 +208,7 @@
             <div class="sg-vacia">Nada pendiente acá</div>
           {% endfor %}
         </div>
-      </section>
+      </details>
     {% endfor %}
   </div>
 {% endif %}
@@ -240,6 +264,39 @@
 {% endif %}
 
 <script>
+  // ---- Plegado de columnas ----
+  // Solo en móvil. En escritorio el tablero se lee de un vistazo y plegar sería
+  // esconder trabajo; allá se abren todas y el encabezado deja de responder.
+  (function () {
+    const MOVIL = "(max-width: 780px)";
+    const cols = Array.from(document.querySelectorAll("details.sg-col"));
+    if (!cols.length) return;
+
+    function aplicar(esMovil) {
+      cols.forEach((col, i) => {
+        if (!esMovil) { col.open = true; return; }
+        // En móvil arranca colapsado, salvo la primera columna CON tarjetas:
+        // abrir el tablero y no ver ni una tarjeta se siente vacío.
+        const tiene = col.querySelector(".sg-card") !== null;
+        const primeraConTarjetas = cols.find(c => c.querySelector(".sg-card"));
+        col.open = tiene && col === primeraConTarjetas;
+      });
+    }
+
+    const mq = window.matchMedia(MOVIL);
+    aplicar(mq.matches);
+    mq.addEventListener("change", e => aplicar(e.matches));
+
+    // Los chips de arriba son el índice: en móvil, además de saltar, abren la
+    // columna — si no, el salto lleva a un encabezado cerrado.
+    document.querySelectorAll(".sg-chip[href^='#col-']").forEach(chip => {
+      chip.addEventListener("click", () => {
+        const destino = document.querySelector(chip.getAttribute("href"));
+        if (destino && mq.matches) destino.open = true;
+      });
+    });
+  })();
+
   function reactivar(btn) {
     const fila = btn.closest("tr");
     fetch("{{ url_for('seguimiento_gestionar') }}", {

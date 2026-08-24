@@ -315,8 +315,8 @@
     "semantic_hash": ""
   },
   "templates/seguimiento.html": {
-    "mtime": 1787548240.9941177,
-    "ast_hash": "e0cad95edb2123a469172c5b92fffba5",
+    "mtime": 1787586396.7658308,
+    "ast_hash": "71ab11dea9b473d2837c4b71e485c352",
     "semantic_hash": ""
   },
   "tests/test_nombre_perfil.py": {
