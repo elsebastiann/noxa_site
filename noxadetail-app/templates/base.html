@@ -99,6 +99,28 @@
     }
     .dropdown-item-custom i { color: var(--accent-dk); font-size: 0.9rem; width: 16px; text-align: center; }
     .dropdown-item-custom:hover { color: var(--ink); background: var(--bg); }
+    /* ── Submenús plegables del menú "Más" ── */
+    .nav-group > summary {
+      list-style: none; cursor: pointer;
+      display: flex; align-items: center; gap: 10px;
+      padding: 9px 16px; font-size: 0.85rem; font-weight: 600;
+      color: var(--text); user-select: none;
+    }
+    .nav-group > summary::-webkit-details-marker { display: none; }
+    .nav-group > summary i { color: var(--accent-dk); font-size: 0.9rem; width: 16px; text-align: center; }
+    /* La flecha va al final y gira al abrir: es la única señal de que el grupo
+       se puede desplegar. */
+    .nav-group > summary::after {
+      content: "›"; margin-left: auto; color: var(--text3);
+      font-size: 1.05rem; line-height: 1; transition: transform 0.15s;
+    }
+    .nav-group[open] > summary::after { transform: rotate(90deg); }
+    .nav-group > summary:hover { background: var(--bg); }
+    .nav-group[open] > summary { color: var(--accent); }
+    /* Los hijos se sangran para que se lea la jerarquía aunque el grupo quede
+       abierto junto a otro. */
+    .nav-group .dropdown-item-custom { padding-left: 42px; }
+
     .dropdown-group-label {
       padding: 10px 19px 3px;
       font-size: 0.62rem;
@@ -433,6 +455,25 @@
         color: var(--text3);
       }
 
+      /* Grupos plegables de la hoja móvil. El área táctil del summary es de
+         48px de alto: por debajo de 44 se falla el toque con el pulgar. */
+      .bn-group > summary {
+        list-style: none; cursor: pointer;
+        display: flex; align-items: center; gap: 14px;
+        padding: 13px 22px; min-height: 48px;
+        font-size: 0.88rem; font-weight: 600; color: var(--text);
+        user-select: none;
+      }
+      .bn-group > summary::-webkit-details-marker { display: none; }
+      .bn-group > summary i { font-size: 18px; width: 22px; text-align: center; color: var(--accent-dk); }
+      .bn-group > summary::after {
+        content: "›"; margin-left: auto; color: var(--text3);
+        font-size: 1.2rem; transition: transform 0.15s;
+      }
+      .bn-group[open] > summary::after { transform: rotate(90deg); }
+      .bn-group[open] > summary { color: var(--accent); }
+      .bn-group > a { padding-left: 58px !important; }
+
       /* Overlay */
       .bn-overlay {
         position: fixed; inset: 0; z-index: 1048;
@@ -594,46 +635,75 @@
                   type="button" data-bs-toggle="dropdown" aria-expanded="false">Más</button>
           <ul class="dropdown-menu dropdown-menu-end py-2"
               style="background:var(--surface);border:1px solid var(--border);border-radius:14px;min-width:220px;box-shadow:0 8px 24px rgba(0,0,0,0.1);">
-            {# ── Operaciones ── #}
-            <li><div class="dropdown-group-label">Operaciones</div></li>
-            {% if not current_user or current_user.role not in ('operario', 'marketing') %}
-            <li><a class="dropdown-item-custom" href="{{ url_for('sales_list') }}"><i class="bi bi-graph-up-arrow"></i>Ingresos</a></li>
-            <li><a class="dropdown-item-custom" href="{{ url_for('dashboard_gerencial') }}"><i class="bi bi-speedometer2"></i>Tablero gerencial</a></li>
+            {# Submenús plegables: el menú creció a más de 20 entradas y en una
+               sola lista había que recorrerla entera para encontrar algo. Se usa
+               <details> —el mismo patrón de los grupos de servicios al agendar—
+               para no depender de JS.
+
+               Cada grupo lleva su propia guardia de permisos: sin ella,
+               a un rol le aparecería un grupo que al abrirlo está vacío. #}
+            {% set ver_gestion   = not current_user or current_user.role not in ('operario', 'marketing') %}
+            {% set ver_analitica = not current_user or current_user.role != 'operario' %}
+            {% set es_admin      = current_user and current_user.role == 'admin' %}
+
+            {% if ver_gestion or ver_analitica %}
+            <li><details class="nav-group">
+              <summary><i class="bi bi-cash-coin"></i>Dinero y resultados</summary>
+              {% if ver_gestion %}
+              <a class="dropdown-item-custom" href="{{ url_for('sales_list') }}"><i class="bi bi-graph-up-arrow"></i>Ingresos</a>
+              <a class="dropdown-item-custom" href="{{ url_for('dashboard_gerencial') }}"><i class="bi bi-speedometer2"></i>Tablero gerencial</a>
+              {% endif %}
+              {% if ver_analitica %}
+              <a class="dropdown-item-custom" href="{{ url_for('analytics_dashboard') }}"><i class="bi bi-bar-chart-line"></i>Analítica</a>
+              {% endif %}
+              {% if es_admin %}
+              <a class="dropdown-item-custom" href="{{ url_for('plans_list') }}"><i class="bi bi-award"></i>Planes</a>
+              {% endif %}
+            </details></li>
             {% endif %}
-            {% if not current_user or current_user.role != 'operario' %}
-            <li><a class="dropdown-item-custom" href="{{ url_for('analytics_dashboard') }}"><i class="bi bi-bar-chart-line"></i>Analítica</a></li>
+
+            {% if ver_gestion %}
+            <li><details class="nav-group">
+              <summary><i class="bi bi-card-list"></i>Operación</summary>
+              <a class="dropdown-item-custom" href="{{ url_for('appointments_list') }}"><i class="bi bi-card-list"></i>Listado de citas</a>
+              <a class="dropdown-item-custom" href="{{ url_for('parking_list') }}"><i class="bi bi-p-square"></i>Parqueaderos</a>
+              {% if es_admin %}
+              <a class="dropdown-item-custom" href="{{ url_for('whatsapp_outbox') }}"><i class="bi bi-send-check"></i>Bandeja de salida</a>
+              {% endif %}
+            </details></li>
+
+            <li><details class="nav-group">
+              <summary><i class="bi bi-tag"></i>Catálogo y precios</summary>
+              <a class="dropdown-item-custom" href="{{ url_for('service_prices_list') }}"><i class="bi bi-tag"></i>Lista de precios</a>
+              <a class="dropdown-item-custom" href="{{ url_for('services_view') }}"><i class="bi bi-tools"></i>Servicios</a>
+              <a class="dropdown-item-custom" href="{{ url_for('vehicle_types_list') }}"><i class="bi bi-car-front"></i>Tipos de vehículo</a>
+              <a class="dropdown-item-custom" href="{{ url_for('promotions_list') }}"><i class="bi bi-megaphone"></i>Promociones</a>
+              <a class="dropdown-item-custom" href="{{ url_for('agreements_list') }}"><i class="bi bi-percent"></i>Convenios</a>
+              <a class="dropdown-item-custom" href="{{ url_for('payment_methods_list') }}"><i class="bi bi-credit-card"></i>Medios de pago</a>
+              <a class="dropdown-item-custom" href="{{ url_for('expense_categories_list') }}"><i class="bi bi-tags"></i>Categorías de gastos</a>
+            </details></li>
             {% endif %}
-            {% if not current_user or current_user.role not in ('operario', 'marketing') %}
-            <li><a class="dropdown-item-custom" href="{{ url_for('appointments_list') }}"><i class="bi bi-card-list"></i>Listado de citas</a></li>
-            <li><a class="dropdown-item-custom" href="{{ url_for('parking_list') }}"><i class="bi bi-p-square"></i>Parqueaderos</a></li>
-            {% endif %}
-            {# ── Configuración ── #}
-            {% if not current_user or current_user.role not in ('operario', 'marketing') %}
-            <li><hr style="border-color:var(--border);margin:6px 14px;"></li>
-            <li><div class="dropdown-group-label">Configuración</div></li>
-            <li><a class="dropdown-item-custom" href="{{ url_for('promotions_list') }}"><i class="bi bi-megaphone"></i>Promociones</a></li>
-            <li><a class="dropdown-item-custom" href="{{ url_for('services_view') }}"><i class="bi bi-tools"></i>Servicios</a></li>
-            <li><a class="dropdown-item-custom" href="{{ url_for('service_prices_list') }}"><i class="bi bi-tag"></i>Detalle de servicios</a></li>
-            <li><a class="dropdown-item-custom" href="{{ url_for('vehicle_types_list') }}"><i class="bi bi-car-front"></i>Tipos de vehículo</a></li>
-            <li><a class="dropdown-item-custom" href="{{ url_for('payment_methods_list') }}"><i class="bi bi-credit-card"></i>Medios de pago</a></li>
-            <li><a class="dropdown-item-custom" href="{{ url_for('agreements_list') }}"><i class="bi bi-handshake"></i>Convenios</a></li>
-            <li><a class="dropdown-item-custom" href="{{ url_for('expense_categories_list') }}"><i class="bi bi-tags"></i>Categorías de gastos</a></li>
-            {% endif %}
-            {# ── Administración ── #}
-            {% if current_user and current_user.role == 'admin' %}
-            <li><hr style="border-color:var(--border);margin:6px 14px;"></li>
-            <li><div class="dropdown-group-label">Administración</div></li>
-            <li><a class="dropdown-item-custom" href="{{ url_for('users_list') }}"><i class="bi bi-people-fill"></i>Usuarios</a></li>
-            <li><a class="dropdown-item-custom" href="{{ url_for('payroll_list') }}"><i class="bi bi-cash-coin"></i>Nómina</a></li>
-            <li><a class="dropdown-item-custom" href="{{ url_for('quality_errors_list') }}"><i class="bi bi-exclamation-triangle-fill"></i>Errores calidad</a></li>
-            <li><a class="dropdown-item-custom" href="{{ url_for('vales_list') }}"><i class="bi bi-receipt"></i>Vales</a></li>
-            <li><a class="dropdown-item-custom" href="{{ url_for('plans_list') }}"><i class="bi bi-award"></i>Planes</a></li>
-            <li><a class="dropdown-item-custom" href="{{ url_for('whatsapp_outbox') }}"><i class="bi bi-send-check"></i>Bandeja de salida</a></li>
-            <li><a class="dropdown-item-custom" href="{{ url_for('installers_view') }}"><i class="bi bi-people-fill"></i>Instaladores</a></li>
-            <li><a class="dropdown-item-custom" href="{{ url_for('liquidacion_instaladores_view') }}"><i class="bi bi-cash-stack"></i>Liquidación instaladores</a></li>
-            <li><a class="dropdown-item-custom" href="{{ url_for('reclasificar_tercerizacion') }}"><i class="bi bi-arrow-repeat"></i>Reclasificar histórico</a></li>
-            <li><a class="dropdown-item-custom" href="{{ url_for('backups_list') }}"><i class="bi bi-hdd-fill"></i>Backups</a></li>
-            <li><a class="dropdown-item-custom" href="{{ url_for('estado_servicios') }}"><i class="bi bi-activity"></i>Estado y saldos</a></li>
+
+            {% if es_admin %}
+            <li><details class="nav-group">
+              <summary><i class="bi bi-people-fill"></i>Tercerizados</summary>
+              <a class="dropdown-item-custom" href="{{ url_for('installers_view') }}"><i class="bi bi-people-fill"></i>Instaladores</a>
+              <a class="dropdown-item-custom" href="{{ url_for('liquidacion_instaladores_view') }}"><i class="bi bi-cash-stack"></i>Liquidación</a>
+            </details></li>
+
+            <li><details class="nav-group">
+              <summary><i class="bi bi-person-badge"></i>Equipo</summary>
+              <a class="dropdown-item-custom" href="{{ url_for('users_list') }}"><i class="bi bi-people-fill"></i>Usuarios</a>
+              <a class="dropdown-item-custom" href="{{ url_for('payroll_list') }}"><i class="bi bi-cash-coin"></i>Nómina</a>
+              <a class="dropdown-item-custom" href="{{ url_for('quality_errors_list') }}"><i class="bi bi-exclamation-triangle-fill"></i>Errores calidad</a>
+              <a class="dropdown-item-custom" href="{{ url_for('vales_list') }}"><i class="bi bi-receipt"></i>Vales</a>
+            </details></li>
+
+            <li><details class="nav-group">
+              <summary><i class="bi bi-gear"></i>Sistema</summary>
+              <a class="dropdown-item-custom" href="{{ url_for('estado_servicios') }}"><i class="bi bi-activity"></i>Estado y saldos</a>
+              <a class="dropdown-item-custom" href="{{ url_for('backups_list') }}"><i class="bi bi-hdd-fill"></i>Backups</a>
+            </details></li>
             {% endif %}
           </ul>
         </div>
@@ -723,32 +793,46 @@
   <a href="{{ url_for('parking_list') }}"><i class="bi bi-p-square"></i>Parqueaderos</a>
   {% endif %}
 
-  {# ── Configuración ── #}
+  {# ── Cola larga de configuración ──
+     Acá los grupos SÍ se pliegan y lo de arriba no: lo de arriba se usa a
+     diario y merece un solo toque; esto se toca de vez en cuando y en el móvil
+     obligaba a scrollear media pantalla para llegar a cerrar sesión. #}
   {% if not current_user or current_user.role not in ('operario', 'marketing') %}
   <hr>
-  <div class="bn-group-label">Configuración</div>
-  <a href="{{ url_for('promotions_list') }}"><i class="bi bi-megaphone"></i>Promociones</a>
-  <a href="{{ url_for('services_view') }}"><i class="bi bi-tools"></i>Servicios</a>
-  <a href="{{ url_for('service_prices_list') }}"><i class="bi bi-tag"></i>Detalle de servicios</a>
-  <a href="{{ url_for('vehicle_types_list') }}"><i class="bi bi-car-front"></i>Tipos de vehículo</a>
-  <a href="{{ url_for('payment_methods_list') }}"><i class="bi bi-credit-card"></i>Medios de pago</a>
-  <a href="{{ url_for('agreements_list') }}"><i class="bi bi-handshake"></i>Convenios</a>
-  <a href="{{ url_for('expense_categories_list') }}"><i class="bi bi-tags"></i>Categorías de gastos</a>
+  <details class="bn-group">
+    <summary><i class="bi bi-tag"></i>Catálogo y precios</summary>
+    <a href="{{ url_for('service_prices_list') }}"><i class="bi bi-tag"></i>Lista de precios</a>
+    <a href="{{ url_for('services_view') }}"><i class="bi bi-tools"></i>Servicios</a>
+    <a href="{{ url_for('vehicle_types_list') }}"><i class="bi bi-car-front"></i>Tipos de vehículo</a>
+    <a href="{{ url_for('promotions_list') }}"><i class="bi bi-megaphone"></i>Promociones</a>
+    <a href="{{ url_for('agreements_list') }}"><i class="bi bi-percent"></i>Convenios</a>
+    <a href="{{ url_for('payment_methods_list') }}"><i class="bi bi-credit-card"></i>Medios de pago</a>
+    <a href="{{ url_for('expense_categories_list') }}"><i class="bi bi-tags"></i>Categorías de gastos</a>
+  </details>
   {% endif %}
 
-  {# ── Administración (solo admin) ── #}
   {% if current_user and current_user.role == 'admin' %}
-  <hr>
-  <div class="bn-group-label">Administración</div>
-  <a href="{{ url_for('users_list') }}"><i class="bi bi-people-fill"></i>Usuarios</a>
-  <a href="{{ url_for('payroll_list') }}"><i class="bi bi-cash-coin"></i>Nómina</a>
-  <a href="{{ url_for('vales_list') }}"><i class="bi bi-receipt"></i>Vales</a>
-  <a href="{{ url_for('plans_list') }}"><i class="bi bi-award"></i>Planes</a>
-  <a href="{{ url_for('whatsapp_outbox') }}"><i class="bi bi-send-check"></i>Bandeja de salida</a>
-  <a href="{{ url_for('installers_view') }}"><i class="bi bi-people-fill"></i>Instaladores</a>
-  <a href="{{ url_for('liquidacion_instaladores_view') }}"><i class="bi bi-cash-stack"></i>Liquidación instaladores</a>
-  <a href="{{ url_for('backups_list') }}"><i class="bi bi-hdd-fill"></i>Backups</a>
-  <a href="{{ url_for('estado_servicios') }}"><i class="bi bi-activity"></i>Estado y saldos</a>
+  <details class="bn-group">
+    <summary><i class="bi bi-people-fill"></i>Tercerizados</summary>
+    <a href="{{ url_for('installers_view') }}"><i class="bi bi-people-fill"></i>Instaladores</a>
+    <a href="{{ url_for('liquidacion_instaladores_view') }}"><i class="bi bi-cash-stack"></i>Liquidación</a>
+  </details>
+
+  <details class="bn-group">
+    <summary><i class="bi bi-person-badge"></i>Equipo</summary>
+    <a href="{{ url_for('users_list') }}"><i class="bi bi-people-fill"></i>Usuarios</a>
+    <a href="{{ url_for('payroll_list') }}"><i class="bi bi-cash-coin"></i>Nómina</a>
+    <a href="{{ url_for('quality_errors_list') }}"><i class="bi bi-exclamation-triangle-fill"></i>Errores calidad</a>
+    <a href="{{ url_for('vales_list') }}"><i class="bi bi-receipt"></i>Vales</a>
+  </details>
+
+  <details class="bn-group">
+    <summary><i class="bi bi-gear"></i>Sistema</summary>
+    <a href="{{ url_for('plans_list') }}"><i class="bi bi-award"></i>Planes</a>
+    <a href="{{ url_for('whatsapp_outbox') }}"><i class="bi bi-send-check"></i>Bandeja de salida</a>
+    <a href="{{ url_for('estado_servicios') }}"><i class="bi bi-activity"></i>Estado y saldos</a>
+    <a href="{{ url_for('backups_list') }}"><i class="bi bi-hdd-fill"></i>Backups</a>
+  </details>
   {% endif %}
 
   {# ── Cerrar sesión ── #}

@@ -75,8 +75,8 @@
     "semantic_hash": ""
   },
   "templates/base.html": {
-    "mtime": 1787543242.7178745,
-    "ast_hash": "258567b37358b6d46ee5e3fab6dc1646",
+    "mtime": 1787543744.0772758,
+    "ast_hash": "a34003a9302f8965c9beb5a9ab08e357",
     "semantic_hash": ""
   },
   "templates/calendar.html": {
