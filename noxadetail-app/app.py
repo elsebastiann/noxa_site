@@ -10,6 +10,7 @@ import csv
 import io
 import json
 import re
+import unicodedata
 import secrets
 import time
 import base64
@@ -7921,12 +7922,13 @@ def _clasificar_conversacion_historica(conversation: "Conversation") -> "dict | 
         app.logger.warning(f"[Backfill] Sin [META:] reconocible para {conversation.phone}: {text!r}")
         return None
 
-    estado = m.group(1).strip()
-    servicio_candidates = [c.strip() for c in m.group(2).split(",") if c.strip()]
+    campos = _parse_meta(m.group(1)) or {}
+    estado = campos.get("estado", "").strip()
+    servicio_candidates = [c.strip() for c in campos.get("servicios", "").split(",") if c.strip()]
     servicios = [s for s in (_match_valor_cerrado(c, SERVICE_TAGS) for c in servicio_candidates) if s]
-    carro = (m.group(3) or "").strip()
-    marca = (m.group(4) or "").strip()
-    calif_raw = (m.group(5) or "").strip()
+    carro = campos.get("carro", "").strip()
+    marca = campos.get("marca", "").strip()
+    calif_raw = campos.get("calificacion", "").strip()
 
     calificacion = None
     if calif_raw.lower() not in ("", "sin dato"):
@@ -8602,11 +8604,34 @@ _ESCALATE_RE = re.compile(r"^\[ESCALAR:\s*(.*?)\]$", re.IGNORECASE)
 # carro/marca/calificacion van en un bloque opcional: si un turno los omite (o
 # es un [META:] con el formato viejo), el marcador se sigue reconociendo como
 # interno en vez de colársele al cliente como texto visible.
-_META_RE = re.compile(
-    r"^\[META:\s*estado\s*=\s*(.*?)\s*;\s*servicios\s*=\s*(.*?)"
-    r"(?:\s*;\s*carro\s*=\s*(.*?)\s*;\s*marca\s*=\s*(.*?)\s*;\s*calificacion\s*=\s*(.*?))?\s*\]$",
-    re.IGNORECASE,
-)
+_META_RE = re.compile(r"^\[META:\s*(.*?)\s*\]$", re.IGNORECASE | re.DOTALL)
+
+
+def _parse_meta(texto: str) -> "dict | None":
+    """Lee un marcador [META: clave=valor; ...] campo por campo.
+
+    Antes era una sola expresión regular con el bloque de carro/marca/
+    calificación OPCIONAL, y eso la volvía traicionera: si el modelo escribía
+    "calificación" con tilde, cambiaba el orden de los campos u omitía uno, la
+    regex igual DABA MATCH — el estado se leía bien y todo lo demás se lo
+    tragaba el campo `servicios`. El carro se perdía en silencio y en el panel
+    solo se veía un lead sin datos, indistinguible de uno que nunca los dio.
+
+    Leer pares clave=valor tolera esas tres variantes, que son justo las que un
+    modelo produce de vez en cuando por más que el prompt fije el formato."""
+    campos = {}
+    for parte in (texto or "").split(";"):
+        if "=" not in parte:
+            continue
+        clave, _, valor = parte.partition("=")
+        # Sin tildes y en minúsculas: "calificación" y "calificacion" son el
+        # mismo campo para nosotros.
+        clave = "".join(
+            c for c in unicodedata.normalize("NFD", clave.strip().lower())
+            if unicodedata.category(c) != "Mn"
+        )
+        campos[clave] = valor.strip()
+    return campos or None
 def _nombre_perfil_utilizable(nombre: "str | None") -> "str | None":
     """El nombre de perfil de WhatsApp lo escribe el cliente y muchas veces no es
     un nombre: emojis, el nombre de un negocio, un apodo, el propio teléfono.
@@ -9455,14 +9480,15 @@ def _generate_and_send_reply(conversation: "Conversation", from_number: str, med
         elif m_esc:
             escalation_reason = m_esc.group(1).strip() or "el cliente necesita atención humana"
         elif m_meta:
-            estado_candidate = m_meta.group(1).strip()
+            campos = _parse_meta(m_meta.group(1)) or {}
+            estado_candidate = campos.get("estado", "").strip()
             estado_match = _match_valor_cerrado(estado_candidate, LEAD_STATES_MARIANA)
             if estado_match:
                 new_status = estado_match
             elif estado_candidate:
                 app.logger.warning(f"[WhatsApp] Estado de lead no reconocido, se ignora: {estado_candidate!r}")
 
-            servicio_candidates = [c.strip() for c in m_meta.group(2).split(",") if c.strip()]
+            servicio_candidates = [c.strip() for c in campos.get("servicios", "").split(",") if c.strip()]
             matched = [(c, _match_valor_cerrado(c, SERVICE_TAGS)) for c in servicio_candidates]
             valid = [m for _, m in matched if m]
             invalid = [c for c, m in matched if not m]
@@ -9471,18 +9497,18 @@ def _generate_and_send_reply(conversation: "Conversation", from_number: str, med
             if valid:
                 new_service = valid
 
-            carro_candidate = (m_meta.group(3) or "").strip()
+            carro_candidate = campos.get("carro", "").strip()
             if carro_candidate and carro_candidate.lower() != "sin dato":
                 new_carro = carro_candidate
 
-            marca_candidate = (m_meta.group(4) or "").strip()
+            marca_candidate = campos.get("marca", "").strip()
             marca_match = _match_valor_cerrado(marca_candidate, MARCAS_CONOCIDAS)
             if marca_match:
                 new_marca = marca_match
             elif marca_candidate:
                 app.logger.warning(f"[WhatsApp] Marca no reconocida, se ignora: {marca_candidate!r}")
 
-            calif_candidate = (m_meta.group(5) or "").strip()
+            calif_candidate = campos.get("calificacion", "").strip()
             if calif_candidate.lower() not in ("", "sin dato"):
                 try:
                     calif_int = int(calif_candidate)
@@ -9500,6 +9526,18 @@ def _generate_and_send_reply(conversation: "Conversation", from_number: str, med
         else:
             visible_chunks.append(chunk)
     visible_chunks = visible_chunks[:3]  # el límite de "máximo 3 mensajes" aplica solo a lo visible
+
+    # Un turno sin [META:] no actualiza nada: ni el carro, ni el servicio, ni la
+    # calificación. Antes era invisible — quedaba un lead "sin datos"
+    # indistinguible de uno que nunca los dio, y no había cómo saber si el
+    # modelo dejó de emitir el marcador. El prompt lo pide en CADA turno, así
+    # que su ausencia es una anomalía y tiene que dejar rastro.
+    if not any(_META_RE.match(c.strip()) for c in reply_chunks):
+        app.logger.warning(
+            f"[WhatsApp] Turno sin [META:] para {conversation.phone} "
+            f"(estado sigue en {conversation.status!r}, carro {conversation.carro!r}) — "
+            f"no se actualizó nada del lead."
+        )
 
     # Red de seguridad: si el modelo escribe su propia versión del menú, el cliente
     # lo recibiría dos veces (el suyo y el que manda el código). Se descarta el
