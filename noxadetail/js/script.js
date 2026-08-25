@@ -240,8 +240,8 @@ const SERVICES = [
         glyph: "▲",
         badge: "Máxima corrección",
         bullets: [
-            "Matizado completo para nivelar el barniz",
-            "Polichado para eliminar microrayones y manchas hasta en un 90%",
+            "Matizado completo o según necesidad para nivelar el barniz",
+            "Polichado de hasta 3 pasos para eliminar manchas y microrayones hasta en un 90%",
             "Realce del color y brillo",
             "Doble shampoo pH neutro",
             "Aspirado profundo",
