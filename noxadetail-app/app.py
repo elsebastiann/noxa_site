@@ -8174,10 +8174,18 @@ def _build_message_history(conversation: "Conversation") -> list[dict]:
     return messages
 
 
-CLAUDE_MAX_TOKENS = 600
+CLAUDE_MAX_TOKENS = 1000
+# Antes 600: visto en producción el 2026-08-26, un cliente eligió una opción
+# del menú y Mariana solo respondió "¡Perfecto!" — el techo se agotó apenas
+# después del saludo, y el recorte-a-última-frase-completa (ver _call_claude)
+# se quedó con esa sola frase corta en vez de la pregunta real que seguía. El
+# recorte en sí sigue igual a propósito (evita gastar una llamada extra por
+# cualquier corte, ver test_con_texto_truncado_no_reintenta_sino_que_recorta);
+# lo que cambia es darle más aire al primer intento para que el corte ocurra
+# mucho menos seguido.
 # Reintento con el techo al doble cuando la respuesta se corta SIN alcanzar a
 # escribir nada. Ver _call_claude.
-CLAUDE_MAX_TOKENS_REINTENTO = 1600
+CLAUDE_MAX_TOKENS_REINTENTO = 2000
 
 
 def _texto_de(response) -> str:
@@ -8875,10 +8883,21 @@ def generate_followup_message(conversation: "Conversation", stage: str) -> str:
     """Genera un mensaje de seguimiento personalizado para un lead que quedó en silencio.
     stage: "recuperar_intencion" (24h) | "reabrir_conversacion" (72h) | "cierre_elegante" (7 días)."""
     messages = _build_message_history(conversation)
-    messages.append({
-        "role": "user",
-        "content": f"[Sistema: el cliente quedó en silencio, genera un mensaje de seguimiento — etapa: {stage}. No agregues marcadores de [META], [NOMBRE], [AGENDAR] ni [ESCALAR] aquí, solo el mensaje de seguimiento.]",
-    })
+    if _cliente_pidio_esperar(conversation):
+        # No se quedó en silencio, pidió esperar — insistir con el mismo "¿seguimos?"
+        # no sirve de nada (visto en producción el 2026-08-26, caso Armandito). En vez
+        # de repetir la etapa, se le pregunta puntual qué lo está deteniendo.
+        instruccion = (
+            "[Sistema: el cliente ya avisó que por ahora no, que después — no quedó en "
+            "silencio sin más. No le preguntes de nuevo si va a agendar ni repitas lo que ya "
+            "le dijiste: reconoce brevemente que entendiste y pregúntale, en una sola pregunta "
+            "concreta y sin presionar, qué es específicamente lo que lo está deteniendo en "
+            "este momento, para poder ayudarle con eso puntual. No agregues marcadores de "
+            "[META], [NOMBRE], [AGENDAR] ni [ESCALAR] aquí, solo el mensaje de seguimiento.]"
+        )
+    else:
+        instruccion = f"[Sistema: el cliente quedó en silencio, genera un mensaje de seguimiento — etapa: {stage}. No agregues marcadores de [META], [NOMBRE], [AGENDAR] ni [ESCALAR] aquí, solo el mensaje de seguimiento.]"
+    messages.append({"role": "user", "content": instruccion})
 
     profile_line = _linea_perfil(conversation)
     # Sin la fecha de hoy, el modelo lee una cita del historial y calcula mal a
@@ -10798,6 +10817,35 @@ def _ventana_24h_abierta(conversation: "Conversation") -> bool:
     return (datetime.utcnow() - ultimo_entrante.created_at) < timedelta(hours=24)
 
 
+_ESPERA_RE = re.compile(
+    r"\b(despu[ée]s|m[áa]s\s+adelante|m[áa]s\s+tarde|otro\s+d[íi]a|otra\s+semana|"
+    r"en\s+unos?\s+d[íi]as|por\s+ahora\s+no|ahorita\s+no|luego\s+te\s+(aviso|escribo)|"
+    r"yo\s+te\s+(aviso|escribo)|d[ée]jame\s+(pensarlo|ver))\b",
+    re.IGNORECASE,
+)
+
+
+def _cliente_pidio_esperar(conversation: "Conversation") -> bool:
+    """¿El cliente dijo explícitamente que después, en vez de quedarse callado?
+
+    Sin esto, un "tal vez después" se trata igual que un silencio: el job sigue
+    la cadencia corta (24h, +2d, +5d...) e insiste casi a diario con el mismo
+    "¿seguimos?" a alguien que ya avisó que no es el momento — visto en
+    producción el 2026-08-26 (caso Armandito: dijo "tal vez después" el 18/08 y
+    igual le llegó seguimiento el 19, el 21 y hoy). Se mira solo el ÚLTIMO
+    mensaje entrante: si el cliente volvió a escribir algo distinto después,
+    ya no aplica."""
+    ultimo_entrante = (
+        Message.query
+        .filter_by(conversation_id=conversation.id, direction="in")
+        .order_by(Message.created_at.desc())
+        .first()
+    )
+    if not ultimo_entrante or not ultimo_entrante.body:
+        return False
+    return bool(_ESPERA_RE.search(ultimo_entrante.body))
+
+
 def _candidatas_de_seguimiento():
     """A quién le escribe el job de reactivación de leads.
 
@@ -10851,6 +10899,11 @@ def _job_whatsapp_followup():
 
             last_bogota = last_msg.created_at.replace(tzinfo=pytz.utc).astimezone(_BOGOTA)
             threshold, stage = _FOLLOWUP_STAGES[conv.followup_count]
+            if _cliente_pidio_esperar(conv):
+                # Pidió esperar, no se quedó callado: no tiene sentido insistir con
+                # la cadencia corta pensada para silencio. Se le da una semana antes
+                # de volver a intentar, sea cual sea la etapa que le tocaría.
+                threshold = max(threshold, timedelta(days=7))
 
             if (now_bogota - last_bogota) < threshold:
                 continue  # todavía no toca esta etapa
