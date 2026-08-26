@@ -8400,22 +8400,45 @@ def _transcribe_twilio_audio(media_url: str, media_type: str) -> str | None:
     auth_token = os.environ.get("TWILIO_AUTH_TOKEN", "")
     try:
         audio_resp = requests.get(media_url, auth=(account_sid, auth_token), timeout=15)
-        audio_resp.raise_for_status()
+    except Exception as exc:
+        app.logger.error(f"[Whisper] Error de red descargando audio de Twilio ({media_url}): {exc}")
+        return None
+    if not audio_resp.ok:
+        app.logger.error(
+            f"[Whisper] Twilio respondió {audio_resp.status_code} al descargar el audio "
+            f"({media_url}): {audio_resp.text[:300]!r}"
+        )
+        return None
+    if not audio_resp.content:
+        app.logger.error(f"[Whisper] Twilio devolvió el audio vacío ({media_url}).")
+        return None
 
+    try:
         ext = media_type.split("/")[-1].split(";")[0] or "ogg"
         files = {"file": (f"audio.{ext}", audio_resp.content, media_type)}
         data = {"model": "whisper-1", "language": "es"}
         headers = {"Authorization": f"Bearer {openai_key}"}
-
         transcribe_resp = requests.post(
             "https://api.openai.com/v1/audio/transcriptions",
             headers=headers, files=files, data=data, timeout=30,
         )
-        transcribe_resp.raise_for_status()
-        return transcribe_resp.json().get("text", "").strip() or None
     except Exception as exc:
-        app.logger.error(f"[Whisper] Error transcribiendo audio: {exc}")
+        app.logger.error(f"[Whisper] Error de red llamando a OpenAI: {exc}")
         return None
+    if not transcribe_resp.ok:
+        app.logger.error(
+            f"[Whisper] OpenAI respondió {transcribe_resp.status_code} transcribiendo "
+            f"({len(audio_resp.content)} bytes, tipo {media_type!r}): {transcribe_resp.text[:300]!r}"
+        )
+        return None
+
+    text = transcribe_resp.json().get("text", "").strip()
+    if not text:
+        app.logger.warning(
+            f"[Whisper] OpenAI transcribió vacío ({len(audio_resp.content)} bytes, tipo {media_type!r})."
+        )
+        return None
+    return text
 
 
 # ── Agendamiento de diagnósticos por el bot ───────────────────────────────────
