@@ -9052,7 +9052,12 @@ def _linea_perfil(conversation: "Conversation") -> str:
     return (
         "Nombre de perfil de WhatsApp del cliente: no disponible. "
         "NO inventes un nombre ni uses nada del perfil para dirigirte a él: "
-        "salúdalo sin nombre y pregúntaselo cuando corresponda."
+        "salúdalo sin nombre y pregúntaselo cuando corresponda. "
+        "Si en un mensaje TUYO anterior en este mismo historial ya te dirigiste "
+        "a él por un nombre (por ejemplo algo corto tipo 'D', una inicial o un "
+        "apodo raro), eso fue un error de un saludo viejo — NO lo repitas ni "
+        "sigas esa costumbre: corrígete y de aquí en adelante trátalo sin nombre "
+        "hasta que él mismo te lo diga."
     )
 
 
