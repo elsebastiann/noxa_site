@@ -25,6 +25,14 @@ const ROOT = path.resolve(__dirname, "..");
 const SCRIPT_PATH = path.join(ROOT, "js", "script.js");
 const INDEX_HTML_PATH = path.join(ROOT, "index.html");
 const INDEX_MD_PATH = path.join(ROOT, "index.md");
+const SITEMAP_PATH = path.join(ROOT, "sitemap.xml");
+
+// Páginas reales indexables del sitio (no incluye .md/.txt: son representaciones
+// alternas de la misma URL vía negociación de contenido, no páginas aparte).
+const SITEMAP_PAGES = [
+    { file: "index.html", loc: "https://noxadetail.com/", changefreq: "weekly", priority: "1.0" },
+    { file: "politica-de-privacidad.html", loc: "https://noxadetail.com/politica-de-privacidad.html", changefreq: "yearly", priority: "0.3" },
+];
 
 function noop() { return undefined; }
 
@@ -120,10 +128,24 @@ function updateIndexMarkdown({ SERVICES, VEHICLE_LABELS }) {
     console.log("[prerender] catálogo de precios regenerado en index.md.");
 }
 
+function updateSitemap() {
+    // "Hoy" y no la fecha de git log del archivo: el script corre ANTES de que
+    // este commit exista, así que git log todavía daría la fecha del commit
+    // ANTERIOR — hoy es lo que de verdad refleja el momento de esta regeneración.
+    const today = new Date().toISOString().slice(0, 10);
+    const urls = SITEMAP_PAGES.map(page =>
+        `  <url>\n    <loc>${page.loc}</loc>\n    <lastmod>${today}</lastmod>\n    <changefreq>${page.changefreq}</changefreq>\n    <priority>${page.priority}</priority>\n  </url>`
+    ).join("\n");
+    const xml = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls}\n</urlset>\n`;
+    fs.writeFileSync(SITEMAP_PATH, xml);
+    console.log("[prerender] sitemap.xml regenerado.");
+}
+
 function main() {
     const data = loadCatalogData();
     updateIndexHTML(data);
     updateIndexMarkdown(data);
+    updateSitemap();
 }
 
 main();

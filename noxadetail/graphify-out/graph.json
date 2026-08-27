@@ -138,8 +138,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "js_script_initloopvideos",
-      "community": 1,
-      "community_name": "renderGrid",
+      "community": 8,
+      "community_name": "initLoopVideos",
       "norm_label": "initloopvideos()"
     },
     {
@@ -150,8 +150,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "js_script_initvideohoverpreview",
-      "community": 1,
-      "community_name": "renderGrid",
+      "community": 8,
+      "community_name": "initLoopVideos",
       "norm_label": "initvideohoverpreview()"
     },
     {
@@ -162,8 +162,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "js_script_initvideoloopfade",
-      "community": 1,
-      "community_name": "renderGrid",
+      "community": 8,
+      "community_name": "initLoopVideos",
       "norm_label": "initvideoloopfade()"
     },
     {
@@ -234,8 +234,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "js_script_closemodal",
-      "community": 8,
-      "community_name": "submitLeadForm",
+      "community": 3,
+      "community_name": "showMarianaCapture",
       "norm_label": "closemodal()"
     },
     {
@@ -316,8 +316,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "js_script_submitleadform",
-      "community": 8,
-      "community_name": "submitLeadForm",
+      "community": 3,
+      "community_name": "showMarianaCapture",
       "norm_label": "submitleadform()"
     },
     {
@@ -376,8 +376,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "js_script_tracklead",
-      "community": 8,
-      "community_name": "submitLeadForm",
+      "community": 3,
+      "community_name": "showMarianaCapture",
       "norm_label": "tracklead()"
     },
     {
@@ -462,6 +462,28 @@
       "community": 0,
       "community_name": "script.js",
       "norm_label": "initclientcountstat()"
+    },
+    {
+      "label": "404.md",
+      "file_type": "document",
+      "source_file": "noxadetail/404.md",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "404",
+      "community": 9,
+      "community_name": "404.md",
+      "norm_label": "404.md"
+    },
+    {
+      "label": "404 \u2014 Page not found",
+      "file_type": "document",
+      "source_file": "noxadetail/404.md",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "404_404_page_not_found",
+      "community": 9,
+      "community_name": "404.md",
+      "norm_label": "404 \u2014 page not found"
     },
     {
       "label": "index.md",
@@ -1433,6 +1455,17 @@
     {
       "relation": "contains",
       "confidence": "EXTRACTED",
+      "source_file": "noxadetail/404.md",
+      "source_location": "L1",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "404",
+      "target": "404_404_page_not_found",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
       "source_file": "noxadetail/index.md",
       "source_location": "L1",
       "weight": 1.0,
@@ -1729,5 +1762,5 @@
     }
   ],
   "hyperedges": [],
-  "built_at_commit": "b83d5af1e35c2821c49c4f2753a9ffb0c3ccd9df"
+  "built_at_commit": "7b86ae641a314c73ed563232053b9dee27288bb2"
 }

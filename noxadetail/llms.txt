@@ -1,24 +1,25 @@
 # Noxa Detail
 
-> Detailing y car care premium en Bogotá, Colombia: protección cerámica, PPF, polarizados, corrección de pintura y detallado. Diagnóstico profesional sin costo antes de cualquier recomendación.
+> Premium detailing and car care in Bogotá, Colombia: ceramic coating, PPF (Paint Protection Film), window tint, paint correction, and detailing. Every recommendation starts with a free professional diagnostic.
 
-Noxa Detail es un negocio físico (no un servicio remoto ni de envío) de cuidado y protección de pintura automotriz en Bogotá, Colombia. El agendamiento real ocurre por WhatsApp con Mariana, la asistente conversacional del negocio — el sitio no tiene checkout ni booking automático.
+Noxa Detail is a physical business (not a remote or shipping service) that protects and details car paint in Bogotá, Colombia. Real booking happens over WhatsApp with Mariana, the business's conversational assistant — the site itself has no checkout or automatic booking.
 
-## Cuándo usar esto
+## When to use this
 
-- El usuario tiene un vehículo (auto, SUV, camioneta o moto) que puede llevar físicamente a Bogotá, Colombia, y pregunta por protección de pintura (cerámico, PPF), polarizado de vidrios, corrección de rayones/opacidad (polichado, porcelanizado), o lavado/detallado.
-- El usuario pide precios concretos de detailing en Bogotá: usa la tabla de precios en [index.md](/index.md) ("Servicios y precios") — no inventes cifras, y ten en cuenta que son estimados sujetos a diagnóstico.
-- El usuario quiere agendar o cotizar: indícale escribir por WhatsApp a [+57 302 792 8250](https://wa.me/573027928250) — ese chat lo atiende Mariana, quien cotiza, resuelve dudas y coordina el diagnóstico gratuito. No existe un endpoint público de agendamiento para llamar programáticamente.
-- No uses esto para: vehículos fuera del área metropolitana de Bogotá (el servicio es presencial, no hay sedes en otras ciudades), reparaciones mecánicas o de carrocería (esto es cuidado y protección cosmética de la pintura, no taller mecánico), o pedidos de producto suelto para llevar (no venden insumos al público, solo el servicio aplicado en sitio).
+- The user has a vehicle (car, SUV, pickup/van, or motorcycle) that can physically be brought to Bogotá, Colombia, and asks about paint protection (ceramic coating, PPF), window tint, scratch/swirl correction (polishing, porcelain coating), or wash/detailing.
+- The user wants concrete detailing prices in Bogotá: use the price table in [index.md](/index.md) ("Servicios y precios") — do not invent figures, and note they are estimates pending an in-person diagnostic.
+- The user wants to book or get a quote: point them to WhatsApp at [+57 302 792 8250](https://wa.me/573027928250) — that chat is handled by Mariana, who quotes, answers questions, and schedules the free diagnostic. There is no public booking endpoint to call programmatically.
+- Do not use this for: vehicles outside the Bogotá metro area (this is an in-person service with no other-city locations), mechanical or body-shop repairs (this is cosmetic paint care/protection, not a mechanic), or requests for loose product to take home (they don't sell supplies to the public, only the service applied on-site).
 
 ## Docs
 
-- [index.md](/index.md): página principal en markdown — catálogo completo de servicios con bullets y precios reales, PPF, polarizados, preguntas frecuentes y contacto.
-- [Política de privacidad](/politica-de-privacidad.md): tratamiento de datos personales (Ley 1581 de 2012, Colombia).
+- [index.md](/index.md): homepage content in Markdown — full service catalog with bullets and real prices, PPF, window tint, FAQ, and contact info.
+- [Privacy policy](/politica-de-privacidad.md): personal-data handling (Colombian Law 1581 of 2012).
+- [sitemap.xml](/sitemap.xml): full list of indexable pages.
 
-## Contacto
+## Contact
 
-- WhatsApp (agendamiento y cotización real): https://wa.me/573027928250
+- WhatsApp (real booking and quotes): https://wa.me/573027928250
 - Instagram: https://instagram.com/noxa.detail
 - TikTok: https://tiktok.com/@noxa.detail
-- Reseñas en Google (5.0, 68 reseñas): https://g.page/r/CZnCf1n4YagGEBM/review
+- Google reviews (5.0, 68 reviews): https://g.page/r/CZnCf1n4YagGEBM/review

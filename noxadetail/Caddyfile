@@ -99,7 +99,22 @@
 	try_files {path} {path}.html {path}/index.html
 
 	handle_errors {
-		rewrite * /{err.status_code}.html
+		# Mismo trato que el resto del sitio: un agente que pide
+		# Accept: text/markdown en una ruta que no existe recibe un 404 en
+		# Markdown real (404.md) en vez del HTML — sigue siendo un 404 de
+		# verdad, con Content-Type y Vary correctos. Matchers propios (no se
+		# reutilizan los de afuera del bloque: no está garantizado que
+		# apliquen dentro de handle_errors).
+		@errorWantsMarkdown {
+			header Accept *text/markdown*
+		}
+		@errorWantsHTML {
+			not header Accept *text/markdown*
+		}
+		rewrite @errorWantsMarkdown /{err.status_code}.md
+		header @errorWantsMarkdown >Content-Type "text/markdown; charset=utf-8"
+		rewrite @errorWantsHTML /{err.status_code}.html
+		header +Vary "Accept"
 		file_server
 	}
 }

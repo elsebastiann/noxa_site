@@ -5,8 +5,8 @@
     "semantic_hash": ""
   },
   "index.html": {
-    "mtime": 1787869619.896687,
-    "ast_hash": "f8c739272d1e8f6767a34c15c19c93ef",
+    "mtime": 1787870299.9773467,
+    "ast_hash": "86fad83baf20654ce487f9cc164bf14f",
     "semantic_hash": ""
   },
   "img/favicon.png": {
@@ -170,28 +170,33 @@
     "semantic_hash": ""
   },
   "politica-de-privacidad.html": {
-    "mtime": 1787162821.1930046,
-    "ast_hash": "f3bc92218a961f58704b91a6088a9209",
+    "mtime": 1787870093.57109,
+    "ast_hash": "b97fbaf7e602e0b26de2aaf2416c6380",
     "semantic_hash": ""
   },
   "404.html": {
-    "mtime": 1787868770.424975,
-    "ast_hash": "7571bec94e1ac007f42bca9fbb344142",
+    "mtime": 1787870171.2658346,
+    "ast_hash": "d1b0ea138c095e97a876e2abbbea2e9a",
     "semantic_hash": ""
   },
   "index.md": {
-    "mtime": 1787869619.9141417,
+    "mtime": 1787870300.013944,
     "ast_hash": "32d6cecfda3e71fdf74f446a09af6823",
     "semantic_hash": ""
   },
   "llms.txt": {
-    "mtime": 1787868876.290175,
-    "ast_hash": "f1aae61d0c3558fa9b53e70a1e71b5da",
+    "mtime": 1787870221.4563563,
+    "ast_hash": "344d1556751ca2e317f6d79f31a67fc9",
     "semantic_hash": ""
   },
   "politica-de-privacidad.md": {
     "mtime": 1787868855.2992182,
     "ast_hash": "f2a36c6afee997e8e6a6b51561dc3805",
+    "semantic_hash": ""
+  },
+  "404.md": {
+    "mtime": 1787870160.2941086,
+    "ast_hash": "22e465c52df8eef3a1fd087702a4600c",
     "semantic_hash": ""
   }
 }
