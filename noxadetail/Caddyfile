@@ -1,0 +1,105 @@
+# Basado en el Caddyfile default que genera Railpack para sitios estáticos
+# (core/providers/staticfile/Caddyfile.template) — se sobreescribe el default
+# solo para agregar negociación de contenido por Accept (ver bloque marcado
+# abajo). Todo lo demás (headers de seguridad, compresión, try_files, página
+# de error por status code) se deja igual a lo que Railway ya sirve hoy.
+{
+	admin off
+	persist_config off
+	auto_https off
+
+	log {
+		format json
+	}
+
+	servers {
+		trusted_proxies static private_ranges
+	}
+}
+
+:{$PORT:80} {
+	log {
+		format json
+	}
+
+	respond /health 200
+
+	# Security headers
+	header {
+		# Enable cross-site filter (XSS) and tell browsers to block detected attacks
+		X-XSS-Protection "1; mode=block"
+		# Prevent some browsers from MIME-sniffing a response away from the declared Content-Type
+		X-Content-Type-Options "nosniff"
+		# Keep referrer data off of HTTP connections
+		Referrer-Policy "strict-origin-when-cross-origin"
+		# Enable strict Content Security Policy
+		Content-Security-Policy "default-src 'self'; img-src 'self' data: https: *; style-src 'self' 'unsafe-inline' https: *; script-src 'self' 'unsafe-inline' https: *; font-src 'self' data: https: *; connect-src 'self' https: *; media-src 'self' https: *; object-src 'none'; frame-src 'self' https: *;"
+		# Remove Server header
+		-Server
+	}
+
+	root * .
+
+	# ---- Negociación de Markdown (acceptmarkdown.com) ----------------------
+	# Un agente que pide "Accept: text/markdown" recibe la versión .md real en
+	# vez del HTML de siempre. TODAS las respuestas de estas rutas (sirvan
+	# HTML o Markdown) llevan "Vary: Accept" agregado — sin eso, un CDN podría
+	# guardar en caché la variante equivocada para la próxima visita con el
+	# Accept contrario (HTML cacheado para quien pidió Markdown, o viceversa).
+	# El matcher de Content-Type va sobre la MISMA condición que decide el
+	# rewrite (path original + Accept), no sobre "*.md": `header` corre en una
+	# fase anterior a `rewrite` en el orden implícito de Caddy, así que un
+	# matcher `path *.md` nunca vería la ruta ya reescrita para "/" → "/index.md".
+	# El prefijo ">" difiere la escritura del header hasta el final de la
+	# respuesta — sin él, file_server no pisa nada (no fija Content-Type propio
+	# para .md), pero tampoco hace falta si el header ya se registró con el
+	# matcher correcto. Se deja explícito de todas formas por ser el mecanismo
+	# documentado para que un header sobreviva a lo que fije un handler
+	# posterior. Verificado en local (caddy run) antes de tocar producción.
+	@wantsMarkdownHome {
+		path / /index.html
+		header Accept *text/markdown*
+	}
+	rewrite @wantsMarkdownHome /index.md
+	header @wantsMarkdownHome >Content-Type "text/markdown; charset=utf-8"
+
+	@wantsMarkdownPrivacidad {
+		path /politica-de-privacidad /politica-de-privacidad.html
+		header Accept *text/markdown*
+	}
+	rewrite @wantsMarkdownPrivacidad /politica-de-privacidad.md
+	header @wantsMarkdownPrivacidad >Content-Type "text/markdown; charset=utf-8"
+
+	# Cubre el acceso DIRECTO a un .md (sin negociación) — acá sí alcanza con
+	# "*.md" porque la ruta ya viene así desde el request original.
+	@markdownFile {
+		path *.md
+	}
+	header @markdownFile >Content-Type "text/markdown; charset=utf-8"
+
+	@negotiableContent {
+		path / /index.html /politica-de-privacidad /politica-de-privacidad.html *.md
+	}
+	header @negotiableContent +Vary "Accept"
+	# --------------------------------------------------------------------------
+
+	# Handle static files
+	file_server {
+		hide .git
+		hide .env*
+	}
+
+	# Compression with more formats
+	encode {
+		gzip
+		zstd
+	}
+
+	# Try files with HTML extension
+	try_files {path} {path}.html {path}/index.html
+
+	handle_errors {
+		rewrite * /{err.status_code}.html
+		file_server
+	}
+}

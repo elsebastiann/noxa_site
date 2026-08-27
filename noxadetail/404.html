@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#050506">
+<title>404 — Página no encontrada | Noxa Detail</title>
+<meta name="robots" content="noindex">
+<link rel="icon" type="image/png" href="img/favicon.png">
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;600;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css?v=59">
+<style>
+    body{ background: var(--bg); }
+    .notfound-wrap{
+        min-height: 70vh;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        max-width: 640px;
+        margin: 0 auto;
+        padding: 100px 24px;
+    }
+    .notfound-wrap h1{
+        font-size: clamp(1.6rem, 4vw, 2.2rem);
+        font-weight: 800;
+        text-transform: uppercase;
+        margin-bottom: 12px;
+    }
+    .notfound-wrap h1 .accent{ color: var(--gold); }
+    .notfound-wrap p{
+        color: var(--muted);
+        font-size: 0.95rem;
+        line-height: 1.7;
+        margin-bottom: 28px;
+    }
+    .notfound-links{
+        text-align: left;
+        width: 100%;
+        max-width: 420px;
+        background: rgba(255,255,255,0.03);
+        border: 1px solid rgba(255,255,255,0.08);
+        border-radius: 12px;
+        padding: 20px 24px;
+    }
+    .notfound-links p{ margin-bottom: 10px; color: var(--text); font-weight: 700; }
+    .notfound-links ul{ margin: 0; padding-left: 20px; }
+    .notfound-links li{ margin-bottom: 8px; }
+    .notfound-links a{ color: var(--gold); text-decoration: underline; text-underline-offset: 2px; }
+    .notfound-links code{
+        background: rgba(255,255,255,0.06);
+        padding: 1px 6px;
+        border-radius: 4px;
+        font-size: 0.85em;
+    }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+    <header style="padding:28px 0;">
+        <a href="/" aria-label="Noxa Detail — inicio">
+            <img src="img/logo.png" alt="Noxa Detail" style="height:34px;width:auto;">
+        </a>
+    </header>
+</div>
+
+<main class="notfound-wrap">
+    <h1>404 — Esta página <span class="accent">no existe</span></h1>
+    <p>La ruta que pediste no está en el sitio. Esto es lo que sí hay:</p>
+    <div class="notfound-links">
+        <p>Dónde buscar</p>
+        <ul>
+            <li><a href="/">/</a> — inicio: servicios, precios, reseñas, contacto.</li>
+            <li><a href="/#servicios">/#servicios</a> — catálogo completo (Cerámico, PPF, Polarizados, Detallado, Lavado).</li>
+            <li><a href="/llms.txt">/llms.txt</a> — índice del sitio pensado para agentes, en <code>text/markdown</code>.</li>
+            <li><a href="/politica-de-privacidad.html">/politica-de-privacidad.html</a> — tratamiento de datos personales.</li>
+        </ul>
+    </div>
+</main>
+
+</body>
+</html>

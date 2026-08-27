@@ -482,15 +482,20 @@ function initCursorGlow(){
 
 /* ---------------- FILTERS (catálogo) ---------------- */
 
+// Separada de initFilters() para que el script de prerender (build/prerender.mjs)
+// pueda generar el mismo HTML sin tocar el DOM — igual que serviceCardHTML().
+function filterBarHTML(){
+    const cats = ["Todos", ...CATEGORY_ORDER];
+    return cats.map((c, i) =>
+        `<button type="button" class="filter-btn ${i === 0 ? "active" : ""}" data-cat="${c}" onclick="filterCatalog('${c}', this)">${c}</button>`
+    ).join("");
+}
+
 function initFilters(){
     const filterBar = document.getElementById("filterBar");
     if(!filterBar) return;
 
-    const cats = ["Todos", ...CATEGORY_ORDER];
-    filterBar.innerHTML = cats.map((c, i) =>
-        `<button type="button" class="filter-btn ${i === 0 ? "active" : ""}" data-cat="${c}" onclick="filterCatalog('${c}', this)">${c}</button>`
-    ).join("");
-
+    filterBar.innerHTML = filterBarHTML();
     renderGrid("catalogGrid", SERVICES);
 }
 

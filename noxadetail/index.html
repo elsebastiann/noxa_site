@@ -28,6 +28,40 @@
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;600;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/style.css?v=59">
 
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "LocalBusiness",
+  "name": "Noxa Detail",
+  "description": "Detailing y car care premium en Bogotá. Protección cerámica, PPF, polarizados y más — diagnóstico profesional sin costo.",
+  "url": "https://noxadetail.com/",
+  "image": "https://noxadetail.com/img/og-image.jpg",
+  "telephone": "+573027928250",
+  "priceRange": "$35.000–$2.499.000 COP",
+  "address": {
+    "@type": "PostalAddress",
+    "addressLocality": "Bogotá",
+    "addressCountry": "CO"
+  },
+  "geo": {
+    "@type": "GeoCoordinates",
+    "latitude": 4.7148773,
+    "longitude": -74.0616704
+  },
+  "sameAs": [
+    "https://wa.me/573027928250",
+    "https://instagram.com/noxa.detail",
+    "https://tiktok.com/@noxa.detail",
+    "https://www.google.com/maps/place/NOXA+Car+Care/@4.7148773,-74.0616704,17z"
+  ],
+  "aggregateRating": {
+    "@type": "AggregateRating",
+    "ratingValue": "5.0",
+    "reviewCount": "68"
+  }
+}
+</script>
+
 <!-- Meta Pixel Code -->
 <script>
 !function(f,b,e,v,n,t,s)
@@ -116,8 +150,193 @@ src="https://www.facebook.com/tr?id=1530978968342307&ev=PageView&noscript=1"
                 <p>Explora cada servicio, elige tu tipo de vehículo para ver el precio y solicita tu diagnóstico gratuito antes de decidir.</p>
             </div>
         </div>
-        <div class="filters" id="filterBar"></div>
-        <div class="grid" id="catalogGrid"></div>
+        <div class="filters" id="filterBar"><!--PRERENDER:filterBar:START--><button type="button" class="filter-btn active" data-cat="Todos" onclick="filterCatalog('Todos', this)">Todos</button><button type="button" class="filter-btn " data-cat="Protección Cerámica" onclick="filterCatalog('Protección Cerámica', this)">Protección Cerámica</button><button type="button" class="filter-btn " data-cat="PPF" onclick="filterCatalog('PPF', this)">PPF</button><button type="button" class="filter-btn " data-cat="Polarizados" onclick="filterCatalog('Polarizados', this)">Polarizados</button><button type="button" class="filter-btn " data-cat="Corrección & Brillo" onclick="filterCatalog('Corrección & Brillo', this)">Corrección & Brillo</button><button type="button" class="filter-btn " data-cat="Detallado" onclick="filterCatalog('Detallado', this)">Detallado</button><button type="button" class="filter-btn " data-cat="Lavado & Mantenimiento" onclick="filterCatalog('Lavado & Mantenimiento', this)">Lavado & Mantenimiento</button><!--PRERENDER:filterBar:END--></div>
+        <!-- El contenido de acá abajo lo genera build/prerender.mjs a partir de SERVICES
+             (js/script.js) — para que agentes/crawlers sin JS vean el catálogo real. El
+             JS de runtime lo sobreescribe con el mismo resultado al cargar la página, así
+             que el comportamiento visible no cambia. No lo edites a mano: se pierde en el
+             próximo commit (el pre-commit hook lo regenera). -->
+        <div class="grid" id="catalogGrid"><!--PRERENDER:catalogGrid:START-->
+    <article class="card" data-category="Protección Cerámica">
+        <div class="card-media">
+            
+            <span class="glyph">◆</span>
+            <video class="card-video loop-video" src="video/services/coating-7h.mp4" poster="video/services/posters/coating-7h.jpg" muted playsinline disablePictureInPicture disableRemotePlayback preload="metadata" onerror="this.remove()"></video>
+        </div>
+        <div class="card-body">
+            <span class="card-cat">Coating Cerámico de Grafeno 7H+</span>
+            <h3 class="card-title"><span class="pain-text" data-service="coating-7h">¿Sabes cuántos microrayones nuevos te deja cada lavada en un lugar cualquiera?</span></h3>
+            <div class="card-actions">
+                <button type="button" class="btn btn-ghost" onclick="openServiceModal('coating-7h')">Ver detalle</button>
+                <button type="button" class="btn btn-gold" onclick="openLeadForm('Coating Cerámico de Grafeno 7H+')">Diagnóstico gratis</button>
+            </div>
+        </div>
+    </article>
+    <article class="card" data-category="Protección Cerámica">
+        <div class="card-media">
+            <span class="badge">Top de línea</span>
+            <span class="glyph">◆</span>
+            <video class="card-video loop-video" src="video/services/coating-9h.mp4" poster="video/services/posters/coating-9h.jpg" muted playsinline disablePictureInPicture disableRemotePlayback preload="metadata" onerror="this.remove()"></video>
+        </div>
+        <div class="card-body">
+            <span class="card-cat">Coating Cerámico SiO2 + Grafeno 9H</span>
+            <h3 class="card-title"><span class="pain-text" data-service="coating-9h">¿Sabes cuántos micro-rayones acumula tu pintura cada año sin la protección más resistente?</span></h3>
+            <div class="card-actions">
+                <button type="button" class="btn btn-ghost" onclick="openServiceModal('coating-9h')">Ver detalle</button>
+                <button type="button" class="btn btn-gold" onclick="openLeadForm('Coating Cerámico SiO2 + Grafeno 9H')">Diagnóstico gratis</button>
+            </div>
+        </div>
+    </article>
+    <article class="card" data-category="Lavado & Mantenimiento">
+        <div class="card-media">
+            <span class="badge">★ El más popular</span>
+            <span class="glyph">✦</span>
+            <video class="card-video loop-video" src="video/services/wash-shine.mp4" poster="video/services/posters/wash-shine.jpg" muted playsinline disablePictureInPicture disableRemotePlayback preload="metadata" onerror="this.remove()"></video>
+        </div>
+        <div class="card-body">
+            <span class="card-cat">Wash Shine</span>
+            <h3 class="card-title"><span class="pain-text" data-service="wash-shine">¿Sabías que un lavado mal hecho raya más tu pintura que el mismo polvo de la calle?</span></h3>
+            <div class="card-actions">
+                <button type="button" class="btn btn-ghost" onclick="openServiceModal('wash-shine')">Ver detalle</button>
+                <button type="button" class="btn btn-gold" onclick="openLeadForm('Wash Shine')">Diagnóstico gratis</button>
+            </div>
+        </div>
+    </article>
+    <article class="card" data-category="Lavado & Mantenimiento">
+        <div class="card-media">
+            
+            <span class="glyph">✦</span>
+            <video class="card-video loop-video" src="video/services/wash-essential.mp4" poster="video/services/posters/wash-essential.jpg" muted playsinline disablePictureInPicture disableRemotePlayback preload="metadata" onerror="this.remove()"></video>
+        </div>
+        <div class="card-body">
+            <span class="card-cat">Wash Essential</span>
+            <h3 class="card-title"><span class="pain-text" data-service="wash-essential">¿Cuántos días lleva tu carro acumulando polvo sin un lavado de verdad?</span></h3>
+            <div class="card-actions">
+                <button type="button" class="btn btn-ghost" onclick="openServiceModal('wash-essential')">Ver detalle</button>
+                <button type="button" class="btn btn-gold" onclick="openLeadForm('Wash Essential')">Diagnóstico gratis</button>
+            </div>
+        </div>
+    </article>
+    <article class="card" data-category="Lavado & Mantenimiento">
+        <div class="card-media">
+            
+            <span class="glyph">✦</span>
+            <video class="card-video loop-video" src="video/services/wash-chasis.mp4" poster="video/services/posters/wash-chasis.jpg" muted playsinline disablePictureInPicture disableRemotePlayback preload="metadata" onerror="this.remove()"></video>
+        </div>
+        <div class="card-body">
+            <span class="card-cat">Wash Chasis</span>
+            <h3 class="card-title"><span class="pain-text" data-service="wash-chasis">¿Sabes cuánto barro y sal se han acumulado bajo tu carro sin que los veas?</span></h3>
+            <div class="card-actions">
+                <button type="button" class="btn btn-ghost" onclick="openServiceModal('wash-chasis')">Ver detalle</button>
+                <button type="button" class="btn btn-gold" onclick="openLeadForm('Wash Chasis')">Diagnóstico gratis</button>
+            </div>
+        </div>
+    </article>
+    <article class="card" data-category="Detallado">
+        <div class="card-media">
+            
+            <span class="glyph">●</span>
+            <video class="card-video loop-video" src="video/services/detallado-ext.mp4" poster="video/services/posters/detallado-ext.jpg" muted playsinline disablePictureInPicture disableRemotePlayback preload="metadata" onerror="this.remove()"></video>
+        </div>
+        <div class="card-body">
+            <span class="card-cat">Detallado Exterior</span>
+            <h3 class="card-title"><span class="pain-text" data-service="detallado-ext">¿Sabes qué tan sucias están las juntas y rejillas que no alcanzas a ver?</span></h3>
+            <div class="card-actions">
+                <button type="button" class="btn btn-ghost" onclick="openServiceModal('detallado-ext')">Ver detalle</button>
+                <button type="button" class="btn btn-gold" onclick="openLeadForm('Detallado Exterior')">Diagnóstico gratis</button>
+            </div>
+        </div>
+    </article>
+    <article class="card" data-category="Detallado">
+        <div class="card-media">
+            
+            <span class="glyph">●</span>
+            <video class="card-video loop-video" src="video/services/detallado-int.mp4" poster="video/services/posters/detallado-int.jpg" muted playsinline disablePictureInPicture disableRemotePlayback preload="metadata" onerror="this.remove()"></video>
+        </div>
+        <div class="card-body">
+            <span class="card-cat">Detallado Interior</span>
+            <h3 class="card-title"><span class="pain-text" data-service="detallado-int">¿Sabes qué tan sucio es el aire que respiras cada vez que prendes el aire acondicionado?</span></h3>
+            <div class="card-actions">
+                <button type="button" class="btn btn-ghost" onclick="openServiceModal('detallado-int')">Ver detalle</button>
+                <button type="button" class="btn btn-gold" onclick="openLeadForm('Detallado Interior')">Diagnóstico gratis</button>
+            </div>
+        </div>
+    </article>
+    <article class="card" data-category="Detallado">
+        <div class="card-media">
+            
+            <span class="glyph">●</span>
+            <video class="card-video loop-video" src="video/services/detallado-llanta.mp4" poster="video/services/posters/detallado-llanta.jpg" muted playsinline disablePictureInPicture disableRemotePlayback preload="metadata" onerror="this.remove()"></video>
+        </div>
+        <div class="card-body">
+            <span class="card-cat">Detallado Llanta a Llanta</span>
+            <h3 class="card-title"><span class="pain-text" data-service="detallado-llanta">¿Sabías que el polvo de freno corroe tus rines poco a poco sin que lo notes?</span></h3>
+            <div class="card-actions">
+                <button type="button" class="btn btn-ghost" onclick="openServiceModal('detallado-llanta')">Ver detalle</button>
+                <button type="button" class="btn btn-gold" onclick="openLeadForm('Detallado Llanta a Llanta')">Diagnóstico gratis</button>
+            </div>
+        </div>
+    </article>
+    <article class="card" data-category="Detallado">
+        <div class="card-media">
+            
+            <span class="glyph">●</span>
+            <video class="card-video loop-video" src="video/services/wash-motor.mp4" poster="video/services/posters/wash-motor.jpg" muted playsinline disablePictureInPicture disableRemotePlayback preload="metadata" onerror="this.remove()"></video>
+        </div>
+        <div class="card-body">
+            <span class="card-cat">Detallado de Motor</span>
+            <h3 class="card-title"><span class="pain-text" data-service="wash-motor">¿Sabías que la bahía del motor se debe lavar cada 6 meses para evitar corrosión?</span></h3>
+            <div class="card-actions">
+                <button type="button" class="btn btn-ghost" onclick="openServiceModal('wash-motor')">Ver detalle</button>
+                <button type="button" class="btn btn-gold" onclick="openLeadForm('Detallado de Motor')">Diagnóstico gratis</button>
+            </div>
+        </div>
+    </article>
+    <article class="card" data-category="Corrección & Brillo">
+        <div class="card-media">
+            
+            <span class="glyph">▲</span>
+            <video class="card-video loop-video" src="video/services/polichado.mp4" poster="video/services/posters/polichado.jpg" muted playsinline disablePictureInPicture disableRemotePlayback preload="metadata" onerror="this.remove()"></video>
+        </div>
+        <div class="card-body">
+            <span class="card-cat">Polichado</span>
+            <h3 class="card-title"><span class="pain-text" data-service="polichado">¿Notas que tu pintura se ve opaca aunque el carro esté recién lavado?</span></h3>
+            <div class="card-actions">
+                <button type="button" class="btn btn-ghost" onclick="openServiceModal('polichado')">Ver detalle</button>
+                <button type="button" class="btn btn-gold" onclick="openLeadForm('Polichado')">Diagnóstico gratis</button>
+            </div>
+        </div>
+    </article>
+    <article class="card" data-category="Corrección & Brillo">
+        <div class="card-media">
+            
+            <span class="glyph">▲</span>
+            <video class="card-video loop-video" src="video/services/wrap.mp4" poster="video/services/posters/wrap.jpg" muted playsinline disablePictureInPicture disableRemotePlayback preload="metadata" onerror="this.remove()"></video>
+        </div>
+        <div class="card-body">
+            <span class="card-cat">Corrección de Wrap</span>
+            <h3 class="card-title"><span class="pain-text" data-service="wrap">¿Tu wrap ya perdió el color y el brillo que tenía recién instalado?</span></h3>
+            <div class="card-actions">
+                <button type="button" class="btn btn-ghost" onclick="openServiceModal('wrap')">Ver detalle</button>
+                <button type="button" class="btn btn-gold" onclick="openLeadForm('Corrección de Wrap')">Diagnóstico gratis</button>
+            </div>
+        </div>
+    </article>
+    <article class="card" data-category="Corrección & Brillo">
+        <div class="card-media">
+            <span class="badge">Máxima corrección</span>
+            <span class="glyph">▲</span>
+            <video class="card-video loop-video" src="video/services/porcelanizado.mp4" poster="video/services/posters/porcelanizado.jpg" muted playsinline disablePictureInPicture disableRemotePlayback preload="metadata" onerror="this.remove()"></video>
+        </div>
+        <div class="card-body">
+            <span class="card-cat">Porcelanizado</span>
+            <h3 class="card-title"><span class="pain-text" data-service="porcelanizado">¿Tu pintura ya tiene tantos rayones que un polichado normal no alcanza a corregir?</span></h3>
+            <div class="card-actions">
+                <button type="button" class="btn btn-ghost" onclick="openServiceModal('porcelanizado')">Ver detalle</button>
+                <button type="button" class="btn btn-gold" onclick="openLeadForm('Porcelanizado')">Diagnóstico gratis</button>
+            </div>
+        </div>
+    </article><!--PRERENDER:catalogGrid:END--></div>
 
         <!-- PPF: estructura especial por marca de film -->
         <div id="ppfCard" style="margin-top:22px;scroll-margin-top:100px;">
@@ -561,7 +780,7 @@ src="https://www.facebook.com/tr?id=1530978968342307&ev=PageView&noscript=1"
     </div>
 </template>
 
-<script src="js/script.js?v=35"></script>
+<script src="js/script.js?v=36"></script>
 <script>
     initFilters();
     renderPPFTable("spectra");

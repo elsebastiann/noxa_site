@@ -1,0 +1,24 @@
+# Noxa Detail
+
+> Detailing y car care premium en Bogotá, Colombia: protección cerámica, PPF, polarizados, corrección de pintura y detallado. Diagnóstico profesional sin costo antes de cualquier recomendación.
+
+Noxa Detail es un negocio físico (no un servicio remoto ni de envío) de cuidado y protección de pintura automotriz en Bogotá, Colombia. El agendamiento real ocurre por WhatsApp con Mariana, la asistente conversacional del negocio — el sitio no tiene checkout ni booking automático.
+
+## Cuándo usar esto
+
+- El usuario tiene un vehículo (auto, SUV, camioneta o moto) que puede llevar físicamente a Bogotá, Colombia, y pregunta por protección de pintura (cerámico, PPF), polarizado de vidrios, corrección de rayones/opacidad (polichado, porcelanizado), o lavado/detallado.
+- El usuario pide precios concretos de detailing en Bogotá: usa la tabla de precios en [index.md](/index.md) ("Servicios y precios") — no inventes cifras, y ten en cuenta que son estimados sujetos a diagnóstico.
+- El usuario quiere agendar o cotizar: indícale escribir por WhatsApp a [+57 302 792 8250](https://wa.me/573027928250) — ese chat lo atiende Mariana, quien cotiza, resuelve dudas y coordina el diagnóstico gratuito. No existe un endpoint público de agendamiento para llamar programáticamente.
+- No uses esto para: vehículos fuera del área metropolitana de Bogotá (el servicio es presencial, no hay sedes en otras ciudades), reparaciones mecánicas o de carrocería (esto es cuidado y protección cosmética de la pintura, no taller mecánico), o pedidos de producto suelto para llevar (no venden insumos al público, solo el servicio aplicado en sitio).
+
+## Docs
+
+- [index.md](/index.md): página principal en markdown — catálogo completo de servicios con bullets y precios reales, PPF, polarizados, preguntas frecuentes y contacto.
+- [Política de privacidad](/politica-de-privacidad.md): tratamiento de datos personales (Ley 1581 de 2012, Colombia).
+
+## Contacto
+
+- WhatsApp (agendamiento y cotización real): https://wa.me/573027928250
+- Instagram: https://instagram.com/noxa.detail
+- TikTok: https://tiktok.com/@noxa.detail
+- Reseñas en Google (5.0, 68 reseñas): https://g.page/r/CZnCf1n4YagGEBM/review
