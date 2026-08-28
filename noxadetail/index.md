@@ -119,6 +119,7 @@ Los precios son estimados: el valor final se confirma con un diagnóstico gratui
 
 - Limpieza profunda de tablero, puertas, consola, plásticos y superficies internas
 - Desmanchado de cojinería, alfombras y tapetes
+- Limpieza del techo interior para dejarlo libre de manchas
 - Incluye desmontaje de sillas si el cliente lo prefiere
 - Mantenimiento del aire acondicionado, eliminando bacterias y olores
 
