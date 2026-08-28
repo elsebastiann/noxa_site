@@ -5295,6 +5295,14 @@ def _esquema_para_preguntas() -> str:
             continue
         cols = ", ".join(f"{c['name']} {c['type']}" for c in insp.get_columns(tabla))
         lineas.append(f"{tabla}({cols})")
+    # No es una tabla real: se materializa en cada consulta desde la lógica de
+    # negocio. Va en el esquema porque es la fuente correcta para toda pregunta
+    # de plata (ver PROMPT_CONSULTAS).
+    lineas.append(
+        "ingresos(fecha TEXT, placa TEXT, servicios TEXT, pago TEXT, "
+        "monto INTEGER, ingreso_noxa INTEGER, costo_tercerizacion INTEGER, "
+        "lista INTEGER, descuento INTEGER, recargo INTEGER, es_diagnostico INTEGER)"
+    )
     return "\n".join(lineas)
 
 
@@ -5323,12 +5331,61 @@ def _sql_es_de_lectura(sql: str) -> "str | None":
     return None
 
 
+def _montar_tabla_ingresos(con) -> int:
+    """Materializa `_transacciones_citas()` en una tabla temporal `ingresos`.
+
+    Esto es lo que hace utilizable la función para preguntas de plata. El monto
+    de una cita NO está en la base: se calcula en Python con service_prices, el
+    convenio y los ajustes, y una cita sin venta cerrada vale su estimado. Antes
+    se le pedía al modelo que lo resolviera en SQL — imposible — y las citas sin
+    venta salían en cero, que en la práctica eran casi todas.
+
+    Ahora el cálculo lo hace la MISMA función que alimenta el tablero de
+    Analítica, y el modelo solo agrega sobre el resultado. Así no hay dos
+    definiciones de "ingreso" que puedan discrepar.
+
+    Es una tabla TEMPORAL: vive en memoria, no toca la base (que sigue abierta
+    en solo lectura) y muere con la conexión.
+    """
+    con.execute("PRAGMA temp_store=MEMORY")
+    con.execute("""
+        CREATE TEMP TABLE ingresos (
+            fecha TEXT, placa TEXT, servicios TEXT, pago TEXT,
+            monto INTEGER, ingreso_noxa INTEGER, costo_tercerizacion INTEGER,
+            lista INTEGER, descuento INTEGER, recargo INTEGER,
+            es_diagnostico INTEGER
+        )
+    """)
+    filas = [
+        (str(t["fecha"]), t["placa"], t["servicios"], t["pago"],
+         t["monto"], t["ingreso_noxa"], t["costo_tercerizacion"],
+         t["lista"], t["descuento"], t["recargo"], int(bool(t["es_diagnostico"])))
+        for t in _transacciones_citas()
+    ]
+    # Ventas que no vienen de una cita —el parqueadero— también son ingreso.
+    # `_transacciones_citas()` solo recorre citas, así que sin esto quedarían
+    # invisibles y el total saldría corto sin que nada lo advierta.
+    sueltas = ServiceSale.query.filter(
+        ServiceSale.appointment_id.is_(None),
+        ServiceSale.status == "completed",
+    ).all()
+    filas += [
+        (str(v.service_date), v.plate, v.services, v.payment_method,
+         v.final_amount or 0, v.final_amount or 0, 0,
+         v.base_amount or v.final_amount or 0, v.discount_amount or 0, 0, 0)
+        for v in sueltas
+    ]
+    con.executemany("INSERT INTO ingresos VALUES (?,?,?,?,?,?,?,?,?,?,?)", filas)
+    return len(filas)
+
+
 def _ejecutar_consulta_lectura(sql: str):
     """Corre el SQL contra una conexión de SOLO LECTURA. (columnas, filas)."""
     import sqlite3
     ruta = os.path.abspath(app.config["SQLALCHEMY_DATABASE_URI"].replace("sqlite:///", ""))
     con = sqlite3.connect(f"file:{ruta}?mode=ro", uri=True, timeout=CONSULTA_TIMEOUT_SEG)
     try:
+        _montar_tabla_ingresos(con)
         cur = con.execute(sql)
         filas = cur.fetchmany(CONSULTA_MAX_FILAS)
         columnas = [d[0] for d in (cur.description or [])]
@@ -5384,35 +5441,38 @@ Recibes una pregunta de negocio y devuelves SQLite SQL que la responda, más có
 ESQUEMA DISPONIBLE:
 {esquema}
 
-DEFINICIONES DEL NEGOCIO — úsalas, no inventes las tuyas. Si el tablero de
-Analítica ya calcula algo de una forma, la cifra tiene que coincidir:
+DEFINICIONES DEL NEGOCIO — úsalas, no inventes las tuyas:
 
-- **La unidad de ingreso es la CITA, no la venta.** Así opera NOXA: toda cita
-  que quedó en la agenda se asume ejecutada y pagada, sin importar su estado
-  final. O sea, cuentas `appointments` con `status != 'cancelled'` — una cita
-  en 'scheduled' cuenta igual que una en 'completed'. NO filtres por
-  `service_sales.status = 'completed'` para medir ingresos: eso deja por fuera
-  toda cita que aún no tiene venta cerrada y subestima el total.
-- **El monto de una cita**: si tiene una venta asociada
-  (`service_sales.appointment_id`), manda `final_amount`, que ya trae
-  descuentos y ajustes reales. Si NO tiene venta, el valor es el estimado y se
-  calcula con la lógica de precios de la app (service_prices por servicio y
-  tipo de vehículo, más convenio y ajustes) — eso NO se puede reproducir en
-  SQL de forma confiable.
-  Por eso, cuando la pregunta sea de plata: haz LEFT JOIN de appointments con
-  service_sales por appointment_id, suma `final_amount`, y si quedan citas sin
-  venta asociada DILO en `explicacion` con cuántas son. Nunca presentes la
-  cifra como completa si hay citas sin venta.
-- **Los diagnósticos no son ingreso**: son gratis y son un paso del embudo.
-  Exclúyelos de cualquier cifra de plata (su nombre de servicio contiene
-  "diagn").
-- **Ventas sin cita** (`service_sales.appointment_id IS NULL`, como el
-  parqueadero) SÍ son ingreso y van aparte de las citas.
+- **Para TODA pregunta de plata usa la tabla `ingresos`.** No la calcules desde
+  `appointments` ni desde `service_sales`: el monto de una cita no está en la
+  base (depende de service_prices, el convenio y los ajustes, y una cita sin
+  venta cerrada vale su estimado). `ingresos` ya viene calculada con la misma
+  lógica del tablero de Analítica, una fila por cita, y es la única fuente
+  correcta de dinero.
+  - `monto` = lo que se cobró por esa cita. Es el ingreso.
+  - `ingreso_noxa` = lo que queda para NOXA después de pagarle al instalador
+    externo. Úsalo cuando pregunten por lo que "le queda" al negocio.
+  - `costo_tercerizacion` = lo que se le paga al instalador externo.
+  - `lista` = precio de lista; `descuento` y `recargo` = lo que se dejó de
+    cobrar o se cobró de más.
+  - `es_diagnostico` = 1 cuando la cita es un diagnóstico. Los diagnósticos son
+    GRATIS y no son ingreso: para cifras de plata filtra `es_diagnostico = 0`.
+    Para preguntas sobre cuántos diagnósticos se hicieron, sí los cuentas.
+  - `fecha` es texto 'AAAA-MM-DD' y ya corresponde al día de la cita.
+  - `servicios` es el texto de los servicios de la cita, separados por coma —
+    para "cuánto se vendió de cerámico" filtra con LIKE sobre esa columna.
+  - `pago` es el medio de pago.
+  - Toda cita que quedó en la agenda ya está acá: las canceladas no entran, y
+    una cita en 'scheduled' cuenta igual que una 'completed'. Así opera NOXA.
+
+- Las demás tablas sirven para preguntas que NO son de plata: cuántas citas,
+  cuántos clientes, cuántos leads, estados de conversaciones, gastos, nómina.
+- Los GASTOS sí viven en `expenses` (con su categoría): úsalos tal cual para
+  preguntas de egresos o de utilidad contra `ingresos`.
 - Un ABONO (appointment_payments) NO es un descuento: no baja lo que vale el
   servicio, solo el saldo pendiente. Nunca lo restes del ingreso.
-- Los descuentos y recargos viven en appointment_adjustments.
-- Las citas se fechan por `appointments.start_datetime`, no por la fecha de la
-  venta. Los estados son 'scheduled', 'completed', 'cancelled'.
+- Las citas se fechan por `appointments.start_datetime`. Los estados son
+  'scheduled', 'completed', 'cancelled'.
 - Las fechas son texto ISO. Hoy es {hoy}. "Este mes" = del día 1 de este mes a
   hoy. Sé explícito con los rangos.
 - Los valores están en pesos colombianos, sin decimales.

@@ -271,46 +271,146 @@ class TestPromptExigeDosColumnas:
 
 
 class TestDefinicionDeIngresos:
-    """La regla del negocio: toda cita que quedó en la agenda se asume
-    ejecutada y pagada, sin importar su estado final.
+    """Reglas de negocio que el prompt tiene que seguir declarando.
 
-    El prompt original decía "ingresos = service_sales con status completed",
-    que contradice eso y subestima el total — deja por fuera toda cita sin
-    venta cerrada. Se detectó en el primer uso real: las ventas diarias de
-    agosto salían en miles de pesos.
-
-    Es exactamente el problema que la función quería evitar: dos cifras
-    distintas de lo mismo según dónde se mire.
+    La versión anterior de esta clase probaba una redacción que pedía calcular
+    la plata en SQL — se reemplazó cuando esa vía resultó inviable (ver
+    TestTablaDeIngresos). Lo que sobrevive son las reglas que siguen vigentes.
     """
     PROMPT = " ".join(A.PROMPT_CONSULTAS.split())
 
-    def test_la_unidad_de_ingreso_es_la_cita(self):
-        assert "La unidad de ingreso es la CITA, no la venta" in self.PROMPT
-
-    def test_dice_que_scheduled_tambien_cuenta(self):
-        assert "status != 'cancelled'" in self.PROMPT
-        assert "'scheduled' cuenta igual que una en 'completed'" in self.PROMPT
-
-    def test_prohibe_explicitamente_el_filtro_viejo(self):
-        """Sin esta frase el modelo tiende a filtrar por venta completada, que
-        es lo natural leyendo el esquema."""
-        assert "NO filtres por `service_sales.status = 'completed'`" in self.PROMPT
-
     def test_los_diagnosticos_no_son_ingreso(self):
-        assert "Los diagnósticos no son ingreso" in self.PROMPT
+        assert "Los diagnósticos son GRATIS y no son ingreso" in self.PROMPT
 
-    def test_las_ventas_sin_cita_si_cuentan(self):
-        """El parqueadero es ingreso real aunque no tenga cita."""
-        assert "appointment_id IS NULL" in self.PROMPT
-        assert "SÍ son ingreso" in self.PROMPT
-
-    def test_exige_avisar_cuando_la_cifra_esta_incompleta(self):
-        """El monto de una cita sin venta se calcula en Python, no en SQL: si
-        no se advierte, la cifra se presenta como completa sin serlo."""
-        assert "Nunca presentes la cifra como completa" in self.PROMPT
-
-    def test_las_citas_se_fechan_por_start_datetime(self):
-        assert "`appointments.start_datetime`, no por la fecha de la" in self.PROMPT
+    def test_toda_cita_en_agenda_cuenta_sin_importar_su_estado(self):
+        """La regla del negocio: si quedó en la agenda, se asume ejecutada."""
+        assert "las canceladas no entran" in self.PROMPT
+        assert "'scheduled' cuenta igual que una 'completed'" in self.PROMPT
 
     def test_sigue_la_regla_del_abono(self):
         assert "Un ABONO (appointment_payments) NO es un descuento" in self.PROMPT
+
+    def test_distingue_lo_que_cobra_de_lo_que_le_queda_al_negocio(self):
+        assert "`ingreso_noxa` = lo que queda para NOXA" in self.PROMPT
+
+    def test_los_gastos_siguen_saliendo_de_expenses(self):
+        assert "Los GASTOS sí viven en `expenses`" in self.PROMPT
+
+
+class TestTablaDeIngresos:
+    """El monto de una cita NO está en la base: se calcula en Python con
+    service_prices, el convenio y los ajustes, y una cita sin venta cerrada
+    vale su estimado.
+
+    Pedirle al modelo que lo resolviera en SQL era imposible: las citas sin
+    venta salían en 0, y en la práctica eran casi todas — una pregunta por
+    ventas de cerámico daba 14 días en cero. Ahora el cálculo lo hace
+    `_transacciones_citas()`, la misma que alimenta Analítica, y se materializa
+    en una tabla temporal que el modelo solo agrega.
+    """
+
+    def test_la_tabla_existe_en_la_consulta(self):
+        with A.app.app_context():
+            cols, _ = A._ejecutar_consulta_lectura("SELECT * FROM ingresos LIMIT 1")
+        for c in ("fecha", "monto", "servicios", "es_diagnostico", "ingreso_noxa"):
+            assert c in cols
+
+    def test_una_cita_sin_venta_cerrada_igual_trae_su_monto(self):
+        """El caso exacto que fallaba en producción."""
+        import datetime as dt
+        with A.app.app_context():
+            vt = A.VehicleType.query.filter_by(is_active=True).first()
+            svc = A.Service(name="Servicio Sin Venta", duration_minutes=60, is_active=True)
+            A.db.session.add(svc)
+            A.db.session.commit()
+            A.db.session.add(A.ServicePrice(service_id=svc.id, vehicle_type_id=vt.id,
+                                            price=777000, duration_minutes=60, is_active=True))
+            ini = A.bogota_now().replace(hour=9, minute=0, second=0, microsecond=0)
+            appt = A.Appointment(customer_name="C", plate="SVT001", phone="3001112233",
+                                 services=svc.name, start_datetime=ini,
+                                 end_datetime=ini + dt.timedelta(hours=1),
+                                 vehicle_type_id=vt.id, status="scheduled")
+            A.db.session.add(appt)
+            A.db.session.commit()
+            ids = (appt.id, svc.id)
+        try:
+            with A.app.app_context():
+                assert A.ServiceSale.query.filter_by(plate="SVT001").count() == 0
+                _c, filas = A._ejecutar_consulta_lectura(
+                    "SELECT monto FROM ingresos WHERE placa = 'SVT001'")
+            assert filas and filas[0][0] == 777000, "una cita sin venta volvió a salir en cero"
+        finally:
+            with A.app.app_context():
+                A.db.session.delete(A.Appointment.query.get(ids[0]))
+                A.ServicePrice.query.filter_by(service_id=ids[1]).delete()
+                A.db.session.delete(A.Service.query.get(ids[1]))
+                A.db.session.commit()
+
+    def test_la_tabla_temporal_no_puede_escribir_en_la_base_real(self):
+        """Montarla no puede haber abierto un hueco: la conexión sigue siendo
+        de solo lectura para todo lo demás."""
+        with A.app.app_context():
+            with pytest.raises(Exception) as exc:
+                A._ejecutar_consulta_lectura("DELETE FROM services")
+            assert "readonly" in str(exc.value).lower()
+
+    def test_la_tabla_aparece_en_el_esquema_del_modelo(self):
+        with A.app.app_context():
+            assert "ingresos(" in A._esquema_para_preguntas()
+
+    def test_el_prompt_manda_usarla_para_plata(self):
+        prompt = " ".join(A.PROMPT_CONSULTAS.split())
+        assert "Para TODA pregunta de plata usa la tabla `ingresos`" in prompt
+        assert "No la calcules desde `appointments` ni desde `service_sales`" in prompt
+
+    def test_el_prompt_explica_excluir_diagnosticos(self):
+        prompt = " ".join(A.PROMPT_CONSULTAS.split())
+        assert "es_diagnostico = 0" in prompt
+
+
+class TestVentasSinCita:
+    """El parqueadero se vende sin cita. `_transacciones_citas()` solo recorre
+    citas, así que sin agregarlas aparte quedaría fuera del total y nada lo
+    advertiría — un ingreso real desapareciendo en silencio."""
+
+    def test_una_venta_sin_cita_entra_a_ingresos(self):
+        import datetime as dt
+        with A.app.app_context():
+            v = A.ServiceSale(appointment_id=None, service_date=dt.date(2026, 8, 20),
+                              vehicle_type="N/A", plate="PKG999", customer_name="Parqueo",
+                              services="Parqueadero", base_amount=7000, discount_amount=0,
+                              final_amount=7000, status="completed")
+            A.db.session.add(v)
+            A.db.session.commit()
+            vid = v.id
+        try:
+            with A.app.app_context():
+                _c, filas = A._ejecutar_consulta_lectura(
+                    "SELECT monto, servicios FROM ingresos WHERE placa = 'PKG999'")
+            assert filas, "la venta sin cita no llegó a ingresos"
+            assert filas[0][0] == 7000
+        finally:
+            with A.app.app_context():
+                A.db.session.delete(A.ServiceSale.query.get(vid))
+                A.db.session.commit()
+
+    def test_no_se_cuenta_como_diagnostico(self):
+        """Si entrara con es_diagnostico=1 se filtraría fuera de las cifras."""
+        import datetime as dt
+        with A.app.app_context():
+            v = A.ServiceSale(appointment_id=None, service_date=dt.date(2026, 8, 20),
+                              vehicle_type="N/A", plate="PKG998", customer_name="P",
+                              services="Parqueadero", base_amount=7000, discount_amount=0,
+                              final_amount=7000, status="completed")
+            A.db.session.add(v)
+            A.db.session.commit()
+            vid = v.id
+        try:
+            with A.app.app_context():
+                _c, filas = A._ejecutar_consulta_lectura(
+                    "SELECT es_diagnostico FROM ingresos WHERE placa = 'PKG998'")
+            assert filas[0][0] == 0
+        finally:
+            with A.app.app_context():
+                A.db.session.delete(A.ServiceSale.query.get(vid))
+                A.db.session.commit()
