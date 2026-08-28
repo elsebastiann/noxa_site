@@ -268,3 +268,49 @@ class TestPromptExigeDosColumnas:
             r = client.post("/api/preguntar", json={"pregunta": "x"}).get_json()
         assert "error" not in r
         assert len(r["columnas"]) == 3
+
+
+class TestDefinicionDeIngresos:
+    """La regla del negocio: toda cita que quedó en la agenda se asume
+    ejecutada y pagada, sin importar su estado final.
+
+    El prompt original decía "ingresos = service_sales con status completed",
+    que contradice eso y subestima el total — deja por fuera toda cita sin
+    venta cerrada. Se detectó en el primer uso real: las ventas diarias de
+    agosto salían en miles de pesos.
+
+    Es exactamente el problema que la función quería evitar: dos cifras
+    distintas de lo mismo según dónde se mire.
+    """
+    PROMPT = " ".join(A.PROMPT_CONSULTAS.split())
+
+    def test_la_unidad_de_ingreso_es_la_cita(self):
+        assert "La unidad de ingreso es la CITA, no la venta" in self.PROMPT
+
+    def test_dice_que_scheduled_tambien_cuenta(self):
+        assert "status != 'cancelled'" in self.PROMPT
+        assert "'scheduled' cuenta igual que una en 'completed'" in self.PROMPT
+
+    def test_prohibe_explicitamente_el_filtro_viejo(self):
+        """Sin esta frase el modelo tiende a filtrar por venta completada, que
+        es lo natural leyendo el esquema."""
+        assert "NO filtres por `service_sales.status = 'completed'`" in self.PROMPT
+
+    def test_los_diagnosticos_no_son_ingreso(self):
+        assert "Los diagnósticos no son ingreso" in self.PROMPT
+
+    def test_las_ventas_sin_cita_si_cuentan(self):
+        """El parqueadero es ingreso real aunque no tenga cita."""
+        assert "appointment_id IS NULL" in self.PROMPT
+        assert "SÍ son ingreso" in self.PROMPT
+
+    def test_exige_avisar_cuando_la_cifra_esta_incompleta(self):
+        """El monto de una cita sin venta se calcula en Python, no en SQL: si
+        no se advierte, la cifra se presenta como completa sin serlo."""
+        assert "Nunca presentes la cifra como completa" in self.PROMPT
+
+    def test_las_citas_se_fechan_por_start_datetime(self):
+        assert "`appointments.start_datetime`, no por la fecha de la" in self.PROMPT
+
+    def test_sigue_la_regla_del_abono(self):
+        assert "Un ABONO (appointment_payments) NO es un descuento" in self.PROMPT

@@ -5386,12 +5386,33 @@ ESQUEMA DISPONIBLE:
 
 DEFINICIONES DEL NEGOCIO — úsalas, no inventes las tuyas. Si el tablero de
 Analítica ya calcula algo de una forma, la cifra tiene que coincidir:
-- Ingresos = service_sales.final_amount de las filas con status 'completed'.
+
+- **La unidad de ingreso es la CITA, no la venta.** Así opera NOXA: toda cita
+  que quedó en la agenda se asume ejecutada y pagada, sin importar su estado
+  final. O sea, cuentas `appointments` con `status != 'cancelled'` — una cita
+  en 'scheduled' cuenta igual que una en 'completed'. NO filtres por
+  `service_sales.status = 'completed'` para medir ingresos: eso deja por fuera
+  toda cita que aún no tiene venta cerrada y subestima el total.
+- **El monto de una cita**: si tiene una venta asociada
+  (`service_sales.appointment_id`), manda `final_amount`, que ya trae
+  descuentos y ajustes reales. Si NO tiene venta, el valor es el estimado y se
+  calcula con la lógica de precios de la app (service_prices por servicio y
+  tipo de vehículo, más convenio y ajustes) — eso NO se puede reproducir en
+  SQL de forma confiable.
+  Por eso, cuando la pregunta sea de plata: haz LEFT JOIN de appointments con
+  service_sales por appointment_id, suma `final_amount`, y si quedan citas sin
+  venta asociada DILO en `explicacion` con cuántas son. Nunca presentes la
+  cifra como completa si hay citas sin venta.
+- **Los diagnósticos no son ingreso**: son gratis y son un paso del embudo.
+  Exclúyelos de cualquier cifra de plata (su nombre de servicio contiene
+  "diagn").
+- **Ventas sin cita** (`service_sales.appointment_id IS NULL`, como el
+  parqueadero) SÍ son ingreso y van aparte de las citas.
 - Un ABONO (appointment_payments) NO es un descuento: no baja lo que vale el
   servicio, solo el saldo pendiente. Nunca lo restes del ingreso.
 - Los descuentos y recargos viven en appointment_adjustments.
-- Las citas cuentan por start_datetime. Los estados son 'scheduled',
-  'completed', 'cancelled'.
+- Las citas se fechan por `appointments.start_datetime`, no por la fecha de la
+  venta. Los estados son 'scheduled', 'completed', 'cancelled'.
 - Las fechas son texto ISO. Hoy es {hoy}. "Este mes" = del día 1 de este mes a
   hoy. Sé explícito con los rangos.
 - Los valores están en pesos colombianos, sin decimales.
