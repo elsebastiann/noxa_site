@@ -232,3 +232,39 @@ class TestCosto:
                           return_value=_claude_responde({"sql": "DELETE FROM services", "gráfica": "tabla"})):
             r = client.post("/api/preguntar", json={"pregunta": "x"}).get_json()
         assert "error" in r and "costo" in r
+
+
+class TestPromptExigeDosColumnas:
+    """Con tres columnas la gráfica salía con TODAS las barras en cero: el
+    frontend tomaba la segunda columna como valor, ahí venía texto,
+    Number("Gustavo Pauta") daba NaN y el `|| 0` lo volvía cero sin un solo
+    error. Visto en producción el 2026-08-28.
+
+    El arreglo real es que el frontend busque la última columna numérica (no se
+    puede probar desde acá, es JavaScript). Esto cubre la otra mitad: que el
+    prompt lo pida explícito, para que el caso raro sea aún más raro."""
+
+    # El prompt viene envuelto a 79 columnas, así que las frases se parten en
+    # varias líneas: se compara con los espacios normalizados y no crudo.
+    PROMPT = " ".join(A.PROMPT_CONSULTAS.split())
+
+    def test_pide_exactamente_dos_columnas_para_graficar(self):
+        assert "EXACTAMENTE DOS columnas" in self.PROMPT
+
+    def test_explica_como_evitar_la_tercera(self):
+        assert "únelos en una sola columna" in self.PROMPT
+        assert "una tercera columna rompe la gráfica" in self.PROMPT
+
+    def test_ofrece_la_tabla_como_salida_para_mas_columnas(self):
+        assert 'Si de verdad necesitas más columnas, usa "tabla"' in self.PROMPT
+
+    def test_tres_columnas_igual_se_ejecutan_y_devuelven(self, client):
+        """El backend no debe rechazarlas: son un SQL válido, y la tabla las
+        muestra bien. El problema era solo cómo las graficaba el navegador."""
+        login_as(client, make_user("sa", role="admin"))
+        plan = {"sql": "SELECT name AS a, name AS b, COUNT(*) AS n FROM services GROUP BY name",
+                "gráfica": "barras", "titulo": "T", "explicacion": ""}
+        with patch.object(A, "_get_claude_client", return_value=_claude_responde(plan)):
+            r = client.post("/api/preguntar", json={"pregunta": "x"}).get_json()
+        assert "error" not in r
+        assert len(r["columnas"]) == 3

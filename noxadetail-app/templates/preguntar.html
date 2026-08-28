@@ -159,6 +159,18 @@
   });
 
   const esNumero = v => v !== null && v !== "" && !isNaN(Number(v));
+
+  // Cuál columna tiene los números. NO se asume la segunda: el modelo a veces
+  // devuelve tres columnas (placa, cliente, total) pese a que el prompt pide
+  // dos, y entonces Number("Gustavo Pauta") da NaN, el `|| 0` lo vuelve cero y
+  // la gráfica sale con todas las barras en el piso, sin ningún error. Se toma
+  // la ÚLTIMA columna numérica, que es donde cae el agregado.
+  function columnaDeValores(filas, cols) {
+    for (let i = cols.length - 1; i >= 1; i--) {
+      if (filas.every(f => esNumero(f[i]))) return i;
+    }
+    return -1;
+  }
   const fmt = v => esNumero(v) ? Number(v).toLocaleString("es-CO") : (v ?? "");
 
   // La paleta sale del dorado de la marca y gira el tono, en vez de colores
@@ -201,7 +213,10 @@
     const filas = d.filas || [], cols = d.columnas || [];
     // Una gráfica necesita al menos dos columnas (etiqueta y valor); con una
     // sola solo tienen sentido el KPI y la tabla.
-    const puedeGraficar = cols.length >= 2 && filas.length > 0;
+    const iValor = columnaDeValores(filas, cols);
+    // Sin columna numérica no hay nada que graficar: una gráfica vacía miente
+    // más que una tabla.
+    const puedeGraficar = cols.length >= 2 && filas.length > 0 && iValor > 0;
     const tipos = [["kpi","KPI"],["barras","Barras"],["torta","Torta"],["linea","Línea"],["tabla","Tabla"]];
 
     salida.innerHTML = `
@@ -251,7 +266,7 @@
     } else {
       cuerpo.innerHTML = '<div class="pg-lienzo"><canvas id="pgChart"></canvas></div>';
       const etiquetas = filas.map(f => String(f[0]));
-      const valores = filas.map(f => Number(f[1]) || 0);
+      const valores = filas.map(f => Number(f[iValor]));
       const paleta = colores(filas.length);
       const esTorta = tipo === "torta";
       chart = new Chart(document.getElementById("pgChart"), {
@@ -259,7 +274,7 @@
         data: {
           labels: etiquetas,
           datasets: [{
-            label: cols[1] || "",
+            label: cols[iValor] || "",
             data: valores,
             backgroundColor: esTorta ? paleta : "rgba(212,180,108,.55)",
             borderColor: esTorta ? "transparent" : "#d4b46c",

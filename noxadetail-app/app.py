@@ -5410,8 +5410,12 @@ CÓMO MOSTRARLA — elige el tipo según la forma de la respuesta:
 - "linea": evolución en el tiempo. Ej: ingresos por mes.
 - "tabla": listados, muchas columnas, o cuando ninguna gráfica aporta.
 
-Para kpi devuelve una fila con una columna. Para barras/torta/linea, la PRIMERA
-columna es la etiqueta y la SEGUNDA el valor.
+Para kpi devuelve una fila con una columna. Para barras/torta/linea devuelve
+EXACTAMENTE DOS columnas: la primera es la etiqueta y la segunda el valor
+numérico. Si necesitas identificar algo con dos datos (placa y nombre, por
+ejemplo), únelos en una sola columna con `||` en vez de devolver tres — una
+tercera columna rompe la gráfica. Si de verdad necesitas más columnas, usa
+"tabla".
 
 Responde SOLO con este JSON, sin texto alrededor ni ```:
 {{"sql": "...", "gráfica": "kpi|barras|torta|linea|tabla", "titulo": "...", "explicacion": "..."}}
