@@ -1567,6 +1567,12 @@ class Conversation(db.Model):
     archived_at     = db.Column(db.DateTime, nullable=True)
     archived_reason = db.Column(db.Text, nullable=True)
     archived_by     = db.Column(db.String(120), nullable=True)
+    # Cuando el cliente pide que le escriban después ("esta semana no puedo",
+    # "llámame en 15 días"), Mariana emite [ESPERAR: fecha] y acá queda hasta
+    # cuándo NO se le insiste. Sin esto el job solo mira el tiempo transcurrido:
+    # el cliente acordaba hablar la otra semana y le llegaba un seguimiento al
+    # día siguiente, que es la peor forma de romper la confianza de un lead.
+    seguimiento_pausado_hasta = db.Column(db.Date, nullable=True)
     created_at   = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
     updated_at   = db.Column(db.DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -1575,6 +1581,12 @@ class Conversation(db.Model):
     @property
     def archivada(self) -> bool:
         return self.archived_at is not None
+
+    @property
+    def seguimiento_en_pausa(self) -> bool:
+        """True si el cliente pidió que le escriban después y esa fecha no llegó."""
+        return bool(self.seguimiento_pausado_hasta
+                    and self.seguimiento_pausado_hasta > bogota_now().date())
 
     @property
     def es_instagram(self) -> bool:
@@ -1878,12 +1890,13 @@ def ensure_whatsapp_schema():
                 text("ALTER TABLE whatsapp_conversations ADD COLUMN priority VARCHAR(20) DEFAULT 'Baja'")
             )
             db.session.commit()
-        # Archivado manual. Son columnas nuevas, así que basta ADD COLUMN: no hace
-        # falta el rebuild de tabla que sí exigió service_sales.
+        # Archivado manual y pausa de seguimiento. Son columnas nuevas, así que
+        # basta ADD COLUMN: no hace falta el rebuild que sí exigió service_sales.
         for col, ddl in (
             ("archived_at", "DATETIME"),
             ("archived_reason", "TEXT"),
             ("archived_by", "VARCHAR(120)"),
+            ("seguimiento_pausado_hasta", "DATE"),
         ):
             try:
                 db.session.execute(text(f"SELECT {col} FROM whatsapp_conversations LIMIT 1"))
@@ -7956,6 +7969,16 @@ Ejemplo: [REAGENDAR: placa=ABC123; fecha=2026-08-07; hora=15:00]
 
 **Si te aparece que el vehículo YA tiene una cita**: no es un error ni un problema. Dile al cliente con naturalidad qué cita tiene y pregúntale si quiere conservarla o moverla. Si dice que la mueva, la mueves tú con [REAGENDAR: ...] — nunca le digas que tienes que pasarlo con el equipo para eso.
 
+**CUANDO EL CLIENTE PIDE QUE LE ESCRIBAS DESPUÉS** — esto es obligatorio y es de lo más importante que haces.
+Si el cliente dice que ahora no puede, que está de viaje, que lo llames el otro mes, o si TÚ le propones escribirle después y él acepta, agrega un mensaje SEPARADO que diga EXACTAMENTE:
+[ESPERAR: <AAAA-MM-DD>]
+Ejemplo: si hoy es lunes 25/08 y quedan en hablar la próxima semana → [ESPERAR: 2026-09-01]
+
+- La fecha la calculas tú con la FECHA Y HORA ACTUAL que recibes en cada turno. "La próxima semana" es el lunes siguiente; "en 15 días", "el otro mes", "después de vacaciones" — conviértelo a una fecha concreta. Si el cliente es vago ("más adelante"), asume 15 días.
+- Hasta esa fecha NO se le manda ningún seguimiento automático. **Sin este marcador, el sistema le escribe al día siguiente** — o sea, le prometes esperar y al otro día lo contradices. Es la peor forma de perder un lead que estaba dispuesto.
+- Emítelo en el MISMO turno en que quedan en eso, no después.
+- No aplica si el cliente ya agendó (ahí no hay seguimiento) ni si simplemente no ha respondido: es solo para un acuerdo explícito de volver a hablar más adelante.
+
 **Confirmación**: apenas quede agendado, mándale el resumen corto de la sección CIERRE (nombre, vehículo, que es el diagnóstico, día, hora, que es en NOXA Prado Veraniego, que toma 15-20 minutos, y que por favor te avise con tiempo si necesita reagendar).
 
 # UBICACIÓN — puedes mandarla tú misma
@@ -9107,6 +9130,8 @@ _NOMBRE_RE = re.compile(r"^\[NOMBRE:\s*(.*?)\]$", re.IGNORECASE)
 _AGENDAR_RE = re.compile(r"^\[AGENDAR:\s*(.*?)\]$", re.IGNORECASE | re.DOTALL)
 _PROMO_RE   = re.compile(r"^\[PROMO:\s*(\d+)\s*\]$", re.IGNORECASE)
 _REAGENDAR_RE = re.compile(r"^\[REAGENDAR:\s*(.*?)\]$", re.IGNORECASE | re.DOTALL)
+# [ESPERAR: 2026-09-01] — el cliente pidió que le escriban después de esa fecha.
+_ESPERAR_RE = re.compile(r"^\[ESPERAR:\s*(\d{4}-\d{2}-\d{2})\s*\]$", re.IGNORECASE)
 _SIN_MENU_RE  = re.compile(r"^\[SIN_?MENU\]$", re.IGNORECASE)
 
 # Estados del lead que Mariana puede poner ella misma vía [META: estado=...].
@@ -9754,6 +9779,7 @@ def _generate_and_send_reply(conversation: "Conversation", from_number: str, med
     skip_menu = False
     promo_ids = []
     visible_chunks = []
+    pausa_hasta = None
     for chunk in reply_chunks:
         stripped = chunk.strip()
         m_esc = _ESCALATE_RE.match(stripped)
@@ -9762,8 +9788,14 @@ def _generate_and_send_reply(conversation: "Conversation", from_number: str, med
         m_agendar = _AGENDAR_RE.match(stripped)
         m_promo = _PROMO_RE.match(stripped)
         m_reagendar = _REAGENDAR_RE.match(stripped)
+        m_esperar = _ESPERAR_RE.match(stripped)
         if _SIN_MENU_RE.match(stripped):
             skip_menu = True
+        elif m_esperar:
+            try:
+                pausa_hasta = datetime.strptime(m_esperar.group(1), "%Y-%m-%d").date()
+            except ValueError:
+                app.logger.warning(f"[Seguimiento] Fecha inválida en [ESPERAR:]: {m_esperar.group(1)!r}")
         elif m_agendar:
             booking_data = _parse_agendar_marker(m_agendar.group(1))
         elif m_reagendar:
@@ -9917,6 +9949,12 @@ def _generate_and_send_reply(conversation: "Conversation", from_number: str, med
     if new_name and new_name != conversation.profile_name:
         conversation.profile_name = new_name
         db.session.commit()
+    if pausa_hasta and pausa_hasta != conversation.seguimiento_pausado_hasta:
+        conversation.seguimiento_pausado_hasta = pausa_hasta
+        db.session.commit()
+        app.logger.info(
+            f"[Seguimiento] {conversation.contacto_visible}: sin seguimientos hasta {pausa_hasta}."
+        )
     if new_carro and new_carro != conversation.carro:
         conversation.carro = new_carro
         db.session.commit()
@@ -10866,6 +10904,12 @@ def _candidatas_de_seguimiento():
         # A una conversación archivada a mano no se le insiste: archivarla es
         # justamente decir "aquí ya terminamos".
         Conversation.archived_at.is_(None),
+        # Y si el cliente pidió que le escribieran después, se respeta la fecha.
+        # Es un acuerdo explícito: escribirle antes lo contradice a la cara.
+        db.or_(
+            Conversation.seguimiento_pausado_hasta.is_(None),
+            Conversation.seguimiento_pausado_hasta <= bogota_now().date(),
+        ),
     ).all()
 
 
