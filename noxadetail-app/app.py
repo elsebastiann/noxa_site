@@ -4228,6 +4228,15 @@ USUARIOS_PUEDEN_BORRAR_SERVICIOS = {"sa", "diana"}
 
 
 @app.template_global()
+def puede_preguntar_a_los_datos() -> bool:
+    """Preguntarle a la data da acceso a TODA la plata del negocio de una forma
+    que ningún tablero permite. Se limita a las mismas dos personas que pueden
+    borrar del catálogo, no a cualquier admin."""
+    u = getattr(g, "current_user", None)
+    return bool(u) and (u.username or "").strip().lower() in USUARIOS_PUEDEN_BORRAR_SERVICIOS
+
+
+@app.template_global()
 def puede_borrar_servicios() -> bool:
     u = getattr(g, "current_user", None)
     return bool(u) and (u.username or "").strip().lower() in USUARIOS_PUEDEN_BORRAR_SERVICIOS
@@ -5258,6 +5267,232 @@ def _kpis_clientes(date_from, date_to, vehicle_type: str = ""):
         "top": top,
     }
 
+
+
+# ── Preguntas en lenguaje natural sobre la data ──────────────────────────────
+# Claude escribe el SQL y acá se ejecuta. Todo el diseño gira alrededor de que
+# el modelo NO tiene que ser confiable para que esto sea seguro: la base se abre
+# en modo lectura, así que un DELETE falla en el motor aunque el modelo lo
+# genere. Las reglas no dependen de que obedezca.
+
+# Fuera del alcance: `users` tiene los hashes de contraseñas. No entra al
+# esquema que ve el modelo ni se puede consultar.
+TABLAS_VETADAS = {"users", "notifications", "railway_cost_snapshots"}
+CONSULTA_MAX_FILAS = 500
+CONSULTA_TIMEOUT_SEG = 10
+
+
+def _esquema_para_preguntas() -> str:
+    """Las tablas y columnas que el modelo puede usar, en texto.
+
+    Se arma leyendo la base, no a mano: un esquema escrito a mano se
+    desactualiza en silencio con la próxima migración y el modelo empieza a
+    inventar columnas que ya no existen."""
+    insp = sa_inspect(db.engine)
+    lineas = []
+    for tabla in sorted(insp.get_table_names()):
+        if tabla in TABLAS_VETADAS or tabla.startswith("sqlite_"):
+            continue
+        cols = ", ".join(f"{c['name']} {c['type']}" for c in insp.get_columns(tabla))
+        lineas.append(f"{tabla}({cols})")
+    return "\n".join(lineas)
+
+
+def _sql_es_de_lectura(sql: str) -> "str | None":
+    """Devuelve el motivo por el que NO se puede ejecutar, o None si está bien.
+
+    Es defensa en profundidad: la conexión ya es de solo lectura, pero un
+    rechazo acá da un mensaje entendible en vez de un error del motor, y frena
+    de una las consultas a tablas vetadas."""
+    limpio = re.sub(r"--[^\n]*", " ", sql or "").strip().rstrip(";").strip()
+    if not limpio:
+        return "la consulta vino vacía"
+    if ";" in limpio:
+        return "no se permite más de una sentencia"
+    if not re.match(r"^(SELECT|WITH)\b", limpio, re.IGNORECASE):
+        return "solo se permiten consultas SELECT"
+    prohibidas = ("insert", "update", "delete", "drop", "alter", "create",
+                  "replace", "attach", "pragma", "vacuum")
+    palabras = set(re.findall(r"[a-z_]+", limpio.lower()))
+    usadas = palabras & set(prohibidas)
+    if usadas:
+        return f"la consulta usa {', '.join(sorted(usadas))}"
+    vetada = palabras & TABLAS_VETADAS
+    if vetada:
+        return f"esa información no está disponible ({', '.join(sorted(vetada))})"
+    return None
+
+
+def _ejecutar_consulta_lectura(sql: str):
+    """Corre el SQL contra una conexión de SOLO LECTURA. (columnas, filas)."""
+    import sqlite3
+    ruta = os.path.abspath(app.config["SQLALCHEMY_DATABASE_URI"].replace("sqlite:///", ""))
+    con = sqlite3.connect(f"file:{ruta}?mode=ro", uri=True, timeout=CONSULTA_TIMEOUT_SEG)
+    try:
+        cur = con.execute(sql)
+        filas = cur.fetchmany(CONSULTA_MAX_FILAS)
+        columnas = [d[0] for d in (cur.description or [])]
+        return columnas, [list(f) for f in filas]
+    finally:
+        con.close()
+
+
+# Tarifas de la API de Anthropic, en dólares por millón de tokens.
+# Sonnet 5: $2 entrada / $10 salida. Con caché de prompt, escribir cuesta 1.25x
+# la entrada (TTL de 5 min) y leer 0.1x — por eso se cobran aparte: el prompt
+# del sistema de esta función va cacheado, así que a partir de la segunda
+# pregunta seguida la mayor parte de la entrada se paga a un décimo.
+PRECIOS_POR_MILLON = {
+    "claude-sonnet-5": {"entrada": 2.00, "salida": 10.00},
+}
+# Aproximado y solo para dar magnitud: el dólar se mueve todos los días. Se
+# muestra siempre junto al valor en dólares, que es el exacto.
+USD_A_COP = float(os.environ.get("USD_COP", "4100"))
+
+
+def _costo_de_la_llamada(usage, modelo: str) -> dict:
+    """Cuánto costó una llamada, a partir del uso real que reporta la API.
+
+    `input_tokens` es SOLO el remanente no cacheado, así que el total de entrada
+    es la suma de los tres campos. Sumar mal acá subestima el costo justo cuando
+    el caché está funcionando, que es cuando más se usa."""
+    tarifa = PRECIOS_POR_MILLON.get(modelo, PRECIOS_POR_MILLON["claude-sonnet-5"])
+    entrada = getattr(usage, "input_tokens", 0) or 0
+    escritura_cache = getattr(usage, "cache_creation_input_tokens", 0) or 0
+    lectura_cache = getattr(usage, "cache_read_input_tokens", 0) or 0
+    salida = getattr(usage, "output_tokens", 0) or 0
+
+    usd = (
+        entrada * tarifa["entrada"]
+        + escritura_cache * tarifa["entrada"] * 1.25   # escribir al caché
+        + lectura_cache * tarifa["entrada"] * 0.10     # leer del caché
+        + salida * tarifa["salida"]
+    ) / 1_000_000
+
+    return {
+        "usd": round(usd, 6),
+        "cop": round(usd * USD_A_COP),
+        "tokens_entrada": entrada + escritura_cache + lectura_cache,
+        "tokens_salida": salida,
+        "tokens_de_cache": lectura_cache,
+    }
+
+
+PROMPT_CONSULTAS = """Eres el analista de datos de NOXA Detail, un negocio de detailing en Bogotá.
+Recibes una pregunta de negocio y devuelves SQLite SQL que la responda, más cómo mostrarla.
+
+ESQUEMA DISPONIBLE:
+{esquema}
+
+DEFINICIONES DEL NEGOCIO — úsalas, no inventes las tuyas. Si el tablero de
+Analítica ya calcula algo de una forma, la cifra tiene que coincidir:
+- Ingresos = service_sales.final_amount de las filas con status 'completed'.
+- Un ABONO (appointment_payments) NO es un descuento: no baja lo que vale el
+  servicio, solo el saldo pendiente. Nunca lo restes del ingreso.
+- Los descuentos y recargos viven en appointment_adjustments.
+- Las citas cuentan por start_datetime. Los estados son 'scheduled',
+  'completed', 'cancelled'.
+- Las fechas son texto ISO. Hoy es {hoy}. "Este mes" = del día 1 de este mes a
+  hoy. Sé explícito con los rangos.
+- Los valores están en pesos colombianos, sin decimales.
+
+REGLAS DEL SQL:
+- Solo SELECT (o WITH ... SELECT). Una sola sentencia, sin punto y coma final.
+- Pon siempre un LIMIT razonable; nunca traigas más de {max_filas} filas.
+- Alias en español y legibles para las columnas: van a mostrarse tal cual.
+- Si la pregunta es ambigua, elige la lectura más útil para el negocio y
+  explícala en `explicacion`.
+
+CÓMO MOSTRARLA — elige el tipo según la forma de la respuesta:
+- "kpi": UNA sola cifra. Ej: cuánto entró este mes, cuántos clientes nuevos.
+- "barras": comparar categorías entre sí. Ej: servicios más vendidos.
+- "torta": partes de un total, y solo si son POCAS categorías (máximo 6).
+- "linea": evolución en el tiempo. Ej: ingresos por mes.
+- "tabla": listados, muchas columnas, o cuando ninguna gráfica aporta.
+
+Para kpi devuelve una fila con una columna. Para barras/torta/linea, la PRIMERA
+columna es la etiqueta y la SEGUNDA el valor.
+
+Responde SOLO con este JSON, sin texto alrededor ni ```:
+{{"sql": "...", "gráfica": "kpi|barras|torta|linea|tabla", "titulo": "...", "explicacion": "..."}}
+
+`titulo` es corto, para encabezar el resultado. `explicacion` es una frase que
+diga qué se está contando y con qué criterio, para que quien lea sepa si es lo
+que preguntó."""
+
+
+def _preguntar_a_los_datos(pregunta: str) -> dict:
+    """Traduce la pregunta a SQL con Claude y la ejecuta. Nunca lanza: devuelve
+    el error en el mismo dict para poder mostrarlo en pantalla."""
+    hoy = bogota_now().date()
+    sistema = PROMPT_CONSULTAS.format(
+        esquema=_esquema_para_preguntas(),
+        hoy=f"{_DIAS_ES[hoy.weekday()]} {hoy.isoformat()}",
+        max_filas=CONSULTA_MAX_FILAS,
+    )
+    try:
+        respuesta = _get_claude_client().messages.create(
+            model="claude-sonnet-5",
+            max_tokens=1200,
+            system=[{"type": "text", "text": sistema, "cache_control": {"type": "ephemeral"}}],
+            messages=[{"role": "user", "content": pregunta}],
+        )
+        crudo = "\n".join(b.text for b in respuesta.content if b.type == "text").strip()
+        costo = _costo_de_la_llamada(respuesta.usage, "claude-sonnet-5")
+    except Exception as exc:
+        app.logger.error(f"[Consultas] Claude falló: {exc}")
+        return {"error": f"No se pudo generar la consulta: {exc}"}
+
+    # El modelo a veces envuelve el JSON en un bloque de código pese a la
+    # instrucción; se limpia en vez de fallar por una comilla de más.
+    crudo = re.sub(r"^```(?:json)?|```$", "", crudo.strip(), flags=re.MULTILINE).strip()
+    try:
+        plan = json.loads(crudo)
+    except json.JSONDecodeError:
+        app.logger.error(f"[Consultas] Respuesta no es JSON: {crudo[:300]}")
+        return {"error": "El modelo no devolvió una consulta utilizable. Intenta reformular la pregunta.", "costo": costo}
+
+    sql = (plan.get("sql") or "").strip().rstrip(";")
+    motivo = _sql_es_de_lectura(sql)
+    if motivo:
+        app.logger.warning(f"[Consultas] SQL rechazado ({motivo}): {sql[:200]}")
+        return {"error": f"La consulta generada se rechazó porque {motivo}.", "sql": sql, "costo": costo}
+
+    try:
+        columnas, filas = _ejecutar_consulta_lectura(sql)
+    except Exception as exc:
+        app.logger.warning(f"[Consultas] Error ejecutando: {exc} | SQL: {sql[:200]}")
+        return {"error": f"La consulta falló: {exc}", "sql": sql, "costo": costo}
+
+    return {
+        "sql": sql,
+        "grafica": plan.get("gráfica") or plan.get("grafica") or "tabla",
+        "titulo": plan.get("titulo") or "Resultado",
+        "explicacion": plan.get("explicacion") or "",
+        "columnas": columnas,
+        "filas": filas,
+        "truncado": len(filas) >= CONSULTA_MAX_FILAS,
+        "costo": costo,
+    }
+
+
+@app.route("/preguntar")
+def preguntar_view():
+    if not puede_preguntar_a_los_datos():
+        flash("Acceso restringido.", "danger")
+        return redirect(url_for("calendar_view"))
+    return render_template("preguntar.html")
+
+
+@app.route("/api/preguntar", methods=["POST"])
+def api_preguntar():
+    if not puede_preguntar_a_los_datos():
+        return jsonify({"error": "Acceso restringido."}), 403
+    pregunta = ((request.get_json(silent=True) or {}).get("pregunta") or "").strip()[:500]
+    if not pregunta:
+        return jsonify({"error": "Escribe una pregunta."}), 400
+    app.logger.info(f"[Consultas] {_quien()} preguntó: {pregunta!r}")
+    return jsonify(_preguntar_a_los_datos(pregunta))
 
 
 @app.route("/analytics")

@@ -1,0 +1,307 @@
+{% extends "base.html" %}
+
+{% block extra_head %}
+<style>
+  .pg-intro { color:var(--text2); font-size:.88rem; max-width:70ch; margin:0 0 18px; }
+  .pg-caja { display:flex; gap:8px; margin-bottom:14px; }
+  .pg-caja input {
+    flex:1; background:var(--surface); border:1px solid var(--border); color:var(--text);
+    border-radius:var(--radius); padding:12px 15px; font-size:.95rem;
+  }
+  .pg-caja input:focus { outline:none; border-color:var(--accent); }
+
+  .pg-ejemplos { display:flex; flex-wrap:wrap; gap:7px; margin-bottom:22px; }
+  .pg-ejemplo {
+    background:var(--surface2); border:1px solid var(--border); color:var(--text2);
+    border-radius:999px; padding:5px 12px; font-size:.76rem; cursor:pointer;
+  }
+  .pg-ejemplo:hover { border-color:var(--accent); color:var(--accent); }
+
+  .pg-estado { color:var(--text2); font-size:.86rem; padding:16px 0; }
+  .pg-error {
+    border:1px solid rgba(226,75,74,.45); border-left:4px solid #e24b4a;
+    background:rgba(226,75,74,.08); border-radius:var(--radius);
+    padding:14px 16px; color:var(--text); font-size:.88rem;
+  }
+
+  .pg-res { background:var(--surface); border:1px solid var(--border);
+            border-radius:var(--radius); padding:18px 20px; }
+  .pg-res-head { display:flex; justify-content:space-between; align-items:flex-start;
+                 gap:14px; flex-wrap:wrap; margin-bottom:4px; }
+  .pg-titulo { font-size:1.05rem; font-weight:650; margin:0; }
+  .pg-explica { color:var(--text2); font-size:.83rem; margin:2px 0 16px; max-width:70ch; }
+
+  /* Cambiar el tipo de gráfica: la sugerida viene marcada, pero la decisión
+     final es de quien mira — el modelo acierta casi siempre, no siempre. */
+  .pg-tipos { display:flex; gap:5px; flex-wrap:wrap; }
+  .pg-tipo {
+    background:transparent; border:1px solid var(--border); color:var(--text2);
+    border-radius:8px; padding:4px 10px; font-size:.75rem; cursor:pointer;
+  }
+  .pg-tipo.activo { border-color:var(--accent); color:var(--accent); background:var(--accent-bg); }
+  .pg-tipo:disabled { opacity:.3; cursor:not-allowed; }
+
+  .pg-lienzo { position:relative; height:340px; margin-top:6px; }
+  .pg-kpi { text-align:center; padding:34px 0 26px; }
+  .pg-kpi-valor { font-size:clamp(2.2rem,7vw,3.4rem); font-weight:750; color:var(--accent);
+                  line-height:1; font-variant-numeric:tabular-nums; }
+  .pg-kpi-label { color:var(--text2); font-size:.85rem; margin-top:8px; }
+
+  .pg-tabla-wrap { overflow-x:auto; max-height:420px; overflow-y:auto; margin-top:6px; }
+  table.pg-tabla { width:100%; border-collapse:collapse; font-size:.85rem; }
+  table.pg-tabla th {
+    position:sticky; top:0; background:var(--surface2); text-align:left;
+    padding:9px 12px; font-size:.72rem; letter-spacing:.06em; text-transform:uppercase;
+    color:var(--text2); white-space:nowrap;
+  }
+  table.pg-tabla td { padding:8px 12px; border-top:1px solid var(--border); white-space:nowrap; }
+  table.pg-tabla td.num { text-align:right; font-variant-numeric:tabular-nums; }
+
+  .pg-pie { display:flex; justify-content:space-between; align-items:center; gap:12px;
+            flex-wrap:wrap; margin-top:16px; padding-top:14px; border-top:1px solid var(--border); }
+  .pg-sql { margin-top:12px; }
+  .pg-sql summary { cursor:pointer; color:var(--text2); font-size:.78rem; }
+  .pg-sql pre {
+    background:var(--bg2); border:1px solid var(--border); border-radius:8px;
+    padding:12px 14px; margin:8px 0 0; overflow-x:auto;
+    font-size:.78rem; color:var(--text); white-space:pre-wrap;
+  }
+  .pg-aviso { color:#e6c060; font-size:.78rem; margin-top:10px; }
+  .pg-costo { color:var(--text3); font-size:.74rem; font-variant-numeric:tabular-nums; }
+  .pg-costo b { color:var(--text2); font-weight:600; }
+  .pg-acum {
+    display:flex; justify-content:flex-end; gap:14px; align-items:center;
+    color:var(--text3); font-size:.74rem; margin-top:10px;
+    font-variant-numeric:tabular-nums;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+  <h2 class="mb-2"><i class="bi bi-chat-square-text"></i> Pregúntale a los datos</h2>
+  <p class="pg-intro">
+    Escribe una pregunta sobre el negocio en español. Se traduce a una consulta,
+    se ejecuta <strong>en solo lectura</strong> y se muestra el resultado con la
+    gráfica que mejor le quede. Siempre puedes ver la consulta que se ejecutó y
+    bajar los datos en CSV.
+  </p>
+
+  <form class="pg-caja" id="pgForm" autocomplete="off">
+    <input type="text" id="pgPregunta" maxlength="500"
+           placeholder="¿Cuánto dinero entró este mes?">
+    <button type="submit" class="btn btn-primary" id="pgBtn">Preguntar</button>
+  </form>
+
+  <div class="pg-ejemplos">
+    {% for ej in [
+        "¿Cuánto dinero entró este mes?",
+        "¿Cuántos servicios de cada tipo se vendieron este mes?",
+        "Ingresos por mes en el último año",
+        "¿Cuáles son los 10 clientes que más han gastado?",
+        "¿Cuántas citas se cancelaron este mes?",
+        "¿Qué tipo de vehículo deja más plata?",
+    ] %}
+    <button type="button" class="pg-ejemplo">{{ ej }}</button>
+    {% endfor %}
+  </div>
+
+  <div id="pgSalida"></div>
+  <div class="pg-acum" id="pgAcum" style="display:none;">
+    <span>Esta sesión: <b id="pgAcumPreguntas">0 preguntas</b> ·
+      <b id="pgAcumUsd">US$0</b> (<b id="pgAcumCop">$0</b> aprox.)</span>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script>
+(function () {
+  const form = document.getElementById("pgForm");
+  const input = document.getElementById("pgPregunta");
+  const btn = document.getElementById("pgBtn");
+  const salida = document.getElementById("pgSalida");
+  let chart = null;
+  let datos = null;
+  let acumUsd = 0, acumPreguntas = 0;
+
+  // 4 decimales por debajo de un dólar: con 2, una pregunta de US$0.0027 se ve
+  // como "US$0.00" y el acumulado parece no crecer nunca.
+  const fmtUsd = u => u < 1 ? `US$${u.toFixed(4)}` : `US$${u.toFixed(2)}`;
+
+  function sumarCosto(costo) {
+    if (!costo) return;
+    acumUsd += costo.usd; acumPreguntas += 1;
+    document.getElementById("pgAcum").style.display = "flex";
+    document.getElementById("pgAcumPreguntas").textContent =
+      `${acumPreguntas} pregunta${acumPreguntas === 1 ? "" : "s"}`;
+    document.getElementById("pgAcumUsd").textContent = fmtUsd(acumUsd);
+    document.getElementById("pgAcumCop").textContent =
+      "$" + Math.round(acumUsd * (costo.cop / (costo.usd || 1))).toLocaleString("es-CO");
+  }
+
+  function lineaCosto(c) {
+    if (!c) return "";
+    // Se dice cuántos tokens vinieron del caché porque explica por qué la
+    // segunda pregunta seguida cuesta bastante menos que la primera.
+    const cache = c.tokens_de_cache
+      ? ` · ${c.tokens_de_cache.toLocaleString("es-CO")} desde caché`
+      : "";
+    return `<span class="pg-costo">Costó <b>${fmtUsd(c.usd)}</b>
+      (~$${c.cop.toLocaleString("es-CO")}) ·
+      ${c.tokens_entrada.toLocaleString("es-CO")} tokens de entrada,
+      ${c.tokens_salida.toLocaleString("es-CO")} de salida${cache}</span>`;
+  }
+
+  document.querySelectorAll(".pg-ejemplo").forEach(b => {
+    b.addEventListener("click", () => { input.value = b.textContent.trim(); form.requestSubmit(); });
+  });
+
+  const esNumero = v => v !== null && v !== "" && !isNaN(Number(v));
+  const fmt = v => esNumero(v) ? Number(v).toLocaleString("es-CO") : (v ?? "");
+
+  // La paleta sale del dorado de la marca y gira el tono, en vez de colores
+  // sueltos: así una torta de 6 categorías se sigue leyendo como un conjunto.
+  const colores = n => Array.from({length:n}, (_, i) =>
+    `hsl(${(42 + i * 47) % 360} 62% ${58 - (i % 3) * 9}%)`);
+
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const pregunta = input.value.trim();
+    if (!pregunta) return;
+
+    btn.disabled = true;
+    salida.innerHTML = '<div class="pg-estado">Consultando…</div>';
+    try {
+      const r = await fetch("/api/preguntar", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({pregunta}),
+      });
+      datos = await r.json();
+      if (datos.error) {
+        salida.innerHTML = `<div class="pg-error"><strong>No se pudo responder.</strong><br>${datos.error}</div>`
+          + (datos.sql ? `<details class="pg-sql" open><summary>Consulta que se intentó</summary><pre>${datos.sql}</pre></details>` : "")
+          + (datos.costo ? `<div style="margin-top:10px;">${lineaCosto(datos.costo)}</div>` : "");
+        sumarCosto(datos.costo);   // la llamada al modelo se pagó igual
+        return;
+      }
+      pintar(datos.grafica);
+      sumarCosto(datos.costo);
+    } catch (err) {
+      salida.innerHTML = `<div class="pg-error">Falló la consulta: ${err.message}</div>`;
+    } finally {
+      btn.disabled = false;
+    }
+  });
+
+  function pintar(tipo) {
+    const d = datos;
+    const filas = d.filas || [], cols = d.columnas || [];
+    // Una gráfica necesita al menos dos columnas (etiqueta y valor); con una
+    // sola solo tienen sentido el KPI y la tabla.
+    const puedeGraficar = cols.length >= 2 && filas.length > 0;
+    const tipos = [["kpi","KPI"],["barras","Barras"],["torta","Torta"],["linea","Línea"],["tabla","Tabla"]];
+
+    salida.innerHTML = `
+      <div class="pg-res">
+        <div class="pg-res-head">
+          <div>
+            <h3 class="pg-titulo">${d.titulo}</h3>
+          </div>
+          <div class="pg-tipos">
+            ${tipos.map(([k, txt]) => `
+              <button type="button" class="pg-tipo ${k === tipo ? 'activo' : ''}" data-tipo="${k}"
+                ${(!puedeGraficar && k !== 'tabla' && k !== 'kpi') ? 'disabled' : ''}>${txt}</button>`).join("")}
+          </div>
+        </div>
+        ${d.explicacion ? `<p class="pg-explica">${d.explicacion}</p>` : ""}
+        <div id="pgCuerpo"></div>
+        ${d.truncado ? `<p class="pg-aviso">Se muestran las primeras ${filas.length} filas.</p>` : ""}
+        <div class="pg-pie">
+          <button type="button" class="btn btn-sm btn-outline-secondary" id="pgCsv">
+            <i class="bi bi-download"></i> Descargar CSV
+          </button>
+          <span style="color:var(--text3);font-size:.76rem;">${filas.length} fila${filas.length === 1 ? "" : "s"}</span>
+        </div>
+        <div style="margin-top:8px;">${lineaCosto(d.costo)}
+        </div>
+        <details class="pg-sql">
+          <summary>Ver la consulta que se ejecutó</summary>
+          <pre>${d.sql}</pre>
+        </details>
+      </div>`;
+
+    const cuerpo = document.getElementById("pgCuerpo");
+    if (chart) { chart.destroy(); chart = null; }
+
+    if (tipo === "kpi") {
+      const v = filas[0] ? filas[0][filas[0].length - 1] : "—";
+      cuerpo.innerHTML = `<div class="pg-kpi">
+          <div class="pg-kpi-valor">${fmt(v)}</div>
+          <div class="pg-kpi-label">${cols[cols.length - 1] || ""}</div>
+        </div>`;
+    } else if (tipo === "tabla" || !puedeGraficar) {
+      cuerpo.innerHTML = `<div class="pg-tabla-wrap"><table class="pg-tabla">
+          <thead><tr>${cols.map(c => `<th>${c}</th>`).join("")}</tr></thead>
+          <tbody>${filas.map(f => `<tr>${f.map(v =>
+            `<td class="${esNumero(v) ? "num" : ""}">${fmt(v)}</td>`).join("")}</tr>`).join("")}</tbody>
+        </table></div>`;
+    } else {
+      cuerpo.innerHTML = '<div class="pg-lienzo"><canvas id="pgChart"></canvas></div>';
+      const etiquetas = filas.map(f => String(f[0]));
+      const valores = filas.map(f => Number(f[1]) || 0);
+      const paleta = colores(filas.length);
+      const esTorta = tipo === "torta";
+      chart = new Chart(document.getElementById("pgChart"), {
+        type: esTorta ? "doughnut" : (tipo === "linea" ? "line" : "bar"),
+        data: {
+          labels: etiquetas,
+          datasets: [{
+            label: cols[1] || "",
+            data: valores,
+            backgroundColor: esTorta ? paleta : "rgba(212,180,108,.55)",
+            borderColor: esTorta ? "transparent" : "#d4b46c",
+            borderWidth: esTorta ? 0 : 1.5,
+            tension: .3,
+            fill: tipo === "linea" ? false : true,
+          }],
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          plugins: {
+            legend: { display: esTorta, position: "right", labels: { color: "#97a2b0", boxWidth: 12 } },
+            tooltip: { callbacks: { label: c => ` ${c.label}: ${fmt(c.parsed.y ?? c.parsed)}` } },
+          },
+          scales: esTorta ? {} : {
+            x: { ticks: { color: "#97a2b0" }, grid: { color: "rgba(255,255,255,.05)" } },
+            y: { ticks: { color: "#97a2b0", callback: v => fmt(v) },
+                 grid: { color: "rgba(255,255,255,.05)" } },
+          },
+        },
+      });
+    }
+
+    salida.querySelectorAll(".pg-tipo").forEach(b => {
+      b.addEventListener("click", () => pintar(b.dataset.tipo));
+    });
+    document.getElementById("pgCsv").addEventListener("click", bajarCsv);
+  }
+
+  function bajarCsv() {
+    // Comillas dobles escapadas y separador de coma: es lo que Excel espera.
+    const esc = v => `"${String(v ?? "").replace(/"/g, '""')}"`;
+    const lineas = [datos.columnas.map(esc).join(","),
+                    ...datos.filas.map(f => f.map(esc).join(","))];
+    // BOM para que Excel en Windows no rompa las tildes.
+    const blob = new Blob(["\uFEFF" + lineas.join("\n")], {type: "text/csv;charset=utf-8;"});
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = (datos.titulo || "consulta").replace(/[^\wáéíóúñ ]/gi, "").trim().replace(/\s+/g, "-") + ".csv";
+    a.click();
+    URL.revokeObjectURL(a.href);
+  }
+})();
+</script>
+{% endblock %}
