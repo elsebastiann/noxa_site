@@ -750,3 +750,106 @@ class TestEditar:
             assert client.get(f"/quotes/{code}/edit").status_code == 302
         finally:
             _borrar(code)
+
+
+class TestEliminar:
+    """Borrar una cotización pide la MISMA palabra clave que borrar una cita.
+
+    Una sola palabra que rotar, no dos. Y se valida en el servidor: el prompt
+    del navegador se salta con cualquier herramienta.
+    """
+
+    def _login_admin(self, client):
+        with A.app.app_context():
+            uid = make_user(f"del{next(_u)}", role="admin").id
+        with client.session_transaction() as sess:
+            sess["user_id"] = uid
+
+    def test_con_la_clave_correcta_se_borra(self, client):
+        self._login_admin(client)
+        code = _cotizacion(items=[("A", 100000, 1)])
+        client.post(f"/quotes/{code}/delete", data={"clave": A.DELETE_KEYWORD})
+        with A.app.app_context():
+            assert A.Quote.query.filter_by(code=code).first() is None
+
+    def test_sin_la_clave_no_se_borra(self, client):
+        self._login_admin(client)
+        code = _cotizacion(items=[("A", 100000, 1)])
+        try:
+            client.post(f"/quotes/{code}/delete", data={})
+            with A.app.app_context():
+                assert A.Quote.query.filter_by(code=code).first() is not None
+        finally:
+            _borrar(code)
+
+    def test_con_la_clave_equivocada_no_se_borra(self, client):
+        self._login_admin(client)
+        code = _cotizacion(items=[("A", 100000, 1)])
+        try:
+            client.post(f"/quotes/{code}/delete", data={"clave": "otra-cosa"})
+            with A.app.app_context():
+                assert A.Quote.query.filter_by(code=code).first() is not None
+        finally:
+            _borrar(code)
+
+    def test_es_la_misma_clave_que_la_de_las_citas(self):
+        """Si fueran dos palabras distintas, rotar una dejaría la otra vieja."""
+        import inspect
+        fuente = inspect.getsource(A.quote_delete)
+        assert "DELETE_KEYWORD" in fuente
+
+    def test_se_lleva_las_lineas_y_las_coberturas(self, client):
+        """Sin el cascade quedarían filas huérfanas apuntando a una cotización
+        que ya no existe."""
+        self._login_admin(client)
+        r = client.post("/quotes/new", data={
+            "customer_name": "Borrable", "ppf_coverage": ["Manijas"],
+            "item_desc": ["Lavado"], "item_price": ["90000"], "item_qty": ["1"],
+            "item_service_id": [""], "item_detail": [""]})
+        code = r.headers["Location"].rstrip("/").split("/")[-1]
+        with A.app.app_context():
+            qid = A.Quote.query.filter_by(code=code).first().id
+        client.post(f"/quotes/{code}/delete", data={"clave": A.DELETE_KEYWORD})
+        with A.app.app_context():
+            assert A.QuoteItem.query.filter_by(quote_id=qid).count() == 0
+            assert A.QuotePpfItem.query.filter_by(quote_id=qid).count() == 0
+
+    def test_el_operario_no_puede_borrar(self, client):
+        with A.app.app_context():
+            uid = make_user(f"delop{next(_u)}", role="operario").id
+        with client.session_transaction() as sess:
+            sess["user_id"] = uid
+        code = _cotizacion(items=[("A", 100000, 1)])
+        try:
+            client.post(f"/quotes/{code}/delete", data={"clave": A.DELETE_KEYWORD})
+            with A.app.app_context():
+                assert A.Quote.query.filter_by(code=code).first() is not None
+        finally:
+            _borrar(code)
+
+    def test_borrar_una_que_no_existe_no_revienta(self, client):
+        self._login_admin(client)
+        r = client.post("/quotes/NX-NOEXIS/delete", data={"clave": A.DELETE_KEYWORD})
+        assert r.status_code == 302
+
+
+class TestPieDePagina:
+    def test_no_repite_la_advertencia_cuando_hay_servicios_y_ppf(self, client):
+        """Salían dos líneas diciendo lo mismo con otras palabras, y un pie que
+        se repite se deja de leer."""
+        with A.app.app_context():
+            uid = make_user(f"pie{next(_u)}", role="admin").id
+        with client.session_transaction() as sess:
+            sess["user_id"] = uid
+        r = client.post("/quotes/new", data={
+            "customer_name": "Pie", "ppf_coverage": ["Manijas"],
+            "item_desc": ["Lavado"], "item_price": ["90000"], "item_qty": ["1"],
+            "item_service_id": [""], "item_detail": [""]})
+        code = r.headers["Location"].rstrip("/").split("/")[-1]
+        try:
+            with A.app.app_context():
+                c = A.Quote.query.filter_by(code=code).first()
+                assert c.tiene_ppf and c.items
+                assert A._construir_pdf_cotizacion(c).startswith(b"%PDF")
+        finally:
+            _borrar(code)

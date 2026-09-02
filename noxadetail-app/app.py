@@ -12053,6 +12053,44 @@ def quote_detail(code):
     return render_template("quote_detail.html", c=cot)
 
 
+@app.route("/quotes/<code>/delete", methods=["POST"])
+def quote_delete(code):
+    """Borrar una cotización es irreversible: se va el documento que el cliente
+    tiene en la mano y el código deja de resolver. Se exige la MISMA palabra
+    clave que para borrar citas (DELETE_KEYWORD) — una sola palabra que rotar,
+    no dos.
+
+    Se valida en el servidor y no solo en el navegador: el prompt del front se
+    salta con cualquier herramienta.
+    """
+    if not puede_cotizar():
+        flash("Acceso restringido.", "danger")
+        return redirect(url_for("calendar_view"))
+
+    cot = Quote.query.filter_by(code=code).first()
+    if not cot:
+        flash("No existe esa cotización.", "danger")
+        return redirect(url_for("quotes_list"))
+
+    if (request.form.get("clave") or "").strip() != DELETE_KEYWORD:
+        app.logger.warning(
+            f"[Cotizaciones] Intento de eliminar {code} con clave incorrecta "
+            f"(usuario: {getattr(getattr(g, 'current_user', None), 'username', 'desconocido')})"
+        )
+        flash("Palabra clave incorrecta. La cotización no se eliminó.", "danger")
+        return redirect(url_for("quote_detail", code=code))
+
+    # Las líneas y las coberturas se van con ella por el cascade del modelo.
+    db.session.delete(cot)
+    db.session.commit()
+    app.logger.info(
+        f"[Cotizaciones] {code} eliminada por "
+        f"{getattr(getattr(g, 'current_user', None), 'username', 'desconocido')}"
+    )
+    flash(f"Cotización {code} eliminada.", "success")
+    return redirect(url_for("quotes_list"))
+
+
 @app.route("/quotes/<code>/pdf")
 def quote_pdf(code):
     if not puede_cotizar():
@@ -12085,7 +12123,7 @@ def _construir_pdf_cotizacion(cot: "Quote") -> bytes:
     from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
     from reportlab.lib.units import mm
     from reportlab.platypus import (
-        Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle,
+        Image as RLImage, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle,
     )
 
     TINTA   = colors.HexColor("#1a1a1a")
@@ -12105,16 +12143,26 @@ def _construir_pdf_cotizacion(cot: "Quote") -> bytes:
     doc = SimpleDocTemplate(
         buf, pagesize=letter,
         leftMargin=18 * mm, rightMargin=18 * mm,
-        topMargin=16 * mm, bottomMargin=16 * mm,
+        topMargin=14 * mm, bottomMargin=13 * mm,
         title=f"Cotización {cot.code}", author="NOXA Detail",
     )
     hist = []
 
     # --- Encabezado: marca a la izquierda, identificación a la derecha -------
-    izq = [
-        Paragraph("NOXA Detail", est_titulo),
-        Paragraph("Detailing &amp; Car Care Premium<br/>Prado Veraniego, Bogotá", est_sub),
-    ]
+    # El logo de la app es blanco sobre transparente —hecho para la barra
+    # oscura— y sobre el fondo blanco del PDF sería invisible. Se usa la
+    # variante en tinta oscura, generada del mismo archivo.
+    logo_path = os.path.join(app.root_path, "static", "img", "logotipo-pdf.png")
+    if os.path.exists(logo_path):
+        logo = RLImage(logo_path, width=45 * mm, height=45 * mm * 420 / 1200)
+        logo.hAlign = "LEFT"
+        izq = [logo, Spacer(1, 1 * mm)]
+    else:
+        # Si el archivo no está, el documento sale igual con el nombre en texto
+        # en vez de reventar a la hora de mandárselo a un cliente.
+        izq = [Paragraph("NOXA Detail", est_titulo)]
+    # Sin bajada: el logo ya dice "CAR CARE", así que repetirlo en texto sobraba.
+    izq.append(Paragraph("Prado Veraniego, Bogotá", est_sub))
     der = [
         Paragraph("<b>COTIZACIÓN</b>", est_der),
         Paragraph(f"<font size=13 color='#c8a04a'><b>{cot.code}</b></font>", est_der),
@@ -12131,10 +12179,10 @@ def _construir_pdf_cotizacion(cot: "Quote") -> bytes:
         ("VALIGN", (0, 0), (-1, -1), "TOP"),
         ("LEFTPADDING", (0, 0), (-1, -1), 0), ("RIGHTPADDING", (0, 0), (-1, -1), 0),
     ]))
-    hist += [cab, Spacer(1, 5 * mm)]
+    hist += [cab, Spacer(1, 3.5 * mm)]
     hist += [Table([[""]], colWidths=[175 * mm], style=TableStyle([
         ("LINEBELOW", (0, 0), (-1, -1), 1.2, ACENTO)]))]
-    hist += [Spacer(1, 5 * mm)]
+    hist += [Spacer(1, 3.5 * mm)]
 
     # --- Datos del cliente ---------------------------------------------------
     datos = [("Cliente", cot.customer_name)]
@@ -12154,7 +12202,7 @@ def _construir_pdf_cotizacion(cot: "Quote") -> bytes:
         ("LEFTPADDING", (0, 0), (-1, -1), 0),
         ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
     ]))
-    hist += [t_datos, Spacer(1, 6 * mm)]
+    hist += [t_datos, Spacer(1, 4.5 * mm)]
 
     est_seccion = ParagraphStyle("sec", parent=est_txt, fontSize=8, textColor=ACENTO,
                                  fontName="Helvetica-Bold", spaceAfter=3)
@@ -12172,6 +12220,13 @@ def _construir_pdf_cotizacion(cot: "Quote") -> bytes:
                 celda.append(Paragraph(it.detail, est_detalle))
             filas.append([celda, str(it.quantity), _cop(it.unit_price), _cop(it.total)])
 
+        # Cuando el documento tiene dos bloques, cada uno cierra con su total:
+        # sin esto había que sumar las líneas a mano para saber cuánto vale la
+        # parte de servicios frente a la de PPF. Si el PPF no está, el bloque de
+        # totales de abajo ya cumple ese papel y repetirlo sobraría.
+        if cot.tiene_ppf:
+            filas.append(["TOTAL SERVICIOS", "", "", _cop(cot.subtotal)])
+
         tabla = Table(filas, colWidths=[95 * mm, 15 * mm, 32 * mm, 33 * mm], repeatRows=1)
         tabla.setStyle(TableStyle([
             ("FONTNAME",   (0, 0), (-1, 0), "Helvetica-Bold"),
@@ -12185,11 +12240,17 @@ def _construir_pdf_cotizacion(cot: "Quote") -> bytes:
             ("VALIGN",     (0, 0), (-1, -1), "MIDDLE"),
             ("LEFTPADDING",  (0, 0), (-1, -1), 0),
             ("RIGHTPADDING", (0, 0), (-1, -1), 0),
-            ("TOPPADDING",   (0, 1), (-1, -1), 6),
-            ("BOTTOMPADDING",(0, 1), (-1, -1), 6),
+            ("TOPPADDING",   (0, 1), (-1, -1), 5),
+            ("BOTTOMPADDING",(0, 1), (-1, -1), 5),
             ("LINEBELOW",  (0, 1), (-1, -2), 0.4, LINEA),
         ]))
         if cot.tiene_ppf:
+            tabla.setStyle(TableStyle([
+                ("LINEABOVE", (0, -1), (-1, -1), 0.8, LINEA),
+                ("FONTNAME",  (0, -1), (-1, -1), "Helvetica-Bold"),
+                ("FONTSIZE",  (0, -1), (-1, -1), 10),
+                ("TOPPADDING", (0, -1), (-1, -1), 8),
+            ]))
             hist += [Paragraph("SERVICIOS", est_seccion)]
         hist += [tabla, Spacer(1, 4 * mm)]
 
@@ -12239,8 +12300,8 @@ def _construir_pdf_cotizacion(cot: "Quote") -> bytes:
             ("VALIGN",     (0, 1), (-1, -2), "MIDDLE"),
             ("LEFTPADDING",  (0, 0), (-1, -1), 0),
             ("RIGHTPADDING", (0, 0), (-1, -1), 0),
-            ("TOPPADDING",   (0, 1), (-1, -1), 7),
-            ("BOTTOMPADDING",(0, 1), (-1, -1), 7),
+            ("TOPPADDING",   (0, 1), (-1, -1), 5.5),
+            ("BOTTOMPADDING",(0, 1), (-1, -1), 5.5),
             ("LINEBELOW",  (0, 1), (-1, -3), 0.4, LINEA),
             # Fila de totales
             ("LINEABOVE",  (0, -1), (-1, -1), 0.8, LINEA),
@@ -12255,8 +12316,8 @@ def _construir_pdf_cotizacion(cot: "Quote") -> bytes:
         no_cubre = cot.ppf_no_cubre
         if no_cubre:
             avisos = [f"{m} no cubre: {', '.join(cobs)}." for m, cobs in no_cubre.items()]
-            hist += [Paragraph(" ".join(avisos), est_detalle), Spacer(1, 3 * mm)]
-        hist += [Spacer(1, 2 * mm)]
+            hist += [Paragraph(" ".join(avisos), est_detalle)]
+        hist += [Spacer(1, 3 * mm)]
 
     # --- Totales -------------------------------------------------------------
     if cot.tiene_ppf:
@@ -12265,21 +12326,20 @@ def _construir_pdf_cotizacion(cot: "Quote") -> bytes:
         # cuando además hay servicios o hay descuento.
         if cot.items or cot.descuento_aplicado:
             tot = []
-            if cot.items:
-                tot.append(["Servicios", _cop(cot.subtotal)])
             if cot.discount_value and cot.discount_type:
                 etiqueta = cot.discount_label or "Descuento"
                 if cot.discount_type == "percentage":
                     etiqueta += f" ({cot.discount_value}%)"
                 tot.append([etiqueta, "aplicado a cada opción"])
-            t_res = Table(tot, colWidths=[110 * mm, 65 * mm], hAlign="RIGHT")
-            t_res.setStyle(TableStyle([
-                ("ALIGN", (0, 0), (-1, -1), "RIGHT"),
-                ("TEXTCOLOR", (0, 0), (-1, -1), SUAVE),
-                ("FONTSIZE", (0, 0), (-1, -1), 9.5),
-                ("RIGHTPADDING", (0, 0), (-1, -1), 0),
-            ]))
-            hist += [t_res, Spacer(1, 3 * mm)]
+            if tot:
+                t_res = Table(tot, colWidths=[110 * mm, 65 * mm], hAlign="RIGHT")
+                t_res.setStyle(TableStyle([
+                    ("ALIGN", (0, 0), (-1, -1), "RIGHT"),
+                    ("TEXTCOLOR", (0, 0), (-1, -1), SUAVE),
+                    ("FONTSIZE", (0, 0), (-1, -1), 9.5),
+                    ("RIGHTPADDING", (0, 0), (-1, -1), 0),
+                ]))
+                hist += [t_res, Spacer(1, 3 * mm)]
 
             finales = cot.totales_por_marca
             filas_fin = [["TOTAL con " + m, _cop(finales.get(m, 0))] for m, _g in cot.ppf_marcas]
@@ -12293,7 +12353,7 @@ def _construir_pdf_cotizacion(cot: "Quote") -> bytes:
                 ("TOPPADDING", (0, 0), (-1, -1), 6),
                 ("RIGHTPADDING", (0, 0), (-1, -1), 0),
             ]))
-            hist += [t_fin, Spacer(1, 8 * mm)]
+            hist += [t_fin, Spacer(1, 5 * mm)]
         else:
             hist += [Spacer(1, 5 * mm)]
     else:
@@ -12317,7 +12377,7 @@ def _construir_pdf_cotizacion(cot: "Quote") -> bytes:
             ("TOPPADDING", (0, -1), (-1, -1), 7),
             ("RIGHTPADDING", (0, 0), (-1, -1), 0),
         ]))
-        hist += [t_tot, Spacer(1, 8 * mm)]
+        hist += [t_tot, Spacer(1, 5 * mm)]
 
     # --- Notas y vigencia ----------------------------------------------------
     if cot.notes:
@@ -12329,16 +12389,23 @@ def _construir_pdf_cotizacion(cot: "Quote") -> bytes:
     pie = []
     if cot.valid_until:
         pie.append(f"Cotización válida hasta el {cot.valid_until.strftime('%d/%m/%Y')}.")
-    if cot.tiene_ppf:
+    # Una sola advertencia. Cuando el documento traía servicios y PPF salían dos
+    # líneas diciendo lo mismo con otras palabras, y un pie que se repite se
+    # deja de leer.
+    if cot.tiene_ppf and cot.items:
+        pie.append("Los valores son estimados y se confirman al revisar el carro: pueden "
+                   "variar según el estado real del vehículo y, en PPF, según marca, "
+                   "modelo y complejidad de la instalación.")
+    elif cot.tiene_ppf:
         pie.append("Los valores de PPF son estimados: pueden variar según marca, modelo, "
                    "estado del vehículo y complejidad de la instalación. Se confirman al "
                    "revisar el carro.")
-    if cot.items:
+    else:
         pie.append("Los precios pueden variar según el estado real del vehículo, "
                    "que se confirma en el diagnóstico presencial.")
     hist += [Table([[""]], colWidths=[175 * mm], style=TableStyle([
         ("LINEBELOW", (0, 0), (-1, -1), 0.6, LINEA)]))]
-    hist += [Spacer(1, 3 * mm),
+    hist += [Spacer(1, 2.5 * mm),
              Paragraph("<br/>".join(pie), est_sub)]
 
     doc.build(hist)

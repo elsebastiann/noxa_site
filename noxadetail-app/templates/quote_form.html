@@ -372,6 +372,12 @@ function descuentoSobre(base) {
   return 0;
 }
 
+// Con PPF no hay UN total: hay uno por marca.
+const totalPpf = m => ppfPuestas.reduce((a, cob) => {
+  const it = PPF.find(x => x.cobertura === cob);
+  return a + ((it && it.precios[m]) || 0);
+}, 0);
+
 function pintarTotales() {
   const sub = lineas.reduce((a, l) => a + l.precio * l.cant, 0);
   const tipo = document.getElementById("dtipo").value;
@@ -389,15 +395,18 @@ function pintarTotales() {
     return;
   }
 
-  // Con PPF no hay UN total: hay uno por marca.
-  const totalPpf = m => ppfPuestas.reduce((a, cob) => {
-    const it = PPF.find(x => x.cobertura === cob);
-    return a + ((it && it.precios[m]) || 0);
-  }, 0);
-
   let html = "";
-  if (sub) html += `<div class="tot-fila"><span>Servicios</span><span>${fmt(sub)}</span></div>`;
-  if (tipo && val) html += `<div class="tot-fila"><span>${etq}</span><span>aplicado a cada opción</span></div>`;
+  // Cada bloque con su total, pero solo cuando conviven: si la cotización es
+  // puro PPF, el total por marca de abajo ya es ese mismo número y repetirlo
+  // llenaría el panel de cifras iguales.
+  if (sub) {
+    html += `<div class="tot-fila"><span>Total servicios</span><span>${fmt(sub)}</span></div>`;
+    html += `<div class="bloque-tit mt-2">Total PPF</div>`;
+    for (const [m] of MARCAS_PPF) {
+      html += `<div class="tot-fila"><span>${m}</span><span>${fmt(totalPpf(m))}</span></div>`;
+    }
+  }
+  if (tipo && val) html += `<div class="tot-fila mt-2"><span>${etq}</span><span>aplicado a cada opción</span></div>`;
   html += `<div class="bloque-tit mt-2">Total según la marca</div>`;
   for (const [m, g] of MARCAS_PPF) {
     const base = sub + totalPpf(m);

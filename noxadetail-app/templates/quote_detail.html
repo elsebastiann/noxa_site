@@ -37,6 +37,21 @@
 </style>
 {% endblock %}
 
+{% block extra_scripts %}
+<script>
+// Misma confirmación que al borrar una cita: la palabra clave se pide acá y se
+// vuelve a validar en el servidor, porque este prompt se salta con cualquier
+// herramienta.
+function pedirClave(form) {
+  const clave = prompt("Eliminar la cotización {{ c.code }} es irreversible.\n" +
+                       "Escribe la palabra clave para confirmar:");
+  if (!clave) return false;
+  form.querySelector('[name="clave"]').value = clave;
+  return true;
+}
+</script>
+{% endblock %}
+
 {% block content %}
 <div class="container mt-4 mb-5">
   <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
@@ -46,6 +61,11 @@
       <a href="{{ url_for('quote_pdf', code=c.code) }}" target="_blank"
          class="btn btn-warning btn-sm fw-bold">Descargar PDF</a>
       <a href="{{ url_for('quote_new') }}" class="btn btn-outline-warning btn-sm">Nueva</a>
+      <form method="POST" action="{{ url_for('quote_delete', code=c.code) }}" class="m-0"
+            onsubmit="return pedirClave(this)">
+        <input type="hidden" name="clave">
+        <button type="submit" class="btn btn-outline-danger btn-sm">Eliminar</button>
+      </form>
     </div>
   </div>
 
@@ -112,6 +132,16 @@
           <td class="text-end">{{ it.total|cop }}</td>
         </tr>
         {% endfor %}
+        {% if c.tiene_ppf %}
+        {# Con dos bloques, cada uno cierra con su total: si no, hay que sumar
+           las líneas a mano para comparar servicios contra PPF. #}
+        <tr>
+          <td colspan="3" class="text-end fw-bold pt-3"
+              style="border-top:1px solid rgba(255,255,255,.14)">Total servicios</td>
+          <td class="text-end fw-bold pt-3"
+              style="border-top:1px solid rgba(255,255,255,.14)">{{ c.subtotal|cop }}</td>
+        </tr>
+        {% endif %}
       </tbody>
     </table>
     {% endif %}
@@ -160,9 +190,6 @@
 
     <div class="ms-auto mt-4" style="max-width:380px">
       {% if c.tiene_ppf %}
-        {% if c.items %}
-        <div class="tot"><span>Servicios</span><span>{{ c.subtotal|cop }}</span></div>
-        {% endif %}
         {% if c.discount_value and c.discount_type %}
         <div class="tot">
           <span>{{ c.discount_label or 'Descuento' }}{% if c.discount_type == 'percentage' %} ({{ c.discount_value }}%){% endif %}</span>
