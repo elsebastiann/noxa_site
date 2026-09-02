@@ -1021,3 +1021,62 @@ class TestGarantiaDelServicio:
                 assert A.Quote.query.filter_by(code=code).first().items[0].warranty is None
         finally:
             _borrar(code)
+
+
+class TestPreciosAbsorbidosEnElPdf:
+    """En el PDF los precios de lo absorbido SÍ se ven, en gris, pero no suman.
+
+    Sirven de referencia —cuánto valdría esa pieza suelta— y de argumento de
+    venta de la cobertura total. Ocultarlos dejaba al cliente sin poder ver lo
+    que se está ahorrando.
+    """
+
+    def _login_admin(self, client):
+        with A.app.app_context():
+            uid = make_user(f"gris{next(_u)}", role="admin").id
+        with client.session_transaction() as sess:
+            sess["user_id"] = uid
+
+    def test_el_total_no_los_incluye(self, client):
+        self._login_admin(client)
+        r = client.post("/quotes/new", data={
+            "customer_name": "Gris",
+            "ppf_coverage": ["Full Car", "Full Front", "Farolas",
+                             "Full Interior", "Consola Central", "Pantalla"]})
+        code = r.headers["Location"].rstrip("/").split("/")[-1]
+        try:
+            with A.app.app_context():
+                c = A.Quote.query.filter_by(code=code).first()
+                assert c.ppf_totales["XPEL"] == 15_000_000 + 1_500_000
+                assert c.ppf_totales["SPECTRA"] == 10_000_000 + 800_000
+        finally:
+            _borrar(code)
+
+    def test_el_pdf_los_imprime(self, client):
+        """Se rendiriza sin reventar con filas absorbidas de las dos zonas."""
+        self._login_admin(client)
+        r = client.post("/quotes/new", data={
+            "customer_name": "Gris",
+            "ppf_coverage": ["Full Car", "Farolas", "Full Interior", "Pantalla"]})
+        code = r.headers["Location"].rstrip("/").split("/")[-1]
+        try:
+            with A.app.app_context():
+                c = A.Quote.query.filter_by(code=code).first()
+                assert len(c.ppf_absorbidas) == 2
+                assert A._construir_pdf_cotizacion(c).startswith(b"%PDF")
+        finally:
+            _borrar(code)
+
+    def test_dice_cual_la_incluye_en_cada_fila(self, client):
+        """Con dos coberturas totales, cada fila tiene que nombrar la suya."""
+        self._login_admin(client)
+        r = client.post("/quotes/new", data={
+            "customer_name": "Gris",
+            "ppf_coverage": ["Full Car", "Farolas", "Full Interior", "Pantalla"]})
+        code = r.headers["Location"].rstrip("/").split("/")[-1]
+        try:
+            with A.app.app_context():
+                assert A.Quote.query.filter_by(code=code).first().ppf_absorbida_por == {
+                    "Farolas": "Full Car", "Pantalla": "Full Interior"}
+        finally:
+            _borrar(code)

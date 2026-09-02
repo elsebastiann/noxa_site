@@ -12653,6 +12653,12 @@ def _construir_pdf_cotizacion(cot: "Quote") -> bytes:
                                  textColor=SUAVE, leading=10, spaceBefore=2)
     est_marca   = ParagraphStyle("mk", parent=est_txt, fontSize=8, alignment=TA_RIGHT,
                                  textColor=SUAVE, leading=10)
+    # Gris claro, más claro que el texto secundario: tiene que leerse como
+    # "referencia", no como una cifra que se está cobrando.
+    est_gris_der = ParagraphStyle("gd", parent=est_txt, fontSize=9.5, alignment=TA_RIGHT,
+                                  textColor=colors.HexColor("#b0b0b0"))
+    est_incluida = ParagraphStyle("inc", parent=est_txt, fontSize=7.5, leading=10,
+                                  textColor=ACENTO, spaceBefore=2)
 
     # --- Servicios -----------------------------------------------------------
     if cot.items:
@@ -12730,14 +12736,16 @@ def _construir_pdf_cotizacion(cot: "Quote") -> bytes:
             if it.contains:
                 celda.append(Paragraph(it.contains, est_detalle))
             fila = [celda]
-            if it.coverage in absorbidas:
-                # Full Car ya la cubre. Se deja listada —el cliente pidió verla—
-                # pero sin precio, para que no parezca un cobro aparte.
-                fila.append(Paragraph(
-                    f"incluida en {cot.ppf_absorbida_por[it.coverage]}",
-                    ParagraphStyle("inc", parent=est_detalle, alignment=TA_RIGHT,
-                                   textColor=ACENTO, fontSize=8)))
-                fila += [""] * (len(marcas) - 1)
+            absorbe = cot.ppf_absorbida_por.get(it.coverage)
+            if absorbe:
+                # Los precios SÍ se muestran, pero en gris claro y sin entrar al
+                # total: sirven de referencia —cuánto valdría esa pieza suelta—
+                # y de argumento de venta de la cobertura total, sin que parezcan
+                # un cobro aparte. La nota bajo el nombre dice por qué no suman.
+                celda.append(Paragraph(f"incluida en {absorbe}", est_incluida))
+                for marca, _g in marcas:
+                    p = precios.get(marca)
+                    fila.append(Paragraph(_cop(p) if p else "no aplica", est_gris_der))
             else:
                 for marca, _g in marcas:
                     p = precios.get(marca)
