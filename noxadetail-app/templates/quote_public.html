@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Cotización {{ c.code }} — NOXA</title>
+<link rel="icon" href="{{ url_for('static', filename='img/apple-touch-icon.png') }}">
+<style>
+  /* Página aparte de base.html: el cliente no debe recibir nada de la app
+     interna —ni la barra, ni los estilos oscuros, ni scripts de sesión—. */
+  :root {
+    --tinta:#1a1a1a; --suave:#6b6b6b; --linea:#e4e4e4; --acento:#c8a04a;
+    --fondo:#f6f5f3; --papel:#ffffff;
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--fondo); color:var(--tinta);
+         font:15px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+         -webkit-font-smoothing:antialiased; }
+  .hoja { max-width:760px; margin:0 auto; background:var(--papel); min-height:100vh; }
+  @media (min-width:820px) {
+    .hoja { margin:26px auto; min-height:0; border-radius:14px;
+            box-shadow:0 2px 24px rgba(0,0,0,.09); overflow:hidden; }
+  }
+  .cab { padding:26px 24px 20px; border-bottom:2px solid var(--acento); }
+  .cab img { height:34px; width:auto; display:block; }
+  .cab .meta { display:flex; justify-content:space-between; align-items:flex-end;
+               gap:16px; margin-top:16px; flex-wrap:wrap; }
+  .cod { font-size:1.45rem; font-weight:800; color:var(--acento); letter-spacing:.03em; }
+  .rot { font-size:.68rem; letter-spacing:.12em; text-transform:uppercase; color:var(--suave); }
+  .vig { font-size:.78rem; color:var(--suave); text-align:right; }
+
+  .cuerpo { padding:22px 24px 30px; }
+  .datos { font-size:.9rem; color:var(--suave); margin-bottom:22px; line-height:1.7; }
+  .datos strong { color:var(--tinta); font-weight:600; }
+
+  .instruccion { background:#fbf7ec; border:1px solid #e8dcbb; border-radius:10px;
+                 padding:12px 14px; font-size:.86rem; color:#6b5a2e; margin-bottom:22px; }
+
+  .sec { font-size:.68rem; letter-spacing:.11em; text-transform:uppercase;
+         color:var(--acento); font-weight:700; margin:26px 0 10px; }
+  .sec:first-child { margin-top:0; }
+
+  .item { display:flex; gap:13px; align-items:flex-start; padding:13px 0;
+          border-bottom:1px solid var(--linea); cursor:pointer; }
+  .item:last-child { border-bottom:none; }
+  .item input[type=checkbox] { width:21px; height:21px; margin:1px 0 0; flex:none;
+                               accent-color:var(--acento); cursor:pointer; }
+  .item .txt { flex:1; min-width:0; }
+  .item .nom { font-weight:600; font-size:.95rem; }
+  .item .que { font-size:.8rem; color:var(--suave); margin-top:3px; line-height:1.45; }
+  .item .val { font-weight:700; white-space:nowrap; font-size:.95rem; }
+  .item.off { opacity:.42; }
+
+  .marcas { display:flex; gap:8px; margin-bottom:6px; flex-wrap:wrap; }
+  .marca { flex:1 1 150px; border:1.5px solid var(--linea); border-radius:11px;
+           padding:11px 13px; cursor:pointer; background:#fff; transition:.13s; }
+  .marca:hover { border-color:#d9c99b; }
+  .marca.on { border-color:var(--acento); background:#fdfaf2; }
+  .marca input { position:absolute; opacity:0; pointer-events:none; }
+  .marca .m { font-weight:800; letter-spacing:.03em; font-size:.95rem; }
+  .marca .g { font-size:.75rem; color:var(--acento); font-weight:600; margin-top:1px; }
+  .marca .t { font-size:.8rem; color:var(--suave); margin-top:5px; }
+  .na { font-size:.8rem; color:#a5a5a5; font-style:italic; white-space:nowrap; }
+
+  .total { position:sticky; bottom:0; background:var(--papel);
+           border-top:1px solid var(--linea); padding:16px 24px;
+           box-shadow:0 -3px 16px rgba(0,0,0,.06); }
+  .total .fila { display:flex; justify-content:space-between; align-items:baseline;
+                 font-size:.85rem; color:var(--suave); padding:2px 0; }
+  .total .grande { font-size:1.6rem; font-weight:800; color:var(--tinta); }
+  .total .lbl { font-size:.7rem; letter-spacing:.1em; text-transform:uppercase; color:var(--suave); }
+  .wa { display:block; text-align:center; background:#25D366; color:#fff; font-weight:700;
+        text-decoration:none; padding:13px; border-radius:10px; margin-top:13px; font-size:.94rem; }
+  .wa:hover { background:#1eb457; }
+
+  .nota { font-size:.76rem; color:var(--suave); line-height:1.55; padding:18px 24px 26px; }
+</style>
+</head>
+<body>
+<div class="hoja">
+
+  <div class="cab">
+    <img src="{{ url_for('static', filename='img/logotipo-pdf.png') }}" alt="NOXA Car Care">
+    <div class="meta">
+      <div>
+        <div class="rot">Cotización</div>
+        <div class="cod">{{ c.code }}</div>
+      </div>
+      <div class="vig">
+        {% if c.valid_until %}Válida hasta el {{ c.valid_until.strftime('%d/%m/%Y') }}{% endif %}
+      </div>
+    </div>
+  </div>
+
+  <div class="cuerpo">
+    <div class="datos">
+      <strong>{{ c.customer_name }}</strong>
+      {%- if c.vehicle_label or c.plate %}<br>{{ [c.vehicle_label, c.plate]|select|join(' · ') }}{% endif %}
+    </div>
+
+    <div class="instruccion">
+      Marca o desmarca lo que quieras incluir y el total se ajusta solo.
+      {% if c.tiene_ppf %}En PPF, elige primero la marca de película.{% endif %}
+    </div>
+
+    {% if c.items %}
+    <div class="sec">Servicios</div>
+    {% for it in c.items %}
+    <label class="item" data-svc="{{ loop.index0 }}">
+      <input type="checkbox" checked data-precio="{{ it.total }}">
+      <span class="txt">
+        <span class="nom">{{ it.description }}{% if it.quantity > 1 %} × {{ it.quantity }}{% endif %}</span>
+        {% if it.detail %}<span class="que">{{ it.detail }}</span>{% endif %}
+      </span>
+      <span class="val">{{ it.total|cop }}</span>
+    </label>
+    {% endfor %}
+    {% endif %}
+
+    {% if c.tiene_ppf %}
+    <div class="sec">Protección PPF — elige la marca</div>
+    <div class="marcas">
+      {% for marca, garantia in c.ppf_marcas %}
+      <label class="marca {% if loop.first %}on{% endif %}" data-marca="{{ marca }}">
+        <input type="radio" name="marca" value="{{ marca }}" {% if loop.first %}checked{% endif %}>
+        <div class="m">{{ marca }}</div>
+        <div class="g">Garantía {{ garantia }} años</div>
+        <div class="t" data-tot-marca="{{ marca }}"></div>
+      </label>
+      {% endfor %}
+    </div>
+
+    {% for it in c.ppf_items %}
+    <label class="item" data-ppf="{{ it.coverage }}">
+      <input type="checkbox" checked>
+      <span class="txt">
+        <span class="nom">{{ it.coverage }}</span>
+        {% if it.contains %}<span class="que">{{ it.contains }}</span>{% endif %}
+      </span>
+      <span class="val" data-val-ppf="{{ it.coverage }}"></span>
+    </label>
+    {% endfor %}
+    {% endif %}
+  </div>
+
+  <div class="total">
+    {% if c.descuento_aplicado or (c.discount_value and c.discount_type) %}
+    <div class="fila"><span>Subtotal</span><span id="sub"></span></div>
+    <div class="fila">
+      <span>{{ c.discount_label or 'Descuento' }}{% if c.discount_type == 'percentage' %} ({{ c.discount_value }}%){% endif %}</span>
+      <span id="desc"></span>
+    </div>
+    {% endif %}
+    <div class="fila" style="align-items:baseline; margin-top:4px">
+      <span class="lbl">Total</span><span class="grande" id="tot"></span>
+    </div>
+    <a class="wa" id="btnWa" target="_blank" rel="noopener">Escribirnos por WhatsApp</a>
+  </div>
+
+  <div class="nota">
+    {% if c.tiene_ppf %}
+      Los valores de PPF son estimados: pueden variar según marca, modelo, estado del
+      vehículo y complejidad de la instalación. Se confirman al revisar el carro.
+    {% else %}
+      Los precios pueden variar según el estado real del vehículo, que se confirma en el
+      diagnóstico presencial.
+    {% endif %}
+    {% if c.notes %}<br><br>{{ c.notes }}{% endif %}
+  </div>
+</div>
+
+<script>
+const PPF = {{ c.ppf_items | map(attribute='coverage') | list | tojson }};
+const PRECIOS_PPF = {{ (c.ppf_items | map(attribute='precios') | list) | tojson }};
+const DESC = {tipo: {{ (c.discount_type or "")|tojson }}, valor: {{ (c.discount_value or 0)|tojson }}};
+const WA = {{ whatsapp|tojson }};
+const CODIGO = {{ c.code|tojson }};
+
+const fmt = n => "$" + (Math.round(n) || 0).toLocaleString("es-CO");
+const marcaActual = () => document.querySelector('input[name="marca"]:checked')?.value;
+
+function totalPpfDeMarca(marca, soloMarcadas) {
+  let t = 0;
+  PPF.forEach((cob, i) => {
+    const fila = document.querySelector(`[data-ppf="${CSS.escape(cob)}"]`);
+    if (soloMarcadas && fila && !fila.querySelector("input").checked) return;
+    t += PRECIOS_PPF[i][marca] || 0;
+  });
+  return t;
+}
+
+function pintar() {
+  const marca = marcaActual();
+
+  // Precio de cada cobertura en la marca elegida. "No incluida" y no un cero:
+  // un cero se leería como gratis cuando en realidad esa marca no la ofrece.
+  PPF.forEach((cob, i) => {
+    const celda = document.querySelector(`[data-val-ppf="${CSS.escape(cob)}"]`);
+    const fila = document.querySelector(`[data-ppf="${CSS.escape(cob)}"]`);
+    const p = PRECIOS_PPF[i][marca];
+    if (!celda) return;
+    if (p) { celda.textContent = fmt(p); celda.className = "val"; }
+    else { celda.textContent = "no incluida"; celda.className = "na"; }
+    if (fila) fila.classList.toggle("off", !fila.querySelector("input").checked);
+  });
+
+  // Cada tarjeta de marca muestra lo que costaría con lo que hay marcado, para
+  // que la comparación sea sobre la misma selección y no sobre el catálogo.
+  document.querySelectorAll("[data-tot-marca]").forEach(el => {
+    el.textContent = fmt(totalPpfDeMarca(el.dataset.totMarca, true));
+  });
+
+  document.querySelectorAll("[data-svc]").forEach(f =>
+    f.classList.toggle("off", !f.querySelector("input").checked));
+
+  let sub = 0;
+  document.querySelectorAll("[data-svc] input:checked").forEach(i =>
+    sub += Number(i.dataset.precio) || 0);
+  if (marca) sub += totalPpfDeMarca(marca, true);
+
+  let desc = 0;
+  if (DESC.tipo === "percentage") desc = Math.round(sub * Math.min(100, DESC.valor) / 100);
+  else if (DESC.tipo === "absolute") desc = Math.min(DESC.valor, sub);
+
+  const $sub = document.getElementById("sub");
+  if ($sub) { $sub.textContent = fmt(sub); document.getElementById("desc").textContent = "− " + fmt(desc); }
+  document.getElementById("tot").textContent = fmt(sub - desc);
+
+  const texto = `Hola, sobre la cotización ${CODIGO}: me interesa por ${fmt(sub - desc)}` +
+                (marca ? ` con PPF ${marca}.` : ".");
+  document.getElementById("btnWa").href =
+    `https://wa.me/${WA}?text=${encodeURIComponent(texto)}`;
+}
+
+document.querySelectorAll('input[type=checkbox]').forEach(i => i.addEventListener("change", pintar));
+document.querySelectorAll(".marca").forEach(m => m.addEventListener("click", () => {
+  document.querySelectorAll(".marca").forEach(x => x.classList.remove("on"));
+  m.classList.add("on");
+  m.querySelector("input").checked = true;
+  pintar();
+}));
+
+pintar();
+</script>
+</body>
+</html>

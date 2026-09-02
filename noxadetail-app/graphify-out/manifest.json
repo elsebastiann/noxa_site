@@ -1,7 +1,7 @@
 {
   "app.py": {
-    "mtime": 1788365453.7089899,
-    "ast_hash": "ec1e796f194d8cf18b345bbe75874abd",
+    "mtime": 1788367582.2180054,
+    "ast_hash": "2b6b4e3f1e21fb4de4a66a707f0c99ff",
     "semantic_hash": ""
   },
   "migrate_prices.py": {
@@ -385,8 +385,8 @@
     "semantic_hash": ""
   },
   "templates/quote_detail.html": {
-    "mtime": 1788364444.868084,
-    "ast_hash": "81370cb0853b015bcfdff79fe611aecf",
+    "mtime": 1788367514.7900262,
+    "ast_hash": "f1898305e0954d526307274a53ca7fe2",
     "semantic_hash": ""
   },
   "templates/quote_form.html": {
@@ -412,6 +412,21 @@
   "tests/test_migraciones_arranque.py": {
     "mtime": 1788365453.7536912,
     "ast_hash": "0ca04c0d8f288b94dd5013ea60c3722c",
+    "semantic_hash": ""
+  },
+  "tests/test_cotizacion_publica.py": {
+    "mtime": 1788367601.7681394,
+    "ast_hash": "8538a1d90567c1f675c8677ed121f03b",
+    "semantic_hash": ""
+  },
+  "templates/quote_public.html": {
+    "mtime": 1788367481.6053727,
+    "ast_hash": "bfe829a86469ac75a8c8725bc619edc4",
+    "semantic_hash": ""
+  },
+  "templates/quote_public_cerrada.html": {
+    "mtime": 1788367494.4005177,
+    "ast_hash": "b20f54ea680aa803f3e45529f48d63a5",
     "semantic_hash": ""
   }
 }

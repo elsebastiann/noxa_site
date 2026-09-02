@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Cotización no disponible — NOXA</title>
+<link rel="icon" href="{{ url_for('static', filename='img/apple-touch-icon.png') }}">
+<style>
+  body { margin:0; min-height:100vh; display:flex; align-items:center; justify-content:center;
+         background:#f6f5f3; color:#1a1a1a; padding:24px;
+         font:15px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+  .caja { background:#fff; border-radius:14px; box-shadow:0 2px 24px rgba(0,0,0,.09);
+          padding:34px 30px; max-width:420px; text-align:center; }
+  img { height:32px; width:auto; margin-bottom:22px; }
+  h1 { font-size:1.12rem; margin:0 0 10px; }
+  p { color:#6b6b6b; font-size:.92rem; margin:0 0 6px; }
+  .cod { font-weight:800; color:#c8a04a; letter-spacing:.03em; }
+  .wa { display:inline-block; margin-top:20px; background:#25D366; color:#fff; font-weight:700;
+        text-decoration:none; padding:12px 22px; border-radius:10px; font-size:.92rem; }
+</style>
+</head>
+<body>
+  <div class="caja">
+    <img src="{{ url_for('static', filename='img/logotipo-pdf.png') }}" alt="NOXA Car Care">
+    {% if motivo == 'vencida' %}
+      <h1>Esta cotización ya venció</h1>
+      <p>La <span class="cod">{{ c.code }}</span> estuvo vigente hasta el
+         {{ c.valid_until.strftime('%d/%m/%Y') }}.</p>
+      <p>Escríbenos y te pasamos una actualizada con los precios de hoy.</p>
+    {% else %}
+      {# Mismo texto para un enlace inventado y para uno borrado: no hay razón
+         para decirle a quien prueba enlaces al azar cuál acertó. #}
+      <h1>Este enlace no está disponible</h1>
+      <p>Puede haber vencido o ya no estar activo.</p>
+    {% endif %}
+    <a class="wa" href="https://wa.me/{{ whatsapp or '573027928250' }}">Escribirnos por WhatsApp</a>
+  </div>
+</body>
+</html>

@@ -908,6 +908,13 @@ class Quote(db.Model):
     # documento tiene que seguir imprimiéndose como el cliente lo recibió.
     ppf_brands = db.Column(db.Text, nullable=True)
 
+    # Token del link público. NO se usa el `code` para esto: el código es corto
+    # y está hecho para dictarse por teléfono y leerse de un papel, así que
+    # sirve de identificador pero no de secreto — con 6 caracteres, adivinar
+    # uno ajeno es cuestión de intentar. El token es largo y aleatorio, y va
+    # solo en el enlace.
+    public_token = db.Column(db.String(48), nullable=True, unique=True, index=True)
+
     created_by = db.Column(db.String(80), nullable=True)
     created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
     # Se llena solo cuando la cotización se edita después de emitida. Importa
@@ -953,6 +960,26 @@ class Quote(db.Model):
         return self.subtotal - self.descuento_aplicado
 
     # ---------------- PPF ----------------
+    @property
+    def link_publico(self) -> str | None:
+        """La URL que se le manda al cliente. None si todavía no tiene token.
+
+        Prefiere PUBLIC_BASE_URL porque `url_for(_external=True)` necesita una
+        request activa: un PDF generado desde un job o desde la consola —para
+        reenviarle la cotización a alguien, por ejemplo— reventaría. Si no hay
+        ni lo uno ni lo otro, devuelve None y el PDF sale sin esa línea, que es
+        mejor que no salir.
+        """
+        if not self.public_token:
+            return None
+        base = (os.environ.get("PUBLIC_BASE_URL") or "").rstrip("/")
+        if base:
+            return f"{base}/c/{self.public_token}"
+        try:
+            return url_for("quote_public", token=self.public_token, _external=True)
+        except RuntimeError:
+            return None
+
     @property
     def tiene_ppf(self) -> bool:
         return bool(self.ppf_items)
@@ -1197,6 +1224,28 @@ def seed_ppf_prices():
             db.session.add_all(nuevos)
             db.session.commit()
             app.logger.info(f"[PPF] Se cargaron {len(nuevos)} precios de PPF.")
+
+
+def ensure_quote_public_token_schema():
+    """`quotes` ya existe en producción sin esta columna.
+
+    El índice único se crea aparte: SQLite no acepta ADD COLUMN con UNIQUE.
+    """
+    with app.app_context():
+        try:
+            db.session.execute(text("SELECT public_token FROM quotes LIMIT 1"))
+            return
+        except Exception:
+            db.session.rollback()
+        for ddl in ("ALTER TABLE quotes ADD COLUMN public_token VARCHAR(48)",
+                    "CREATE UNIQUE INDEX IF NOT EXISTS ix_quotes_public_token "
+                    "ON quotes (public_token)"):
+            try:
+                db.session.execute(text(ddl))
+                db.session.commit()
+            except Exception as exc:
+                db.session.rollback()
+                app.logger.error(f"[Migración] quotes.public_token: {exc}")
 
 
 def ensure_quote_updated_schema():
@@ -7521,6 +7570,7 @@ ensure_users_schema()
 ensure_quote_item_detail_schema()
 ensure_quote_ppf_brands_schema()
 ensure_quote_updated_schema()
+ensure_quote_public_token_schema()
 seed_ppf_prices()
 
 # --- Seed: crear super admin si no existe ningún usuario ---
@@ -7633,6 +7683,7 @@ PUBLIC_ENDPOINTS  = {
     "public_booking_mercedes", "api_public_mb_availability", "api_public_mb_book",
     "api_public_mb_price", "api_public_mb_available_days",
     "api_public_stats_appointments_count", "api_public_web_lead",
+    "quote_public",
 }
 CHANGE_PWD_ENDPOINTS = {"change_password", "logout", "static"}
 
@@ -12026,6 +12077,7 @@ def quote_new():
 
     if request.method == "POST":
         cot = Quote(code=_nuevo_codigo_cotizacion(), customer_name="",
+                    public_token=secrets.token_urlsafe(24),
                     created_at=datetime.utcnow(),
                     created_by=getattr(getattr(g, "current_user", None), "username", None))
         error = _leer_formulario_de_cotizacion(cot)
@@ -12098,6 +12150,65 @@ def quote_detail(code):
         flash("No existe esa cotización.", "danger")
         return redirect(url_for("quotes_list"))
     return render_template("quote_detail.html", c=cot)
+
+
+# El WhatsApp que se le muestra al cliente en el link público. Es el del sitio
+# web, no el número técnico de Twilio.
+WHATSAPP_PUBLICO = os.environ.get("WHATSAPP_PUBLICO", "573027928250")
+
+
+def _backfill_public_tokens():
+    """Le pone token a las cotizaciones creadas antes de que existiera el link.
+
+    SQL crudo a propósito: las funciones de arranque no deben consultar por el
+    ORM, que trae columnas que quizá todavía no existen (ver
+    ensure_service_colors_schema).
+    """
+    with app.app_context():
+        try:
+            filas = db.session.execute(text(
+                "SELECT id FROM quotes WHERE public_token IS NULL OR public_token = ''"
+            )).fetchall()
+        except Exception:
+            db.session.rollback()
+            return
+        for (qid,) in filas:
+            db.session.execute(
+                text("UPDATE quotes SET public_token = :t WHERE id = :i"),
+                {"t": secrets.token_urlsafe(24), "i": qid},
+            )
+        if filas:
+            db.session.commit()
+            app.logger.warning(f"[Cotizaciones] {len(filas)} link(s) público(s) generado(s).")
+
+
+# Va aquí y no arriba con las demás migraciones: se define en este bloque y
+# necesita que `quotes` ya exista, cosa que garantiza el create_all() de
+# ensure_users_schema().
+_backfill_public_tokens()
+
+
+@app.route("/c/<token>")
+@limiter.limit("40 per minute")
+def quote_public(token):
+    """La cotización interactiva que ve el cliente. Sin login.
+
+    El cliente marca y desmarca servicios y coberturas y ve el total moverse —
+    que es la conversación que de otro modo toca tener por chat, línea por
+    línea.
+
+    Deja de funcionar sola al vencer la vigencia: es el mismo `valid_until` que
+    ya se imprime en el PDF, así que el link y el papel nunca se contradicen.
+    No hay un segundo plazo que mantener sincronizado.
+    """
+    cot = Quote.query.filter_by(public_token=token).first()
+    if not cot:
+        return render_template("quote_public_cerrada.html", motivo="no_existe",
+                               whatsapp=WHATSAPP_PUBLICO), 404
+    if not cot.vigente:
+        return render_template("quote_public_cerrada.html", motivo="vencida", c=cot,
+                               whatsapp=WHATSAPP_PUBLICO), 410
+    return render_template("quote_public.html", c=cot, whatsapp=WHATSAPP_PUBLICO)
 
 
 @app.route("/quotes/<code>/delete", methods=["POST"])
@@ -12439,6 +12550,8 @@ def _construir_pdf_cotizacion(cot: "Quote") -> bytes:
     # Una sola advertencia. Cuando el documento traía servicios y PPF salían dos
     # líneas diciendo lo mismo con otras palabras, y un pie que se repite se
     # deja de leer.
+    if cot.link_publico:
+        pie.append(f"Míralo interactivo y arma tu combinación en: {cot.link_publico}")
     if cot.tiene_ppf and cot.items:
         pie.append("Los valores son estimados y se confirman al revisar el carro: pueden "
                    "variar según el estado real del vehículo y, en PPF, según marca, "
