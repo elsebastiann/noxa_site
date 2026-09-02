@@ -492,3 +492,92 @@ class TestVersionDelCliente:
         _borrar(code)
         with A.app.app_context():
             assert A.QuoteVersion.query.filter_by(quote_id=qid).count() == 0
+
+
+class TestElBotonDePdfMandaLaSeleccion:
+    """El PDF personalizado salía VACÍO, en $0.
+
+    El handler del formulario armaba los campos interpolando en una plantilla de
+    texto y llamaba a `esc()` — una función que solo existe en la pantalla
+    interna, no en la del cliente. Reventaba en la primera cobertura, así que
+    los campos nunca se escribían y el POST llegaba sin nada.
+
+    El endpoint estaba bien y sus tests pasaban: se probaba con un POST directo,
+    que no ejercita el botón. Estos tests miran el JS que lo llena.
+    """
+
+    def _script(self, client, token):
+        cuerpo = client.get(f"/c/{token}").data.decode()
+        return cuerpo[cuerpo.index("<script>"):]
+
+    def test_no_usa_funciones_que_no_existen_en_esta_pagina(self, client):
+        code, token = _cotizacion(items=[("A", 100000, 1)])
+        try:
+            js = self._script(client, token)
+            for fn in ("esc(", "fmtCop("):
+                if f"{fn}" in js:
+                    assert f"const {fn[:-1]} =" in js or f"function {fn[:-1]}" in js, (
+                        f"la página del cliente llama a {fn} sin definirla")
+        finally:
+            _borrar(code)
+
+    def test_el_formulario_arma_los_campos_con_el_dom(self, client):
+        """Creándolos con el DOM no hay nada que escapar, que es de donde vino
+        el error."""
+        code, token = _cotizacion(items=[("A", 100000, 1)])
+        try:
+            js = self._script(client, token)
+            assert 'createElement("input")' in js
+            assert "camposPdf" in js
+        finally:
+            _borrar(code)
+
+    def test_cada_servicio_lleva_su_id_para_poder_mandarlo(self, client):
+        """Sin el id en el marcador, el POST no puede decir cuál se marcó."""
+        code, token = _cotizacion(items=[("A", 100000, 1)])
+        try:
+            with A.app.app_context():
+                iid = A.Quote.query.filter_by(code=code).first().items[0].id
+            assert f'data-svc="{iid}"' in client.get(f"/c/{token}").data.decode()
+        finally:
+            _borrar(code)
+
+
+class TestGarantiasDePolarizado:
+    def test_se_siembran_por_marca(self):
+        with A.app.app_context():
+            A.seed_garantias_polarizado()
+            esperado = {"tecnofilm": "5 años", "spectra": "7 años", "ultraoptic": "10 años"}
+            for s in A.Service.query.filter(A.Service.name.ilike("%polarizado%")).all():
+                import unicodedata
+                n = "".join(c for c in unicodedata.normalize("NFD", s.name.lower())
+                            if unicodedata.category(c) != "Mn")
+                for marca, gar in esperado.items():
+                    if marca in n:
+                        assert s.garantia == gar, f"{s.name} quedó en {s.garantia}"
+
+    def test_no_pisa_una_garantia_ya_puesta(self):
+        """Si un redespliegue revirtiera los ajustes, la pantalla no serviría."""
+        with A.app.app_context():
+            s = A.Service.query.filter(A.Service.name.ilike("%tecnofilm%")).first()
+            if not s:
+                import pytest
+                pytest.skip("la base de prueba no tiene ese servicio")
+            s.garantia = "de por vida"
+            A.db.session.commit()
+        try:
+            A.seed_garantias_polarizado()
+            with A.app.app_context():
+                assert A.Service.query.filter(
+                    A.Service.name.ilike("%tecnofilm%")).first().garantia == "de por vida"
+        finally:
+            with A.app.app_context():
+                A.Service.query.filter(A.Service.name.ilike("%tecnofilm%")).first().garantia = "5 años"
+                A.db.session.commit()
+
+    def test_no_le_pone_garantia_a_lo_que_no_es_polarizado(self):
+        with A.app.app_context():
+            A.seed_garantias_polarizado()
+            lavado = A.Service.query.filter(A.Service.name.ilike("%lavado%")).first()
+            if lavado:
+                assert lavado.garantia in (None, "")

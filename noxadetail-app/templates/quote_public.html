@@ -339,14 +339,23 @@ function guardarSeleccion() {
 // El formulario del PDF se llena justo antes de enviarse, con lo que esté
 // marcado en ese instante.
 document.getElementById("formPdf").addEventListener("submit", () => {
-  const campos = [];
+  // Se crean los campos con el DOM y no armando HTML: así no hay nada que
+  // escapar. La versión anterior interpolaba el nombre de la cobertura en una
+  // plantilla de texto y reventaba —dejando el formulario vacío y el PDF en
+  // cero— porque la función de escape solo existía en la pantalla interna.
+  const caja = document.getElementById("camposPdf");
+  caja.replaceChildren();
+  const agregar = (name, value) => {
+    const el = document.createElement("input");
+    el.type = "hidden"; el.name = name; el.value = value;
+    caja.appendChild(el);
+  };
   document.querySelectorAll("[data-svc] input:checked").forEach(i =>
-    campos.push(`<input type="hidden" name="items" value="${i.closest("[data-svc]").dataset.svc}">`));
+    agregar("items", i.closest("[data-svc]").dataset.svc));
   document.querySelectorAll("[data-ppf] input:checked").forEach(i =>
-    campos.push(`<input type="hidden" name="ppf" value="${esc(i.closest("[data-ppf]").dataset.ppf)}">`));
+    agregar("ppf", i.closest("[data-ppf]").dataset.ppf));
   const m = marcaActual();
-  if (m) campos.push(`<input type="hidden" name="marca" value="${esc(m)}">`);
-  document.getElementById("camposPdf").innerHTML = campos.join("");
+  if (m) agregar("marca", m);
 });
 
 document.querySelectorAll('input[type=checkbox]').forEach(i =>

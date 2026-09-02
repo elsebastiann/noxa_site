@@ -1362,6 +1362,43 @@ PPF_CATALOGO_SEMILLA = [
 ]
 
 
+# Garantía de las películas de polarizado, por marca. Se siembran solas porque
+# son un dato del proveedor, no algo que cada quien deba recordar teclear.
+GARANTIAS_POLARIZADO = {"tecnofilm": "5 años", "spectra": "7 años", "ultraoptic": "10 años"}
+
+
+def seed_garantias_polarizado():
+    """Le pone la garantía a los servicios de polarizado que no la tengan.
+
+    Solo toca los que están en blanco: si alguien la ajusta desde la pantalla,
+    un redespliegue no se lo revierte.
+    """
+    with app.app_context():
+        try:
+            servicios = Service.query.filter(
+                db.or_(Service.garantia.is_(None), Service.garantia == "")
+            ).all()
+        except Exception:
+            db.session.rollback()
+            return
+        puestas = 0
+        for s in servicios:
+            nombre = "".join(
+                c for c in unicodedata.normalize("NFD", (s.name or "").lower())
+                if unicodedata.category(c) != "Mn"
+            )
+            if "polarizado" not in nombre:
+                continue
+            for marca, garantia in GARANTIAS_POLARIZADO.items():
+                if marca in nombre:
+                    s.garantia = garantia
+                    puestas += 1
+                    break
+        if puestas:
+            db.session.commit()
+            app.logger.warning(f"[Servicios] {puestas} garantía(s) de polarizado sembradas.")
+
+
 def seed_ppf_prices():
     """Carga la lista de PPF la primera vez, sin pisar ediciones posteriores.
 
@@ -7788,6 +7825,7 @@ ensure_quote_public_token_schema()
 ensure_quote_item_warranty_schema()
 ensure_ppf_zona_schema()
 seed_ppf_prices()
+seed_garantias_polarizado()
 
 # --- Seed: crear super admin si no existe ningún usuario ---
 # Antes tenía una contraseña fija en el código ("Slm2026$$") — visible para
