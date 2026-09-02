@@ -1,7 +1,7 @@
 {
   "app.py": {
-    "mtime": 1788387450.8998544,
-    "ast_hash": "84e0f4fd6d44ea425f5f462d2eb66c61",
+    "mtime": 1788387703.6987984,
+    "ast_hash": "a57aa07bb048c9d233ca9f07198bc0b2",
     "semantic_hash": ""
   },
   "migrate_prices.py": {
@@ -427,6 +427,11 @@
   "templates/quote_public_cerrada.html": {
     "mtime": 1788368246.812177,
     "ast_hash": "77762bc05285a15cc4cdc0b719f8c9af",
+    "semantic_hash": ""
+  },
+  "tests/test_convenio_polarizado.py": {
+    "mtime": 1788387728.3950245,
+    "ast_hash": "69d2bd0dca0a117db329cfac079c20a1",
     "semantic_hash": ""
   }
 }

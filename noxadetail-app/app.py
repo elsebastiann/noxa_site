@@ -3207,6 +3207,32 @@ AGREEMENT_EXCLUDED_SERVICES = {
     "Detallado Llanta a Llanta",
 }
 
+# Además de los nombres exactos de arriba, cualquier servicio cuyo nombre
+# contenga una de estas palabras queda por fuera del convenio.
+#
+# El polarizado va por palabra y no por nombre exacto porque hay uno por marca
+# de película —Tecnofilm, Spectra, UltraOptic, Nanocerámica HD— y entra una
+# nueva cada tanto. Con la lista de nombres exactos, el que se olvidaran de
+# agregar se habría descontado en silencio.
+AGREEMENT_EXCLUDED_KEYWORDS = {"polarizado"}
+
+
+def _sin_tildes(texto: str) -> str:
+    return "".join(
+        c for c in unicodedata.normalize("NFD", (texto or "").lower())
+        if unicodedata.category(c) != "Mn"
+    )
+
+
+def excluido_de_convenio(service) -> bool:
+    """Si este servicio se cobra a precio completo pese al convenio."""
+    if not service:
+        return False
+    if service.name in AGREEMENT_EXCLUDED_SERVICES:
+        return True
+    nombre = _sin_tildes(service.name)
+    return any(clave in nombre for clave in AGREEMENT_EXCLUDED_KEYWORDS)
+
 def split_price_by_agreement_eligibility(service_ids: list[int], vehicle_type_id: int) -> tuple[int, int]:
     """Devuelve (precio_con_descuento, precio_sin_descuento)."""
     discountable = 0
@@ -3218,7 +3244,7 @@ def split_price_by_agreement_eligibility(service_ids: list[int], vehicle_type_id
         if not sp:
             continue
         service = Service.query.get(sid)
-        if service and service.name in AGREEMENT_EXCLUDED_SERVICES:
+        if excluido_de_convenio(service):
             excluded += sp.price
         else:
             discountable += sp.price
