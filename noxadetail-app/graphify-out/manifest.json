@@ -1,7 +1,7 @@
 {
   "app.py": {
-    "mtime": 1788364823.6100767,
-    "ast_hash": "9afa159b0733e362a7c9b1901e7d2cad",
+    "mtime": 1788365453.7089899,
+    "ast_hash": "ec1e796f194d8cf18b345bbe75874abd",
     "semantic_hash": ""
   },
   "migrate_prices.py": {
@@ -407,6 +407,11 @@
   "static/img/logotipo-pdf.png": {
     "mtime": 1788364384.0458214,
     "ast_hash": "bddeea43b485c00aba0217d9ac8ce718",
+    "semantic_hash": ""
+  },
+  "tests/test_migraciones_arranque.py": {
+    "mtime": 1788365453.7536912,
+    "ast_hash": "0ca04c0d8f288b94dd5013ea60c3722c",
     "semantic_hash": ""
   }
 }

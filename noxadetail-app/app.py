@@ -527,20 +527,38 @@ def ensure_service_colors_schema():
         for col in ("color_fondo", "color_texto"):
             try:
                 db.session.execute(text(f"SELECT {col} FROM services LIMIT 1"))
+                continue
             except Exception:
+                # Sin este rollback la sesión queda inutilizable y el ALTER de
+                # abajo revienta sin agregar la columna.
+                db.session.rollback()
+            try:
                 db.session.execute(
                     text(f"ALTER TABLE services ADD COLUMN {col} VARCHAR(7)")
                 )
                 db.session.commit()
+            except Exception as exc:
+                db.session.rollback()
+                app.logger.error(f"[Migración] No se pudo agregar services.{col}: {exc}")
 
-        sin_color = Service.query.filter(
-            db.or_(Service.color_fondo.is_(None), Service.color_fondo == "")
-        ).all()
+        # SQL crudo y no `Service.query`: la consulta del ORM trae TODAS las
+        # columnas del modelo, incluidas las que agregan migraciones que corren
+        # MÁS ABAJO en este mismo arranque (is_outsourced, is_online_bookable).
+        # Una base a la que le faltara alguna tumbaba la app entera al importar,
+        # con un error que hablaba de una columna que nada tiene que ver con
+        # colores. Pidiendo solo id y name, esto deja de depender del orden.
+        filas = db.session.execute(text(
+            "SELECT id, name FROM services "
+            "WHERE color_fondo IS NULL OR color_fondo = ''"
+        )).fetchall()
         sembrados = 0
-        for s in sin_color:
-            historico = COLORS.get((s.name or "").strip().lower())
+        for sid, nombre in filas:
+            historico = COLORS.get((nombre or "").strip().lower())
             if historico:
-                s.color_fondo = historico.upper()
+                db.session.execute(
+                    text("UPDATE services SET color_fondo = :c WHERE id = :i"),
+                    {"c": historico.upper(), "i": sid},
+                )
                 sembrados += 1
         if sembrados:
             db.session.commit()
@@ -569,12 +587,24 @@ def ensure_service_widget_schema():
             ("description", "TEXT"),
             ("occupies_single_day", "BOOLEAN DEFAULT 0"),
         ]
+        # Cada columna se confirma por separado, y se hace rollback tras el
+        # SELECT fallido. Antes había un solo commit al final y ningún rollback:
+        # en SQLAlchemy 2 esa sesión queda inutilizable, así que el primer ALTER
+        # reventaba y NINGUNA columna se agregaba. Es lo que dejó a `services`
+        # sin `is_outsourced` en producción y tumbó el arranque.
         for col, ddl in cols:
             try:
                 db.session.execute(text(f"SELECT {col} FROM services LIMIT 1"))
+                continue
             except Exception:
+                db.session.rollback()
+            try:
                 db.session.execute(text(f"ALTER TABLE services ADD COLUMN {col} {ddl}"))
-        db.session.commit()
+                db.session.commit()
+                app.logger.warning(f"[Migración] services.{col} agregada.")
+            except Exception as exc:
+                db.session.rollback()
+                app.logger.error(f"[Migración] No se pudo agregar services.{col}: {exc}")
 
 ensure_service_widget_schema()
 
@@ -585,12 +615,24 @@ def ensure_service_outsourcing_schema():
             ("default_installer_share", "INTEGER DEFAULT 65"),
             ("is_custom_price", "BOOLEAN DEFAULT 0"),
         ]
+        # Cada columna se confirma por separado, y se hace rollback tras el
+        # SELECT fallido. Antes había un solo commit al final y ningún rollback:
+        # en SQLAlchemy 2 esa sesión queda inutilizable, así que el primer ALTER
+        # reventaba y NINGUNA columna se agregaba. Es lo que dejó a `services`
+        # sin `is_outsourced` en producción y tumbó el arranque.
         for col, ddl in cols:
             try:
                 db.session.execute(text(f"SELECT {col} FROM services LIMIT 1"))
+                continue
             except Exception:
+                db.session.rollback()
+            try:
                 db.session.execute(text(f"ALTER TABLE services ADD COLUMN {col} {ddl}"))
-        db.session.commit()
+                db.session.commit()
+                app.logger.warning(f"[Migración] services.{col} agregada.")
+            except Exception as exc:
+                db.session.rollback()
+                app.logger.error(f"[Migración] No se pudo agregar services.{col}: {exc}")
 
 ensure_service_outsourcing_schema()
 
@@ -1160,16 +1202,17 @@ def seed_ppf_prices():
 def ensure_quote_updated_schema():
     """`quotes` ya existe en producción sin estas columnas."""
     with app.app_context():
-        try:
-            db.session.execute(text("SELECT updated_at, updated_by FROM quotes LIMIT 1"))
-        except Exception:
-            for ddl in ("ALTER TABLE quotes ADD COLUMN updated_at DATETIME",
-                        "ALTER TABLE quotes ADD COLUMN updated_by VARCHAR(80)"):
-                try:
-                    db.session.execute(text(ddl))
-                    db.session.commit()
-                except Exception:
-                    db.session.rollback()
+        for col, tipo in (("updated_at", "DATETIME"), ("updated_by", "VARCHAR(80)")):
+            try:
+                db.session.execute(text(f"SELECT {col} FROM quotes LIMIT 1"))
+                continue
+            except Exception:
+                db.session.rollback()
+            try:
+                db.session.execute(text(f"ALTER TABLE quotes ADD COLUMN {col} {tipo}"))
+                db.session.commit()
+            except Exception:
+                db.session.rollback()
 
 
 def ensure_quote_ppf_brands_schema():
@@ -1177,12 +1220,14 @@ def ensure_quote_ppf_brands_schema():
     with app.app_context():
         try:
             db.session.execute(text("SELECT ppf_brands FROM quotes LIMIT 1"))
+            return
         except Exception:
-            try:
-                db.session.execute(text("ALTER TABLE quotes ADD COLUMN ppf_brands TEXT"))
-                db.session.commit()
-            except Exception:
-                db.session.rollback()
+            db.session.rollback()
+        try:
+            db.session.execute(text("ALTER TABLE quotes ADD COLUMN ppf_brands TEXT"))
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
 
 
 def ensure_quote_item_detail_schema():
@@ -1191,12 +1236,14 @@ def ensure_quote_item_detail_schema():
     with app.app_context():
         try:
             db.session.execute(text("SELECT detail FROM quote_items LIMIT 1"))
+            return
         except Exception:
-            try:
-                db.session.execute(text("ALTER TABLE quote_items ADD COLUMN detail TEXT"))
-                db.session.commit()
-            except Exception:
-                db.session.rollback()
+            db.session.rollback()
+        try:
+            db.session.execute(text("ALTER TABLE quote_items ADD COLUMN detail TEXT"))
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
 
 
 class Appointment(db.Model):
