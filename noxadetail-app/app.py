@@ -9623,6 +9623,10 @@ def book_diagnostic_from_bot(conversation: "Conversation", datos: dict) -> tuple
     cliente aceptó pudo entrar otra cita. Devuelve (ok, detalle, cita); cuando ok
     es False, `detalle` es el motivo, en texto que se le puede devolver a Mariana
     para que lo resuelva con el cliente en el mismo hilo.
+
+    El tercer valor es la cita que ESTA llamada creó, y es None cuando no creó
+    ninguna: porque falló, o porque la cita pedida ya existía igualita. Esa
+    distinción es la que evita avisarle dos veces a Diana de la misma cita.
     """
     nombre   = (datos.get("nombre") or "").strip()
     # El modelo no ve el número de la conversación, así que cuando se le pedía
@@ -9675,7 +9679,29 @@ def book_diagnostic_from_bot(conversation: "Conversation", datos: dict) -> tuple
     # persona puede tener dos carros y agendar para cada uno, y puede haber
     # homónimos. Buscar por teléfono hacía que la segunda cita de un cliente con
     # otro vehículo se rechazara como si fuera un duplicado.
+    start_dt = datetime.combine(target_date, datetime.min.time()).replace(hour=hh, minute=mm)
     ya_tiene = _find_active_appointment_by_plate(placa)
+
+    # Pedir la MISMA cita que ya existe no es un conflicto: lo que el cliente
+    # quiere ya está hecho, y la respuesta correcta es confirmárselo.
+    #
+    # Antes esto caía en el error de abajo y salía carísimo en la conversación:
+    # Mariana agendaba, se lo confirmaba al cliente, el cliente le daba las
+    # gracias — y en ese turno ella repetía el [AGENDAR:], recibía un "no se
+    # pudo crear la cita" y le preguntaba al cliente si quería CONSERVAR o MOVER
+    # una cita que ella misma acababa de crear un mensaje atrás. Quedaba como si
+    # no recordara lo que hizo, y le abría la puerta a desagendar algo que
+    # estaba perfecto (caso real: Julio César Gómez, GBU708, 05/09).
+    #
+    # El prompt ya le prohíbe repetir el marcador y aun así lo repite, así que
+    # la garantía tiene que vivir aquí: repetir la orden deja el mismo
+    # resultado, no un error.
+    if ya_tiene and ya_tiene.start_datetime == start_dt:
+        return True, (
+            f"esa cita ya estaba creada (#{ya_tiene.id}, "
+            f"{start_dt.strftime('%d/%m a las %H:%M')}) — es la misma, no se duplicó"
+        ), None
+
     if ya_tiene:
         return False, (
             f"ese vehículo (placa {placa}) ya tiene una cita el "
@@ -9695,7 +9721,6 @@ def book_diagnostic_from_bot(conversation: "Conversation", datos: dict) -> tuple
             f"disponible. Alternativas ese día: {alternativas}"
         ), None
 
-    start_dt = datetime.combine(target_date, datetime.min.time()).replace(hour=hh, minute=mm)
     # El teléfono va en su propio campo, no repetido en las notas.
     notas = "Agendado por Mariana"
     if interes:
