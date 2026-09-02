@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+{% block extra_head %}
+<style>
+  .ppf-tabla { width:100%; border-collapse:collapse; }
+  .ppf-tabla th { font-size:.72rem; text-transform:uppercase; letter-spacing:.07em;
+                  color:#8a8a8a; font-weight:600; padding:0 8px 9px; text-align:left; }
+  .ppf-tabla th.num { text-align:right; }
+  .ppf-tabla td { padding:8px; border-top:1px solid rgba(255,255,255,.07); vertical-align:top; }
+  .ppf-cob { font-weight:600; color:#e9e9e9; font-size:.92rem; }
+  .ppf-que { font-size:.77rem; color:#8a8a8a; line-height:1.35; margin-top:2px; max-width:420px; }
+  .ppf-tabla input { background:rgba(255,255,255,.05); border:1px solid rgba(255,255,255,.10);
+                     color:#eee; border-radius:6px; padding:5px 8px; font-size:.87rem;
+                     width:118px; text-align:right; }
+  .ppf-tabla input:focus { border-color:var(--accent,#c8a04a); outline:none; }
+  .ppf-na { color:#5f5f5f; font-size:.8rem; }
+  .gar { font-size:.74rem; color:var(--accent,#c8a04a); font-weight:600; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container mt-4 mb-5">
+  <div class="d-flex justify-content-between align-items-center mb-2 flex-wrap gap-2">
+    <h2 class="mb-0">Precios de PPF</h2>
+    <a href="{{ url_for('quote_new') }}" class="btn btn-outline-secondary btn-sm">Nueva cotización</a>
+  </div>
+  <p class="text-muted small mb-4" style="max-width:720px">
+    Valores estimados para cotizar sin haber visto el carro. El precio final puede variar
+    según marca, modelo, estado del vehículo y complejidad de la instalación.
+  </p>
+
+  <form method="POST">
+    <table class="ppf-tabla">
+      <thead>
+        <tr>
+          <th>Cobertura</th>
+          {% for marca, garantia in marcas %}
+          <th class="num">{{ marca }}<br><span class="gar">{{ garantia }} años</span></th>
+          {% endfor %}
+        </tr>
+      </thead>
+      <tbody>
+        {% for cob in coberturas %}
+        <tr>
+          <td>
+            <div class="ppf-cob">{{ cob }}</div>
+            {% set fila = por_cobertura[cob] %}
+            {% set primero = fila.values()|list|first %}
+            {% if primero and primero.contains %}
+            <div class="ppf-que">{{ primero.contains }}</div>
+            {% endif %}
+          </td>
+          {% for marca, _g in marcas %}
+          <td class="text-end">
+            {% set p = por_cobertura[cob].get(marca) %}
+            {% if p %}
+              <input type="number" name="precio_{{ p.id }}" value="{{ p.price }}"
+                     min="0" step="1000" {% if not puede_borrar_servicios() %}disabled{% endif %}>
+            {% else %}
+              {# Spectra no ofrece fotocromático: se deja explícito en vez de un cero
+                 que se leería como "gratis". #}
+              <span class="ppf-na">no aplica</span>
+            {% endif %}
+          </td>
+          {% endfor %}
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+
+    {% if puede_borrar_servicios() %}
+    <button type="submit" class="btn btn-warning fw-bold mt-4">Guardar precios</button>
+    {% else %}
+    <p class="text-muted small mt-4">Solo un administrador puede cambiar estos precios.</p>
+    {% endif %}
+  </form>
+</div>
+{% endblock %}

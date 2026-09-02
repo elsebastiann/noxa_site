@@ -326,3 +326,127 @@ class TestPantallas:
         client.post("/quotes/new", data={"customer_name": "Sin líneas"})
         with A.app.app_context():
             assert A.Quote.query.count() == antes
+
+
+class TestPreciosPpf:
+    """El PPF no cabe en `service_prices`: su eje es la MARCA de la película,
+    no el tipo de vehículo, y cada marca trae su propia garantía."""
+
+    def test_la_semilla_carga_las_tres_marcas(self):
+        with A.app.app_context():
+            marcas = {m for (m,) in A.db.session.query(A.PpfPrice.brand).distinct()}
+        assert marcas == {"SPECTRA", "AVERY", "XPEL"}
+
+    def test_los_precios_de_la_hoja(self):
+        """Verifica contra la hoja original, incluidas las conversiones de
+        "10M" y "850K" que son donde es fácil equivocarse en un cero."""
+        esperados = [
+            ("Full Car", "SPECTRA", 10_000_000), ("Full Car", "XPEL", 15_000_000),
+            ("Full Front", "AVERY", 3_000_000), ("Protección Urbana", "SPECTRA", 850_000),
+            ("Pantalla", "SPECTRA", 80_000), ("Puertas", "XPEL", 4_000_000),
+            ("Capó", "AVERY", 850_000), ("Bómper Trasero y Delantero", "XPEL", 3_500_000),
+        ]
+        with A.app.app_context():
+            for cob, marca, precio in esperados:
+                p = A.PpfPrice.query.filter_by(coverage=cob, brand=marca).first()
+                assert p is not None, f"falta {cob} / {marca}"
+                assert p.price == precio, f"{cob} / {marca}"
+
+    def test_spectra_no_tiene_fotocromatico(self):
+        """La hoja lo deja en blanco. Un cero se leería como "gratis"."""
+        with A.app.app_context():
+            assert A.PpfPrice.query.filter_by(
+                coverage="Farolas Fotocromático", brand="SPECTRA").first() is None
+            assert A.PpfPrice.query.filter_by(
+                coverage="Farolas Fotocromático", brand="AVERY").first().price == 300_000
+
+    def test_las_garantias(self):
+        assert A.PPF_GARANTIAS == {"SPECTRA": 5, "AVERY": 7, "XPEL": 10}
+
+    def test_la_semilla_no_pisa_un_precio_editado(self):
+        """Si un redespliegue revirtiera los ajustes, la pantalla de precios no
+        serviría de nada."""
+        with A.app.app_context():
+            p = A.PpfPrice.query.filter_by(coverage="Manijas", brand="XPEL").first()
+            original = p.price
+            p.price = 999_000
+            A.db.session.commit()
+        try:
+            A.seed_ppf_prices()
+            with A.app.app_context():
+                assert A.PpfPrice.query.filter_by(
+                    coverage="Manijas", brand="XPEL").first().price == 999_000
+        finally:
+            with A.app.app_context():
+                A.PpfPrice.query.filter_by(coverage="Manijas", brand="XPEL").first().price = original
+                A.db.session.commit()
+
+    def test_el_catalogo_agrupa_por_marca(self):
+        with A.app.app_context():
+            cat = A._catalogo_ppf()
+        assert set(cat) == {"SPECTRA", "AVERY", "XPEL"}
+        full = next(x for x in cat["XPEL"] if x["cobertura"] == "Full Car")
+        assert full["precio"] == 15_000_000
+        assert full["garantia"] == 10
+        assert "capó" in full["contiene"].lower()
+
+
+class TestCotizarPpf:
+    def _login_admin(self, client):
+        with A.app.app_context():
+            uid = make_user(f"ppf{next(_u)}", role="admin").id
+        with client.session_transaction() as sess:
+            sess["user_id"] = uid
+
+    def test_una_cotizacion_de_ppf_guarda_lo_que_cubre(self, client):
+        """Es el punto: la cotización se manda sin ver el carro, así que el
+        cliente necesita leer qué piezas cubre cada cobertura."""
+        self._login_admin(client)
+        r = client.post("/quotes/new", data={
+            "customer_name": "Cliente PPF",
+            "item_desc": ["PPF Full Front — XPEL (garantía 10 años)"],
+            "item_price": ["4000000"], "item_qty": ["1"],
+            "item_service_id": [""],
+            "item_detail": ["Bómper delantero, capó, guardabarros delanteros, "
+                            "espejos retrovisores, farolas delanteras"],
+        }, follow_redirects=False)
+        code = r.headers["Location"].rstrip("/").split("/")[-1]
+        try:
+            with A.app.app_context():
+                c = A.Quote.query.filter_by(code=code).first()
+                assert "capó" in c.items[0].detail
+                assert c.tiene_ppf
+                assert c.total == 4_000_000
+        finally:
+            _borrar(code)
+
+    def test_el_pdf_de_ppf_advierte_que_el_precio_puede_variar(self):
+        code = _cotizacion(items=[("PPF Full Car — XPEL (garantía 10 años)", 15_000_000, 1)])
+        try:
+            with A.app.app_context():
+                c = A.Quote.query.filter_by(code=code).first()
+                assert c.tiene_ppf, "no reconoció la línea como PPF"
+                assert A._construir_pdf_cotizacion(c).startswith(b"%PDF")
+        finally:
+            _borrar(code)
+
+    def test_una_cotizacion_sin_ppf_no_lleva_esa_advertencia(self):
+        code = _cotizacion(items=[("Lavado Premium", 90000, 1)])
+        try:
+            with A.app.app_context():
+                assert not A.Quote.query.filter_by(code=code).first().tiene_ppf
+        finally:
+            _borrar(code)
+
+    def test_la_pantalla_de_precios_abre(self, client):
+        self._login_admin(client)
+        r = client.get("/ppf-prices")
+        assert r.status_code == 200
+        assert "XPEL".encode() in r.data
+
+    def test_el_operario_no_ve_los_precios_de_ppf(self, client):
+        with A.app.app_context():
+            uid = make_user(f"ppfop{next(_u)}", role="operario").id
+        with client.session_transaction() as sess:
+            sess["user_id"] = uid
+        assert client.get("/ppf-prices").status_code == 302

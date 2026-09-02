@@ -31,6 +31,33 @@
   .tot-fila.grande { font-size:1.32rem; font-weight:700; color:#fff; border-top:1px solid rgba(255,255,255,.14);
                      margin-top:8px; padding-top:11px; }
   .vacio { color:#8a8a8a; font-size:.87rem; text-align:center; padding:22px 8px; }
+  .tabs { display:flex; gap:4px; margin-bottom:12px; border-bottom:1px solid rgba(255,255,255,.10); }
+  .tab { background:none; border:none; border-bottom:2px solid transparent; color:#9a9a9a;
+         padding:7px 14px; font-size:.87rem; font-weight:600; cursor:pointer; }
+  .tab:hover { color:#ddd; }
+  .tab.on { color:var(--accent,#c8a04a); border-bottom-color:var(--accent,#c8a04a); }
+
+  .marcas { display:flex; gap:8px; margin-bottom:14px; flex-wrap:wrap; }
+  .marca { flex:1; min-width:120px; background:rgba(255,255,255,.04);
+           border:1px solid rgba(255,255,255,.10); border-radius:9px; padding:9px 12px;
+           cursor:pointer; text-align:left; }
+  .marca:hover { border-color:var(--accent,#c8a04a); }
+  .marca.on { border-color:var(--accent,#c8a04a); background:rgba(200,160,74,.16); }
+  .marca .m { font-weight:700; color:#eee; font-size:.92rem; letter-spacing:.03em; }
+  .marca .g { font-size:.76rem; color:var(--accent,#c8a04a); }
+
+  .ppf-item { display:flex; justify-content:space-between; gap:12px; align-items:flex-start;
+              background:rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.10);
+              border-radius:9px; padding:10px 12px; cursor:pointer; margin-bottom:7px; width:100%;
+              text-align:left; transition:.12s; }
+  .ppf-item:hover { border-color:var(--accent,#c8a04a); background:rgba(200,160,74,.10); }
+  .ppf-item.puesto { border-color:var(--accent,#c8a04a); background:rgba(200,160,74,.16); }
+  .ppf-item .c { font-size:.9rem; color:#e9e9e9; font-weight:600; }
+  .ppf-item .q { font-size:.77rem; color:#8f8f8f; line-height:1.35; margin-top:2px; }
+  .ppf-item .p { font-size:.9rem; color:var(--accent,#c8a04a); font-weight:700; white-space:nowrap; }
+  .linea-det { font-size:.75rem; color:#8f8f8f; padding:0 0 6px; line-height:1.3;
+               border-bottom:1px solid rgba(255,255,255,.07); margin-top:-4px; }
+
   .aviso-precio { font-size:.79rem; color:#ffd9a0; background:rgba(200,140,40,.14);
                   border:1px solid rgba(200,140,40,.4); border-radius:7px; padding:7px 9px; margin-top:9px; }
 </style>
@@ -70,9 +97,13 @@
       </div>
 
       <div class="cot-panel">
-        <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
-          <strong class="small">Servicios del catálogo</strong>
-          <div class="d-flex align-items-center gap-2">
+        <div class="tabs">
+          <button type="button" class="tab on" data-pane="paneSvc">Servicios</button>
+          <button type="button" class="tab" data-pane="panePpf">PPF</button>
+        </div>
+
+        <div id="paneSvc">
+          <div class="d-flex justify-content-end align-items-center gap-2 mb-2">
             <label class="small text-muted mb-0">Tipo de vehículo</label>
             <select name="vehicle_type_id" id="tipoVeh" class="form-select form-select-sm" style="width:auto">
               {% for t in tipos %}
@@ -80,9 +111,28 @@
               {% endfor %}
             </select>
           </div>
+          <div id="avisoRepricing"></div>
+          <div id="catalogo"></div>
         </div>
-        <div id="avisoRepricing"></div>
-        <div id="catalogo"></div>
+
+        <div id="panePpf" hidden>
+          <div class="marcas">
+            {% for marca, garantia in marcas_ppf %}
+            <button type="button" class="marca {% if loop.first %}on{% endif %}" data-marca="{{ marca }}">
+              <div class="m">{{ marca }}</div>
+              <div class="g">Garantía {{ garantia }} años</div>
+            </button>
+            {% endfor %}
+          </div>
+          <div id="listaPpf"></div>
+          <div class="text-muted mt-2" style="font-size:.76rem">
+            Valores estimados: pueden variar según marca, modelo, estado del vehículo
+            y complejidad de la instalación.
+            {% if puede_borrar_servicios() %}
+            <a href="{{ url_for('ppf_prices_list') }}" class="text-decoration-none">Ajustar precios</a>
+            {% endif %}
+          </div>
+        </div>
       </div>
     </div>
 
@@ -146,10 +196,13 @@
 {% block extra_scripts %}
 <script>
 const CATALOGO = {{ catalogo|tojson }};
+const CATALOGO_PPF = {{ catalogo_ppf|tojson }};
+let marcaPpf = {{ (marcas_ppf[0][0] if marcas_ppf else "")|tojson }};
 const fmt = n => "$" + (Math.round(n)||0).toLocaleString("es-CO");
 
-// Cada línea: {desc, precio, cant, serviceId|null}. serviceId null = servicio
-// suelto escrito a mano, que no se re-tarifa al cambiar el tipo de vehículo.
+// Cada línea: {desc, precio, cant, serviceId|null, detalle, ppfKey|null}.
+// serviceId null = no viene del catálogo de servicios, así que no se re-tarifa
+// al cambiar el tipo de vehículo (los PPF y los servicios sueltos).
 let lineas = [];
 
 const $cat = document.getElementById("catalogo");
@@ -186,7 +239,8 @@ function pintarCatalogo() {
     if (ya) { ya.cant += 1; }
     else {
       const s = serviciosDelTipo().find(x => x.id === id);
-      lineas.push({desc: s.nombre, precio: s.precio, cant: 1, serviceId: id});
+      lineas.push({desc: s.nombre, precio: s.precio, cant: 1, serviceId: id,
+                   detalle: "", ppfKey: null});
     }
     pintarTodo();
   });
@@ -195,14 +249,17 @@ function pintarCatalogo() {
 function pintarLineas() {
   document.getElementById("vacio").style.display = lineas.length ? "none" : "block";
   document.getElementById("btnGuardar").disabled = !lineas.length;
+  const esc = s => (s || "").replace(/"/g, "&quot;");
   $lineas.innerHTML = lineas.map((l, i) => `
     <div class="linea">
-      <input type="text" name="item_desc" value="${l.desc.replace(/"/g, "&quot;")}" data-i="${i}" data-c="desc">
+      <input type="text" name="item_desc" value="${esc(l.desc)}" data-i="${i}" data-c="desc">
       <input type="number" name="item_qty" value="${l.cant}" min="1" data-i="${i}" data-c="cant">
       <input type="number" name="item_price" value="${l.precio}" min="0" data-i="${i}" data-c="precio">
       <button type="button" class="quitar" data-i="${i}" title="Quitar">&times;</button>
       <input type="hidden" name="item_service_id" value="${l.serviceId ?? ""}">
-    </div>`).join("");
+      <input type="hidden" name="item_detail" value="${esc(l.detalle)}">
+    </div>
+    ${l.detalle ? `<div class="linea-det">${l.detalle}</div>` : ""}`).join("");
 
   $lineas.querySelectorAll("input[data-c]").forEach(inp => {
     inp.oninput = () => {
@@ -233,7 +290,57 @@ function pintarTotales() {
   document.getElementById("tTot").textContent = fmt(sub - desc);
 }
 
-function pintarTodo() { pintarCatalogo(); pintarLineas(); pintarTotales(); }
+function pintarPpf() {
+  const items = CATALOGO_PPF[marcaPpf] || [];
+  const $l = document.getElementById("listaPpf");
+  if (!items.length) {
+    $l.innerHTML = '<div class="vacio">Esta marca no tiene coberturas cargadas.</div>';
+    return;
+  }
+  const puestos = new Set(lineas.filter(l => l.ppfKey).map(l => l.ppfKey));
+  $l.innerHTML = items.map(it => {
+    const key = marcaPpf + "|" + it.cobertura;
+    return `<button type="button" class="ppf-item ${puestos.has(key) ? "puesto" : ""}"
+              data-cob="${it.cobertura.replace(/"/g, "&quot;")}">
+              <span><span class="c">${it.cobertura}</span>
+                    <span class="q d-block">${it.contiene}</span></span>
+              <span class="p">${fmt(it.precio)}</span></button>`;
+  }).join("");
+  $l.querySelectorAll(".ppf-item").forEach(b => b.onclick = () => {
+    const it = (CATALOGO_PPF[marcaPpf] || []).find(x => x.cobertura === b.dataset.cob);
+    if (!it) return;
+    const key = marcaPpf + "|" + it.cobertura;
+    const ya = lineas.find(l => l.ppfKey === key);
+    if (ya) { ya.cant += 1; }
+    else {
+      // La garantía va en el nombre porque es la mitad de la decisión: Xpel
+      // cuesta más que Spectra pero cubre el doble de tiempo, y el cliente
+      // tiene que poder verlo en la misma línea que el precio.
+      lineas.push({
+        desc: `PPF ${it.cobertura} — ${marcaPpf} (garantía ${it.garantia} años)`,
+        precio: it.precio, cant: 1, serviceId: null,
+        detalle: it.contiene, ppfKey: key,
+      });
+    }
+    pintarTodo();
+  });
+}
+
+document.querySelectorAll(".marca").forEach(b => b.onclick = () => {
+  document.querySelectorAll(".marca").forEach(x => x.classList.remove("on"));
+  b.classList.add("on");
+  marcaPpf = b.dataset.marca;
+  pintarPpf();
+});
+
+document.querySelectorAll(".tab").forEach(t => t.onclick = () => {
+  document.querySelectorAll(".tab").forEach(x => x.classList.remove("on"));
+  t.classList.add("on");
+  document.getElementById("paneSvc").hidden = t.dataset.pane !== "paneSvc";
+  document.getElementById("panePpf").hidden = t.dataset.pane !== "panePpf";
+});
+
+function pintarTodo() { pintarCatalogo(); pintarPpf(); pintarLineas(); pintarTotales(); }
 
 // Cambiar el tipo de vehículo re-tarifa lo que ya está puesto. Es el punto del
 // módulo: los mismos servicios valen distinto según el carro, y dejar precios
@@ -256,7 +363,7 @@ $tipo.onchange = () => {
 };
 
 document.getElementById("btnLibre").onclick = () => {
-  lineas.push({desc: "", precio: 0, cant: 1, serviceId: null});
+  lineas.push({desc: "", precio: 0, cant: 1, serviceId: null, detalle: "", ppfKey: null});
   pintarLineas(); pintarTotales();
   const ins = $lineas.querySelectorAll('input[data-c="desc"]');
   if (ins.length) ins[ins.length - 1].focus();

@@ -896,6 +896,14 @@ class Quote(db.Model):
     def vigente(self) -> bool:
         return self.valid_until is None or self.valid_until >= bogota_now().date()
 
+    @property
+    def tiene_ppf(self) -> bool:
+        """El PPF se cotiza sin haber visto el carro, así que su PDF lleva una
+        advertencia extra. Se detecta por el nombre y no por una bandera aparte
+        porque el nombre es lo que quedó copiado en la línea, y sigue siendo
+        cierto aunque el catálogo cambie después."""
+        return any((i.description or "").upper().startswith("PPF ") for i in self.items)
+
     def __repr__(self):
         return f"<Quote {self.code} {self.customer_name} total={self.total}>"
 
@@ -913,6 +921,10 @@ class QuoteItem(db.Model):
     quote_id = db.Column(db.Integer, db.ForeignKey("quotes.id"), nullable=False, index=True)
 
     description = db.Column(db.String(200), nullable=False)
+    # Qué incluye la línea. Se imprime debajo del nombre: en PPF el cliente
+    # necesita saber qué piezas cubre "Full Front" para poder decidir sin haber
+    # traído el carro.
+    detail      = db.Column(db.Text, nullable=True)
     unit_price  = db.Column(db.Integer, nullable=False, default=0)
     quantity    = db.Column(db.Integer, nullable=False, default=1)
 
@@ -925,6 +937,141 @@ class QuoteItem(db.Model):
 
     def __repr__(self):
         return f"<QuoteItem {self.description!r} x{self.quantity} = {self.total}>"
+
+
+class PpfPrice(db.Model):
+    """Precios de PPF, que no caben en `service_prices`.
+
+    El eje de un PPF no es el tipo de vehículo sino la MARCA de la película:
+    la misma cobertura vale distinto en Spectra, Avery o Xpel, y cada marca
+    trae su propia garantía. Meterlo en `service_prices` habría obligado a
+    inventar tipos de vehículo falsos ("SUV-Xpel") o a crear ~50 servicios en
+    el catálogo, ensuciando la agenda y la lista de precios reales.
+
+    Son estimados: la cotización de PPF se manda sin haber visto el carro, y
+    el valor final depende de marca, modelo, estado y complejidad del montaje.
+    """
+    __tablename__ = "ppf_prices"
+    id = db.Column(db.Integer, primary_key=True)
+
+    coverage = db.Column(db.String(80), nullable=False)
+    brand    = db.Column(db.String(40), nullable=False)
+    price    = db.Column(db.Integer, nullable=False)
+
+    contains  = db.Column(db.Text, nullable=True)
+    orden     = db.Column(db.Integer, nullable=False, default=0)
+    is_active = db.Column(db.Boolean, default=True)
+
+    __table_args__ = (
+        db.UniqueConstraint("coverage", "brand", name="uix_ppf_cobertura_marca"),
+    )
+
+    def __repr__(self):
+        return f"<PpfPrice {self.coverage} {self.brand} {self.price}>"
+
+
+# Garantía en años que da cada marca. Va en la línea de la cotización porque es
+# la mitad de la decisión del cliente: Xpel cuesta más pero cubre el doble de
+# tiempo que Spectra.
+PPF_MARCAS = [("SPECTRA", 5), ("AVERY", 7), ("XPEL", 10)]
+PPF_GARANTIAS = dict(PPF_MARCAS)
+
+# (cobertura, qué contiene, {marca: precio}). Un None significa que esa marca
+# no ofrece esa cobertura — el fotocromático no existe en Spectra.
+PPF_CATALOGO_SEMILLA = [
+    ("Full Car",
+     "Bómper delantero, capó, guardabarros delanteros, espejos retrovisores, puertas, "
+     "pilares, techo, guardabarros traseros, baúl, bómper trasero, zonas de carga y "
+     "superficies exteriores completas",
+     {"SPECTRA": 10_000_000, "AVERY": 13_000_000, "XPEL": 15_000_000}),
+    ("Full Front",
+     "Bómper delantero, capó, guardabarros delanteros, espejos retrovisores, farolas delanteras",
+     {"SPECTRA": 2_500_000, "AVERY": 3_000_000, "XPEL": 4_000_000}),
+    ("Protección Urbana",
+     "Espejos, manijas, borde de puertas, zona de carga del baúl, posa pies",
+     {"SPECTRA": 850_000, "AVERY": 1_000_000, "XPEL": 1_200_000}),
+    ("Pianos Exteriores",
+     "Molduras piano black exteriores",
+     {"SPECTRA": 200_000, "AVERY": 250_000, "XPEL": 350_000}),
+    ("Farolas",
+     "Farolas delanteras",
+     {"SPECTRA": 200_000, "AVERY": 250_000, "XPEL": 350_000}),
+    ("Farolas y Stops",
+     "Farolas delanteras, stops traseros",
+     {"SPECTRA": 350_000, "AVERY": 400_000, "XPEL": 450_000}),
+    ("Farolas Fotocromático",
+     "Farolas delanteras",
+     {"SPECTRA": None, "AVERY": 300_000, "XPEL": 400_000}),
+    ("Farolas y Stops Fotocromático",
+     "Farolas delanteras, stops traseros",
+     {"SPECTRA": None, "AVERY": 500_000, "XPEL": 600_000}),
+    ("Full Interior",
+     "Pantallas, consola central, acabados piano black interiores, controles táctiles, "
+     "superficies brillantes interiores, paneles vulnerables a rayones",
+     {"SPECTRA": 800_000, "AVERY": 1_000_000, "XPEL": 1_500_000}),
+    ("Consola Central",
+     "Consola central completa, touchpad, mandos y acabados piano black",
+     {"SPECTRA": 250_000, "AVERY": 300_000, "XPEL": 400_000}),
+    ("Pantalla",
+     "Pantalla principal de infoentretenimiento y panel digital de instrumentos cuando aplique",
+     {"SPECTRA": 80_000, "AVERY": 100_000, "XPEL": 150_000}),
+    ("Retrovisores",
+     "Retrovisores",
+     {"SPECTRA": 200_000, "AVERY": 250_000, "XPEL": 400_000}),
+    ("Manijas",
+     "Manijas",
+     {"SPECTRA": 150_000, "AVERY": 250_000, "XPEL": 350_000}),
+    ("Capó",
+     "Solo capó",
+     {"SPECTRA": 750_000, "AVERY": 850_000, "XPEL": 950_000}),
+    ("Puertas",
+     "Puertas",
+     {"SPECTRA": 3_200_000, "AVERY": 3_500_000, "XPEL": 4_000_000}),
+    ("Bómper Trasero y Delantero",
+     "Bómper delantero y trasero",
+     {"SPECTRA": 2_500_000, "AVERY": 3_000_000, "XPEL": 3_500_000}),
+]
+
+
+def seed_ppf_prices():
+    """Carga la lista de PPF la primera vez, sin pisar ediciones posteriores.
+
+    Solo inserta las combinaciones cobertura+marca que falten. Si alguien ajusta
+    un precio desde la pantalla, un redespliegue no se lo revierte — que es
+    justo lo que pasaría con un `delete all + insert`.
+    """
+    with app.app_context():
+        try:
+            existentes = {(p.coverage, p.brand) for p in PpfPrice.query.all()}
+        except Exception:
+            db.session.rollback()
+            return  # la tabla todavía no existe; db.create_all() la creará
+        nuevos = []
+        for i, (cobertura, contiene, precios) in enumerate(PPF_CATALOGO_SEMILLA):
+            for marca, _garantia in PPF_MARCAS:
+                precio = precios.get(marca)
+                if precio is None or (cobertura, marca) in existentes:
+                    continue
+                nuevos.append(PpfPrice(coverage=cobertura, brand=marca, price=precio,
+                                       contains=contiene, orden=i, is_active=True))
+        if nuevos:
+            db.session.add_all(nuevos)
+            db.session.commit()
+            app.logger.info(f"[PPF] Se cargaron {len(nuevos)} precios de PPF.")
+
+
+def ensure_quote_item_detail_schema():
+    """`quote_items` ya existe en producción sin esta columna: db.create_all()
+    crea tablas nuevas, no agrega columnas a las que ya están."""
+    with app.app_context():
+        try:
+            db.session.execute(text("SELECT detail FROM quote_items LIMIT 1"))
+        except Exception:
+            try:
+                db.session.execute(text("ALTER TABLE quote_items ADD COLUMN detail TEXT"))
+                db.session.commit()
+            except Exception:
+                db.session.rollback()
 
 
 class Appointment(db.Model):
@@ -7197,6 +7344,11 @@ def ensure_users_schema():
 
 ensure_users_schema()
 
+# Van después de ensure_users_schema() porque es quien corre db.create_all():
+# antes de eso las tablas de cotizaciones y PPF pueden no existir todavía.
+ensure_quote_item_detail_schema()
+seed_ppf_prices()
+
 # --- Seed: crear super admin si no existe ningún usuario ---
 # Antes tenía una contraseña fija en el código ("Slm2026$$") — visible para
 # cualquiera en este repo público. Ahora se genera una temporal al azar, se
@@ -11509,6 +11661,68 @@ def _catalogo_para_cotizar() -> dict:
     return catalogo
 
 
+def _catalogo_ppf() -> dict:
+    """{marca: [{cobertura, contiene, precio, garantia}, ...]}
+
+    Se manda entero al navegador igual que el catálogo de servicios: cambiar de
+    marca tiene que reordenar los precios al instante, porque la comparación
+    entre Spectra, Avery y Xpel es justo la conversación que se tiene con el
+    cliente.
+    """
+    filas = (PpfPrice.query
+             .filter(PpfPrice.is_active == True)
+             .order_by(PpfPrice.orden, PpfPrice.coverage)
+             .all())
+    cat = {}
+    for f in filas:
+        cat.setdefault(f.brand, []).append({
+            "cobertura": f.coverage,
+            "contiene": f.contains or "",
+            "precio": f.price,
+            "garantia": PPF_GARANTIAS.get(f.brand, 0),
+        })
+    return cat
+
+
+@app.route("/ppf-prices", methods=["GET", "POST"])
+def ppf_prices_list():
+    """Los precios de PPF son estimados y se mueven. Sin esta pantalla,
+    ajustarlos obligaría a tocar el código y redesplegar."""
+    if not puede_cotizar():
+        flash("Acceso restringido.", "danger")
+        return redirect(url_for("calendar_view"))
+
+    if request.method == "POST":
+        if not puede_borrar_servicios():
+            flash("Solo un administrador puede cambiar los precios de PPF.", "danger")
+            return redirect(url_for("ppf_prices_list"))
+        cambiados = 0
+        for p in PpfPrice.query.all():
+            crudo = request.form.get(f"precio_{p.id}")
+            if crudo is None or crudo.strip() == "":
+                continue
+            nuevo_precio = max(0, _int_o_cero(crudo))
+            if nuevo_precio and nuevo_precio != p.price:
+                p.price = nuevo_precio
+                cambiados += 1
+        db.session.commit()
+        flash(f"{cambiados} precio(s) actualizado(s)." if cambiados
+              else "No hubo cambios.", "success" if cambiados else "info")
+        return redirect(url_for("ppf_prices_list"))
+
+    coberturas = []
+    vistos = set()
+    for p in PpfPrice.query.order_by(PpfPrice.orden, PpfPrice.coverage).all():
+        if p.coverage not in vistos:
+            vistos.add(p.coverage)
+            coberturas.append(p.coverage)
+    por_cobertura = {}
+    for p in PpfPrice.query.all():
+        por_cobertura.setdefault(p.coverage, {})[p.brand] = p
+    return render_template("ppf_prices.html", coberturas=coberturas,
+                           por_cobertura=por_cobertura, marcas=PPF_MARCAS)
+
+
 @app.route("/quotes")
 def quotes_list():
     if not puede_cotizar():
@@ -11544,6 +11758,7 @@ def quote_new():
         precios       = request.form.getlist("item_price")
         cantidades    = request.form.getlist("item_qty")
         servicios     = request.form.getlist("item_service_id")
+        detalles      = request.form.getlist("item_detail")
 
         lineas = []
         for i, desc in enumerate(descripciones):
@@ -11553,8 +11768,10 @@ def quote_new():
             precio = max(0, _int_o_cero(precios[i] if i < len(precios) else 0))
             cant   = max(1, _int_o_cero(cantidades[i] if i < len(cantidades) else 1))
             sid_raw = servicios[i] if i < len(servicios) else ""
+            det = (detalles[i] if i < len(detalles) else "") or ""
             lineas.append(QuoteItem(
                 description=desc[:200], unit_price=precio, quantity=cant,
+                detail=det.strip() or None,
                 service_id=int(sid_raw) if (sid_raw or "").isdigit() else None,
             ))
 
@@ -11604,6 +11821,8 @@ def quote_new():
         "quote_form.html",
         tipos=tipos,
         catalogo=_catalogo_para_cotizar(),
+        catalogo_ppf=_catalogo_ppf(),
+        marcas_ppf=PPF_MARCAS,
         dias_por_defecto=QUOTE_VALID_DAYS,
     )
 
@@ -11719,14 +11938,15 @@ def _construir_pdf_cotizacion(cot: "Quote") -> bytes:
     hist += [t_datos, Spacer(1, 6 * mm)]
 
     # --- Servicios -----------------------------------------------------------
+    est_detalle = ParagraphStyle("d", parent=est_celda, fontSize=8,
+                                 textColor=SUAVE, leading=10, spaceBefore=2)
+
     filas = [["Servicio", "Cant.", "Valor unitario", "Total"]]
     for it in cot.items:
-        filas.append([
-            Paragraph(it.description, est_celda),
-            str(it.quantity),
-            _cop(it.unit_price),
-            _cop(it.total),
-        ])
+        celda = [Paragraph(it.description, est_celda)]
+        if it.detail:
+            celda.append(Paragraph(it.detail, est_detalle))
+        filas.append([celda, str(it.quantity), _cop(it.unit_price), _cop(it.total)])
 
     tabla = Table(filas, colWidths=[95 * mm, 15 * mm, 32 * mm, 33 * mm], repeatRows=1)
     tabla.setStyle(TableStyle([
@@ -11781,8 +12001,13 @@ def _construir_pdf_cotizacion(cot: "Quote") -> bytes:
     pie = []
     if cot.valid_until:
         pie.append(f"Cotización válida hasta el {cot.valid_until.strftime('%d/%m/%Y')}.")
-    pie.append("Los precios pueden variar según el estado real del vehículo, "
-               "que se confirma en el diagnóstico presencial.")
+    if cot.tiene_ppf:
+        pie.append("Los valores de PPF son estimados: pueden variar según marca, modelo, "
+                   "estado del vehículo y complejidad de la instalación. Se confirman al "
+                   "revisar el carro.")
+    else:
+        pie.append("Los precios pueden variar según el estado real del vehículo, "
+                   "que se confirma en el diagnóstico presencial.")
     hist += [Table([[""]], colWidths=[175 * mm], style=TableStyle([
         ("LINEBELOW", (0, 0), (-1, -1), 0.6, LINEA)]))]
     hist += [Spacer(1, 3 * mm),

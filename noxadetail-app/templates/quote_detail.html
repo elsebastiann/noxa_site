@@ -71,7 +71,13 @@
       <tbody>
         {% for it in c.items %}
         <tr>
-          <td>{{ it.description }}</td>
+          <td>
+            {{ it.description }}
+            {% if it.detail %}
+            <div class="text-muted" style="font-size:.79rem; line-height:1.35; margin-top:2px">
+              {{ it.detail }}</div>
+            {% endif %}
+          </td>
           <td class="text-center">{{ it.quantity }}</td>
           <td class="text-end">{{ it.unit_price|cop }}</td>
           <td class="text-end">{{ it.total|cop }}</td>
