@@ -826,6 +826,106 @@ class ServicePrice(db.Model):
         )
 
 
+# -----------------------
+# COTIZACIONES
+# -----------------------
+class Quote(db.Model):
+    """Una cotización que se le entrega al cliente y se puede volver a consultar.
+
+    Todo lo que sale impreso queda copiado aquí (nombre del servicio, precio,
+    tipo de vehículo). Es a propósito: la lista de precios cambia, y una
+    cotización que se reimprime dentro de dos meses tiene que mostrar los mismos
+    números que el cliente vio el día que se la dieron. Si esto apuntara a
+    `service_prices` en vivo, una subida de precios reescribiría en silencio
+    documentos ya entregados.
+    """
+    __tablename__ = "quotes"
+    id = db.Column(db.Integer, primary_key=True)
+
+    code = db.Column(db.String(16), nullable=False, unique=True, index=True)
+
+    customer_name  = db.Column(db.String(120), nullable=False)
+    customer_phone = db.Column(db.String(40), nullable=True)
+    plate          = db.Column(db.String(20), nullable=True)
+    vehicle_label  = db.Column(db.String(120), nullable=True)   # "Mazda 3 2021"
+
+    # El id queda por si algún día se quiere filtrar, pero lo que se imprime es
+    # el nombre copiado: un tipo de vehículo renombrado no debe cambiar el PDF.
+    vehicle_type_id   = db.Column(db.Integer, db.ForeignKey("vehicle_types.id"), nullable=True)
+    vehicle_type_name = db.Column(db.String(80), nullable=True)
+
+    discount_type  = db.Column(db.String(20), nullable=True)   # percentage | absolute
+    discount_value = db.Column(db.Integer, nullable=False, default=0)
+    discount_label = db.Column(db.String(120), nullable=True)  # "Convenio Club Mercedes"
+
+    notes       = db.Column(db.Text, nullable=True)
+    valid_until = db.Column(db.Date, nullable=True)
+
+    created_by = db.Column(db.String(80), nullable=True)
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+
+    items = db.relationship(
+        "QuoteItem", backref="quote", lazy=True,
+        cascade="all, delete-orphan", order_by="QuoteItem.id",
+    )
+
+    @property
+    def subtotal(self) -> int:
+        return sum(i.total for i in self.items)
+
+    @property
+    def descuento_aplicado(self) -> int:
+        """El descuento en pesos, ya resuelto sea porcentaje o monto fijo.
+
+        Se topa contra el subtotal: un descuento absoluto mal digitado (500000
+        sobre una cotización de 300000) daría un total negativo impreso en un
+        documento que se le entrega al cliente.
+        """
+        if not self.discount_value or not self.discount_type:
+            return 0
+        if self.discount_type == "percentage":
+            pct = max(0, min(100, self.discount_value))
+            return round(self.subtotal * pct / 100)
+        return max(0, min(self.discount_value, self.subtotal))
+
+    @property
+    def total(self) -> int:
+        return self.subtotal - self.descuento_aplicado
+
+    @property
+    def vigente(self) -> bool:
+        return self.valid_until is None or self.valid_until >= bogota_now().date()
+
+    def __repr__(self):
+        return f"<Quote {self.code} {self.customer_name} total={self.total}>"
+
+
+class QuoteItem(db.Model):
+    """Una línea de la cotización.
+
+    `service_id` es opcional a propósito: además del catálogo, el módulo deja
+    escribir servicios sueltos que no están en sistema (un trabajo especial, un
+    insumo puntual). Esas líneas no tienen servicio al cual apuntar, pero se
+    cotizan igual.
+    """
+    __tablename__ = "quote_items"
+    id = db.Column(db.Integer, primary_key=True)
+    quote_id = db.Column(db.Integer, db.ForeignKey("quotes.id"), nullable=False, index=True)
+
+    description = db.Column(db.String(200), nullable=False)
+    unit_price  = db.Column(db.Integer, nullable=False, default=0)
+    quantity    = db.Column(db.Integer, nullable=False, default=1)
+
+    # Informativo: de qué servicio del catálogo salió, cuando salió de uno.
+    service_id = db.Column(db.Integer, db.ForeignKey("services.id"), nullable=True)
+
+    @property
+    def total(self) -> int:
+        return (self.unit_price or 0) * (self.quantity or 0)
+
+    def __repr__(self):
+        return f"<QuoteItem {self.description!r} x{self.quantity} = {self.total}>"
+
 
 class Appointment(db.Model):
     __tablename__ = "appointments"
@@ -11335,6 +11435,363 @@ def _job_whatsapp_followup():
 
 
 # ── Bandeja de salida — qué se envió y qué llegó de verdad (solo admin) ───────
+# -----------------------
+# COTIZACIONES
+# -----------------------
+# Alfabeto sin los caracteres que se confunden al leerlos o dictarlos: sin O/0,
+# sin I/1/L. Un código de cotización se dicta por teléfono y se lee de un papel
+# impreso, así que "NX-K3M9QP" tiene que poder copiarse sin ambigüedad.
+_ALFABETO_CODIGO = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"
+QUOTE_CODE_LEN = 6
+QUOTE_VALID_DAYS = 15
+
+
+def _nuevo_codigo_cotizacion() -> str:
+    """Código corto, aleatorio y único.
+
+    Aleatorio y no consecutivo por pedido explícito, y la razón es comercial:
+    un "COT-001" le dice al cliente exactamente cuántas cotizaciones lleva
+    hechas el negocio, y dos cotizaciones seguidas le dejan calcular el ritmo de
+    ventas. Un código aleatorio no filtra volumen.
+    """
+    for _ in range(20):
+        codigo = "NX-" + "".join(secrets.choice(_ALFABETO_CODIGO) for _ in range(QUOTE_CODE_LEN))
+        if not Quote.query.filter_by(code=codigo).first():
+            return codigo
+    # 31^6 combinaciones: llegar aquí significa que algo anda muy mal, y es
+    # mejor fallar de una que entregar dos cotizaciones con el mismo código.
+    raise RuntimeError("no se pudo generar un código de cotización único")
+
+
+@app.template_global()
+def puede_cotizar() -> bool:
+    """Cotizar es mostrar precios, así que aplica el mismo criterio: el
+    operario agenda y trabaja citas, pero no ve cuánto valen los servicios."""
+    return puede_ver_precios()
+
+
+def _cop(valor) -> str:
+    """120000 -> "$120.000". El separador de miles en Colombia es el punto."""
+    try:
+        n = int(round(float(valor or 0)))
+    except (TypeError, ValueError):
+        n = 0
+    return "$" + f"{n:,}".replace(",", ".")
+
+
+app.jinja_env.filters["cop"] = _cop
+
+
+def _catalogo_para_cotizar() -> dict:
+    """{vehicle_type_id: [{id, nombre, categoria, precio}, ...]}
+
+    Se manda entero al navegador para que cambiar el tipo de vehículo reordene
+    los precios al instante, sin una consulta por cada clic. Son decenas de
+    servicios, no miles: cabe de sobra en la página.
+    """
+    precios = (
+        ServicePrice.query
+        .filter(ServicePrice.is_active == True)
+        .join(Service, ServicePrice.service_id == Service.id)
+        .filter(Service.is_active == True)
+        .all()
+    )
+    catalogo = {}
+    for p in precios:
+        catalogo.setdefault(p.vehicle_type_id, []).append({
+            "id": p.service_id,
+            "nombre": p.service.name,
+            "categoria": categoria_de_servicio(p.service.name),
+            "precio": p.price,
+        })
+    for lista in catalogo.values():
+        lista.sort(key=lambda s: (s["categoria"], s["nombre"]))
+    return catalogo
+
+
+@app.route("/quotes")
+def quotes_list():
+    if not puede_cotizar():
+        flash("Acceso restringido.", "danger")
+        return redirect(url_for("calendar_view"))
+
+    busqueda = (request.args.get("q") or "").strip()
+    consulta = Quote.query
+    if busqueda:
+        patron = f"%{busqueda}%"
+        consulta = consulta.filter(db.or_(
+            Quote.code.ilike(patron),
+            Quote.customer_name.ilike(patron),
+            Quote.plate.ilike(patron),
+        ))
+    cotizaciones = consulta.order_by(Quote.created_at.desc()).limit(300).all()
+    return render_template("quotes_list.html", cotizaciones=cotizaciones, busqueda=busqueda)
+
+
+@app.route("/quotes/new", methods=["GET", "POST"])
+def quote_new():
+    if not puede_cotizar():
+        flash("Acceso restringido.", "danger")
+        return redirect(url_for("calendar_view"))
+
+    if request.method == "POST":
+        nombre = (request.form.get("customer_name") or "").strip()
+        if not nombre:
+            flash("El nombre del cliente es obligatorio.", "danger")
+            return redirect(url_for("quote_new"))
+
+        descripciones = request.form.getlist("item_desc")
+        precios       = request.form.getlist("item_price")
+        cantidades    = request.form.getlist("item_qty")
+        servicios     = request.form.getlist("item_service_id")
+
+        lineas = []
+        for i, desc in enumerate(descripciones):
+            desc = (desc or "").strip()
+            if not desc:
+                continue
+            precio = max(0, _int_o_cero(precios[i] if i < len(precios) else 0))
+            cant   = max(1, _int_o_cero(cantidades[i] if i < len(cantidades) else 1))
+            sid_raw = servicios[i] if i < len(servicios) else ""
+            lineas.append(QuoteItem(
+                description=desc[:200], unit_price=precio, quantity=cant,
+                service_id=int(sid_raw) if (sid_raw or "").isdigit() else None,
+            ))
+
+        if not lineas:
+            flash("Agrega al menos un servicio a la cotización.", "danger")
+            return redirect(url_for("quote_new"))
+
+        tipo_desc = request.form.get("discount_type") or None
+        if tipo_desc not in ("percentage", "absolute"):
+            tipo_desc, valor_desc = None, 0
+        else:
+            valor_desc = max(0, _int_o_cero(request.form.get("discount_value")))
+            if tipo_desc == "percentage":
+                valor_desc = min(100, valor_desc)
+            if valor_desc == 0:
+                tipo_desc = None
+
+        vt_id = request.form.get("vehicle_type_id")
+        vt = VehicleType.query.get(int(vt_id)) if (vt_id or "").isdigit() else None
+
+        dias = _int_o_cero(request.form.get("valid_days")) or QUOTE_VALID_DAYS
+
+        cot = Quote(
+            code=_nuevo_codigo_cotizacion(),
+            customer_name=nombre[:120],
+            customer_phone=(request.form.get("customer_phone") or "").strip()[:40] or None,
+            plate=normalize_plate(request.form.get("plate") or "") or None,
+            vehicle_label=(request.form.get("vehicle_label") or "").strip()[:120] or None,
+            vehicle_type_id=vt.id if vt else None,
+            vehicle_type_name=vt.name if vt else None,
+            discount_type=tipo_desc,
+            discount_value=valor_desc,
+            discount_label=(request.form.get("discount_label") or "").strip()[:120] or None,
+            notes=(request.form.get("notes") or "").strip() or None,
+            valid_until=bogota_now().date() + timedelta(days=max(1, dias)),
+            created_by=getattr(getattr(g, "current_user", None), "username", None),
+        )
+        cot.items = lineas
+        db.session.add(cot)
+        db.session.commit()
+
+        flash(f"Cotización {cot.code} creada.", "success")
+        return redirect(url_for("quote_detail", code=cot.code))
+
+    tipos = VehicleType.query.filter_by(is_active=True).order_by(VehicleType.name).all()
+    return render_template(
+        "quote_form.html",
+        tipos=tipos,
+        catalogo=_catalogo_para_cotizar(),
+        dias_por_defecto=QUOTE_VALID_DAYS,
+    )
+
+
+@app.route("/quotes/<code>")
+def quote_detail(code):
+    if not puede_cotizar():
+        flash("Acceso restringido.", "danger")
+        return redirect(url_for("calendar_view"))
+    cot = Quote.query.filter_by(code=code).first()
+    if not cot:
+        flash("No existe esa cotización.", "danger")
+        return redirect(url_for("quotes_list"))
+    return render_template("quote_detail.html", c=cot)
+
+
+@app.route("/quotes/<code>/pdf")
+def quote_pdf(code):
+    if not puede_cotizar():
+        flash("Acceso restringido.", "danger")
+        return redirect(url_for("calendar_view"))
+    cot = Quote.query.filter_by(code=code).first()
+    if not cot:
+        flash("No existe esa cotización.", "danger")
+        return redirect(url_for("quotes_list"))
+
+    pdf = _construir_pdf_cotizacion(cot)
+    return Response(pdf, mimetype="application/pdf", headers={
+        # inline: el navegador lo abre y desde ahí se descarga o se manda por
+        # WhatsApp. Forzar la descarga obligaba a abrir el archivo aparte solo
+        # para revisar que quedó bien antes de enviarlo.
+        "Content-Disposition": f'inline; filename="Cotizacion-{cot.code}.pdf"',
+    })
+
+
+def _construir_pdf_cotizacion(cot: "Quote") -> bytes:
+    """El PDF que se le entrega al cliente.
+
+    Se arma con reportlab (Python puro, sin librerías del sistema) porque las
+    alternativas buenas —weasyprint, wkhtmltopdf— necesitan cairo/pango
+    instalados en la imagen, y eso es un dolor de cabeza en el build de Railway.
+    """
+    from reportlab.lib import colors
+    from reportlab.lib.enums import TA_RIGHT
+    from reportlab.lib.pagesizes import letter
+    from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
+    from reportlab.lib.units import mm
+    from reportlab.platypus import (
+        Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle,
+    )
+
+    TINTA   = colors.HexColor("#1a1a1a")
+    SUAVE   = colors.HexColor("#6b6b6b")
+    LINEA   = colors.HexColor("#dddddd")
+    ACENTO  = colors.HexColor("#c8a04a")
+
+    base = getSampleStyleSheet()
+    est_titulo = ParagraphStyle("t", parent=base["Title"], fontSize=22, textColor=TINTA,
+                                spaceAfter=2, alignment=0)
+    est_sub    = ParagraphStyle("s", parent=base["Normal"], fontSize=9, textColor=SUAVE)
+    est_txt    = ParagraphStyle("n", parent=base["Normal"], fontSize=9.5, textColor=TINTA, leading=13)
+    est_der    = ParagraphStyle("r", parent=est_txt, alignment=TA_RIGHT)
+    est_celda  = ParagraphStyle("c", parent=est_txt, fontSize=9.5, leading=12)
+
+    buf = io.BytesIO()
+    doc = SimpleDocTemplate(
+        buf, pagesize=letter,
+        leftMargin=18 * mm, rightMargin=18 * mm,
+        topMargin=16 * mm, bottomMargin=16 * mm,
+        title=f"Cotización {cot.code}", author="NOXA Detail",
+    )
+    hist = []
+
+    # --- Encabezado: marca a la izquierda, identificación a la derecha -------
+    izq = [
+        Paragraph("NOXA Detail", est_titulo),
+        Paragraph("Detailing &amp; Car Care Premium<br/>Prado Veraniego, Bogotá", est_sub),
+    ]
+    der = [
+        Paragraph("<b>COTIZACIÓN</b>", est_der),
+        Paragraph(f"<font size=13 color='#c8a04a'><b>{cot.code}</b></font>", est_der),
+        Paragraph(cot.created_at.strftime("%d/%m/%Y"), ParagraphStyle(
+            "rs", parent=est_sub, alignment=TA_RIGHT)),
+    ]
+    cab = Table([[izq, der]], colWidths=[100 * mm, 75 * mm])
+    cab.setStyle(TableStyle([
+        ("VALIGN", (0, 0), (-1, -1), "TOP"),
+        ("LEFTPADDING", (0, 0), (-1, -1), 0), ("RIGHTPADDING", (0, 0), (-1, -1), 0),
+    ]))
+    hist += [cab, Spacer(1, 5 * mm)]
+    hist += [Table([[""]], colWidths=[175 * mm], style=TableStyle([
+        ("LINEBELOW", (0, 0), (-1, -1), 1.2, ACENTO)]))]
+    hist += [Spacer(1, 5 * mm)]
+
+    # --- Datos del cliente ---------------------------------------------------
+    datos = [("Cliente", cot.customer_name)]
+    if cot.customer_phone:
+        datos.append(("Teléfono", cot.customer_phone))
+    vehiculo = " · ".join(x for x in [cot.vehicle_label, cot.plate] if x)
+    if vehiculo:
+        datos.append(("Vehículo", vehiculo))
+    if cot.vehicle_type_name:
+        datos.append(("Tipo", cot.vehicle_type_name))
+
+    filas_datos = [[Paragraph(f"<font color='#6b6b6b'>{k}</font>", est_txt),
+                    Paragraph(v, est_txt)] for k, v in datos]
+    t_datos = Table(filas_datos, colWidths=[28 * mm, 147 * mm])
+    t_datos.setStyle(TableStyle([
+        ("VALIGN", (0, 0), (-1, -1), "TOP"),
+        ("LEFTPADDING", (0, 0), (-1, -1), 0),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
+    ]))
+    hist += [t_datos, Spacer(1, 6 * mm)]
+
+    # --- Servicios -----------------------------------------------------------
+    filas = [["Servicio", "Cant.", "Valor unitario", "Total"]]
+    for it in cot.items:
+        filas.append([
+            Paragraph(it.description, est_celda),
+            str(it.quantity),
+            _cop(it.unit_price),
+            _cop(it.total),
+        ])
+
+    tabla = Table(filas, colWidths=[95 * mm, 15 * mm, 32 * mm, 33 * mm], repeatRows=1)
+    tabla.setStyle(TableStyle([
+        ("FONTNAME",   (0, 0), (-1, 0), "Helvetica-Bold"),
+        ("FONTSIZE",   (0, 0), (-1, 0), 8.5),
+        ("TEXTCOLOR",  (0, 0), (-1, 0), SUAVE),
+        ("LINEBELOW",  (0, 0), (-1, 0), 0.8, LINEA),
+        ("FONTSIZE",   (0, 1), (-1, -1), 9.5),
+        ("TEXTCOLOR",  (0, 1), (-1, -1), TINTA),
+        ("ALIGN",      (1, 0), (1, -1), "CENTER"),
+        ("ALIGN",      (2, 0), (-1, -1), "RIGHT"),
+        ("VALIGN",     (0, 0), (-1, -1), "MIDDLE"),
+        ("LEFTPADDING",  (0, 0), (-1, -1), 0),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 0),
+        ("TOPPADDING",   (0, 1), (-1, -1), 6),
+        ("BOTTOMPADDING",(0, 1), (-1, -1), 6),
+        ("LINEBELOW",  (0, 1), (-1, -2), 0.4, LINEA),
+    ]))
+    hist += [tabla, Spacer(1, 4 * mm)]
+
+    # --- Totales -------------------------------------------------------------
+    tot = [["Subtotal", _cop(cot.subtotal)]]
+    if cot.descuento_aplicado:
+        etiqueta = cot.discount_label or "Descuento"
+        if cot.discount_type == "percentage":
+            etiqueta += f" ({cot.discount_value}%)"
+        tot.append([etiqueta, "− " + _cop(cot.descuento_aplicado)])
+    tot.append(["TOTAL", _cop(cot.total)])
+
+    t_tot = Table(tot, colWidths=[110 * mm, 65 * mm], hAlign="RIGHT")
+    estilos_tot = [
+        ("ALIGN",      (0, 0), (-1, -1), "RIGHT"),
+        ("TEXTCOLOR",  (0, 0), (-1, -2), SUAVE),
+        ("FONTSIZE",   (0, 0), (-1, -2), 9.5),
+        ("FONTNAME",   (0, -1), (-1, -1), "Helvetica-Bold"),
+        ("FONTSIZE",   (0, -1), (-1, -1), 13),
+        ("TEXTCOLOR",  (0, -1), (-1, -1), TINTA),
+        ("LINEABOVE",  (0, -1), (-1, -1), 0.8, LINEA),
+        ("TOPPADDING", (0, -1), (-1, -1), 7),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 0),
+    ]
+    t_tot.setStyle(TableStyle(estilos_tot))
+    hist += [t_tot, Spacer(1, 8 * mm)]
+
+    # --- Notas y vigencia ----------------------------------------------------
+    if cot.notes:
+        hist += [Paragraph("<font color='#6b6b6b'><b>Observaciones</b></font>", est_txt),
+                 Spacer(1, 1.5 * mm),
+                 Paragraph(cot.notes.replace("\n", "<br/>"), est_txt),
+                 Spacer(1, 6 * mm)]
+
+    pie = []
+    if cot.valid_until:
+        pie.append(f"Cotización válida hasta el {cot.valid_until.strftime('%d/%m/%Y')}.")
+    pie.append("Los precios pueden variar según el estado real del vehículo, "
+               "que se confirma en el diagnóstico presencial.")
+    hist += [Table([[""]], colWidths=[175 * mm], style=TableStyle([
+        ("LINEBELOW", (0, 0), (-1, -1), 0.6, LINEA)]))]
+    hist += [Spacer(1, 3 * mm),
+             Paragraph("<br/>".join(pie), est_sub)]
+
+    doc.build(hist)
+    return buf.getvalue()
+
+
 @app.template_filter("hace_cuanto")
 def _filtro_hace_cuanto(dt):
     """"hace 5 min", "hace 2 h", "ayer"... Para las alertas, donde importa más

@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% block extra_head %}
+<style>
+  .cot-fila { display:grid; grid-template-columns:130px 1fr 150px 120px 110px 90px; gap:12px;
+              align-items:center; padding:12px 14px; border:1px solid rgba(255,255,255,.08);
+              border-radius:10px; background:var(--bg2,#1b1b1b); margin-bottom:8px;
+              text-decoration:none; transition:.12s; }
+  .cot-fila:hover { border-color:var(--accent,#c8a04a); background:rgba(200,160,74,.07); }
+  .cot-cod { font-weight:700; color:var(--accent,#c8a04a); letter-spacing:.03em; font-size:.94rem; }
+  .cot-cli { color:#e9e9e9; font-size:.94rem; }
+  .cot-sec { color:#8a8a8a; font-size:.83rem; }
+  .cot-tot { text-align:right; font-weight:700; color:#fff; font-size:1rem; }
+  .chip { font-size:.7rem; padding:2px 9px; border-radius:999px; font-weight:600; }
+  .chip.ok { background:rgba(80,170,110,.18); color:#7fd4a0; }
+  .chip.no { background:rgba(200,90,90,.16); color:#e59090; }
+  .cab { display:grid; grid-template-columns:130px 1fr 150px 120px 110px 90px; gap:12px;
+         padding:0 14px 6px; font-size:.7rem; text-transform:uppercase; letter-spacing:.08em; color:#7a7a7a; }
+  @media (max-width: 900px) {
+    .cot-fila { grid-template-columns:1fr 1fr; row-gap:6px; }
+    .cab { display:none; }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container mt-4 mb-5">
+  <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+    <h2 class="mb-0">Cotizaciones</h2>
+    <a href="{{ url_for('quote_new') }}" class="btn btn-warning btn-sm fw-bold">+ Nueva cotización</a>
+  </div>
+
+  <form method="GET" class="mb-3">
+    <input type="search" name="q" value="{{ busqueda }}" class="form-control"
+           placeholder="Buscar por código, cliente o placa…">
+  </form>
+
+  {% if cotizaciones %}
+  <div class="cab">
+    <div>Código</div><div>Cliente</div><div>Vehículo</div>
+    <div>Fecha</div><div class="text-end">Total</div><div class="text-end">Estado</div>
+  </div>
+  {% for c in cotizaciones %}
+  <a class="cot-fila" href="{{ url_for('quote_detail', code=c.code) }}">
+    <div class="cot-cod">{{ c.code }}</div>
+    <div>
+      <div class="cot-cli">{{ c.customer_name }}</div>
+      {% if c.customer_phone %}<div class="cot-sec">{{ c.customer_phone }}</div>{% endif %}
+    </div>
+    <div class="cot-sec">{{ [c.vehicle_label, c.plate]|select|join(' · ') or '—' }}</div>
+    <div class="cot-sec">{{ c.created_at.strftime('%d/%m/%Y') }}</div>
+    <div class="cot-tot">{{ c.total|cop }}</div>
+    <div class="text-end">
+      {% if c.vigente %}<span class="chip ok">Vigente</span>
+      {% else %}<span class="chip no">Vencida</span>{% endif %}
+    </div>
+  </a>
+  {% endfor %}
+  {% else %}
+  <div class="text-center text-muted py-5">
+    {% if busqueda %}No hay cotizaciones que coincidan con «{{ busqueda }}».
+    {% else %}Todavía no hay cotizaciones. <a href="{{ url_for('quote_new') }}">Crea la primera.</a>{% endif %}
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

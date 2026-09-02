@@ -1,0 +1,102 @@
+{% extends "base.html" %}
+{% block extra_head %}
+<style>
+  .doc { max-width:860px; margin:0 auto; background:var(--bg2,#1b1b1b);
+         border:1px solid rgba(255,255,255,.09); border-radius:12px; padding:26px; }
+  .doc-cod { font-size:1.6rem; font-weight:800; color:var(--accent,#c8a04a); letter-spacing:.04em; }
+  .dato { display:flex; gap:10px; padding:3px 0; font-size:.92rem; }
+  .dato .k { color:#8a8a8a; min-width:92px; }
+  .tabla th { font-size:.72rem; text-transform:uppercase; letter-spacing:.07em;
+              color:#8a8a8a; font-weight:600; border-bottom:1px solid rgba(255,255,255,.14); }
+  .tabla td { border-bottom:1px solid rgba(255,255,255,.06); padding:9px 0; }
+  .tot { display:flex; justify-content:space-between; padding:4px 0; color:#bdbdbd; }
+  .tot.grande { font-size:1.45rem; font-weight:700; color:#fff;
+                border-top:1px solid rgba(255,255,255,.14); margin-top:8px; padding-top:11px; }
+  .chip { font-size:.75rem; padding:3px 10px; border-radius:999px; font-weight:600; }
+  .chip.ok { background:rgba(80,170,110,.18); color:#7fd4a0; border:1px solid rgba(80,170,110,.4); }
+  .chip.no { background:rgba(200,90,90,.16); color:#e59090; border:1px solid rgba(200,90,90,.4); }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container mt-4 mb-5">
+  <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+    <a href="{{ url_for('quotes_list') }}" class="btn btn-outline-secondary btn-sm">&larr; Cotizaciones</a>
+    <div class="d-flex gap-2">
+      <a href="{{ url_for('quote_pdf', code=c.code) }}" target="_blank"
+         class="btn btn-warning btn-sm fw-bold">Descargar PDF</a>
+      <a href="{{ url_for('quote_new') }}" class="btn btn-outline-warning btn-sm">Nueva</a>
+    </div>
+  </div>
+
+  <div class="doc">
+    <div class="d-flex justify-content-between align-items-start flex-wrap gap-3 mb-4">
+      <div>
+        <div class="text-muted small">COTIZACIÓN</div>
+        <div class="doc-cod">{{ c.code }}</div>
+        <div class="text-muted small mt-1">
+          {{ c.created_at.strftime('%d/%m/%Y') }}{% if c.created_by %} · {{ c.created_by }}{% endif %}
+        </div>
+      </div>
+      <div class="text-end">
+        {% if c.vigente %}
+          <span class="chip ok">Vigente</span>
+        {% else %}
+          <span class="chip no">Vencida</span>
+        {% endif %}
+        {% if c.valid_until %}
+        <div class="text-muted small mt-2">hasta el {{ c.valid_until.strftime('%d/%m/%Y') }}</div>
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="mb-4">
+      <div class="dato"><span class="k">Cliente</span><span>{{ c.customer_name }}</span></div>
+      {% if c.customer_phone %}
+      <div class="dato"><span class="k">Teléfono</span><span>{{ c.customer_phone }}</span></div>{% endif %}
+      {% if c.vehicle_label or c.plate %}
+      <div class="dato"><span class="k">Vehículo</span>
+        <span>{{ [c.vehicle_label, c.plate]|select|join(' · ') }}</span></div>{% endif %}
+      {% if c.vehicle_type_name %}
+      <div class="dato"><span class="k">Tipo</span><span>{{ c.vehicle_type_name }}</span></div>{% endif %}
+    </div>
+
+    <table class="table table-borderless tabla mb-3">
+      <thead><tr>
+        <th>Servicio</th>
+        <th class="text-center" style="width:70px">Cant.</th>
+        <th class="text-end" style="width:130px">Valor unitario</th>
+        <th class="text-end" style="width:130px">Total</th>
+      </tr></thead>
+      <tbody>
+        {% for it in c.items %}
+        <tr>
+          <td>{{ it.description }}</td>
+          <td class="text-center">{{ it.quantity }}</td>
+          <td class="text-end">{{ it.unit_price|cop }}</td>
+          <td class="text-end">{{ it.total|cop }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+
+    <div class="ms-auto" style="max-width:340px">
+      <div class="tot"><span>Subtotal</span><span>{{ c.subtotal|cop }}</span></div>
+      {% if c.descuento_aplicado %}
+      <div class="tot">
+        <span>{{ c.discount_label or 'Descuento' }}{% if c.discount_type == 'percentage' %} ({{ c.discount_value }}%){% endif %}</span>
+        <span>&minus; {{ c.descuento_aplicado|cop }}</span>
+      </div>
+      {% endif %}
+      <div class="tot grande"><span>Total</span><span>{{ c.total|cop }}</span></div>
+    </div>
+
+    {% if c.notes %}
+    <div class="mt-4 pt-3" style="border-top:1px solid rgba(255,255,255,.10)">
+      <div class="text-muted small mb-1">Observaciones</div>
+      <div style="white-space:pre-wrap">{{ c.notes }}</div>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

@@ -611,6 +611,11 @@
         <a class="nav-link-custom" href="{{ url_for('seguimiento_tablero') }}">Seguimiento</a>
         {% endif %}
         {% endif %}
+        {% if puede_cotizar() %}
+        {# En la barra y no dentro de "Más": cotizar es una acción de venta que
+           se hace con el cliente en frente o al teléfono, no una configuración. #}
+        <a class="nav-link-custom" href="{{ url_for('quotes_list') }}">Cotizaciones</a>
+        {% endif %}
         {% if not current_user or current_user.role not in ('operario', 'marketing') %}
         <a class="nav-link-custom" href="{{ url_for('quality_errors_list') }}">Errores</a>
         <a class="nav-link-custom nav-link-accent" href="{{ url_for('new_appointment') }}">+ Nueva</a>

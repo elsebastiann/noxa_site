@@ -1,7 +1,7 @@
 {
   "app.py": {
-    "mtime": 1788354913.4097934,
-    "ast_hash": "54b5daafd667e82e6297813826eb1c00",
+    "mtime": 1788356251.027701,
+    "ast_hash": "b8795c00fe532e938b30cd26ad84309f",
     "semantic_hash": ""
   },
   "migrate_prices.py": {
@@ -50,8 +50,8 @@
     "semantic_hash": ""
   },
   "requirements.txt": {
-    "mtime": 1786379367.5401423,
-    "ast_hash": "fe3b2f19f5020de93a2112e4201a805a",
+    "mtime": 1788356251.0493886,
+    "ast_hash": "eebda3cd797df54bcf39e972fdeed66e",
     "semantic_hash": ""
   },
   "templates/agreements.html": {
@@ -75,8 +75,8 @@
     "semantic_hash": ""
   },
   "templates/base.html": {
-    "mtime": 1787944758.5920892,
-    "ast_hash": "a7361f2a1ee07ead539d788fd5c925ce",
+    "mtime": 1788356390.1596882,
+    "ast_hash": "fca48bed92c0147cc49f8d0dd0658d5e",
     "semantic_hash": ""
   },
   "templates/calendar.html": {
@@ -377,6 +377,26 @@
   "tests/test_agendar_repetido.py": {
     "mtime": 1788354455.3299947,
     "ast_hash": "9177c3a9aab59c1f44120c353addb3cf",
+    "semantic_hash": ""
+  },
+  "tests/test_cotizaciones.py": {
+    "mtime": 1788356474.3217957,
+    "ast_hash": "e0d9a0ec58a39f16b12f51d6f253a9d0",
+    "semantic_hash": ""
+  },
+  "templates/quote_detail.html": {
+    "mtime": 1788356354.021485,
+    "ast_hash": "437707134af059d2f8ffa9246ff38559",
+    "semantic_hash": ""
+  },
+  "templates/quote_form.html": {
+    "mtime": 1788356331.2750647,
+    "ast_hash": "f5b6077a5b81109771e435e093bf13ac",
+    "semantic_hash": ""
+  },
+  "templates/quotes_list.html": {
+    "mtime": 1788356370.616748,
+    "ast_hash": "d290c002bf93f08097ef62bc7f087a38",
     "semantic_hash": ""
   }
 }
