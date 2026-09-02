@@ -186,7 +186,7 @@
 const PPF = {{ c.ppf_items | map(attribute='coverage') | list | tojson }};
 const PRECIOS_PPF = {{ (c.ppf_items | map(attribute='precios') | list) | tojson }};
 const ZONAS = {{ (c.ppf_items | map(attribute='zona') | list) | tojson }};
-const TOTAL_PPF = {{ ppf_total|tojson }};
+const TOTALES_PPF = {{ ppf_totales_zona|tojson }};   // {cobertura: zona que cubre}
 const DESC = {tipo: {{ (c.discount_type or "")|tojson }}, valor: {{ (c.discount_value or 0)|tojson }}};
 const WA = {{ whatsapp|tojson }};
 const CODIGO = {{ c.code|tojson }};
@@ -196,15 +196,22 @@ const PLACA = {{ (c.plate or "")|tojson }};
 const fmt = n => "$" + (Math.round(n) || 0).toLocaleString("es-CO");
 const marcaActual = () => document.querySelector('input[name="marca"]:checked')?.value;
 
-// Full Car cubre toda la lámina exterior: cobrar además un capó o unas farolas
-// sería cobrar dos veces lo mismo. Con Full Car marcado, solo lo de adentro
-// sigue sumando aparte.
-const hayFullCar = () => {
-  const f = document.querySelector(`[data-ppf="${CSS.escape(TOTAL_PPF)}"]`);
+// Una cobertura total cubre su zona entera: cobrar además una pieza suelta de
+// esa misma zona sería cobrar dos veces la misma lámina. Full Car ya trae el
+// capó y las farolas; Full Interior ya trae la consola y la pantalla.
+const marcada = cob => {
+  const f = document.querySelector(`[data-ppf="${CSS.escape(cob)}"]`);
   return !!f && f.querySelector("input").checked;
 };
-const absorbida = i =>
-  hayFullCar() && PPF[i] !== TOTAL_PPF && ZONAS[i] !== "interior";
+// Devuelve la cobertura total que la incluye, o null.
+const absorbidaPor = i => {
+  if (TOTALES_PPF[PPF[i]]) return null;          // una total no se absorbe a sí misma
+  for (const [total, zona] of Object.entries(TOTALES_PPF)) {
+    if (zona === ZONAS[i] && marcada(total)) return total;
+  }
+  return null;
+};
+const absorbida = i => absorbidaPor(i) !== null;
 
 function totalPpfDeMarca(marca, soloMarcadas) {
   let t = 0;
@@ -227,8 +234,8 @@ function pintar() {
     const fila = document.querySelector(`[data-ppf="${CSS.escape(cob)}"]`);
     const p = PRECIOS_PPF[i][marca];
     if (!celda) return;
-    const abs = absorbida(i);
-    if (abs) { celda.textContent = "incluida en Full Car"; celda.className = "incl"; }
+    const porQuien = absorbidaPor(i), abs = porQuien !== null;
+    if (abs) { celda.textContent = `incluida en ${porQuien}`; celda.className = "incl"; }
     else if (p) { celda.textContent = fmt(p); celda.className = "val"; }
     else { celda.textContent = "no incluida"; celda.className = "na"; }
     if (fila) {

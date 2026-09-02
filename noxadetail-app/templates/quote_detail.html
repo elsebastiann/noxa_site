@@ -190,7 +190,7 @@ function pedirClave(form) {
           {% if it.coverage in c.ppf_absorbidas %}
             <td class="val" colspan="{{ c.ppf_marcas|length }}"
                 style="color:var(--accent,#c8a04a); font-size:.8rem; font-weight:600">
-              incluida en Full Car</td>
+              incluida en {{ c.ppf_absorbida_por[it.coverage] }}</td>
           {% else %}
             {% for marca, _g in c.ppf_marcas %}
               {% set p = it.precios.get(marca) %}

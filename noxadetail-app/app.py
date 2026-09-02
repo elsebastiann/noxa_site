@@ -1015,20 +1015,23 @@ class Quote(db.Model):
         return list(PPF_MARCAS)
 
     @property
-    def ppf_lleva_full_car(self) -> bool:
-        return any(it.coverage == PPF_COBERTURA_TOTAL for it in self.ppf_items)
+    def ppf_absorbida_por(self) -> dict:
+        """{cobertura: la cobertura total que ya la incluye}.
+
+        La regla vive acá y no en cada pantalla: si el PDF sumara distinto que
+        el link que ve el cliente, el documento y la web se contradirían, y la
+        que se creería es la que el cliente tenga a mano.
+        """
+        zonas = {PPF_COBERTURAS_TOTALES[it.coverage]: it.coverage
+                 for it in self.ppf_items if it.coverage in PPF_COBERTURAS_TOTALES}
+        if not zonas:
+            return {}
+        return {it.coverage: zonas[it.zona] for it in self.ppf_items
+                if it.coverage not in PPF_COBERTURAS_TOTALES and it.zona in zonas}
 
     @property
     def ppf_absorbidas(self) -> set:
-        """Coberturas que Full Car ya cubre y que por eso no se cobran aparte.
-
-        La regla vive acá y no en cada pantalla: si el PDF sumara distinto que
-        el link que ve el cliente, el documento y la web se contradirían.
-        """
-        if not self.ppf_lleva_full_car:
-            return set()
-        return {it.coverage for it in self.ppf_items
-                if it.coverage != PPF_COBERTURA_TOTAL and it.zona != "interior"}
+        return set(self.ppf_absorbida_por)
 
     @property
     def ppf_totales(self) -> dict:
@@ -1190,9 +1193,11 @@ class PpfPrice(db.Model):
 # tiempo que Spectra.
 PPF_MARCAS = [("SPECTRA", 5), ("AVERY", 7), ("XPEL", 10)]
 
-# Full Car cubre TODA la lámina exterior, así que cotizar además un capó o unas
-# farolas sería cobrar dos veces lo mismo. Solo lo de adentro se suma aparte.
-PPF_COBERTURA_TOTAL = "Full Car"
+# Coberturas que cubren una zona entera. Cotizar además una pieza suelta de esa
+# misma zona sería cobrar dos veces la misma lámina: Full Car ya trae el capó y
+# las farolas, y Full Interior ya trae la consola y la pantalla.
+# {cobertura total: zona que cubre}
+PPF_COBERTURAS_TOTALES = {"Full Car": "exterior", "Full Interior": "interior"}
 PPF_GARANTIAS = dict(PPF_MARCAS)
 
 # (cobertura, qué contiene, {marca: precio}, zona). Un None en un precio
@@ -12224,7 +12229,7 @@ def quote_new():
         catalogo=_catalogo_para_cotizar(),
         catalogo_ppf=_catalogo_ppf(),
         marcas_ppf=PPF_MARCAS,
-        ppf_total=PPF_COBERTURA_TOTAL,
+        ppf_totales_zona=PPF_COBERTURAS_TOTALES,
         dias_por_defecto=QUOTE_VALID_DAYS,
     )
 
@@ -12265,7 +12270,7 @@ def quote_edit(code):
         catalogo=_catalogo_para_cotizar(),
         catalogo_ppf=_catalogo_ppf(),
         marcas_ppf=PPF_MARCAS,
-        ppf_total=PPF_COBERTURA_TOTAL,
+        ppf_totales_zona=PPF_COBERTURAS_TOTALES,
         dias_por_defecto=dias,
     )
 
@@ -12339,7 +12344,7 @@ def quote_public(token):
         return render_template("quote_public_cerrada.html", motivo="vencida", c=cot,
                                whatsapp=WHATSAPP_PUBLICO), 410
     return render_template("quote_public.html", c=cot, whatsapp=WHATSAPP_PUBLICO,
-                           ppf_total=PPF_COBERTURA_TOTAL)
+                           ppf_totales_zona=PPF_COBERTURAS_TOTALES)
 
 
 @app.route("/quotes/<code>/delete", methods=["POST"])
@@ -12582,7 +12587,7 @@ def _construir_pdf_cotizacion(cot: "Quote") -> bytes:
                 # Full Car ya la cubre. Se deja listada —el cliente pidió verla—
                 # pero sin precio, para que no parezca un cobro aparte.
                 fila.append(Paragraph(
-                    f"incluida en {PPF_COBERTURA_TOTAL}",
+                    f"incluida en {cot.ppf_absorbida_por[it.coverage]}",
                     ParagraphStyle("inc", parent=est_detalle, alignment=TA_RIGHT,
                                    textColor=ACENTO, fontSize=8)))
                 fila += [""] * (len(marcas) - 1)

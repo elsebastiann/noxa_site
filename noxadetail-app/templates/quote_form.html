@@ -245,13 +245,19 @@
 const CATALOGO   = {{ catalogo|tojson }};
 const PPF        = {{ catalogo_ppf|tojson }};
 const MARCAS_PPF = {{ marcas_ppf|tojson }};
-const TOTAL_PPF  = {{ ppf_total|tojson }};
+const TOTALES_PPF = {{ ppf_totales_zona|tojson }};   // {cobertura: zona que cubre}
 
-// Full Car cubre toda la lámina exterior: sumarle un capó o unas farolas sería
-// cobrar dos veces lo mismo. Con Full Car puesto, solo lo de adentro suma.
-const hayFullCar = () => ppfPuestas.includes(TOTAL_PPF);
-const absorbida = cob => hayFullCar() && cob !== TOTAL_PPF &&
-  (PPF.find(x => x.cobertura === cob) || {}).zona !== "interior";
+// Una cobertura total cubre su zona entera: sumarle una pieza suelta de esa
+// misma zona sería cobrar dos veces la misma lámina.
+const absorbidaPor = cob => {
+  if (TOTALES_PPF[cob]) return null;             // una total no se absorbe a sí misma
+  const zona = (PPF.find(x => x.cobertura === cob) || {}).zona;
+  for (const [total, z] of Object.entries(TOTALES_PPF)) {
+    if (z === zona && ppfPuestas.includes(total)) return total;
+  }
+  return null;
+};
+const absorbida = cob => absorbidaPor(cob) !== null;
 const fmt = n => "$" + (Math.round(n)||0).toLocaleString("es-CO");
 const esc = s => (s || "").replace(/"/g, "&quot;");
 
@@ -307,7 +313,7 @@ function pintarMatrizPpf() {
   document.getElementById("cuerpoPpf").innerHTML = PPF.map(it => {
     const abs = absorbida(it.cobertura);
     const celdas = abs
-      ? `<td class="incl" colspan="${MARCAS_PPF.length}">incluida en ${TOTAL_PPF}</td>`
+      ? `<td class="incl" colspan="${MARCAS_PPF.length}">incluida en ${absorbidaPor(it.cobertura)}</td>`
       : MARCAS_PPF.map(([m]) => {
           const p = it.precios[m];
           // "no aplica" y no un cero: un cero se leería como gratis.
@@ -370,7 +376,7 @@ function pintarLineas() {
   document.getElementById("lineasPpf").innerHTML = ppfPuestas.map((cob, i) => `
     <div class="ppf-linea">
       <span class="c">${cob}${absorbida(cob)
-        ? ` <span style="color:var(--accent,#c8a04a); font-size:.76rem">· incluida en ${TOTAL_PPF}</span>`
+        ? ` <span style="color:var(--accent,#c8a04a); font-size:.76rem">· incluida en ${absorbidaPor(cob)}</span>`
         : ""}</span>
       <button type="button" class="quitar" data-i="${i}" title="Quitar">&times;</button>
       <input type="hidden" name="ppf_coverage" value="${esc(cob)}">

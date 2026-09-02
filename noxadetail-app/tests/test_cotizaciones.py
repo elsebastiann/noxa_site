@@ -856,8 +856,9 @@ class TestPieDePagina:
 
 
 class TestFullCarAbsorbeLoExterior:
-    """Full Car cubre toda la lámina exterior. Cotizarle encima un capó o unas
-    farolas sería cobrar dos veces lo mismo: solo lo de adentro sigue sumando.
+    """Una cobertura total cubre su zona entera: Full Car lo exterior y Full
+    Interior lo de adentro. Cotizarle encima una pieza suelta de esa misma zona
+    sería cobrar dos veces la misma lámina.
 
     La regla vive en el modelo y no en cada pantalla — si el PDF sumara
     distinto que el link del cliente, el documento y la web se contradirían.
@@ -886,15 +887,52 @@ class TestFullCarAbsorbeLoExterior:
         finally:
             _borrar(code)
 
-    def test_lo_interior_si_suma(self, client):
-        """Es la excepción que pidió el negocio: el interior no lo cubre."""
+    def test_full_car_no_toca_lo_interior(self, client):
+        """Full Car es exterior: lo de adentro sigue cobrándose aparte."""
         self._login_admin(client)
-        code = self._cotizar(client, ["Full Car", "Full Interior", "Pantalla"])
+        code = self._cotizar(client, ["Full Car", "Full Interior"])
         try:
             with A.app.app_context():
                 c = A.Quote.query.filter_by(code=code).first()
                 assert c.ppf_absorbidas == set()
-                assert c.ppf_totales["XPEL"] == 15_000_000 + 1_500_000 + 150_000
+                assert c.ppf_totales["XPEL"] == 15_000_000 + 1_500_000
+        finally:
+            _borrar(code)
+
+    def test_full_interior_absorbe_lo_de_adentro(self, client):
+        """El mismo problema del lado interior: Full Interior ya trae la
+        consola y la pantalla."""
+        self._login_admin(client)
+        code = self._cotizar(client, ["Full Interior", "Consola Central", "Pantalla"])
+        try:
+            with A.app.app_context():
+                c = A.Quote.query.filter_by(code=code).first()
+                assert c.ppf_absorbidas == {"Consola Central", "Pantalla"}
+                assert c.ppf_totales["XPEL"] == 1_500_000
+        finally:
+            _borrar(code)
+
+    def test_las_dos_totales_a_la_vez(self, client):
+        """Cada una absorbe solo su zona, no la del otro."""
+        self._login_admin(client)
+        code = self._cotizar(client, ["Full Car", "Full Interior", "Capó", "Pantalla"])
+        try:
+            with A.app.app_context():
+                c = A.Quote.query.filter_by(code=code).first()
+                assert c.ppf_absorbida_por == {"Capó": "Full Car", "Pantalla": "Full Interior"}
+                assert c.ppf_totales["XPEL"] == 15_000_000 + 1_500_000
+        finally:
+            _borrar(code)
+
+    def test_dice_cual_la_incluye(self, client):
+        """El documento tiene que nombrar cuál la cubre: "incluida" a secas
+        deja al cliente sin saber por qué no le están cobrando eso."""
+        self._login_admin(client)
+        code = self._cotizar(client, ["Full Interior", "Pantalla"])
+        try:
+            with A.app.app_context():
+                assert A.Quote.query.filter_by(code=code).first().ppf_absorbida_por == {
+                    "Pantalla": "Full Interior"}
         finally:
             _borrar(code)
 
