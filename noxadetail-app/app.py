@@ -478,6 +478,10 @@ class Service(db.Model):
     is_online_bookable = db.Column(db.Boolean, nullable=False, default=False)
     # Descripción corta para mostrar como tooltip en el widget público.
     description = db.Column(db.Text, nullable=True)
+    # Texto libre, como "5 años" o "de por vida". Libre y no un número de meses
+    # porque las garantías reales no son todas en la misma unidad, y lo que
+    # importa es que se imprima igual que como se promete.
+    garantia = db.Column(db.String(40), nullable=True)
     # Servicios de curado largo (ej. coating cerámico): para el cupo de
     # concurrencia solo ocupan el día en que se recibe el vehículo, aunque
     # la entrega real (duration_minutes) sea días después.
@@ -634,7 +638,23 @@ def ensure_service_outsourcing_schema():
                 db.session.rollback()
                 app.logger.error(f"[Migración] No se pudo agregar services.{col}: {exc}")
 
+def ensure_service_garantia_schema():
+    with app.app_context():
+        try:
+            db.session.execute(text("SELECT garantia FROM services LIMIT 1"))
+            return
+        except Exception:
+            db.session.rollback()
+        try:
+            db.session.execute(text("ALTER TABLE services ADD COLUMN garantia VARCHAR(40)"))
+            db.session.commit()
+        except Exception as exc:
+            db.session.rollback()
+            app.logger.error(f"[Migración] services.garantia: {exc}")
+
+
 ensure_service_outsourcing_schema()
+ensure_service_garantia_schema()
 
 def ensure_outsourcing_duration_schema():
     """La tabla ya existe en producción sin esta columna: db.create_all() solo
@@ -995,10 +1015,30 @@ class Quote(db.Model):
         return list(PPF_MARCAS)
 
     @property
+    def ppf_lleva_full_car(self) -> bool:
+        return any(it.coverage == PPF_COBERTURA_TOTAL for it in self.ppf_items)
+
+    @property
+    def ppf_absorbidas(self) -> set:
+        """Coberturas que Full Car ya cubre y que por eso no se cobran aparte.
+
+        La regla vive acá y no en cada pantalla: si el PDF sumara distinto que
+        el link que ve el cliente, el documento y la web se contradirían.
+        """
+        if not self.ppf_lleva_full_car:
+            return set()
+        return {it.coverage for it in self.ppf_items
+                if it.coverage != PPF_COBERTURA_TOTAL and it.zona != "interior"}
+
+    @property
     def ppf_totales(self) -> dict:
-        """{marca: total}. Una cobertura que la marca no ofrece no suma."""
+        """{marca: total}. No suma lo que la marca no ofrece ni lo que Full Car
+        ya cubre."""
         tot = {m: 0 for m, _g in self.ppf_marcas}
+        absorbidas = self.ppf_absorbidas
         for it in self.ppf_items:
+            if it.coverage in absorbidas:
+                continue
             for marca, precio in it.precios.items():
                 if precio and marca in tot:
                     tot[marca] += precio
@@ -1014,7 +1054,10 @@ class Quote(db.Model):
         creyendo que compara lo mismo.
         """
         faltan = {m: [] for m, _g in self.ppf_marcas}
+        absorbidas = self.ppf_absorbidas
         for it in self.ppf_items:
+            if it.coverage in absorbidas:
+                continue
             for marca in faltan:
                 if not it.precios.get(marca):
                     faltan[marca].append(it.coverage)
@@ -1057,6 +1100,9 @@ class QuoteItem(db.Model):
     # necesita saber qué piezas cubre "Full Front" para poder decidir sin haber
     # traído el carro.
     detail      = db.Column(db.Text, nullable=True)
+    # Copia de la garantía del servicio, como el precio: si mañana cambia, la
+    # cotización ya entregada tiene que seguir diciendo lo que se prometió.
+    warranty    = db.Column(db.String(40), nullable=True)
     unit_price  = db.Column(db.Integer, nullable=False, default=0)
     quantity    = db.Column(db.Integer, nullable=False, default=1)
 
@@ -1088,6 +1134,7 @@ class QuotePpfItem(db.Model):
 
     coverage = db.Column(db.String(80), nullable=False)
     contains = db.Column(db.Text, nullable=True)
+    zona     = db.Column(db.String(20), nullable=False, default="exterior")
     orden    = db.Column(db.Integer, nullable=False, default=0)
 
     # {"SPECTRA": 2500000, "AVERY": 3000000, "XPEL": 4000000}. Un null significa
@@ -1125,6 +1172,8 @@ class PpfPrice(db.Model):
     price    = db.Column(db.Integer, nullable=False)
 
     contains  = db.Column(db.Text, nullable=True)
+    # "exterior" | "interior". Lo que decide si Full Car ya la cubre.
+    zona      = db.Column(db.String(20), nullable=False, default="exterior")
     orden     = db.Column(db.Integer, nullable=False, default=0)
     is_active = db.Column(db.Boolean, default=True)
 
@@ -1140,62 +1189,84 @@ class PpfPrice(db.Model):
 # la mitad de la decisión del cliente: Xpel cuesta más pero cubre el doble de
 # tiempo que Spectra.
 PPF_MARCAS = [("SPECTRA", 5), ("AVERY", 7), ("XPEL", 10)]
+
+# Full Car cubre TODA la lámina exterior, así que cotizar además un capó o unas
+# farolas sería cobrar dos veces lo mismo. Solo lo de adentro se suma aparte.
+PPF_COBERTURA_TOTAL = "Full Car"
 PPF_GARANTIAS = dict(PPF_MARCAS)
 
-# (cobertura, qué contiene, {marca: precio}). Un None significa que esa marca
-# no ofrece esa cobertura — el fotocromático no existe en Spectra.
+# (cobertura, qué contiene, {marca: precio}, zona). Un None en un precio
+# significa que esa marca no ofrece esa cobertura — el fotocromático no existe
+# en Spectra. La zona decide si Full Car ya la cubre: solo lo "interior" se
+# sigue cobrando aparte cuando hay Full Car.
 PPF_CATALOGO_SEMILLA = [
     ("Full Car",
      "Bómper delantero, capó, guardabarros delanteros, espejos retrovisores, puertas, "
      "pilares, techo, guardabarros traseros, baúl, bómper trasero, zonas de carga y "
      "superficies exteriores completas",
-     {"SPECTRA": 10_000_000, "AVERY": 13_000_000, "XPEL": 15_000_000}),
+     {"SPECTRA": 10_000_000, "AVERY": 13_000_000, "XPEL": 15_000_000},
+     "exterior"),
     ("Full Front",
      "Bómper delantero, capó, guardabarros delanteros, espejos retrovisores, farolas delanteras",
-     {"SPECTRA": 2_500_000, "AVERY": 3_000_000, "XPEL": 4_000_000}),
+     {"SPECTRA": 2_500_000, "AVERY": 3_000_000, "XPEL": 4_000_000},
+     "exterior"),
     ("Protección Urbana",
      "Espejos, manijas, borde de puertas, zona de carga del baúl, posa pies",
-     {"SPECTRA": 850_000, "AVERY": 1_000_000, "XPEL": 1_200_000}),
+     {"SPECTRA": 850_000, "AVERY": 1_000_000, "XPEL": 1_200_000},
+     "exterior"),
     ("Pianos Exteriores",
      "Molduras piano black exteriores",
-     {"SPECTRA": 200_000, "AVERY": 250_000, "XPEL": 350_000}),
+     {"SPECTRA": 200_000, "AVERY": 250_000, "XPEL": 350_000},
+     "exterior"),
     ("Farolas",
      "Farolas delanteras",
-     {"SPECTRA": 200_000, "AVERY": 250_000, "XPEL": 350_000}),
+     {"SPECTRA": 200_000, "AVERY": 250_000, "XPEL": 350_000},
+     "exterior"),
     ("Farolas y Stops",
      "Farolas delanteras, stops traseros",
-     {"SPECTRA": 350_000, "AVERY": 400_000, "XPEL": 450_000}),
+     {"SPECTRA": 350_000, "AVERY": 400_000, "XPEL": 450_000},
+     "exterior"),
     ("Farolas Fotocromático",
      "Farolas delanteras",
-     {"SPECTRA": None, "AVERY": 300_000, "XPEL": 400_000}),
+     {"SPECTRA": None, "AVERY": 300_000, "XPEL": 400_000},
+     "exterior"),
     ("Farolas y Stops Fotocromático",
      "Farolas delanteras, stops traseros",
-     {"SPECTRA": None, "AVERY": 500_000, "XPEL": 600_000}),
+     {"SPECTRA": None, "AVERY": 500_000, "XPEL": 600_000},
+     "exterior"),
     ("Full Interior",
      "Pantallas, consola central, acabados piano black interiores, controles táctiles, "
      "superficies brillantes interiores, paneles vulnerables a rayones",
-     {"SPECTRA": 800_000, "AVERY": 1_000_000, "XPEL": 1_500_000}),
+     {"SPECTRA": 800_000, "AVERY": 1_000_000, "XPEL": 1_500_000},
+     "interior"),
     ("Consola Central",
      "Consola central completa, touchpad, mandos y acabados piano black",
-     {"SPECTRA": 250_000, "AVERY": 300_000, "XPEL": 400_000}),
+     {"SPECTRA": 250_000, "AVERY": 300_000, "XPEL": 400_000},
+     "interior"),
     ("Pantalla",
      "Pantalla principal de infoentretenimiento y panel digital de instrumentos cuando aplique",
-     {"SPECTRA": 80_000, "AVERY": 100_000, "XPEL": 150_000}),
+     {"SPECTRA": 80_000, "AVERY": 100_000, "XPEL": 150_000},
+     "interior"),
     ("Retrovisores",
      "Retrovisores",
-     {"SPECTRA": 200_000, "AVERY": 250_000, "XPEL": 400_000}),
+     {"SPECTRA": 200_000, "AVERY": 250_000, "XPEL": 400_000},
+     "exterior"),
     ("Manijas",
      "Manijas",
-     {"SPECTRA": 150_000, "AVERY": 250_000, "XPEL": 350_000}),
+     {"SPECTRA": 150_000, "AVERY": 250_000, "XPEL": 350_000},
+     "exterior"),
     ("Capó",
      "Solo capó",
-     {"SPECTRA": 750_000, "AVERY": 850_000, "XPEL": 950_000}),
+     {"SPECTRA": 750_000, "AVERY": 850_000, "XPEL": 950_000},
+     "exterior"),
     ("Puertas",
      "Puertas",
-     {"SPECTRA": 3_200_000, "AVERY": 3_500_000, "XPEL": 4_000_000}),
+     {"SPECTRA": 3_200_000, "AVERY": 3_500_000, "XPEL": 4_000_000},
+     "exterior"),
     ("Bómper Trasero y Delantero",
      "Bómper delantero y trasero",
-     {"SPECTRA": 2_500_000, "AVERY": 3_000_000, "XPEL": 3_500_000}),
+     {"SPECTRA": 2_500_000, "AVERY": 3_000_000, "XPEL": 3_500_000},
+     "exterior"),
 ]
 
 
@@ -1213,17 +1284,60 @@ def seed_ppf_prices():
             db.session.rollback()
             return  # la tabla todavía no existe; db.create_all() la creará
         nuevos = []
-        for i, (cobertura, contiene, precios) in enumerate(PPF_CATALOGO_SEMILLA):
+        for i, (cobertura, contiene, precios, zona) in enumerate(PPF_CATALOGO_SEMILLA):
             for marca, _garantia in PPF_MARCAS:
                 precio = precios.get(marca)
                 if precio is None or (cobertura, marca) in existentes:
                     continue
                 nuevos.append(PpfPrice(coverage=cobertura, brand=marca, price=precio,
-                                       contains=contiene, orden=i, is_active=True))
+                                       contains=contiene, zona=zona, orden=i, is_active=True))
         if nuevos:
             db.session.add_all(nuevos)
             db.session.commit()
             app.logger.info(f"[PPF] Se cargaron {len(nuevos)} precios de PPF.")
+
+        # Las filas sembradas antes de que existiera `zona` quedaron todas en
+        # "exterior" por el default, y las tres de interior tienen que
+        # corregirse o Full Car se las tragaría.
+        interiores = [c for c, _t, _p, z in PPF_CATALOGO_SEMILLA if z == "interior"]
+        arregladas = PpfPrice.query.filter(
+            PpfPrice.coverage.in_(interiores), PpfPrice.zona != "interior"
+        ).update({"zona": "interior"}, synchronize_session=False)
+        if arregladas:
+            db.session.commit()
+            app.logger.warning(f"[PPF] {arregladas} cobertura(s) marcadas como interior.")
+
+
+def ensure_ppf_zona_schema():
+    for tabla in ("ppf_prices", "quote_ppf_items"):
+        with app.app_context():
+            try:
+                db.session.execute(text(f"SELECT zona FROM {tabla} LIMIT 1"))
+                continue
+            except Exception:
+                db.session.rollback()
+            try:
+                db.session.execute(text(
+                    f"ALTER TABLE {tabla} ADD COLUMN zona VARCHAR(20) DEFAULT 'exterior'"))
+                db.session.commit()
+            except Exception as exc:
+                db.session.rollback()
+                app.logger.error(f"[Migración] {tabla}.zona: {exc}")
+
+
+def ensure_quote_item_warranty_schema():
+    with app.app_context():
+        try:
+            db.session.execute(text("SELECT warranty FROM quote_items LIMIT 1"))
+            return
+        except Exception:
+            db.session.rollback()
+        try:
+            db.session.execute(text("ALTER TABLE quote_items ADD COLUMN warranty VARCHAR(40)"))
+            db.session.commit()
+        except Exception as exc:
+            db.session.rollback()
+            app.logger.error(f"[Migración] quote_items.warranty: {exc}")
 
 
 def ensure_quote_public_token_schema():
@@ -4855,6 +4969,14 @@ def update_service_description(service_id):
     return redirect(url_for("services_view"))
 
 
+@app.route("/services/<int:service_id>/garantia", methods=["POST"])
+def update_service_garantia(service_id):
+    s = Service.query.get_or_404(service_id)
+    s.garantia = (request.form.get("garantia") or "").strip()[:40] or None
+    db.session.commit()
+    return redirect(url_for("services_view"))
+
+
 # -----------------------
 # GASTOS (MÓDULO MVP)
 # -----------------------
@@ -7571,6 +7693,8 @@ ensure_quote_item_detail_schema()
 ensure_quote_ppf_brands_schema()
 ensure_quote_updated_schema()
 ensure_quote_public_token_schema()
+ensure_quote_item_warranty_schema()
+ensure_ppf_zona_schema()
 seed_ppf_prices()
 
 # --- Seed: crear super admin si no existe ningún usuario ---
@@ -11880,6 +12004,7 @@ def _catalogo_para_cotizar() -> dict:
             "nombre": p.service.name,
             "categoria": categoria_de_servicio(p.service.name),
             "precio": p.price,
+            "garantia": p.service.garantia or "",
         })
     for lista in catalogo.values():
         lista.sort(key=lambda s: (s["categoria"], s["nombre"]))
@@ -11902,7 +12027,7 @@ def _catalogo_ppf() -> list:
     for f in filas:
         entrada = por_cobertura.setdefault(f.coverage, {
             "cobertura": f.coverage, "contiene": f.contains or "",
-            "orden": f.orden, "precios": {},
+            "zona": f.zona, "orden": f.orden, "precios": {},
         })
         entrada["precios"][f.brand] = f.price
         if f.contains and not entrada["contiene"]:
@@ -11990,6 +12115,7 @@ def _leer_formulario_de_cotizacion(cot: "Quote") -> str | None:
     cantidades    = request.form.getlist("item_qty")
     servicios     = request.form.getlist("item_service_id")
     detalles      = request.form.getlist("item_detail")
+    garantias     = request.form.getlist("item_warranty")
 
     lineas = []
     for i, desc in enumerate(descripciones):
@@ -12000,9 +12126,10 @@ def _leer_formulario_de_cotizacion(cot: "Quote") -> str | None:
         cant   = max(1, _int_o_cero(cantidades[i] if i < len(cantidades) else 1))
         sid_raw = servicios[i] if i < len(servicios) else ""
         det = (detalles[i] if i < len(detalles) else "") or ""
+        gar = (garantias[i] if i < len(garantias) else "") or ""
         lineas.append(QuoteItem(
             description=desc[:200], unit_price=precio, quantity=cant,
-            detail=det.strip() or None,
+            detail=det.strip() or None, warranty=gar.strip()[:40] or None,
             service_id=int(sid_raw) if (sid_raw or "").isdigit() else None,
         ))
 
@@ -12026,6 +12153,7 @@ def _leer_formulario_de_cotizacion(cot: "Quote") -> str | None:
         ppf_lineas.append(QuotePpfItem(
             coverage=cob,
             contains=next((f.contains for f in filas if f.contains), None),
+            zona=filas[0].zona,
             orden=filas[0].orden if filas else orden,
             prices_json=previos.get(cob) or json.dumps({f.brand: f.price for f in filas}),
         ))
@@ -12096,6 +12224,7 @@ def quote_new():
         catalogo=_catalogo_para_cotizar(),
         catalogo_ppf=_catalogo_ppf(),
         marcas_ppf=PPF_MARCAS,
+        ppf_total=PPF_COBERTURA_TOTAL,
         dias_por_defecto=QUOTE_VALID_DAYS,
     )
 
@@ -12136,6 +12265,7 @@ def quote_edit(code):
         catalogo=_catalogo_para_cotizar(),
         catalogo_ppf=_catalogo_ppf(),
         marcas_ppf=PPF_MARCAS,
+        ppf_total=PPF_COBERTURA_TOTAL,
         dias_por_defecto=dias,
     )
 
@@ -12208,7 +12338,8 @@ def quote_public(token):
     if not cot.vigente:
         return render_template("quote_public_cerrada.html", motivo="vencida", c=cot,
                                whatsapp=WHATSAPP_PUBLICO), 410
-    return render_template("quote_public.html", c=cot, whatsapp=WHATSAPP_PUBLICO)
+    return render_template("quote_public.html", c=cot, whatsapp=WHATSAPP_PUBLICO,
+                           ppf_total=PPF_COBERTURA_TOTAL)
 
 
 @app.route("/quotes/<code>/delete", methods=["POST"])
@@ -12320,7 +12451,9 @@ def _construir_pdf_cotizacion(cot: "Quote") -> bytes:
         # en vez de reventar a la hora de mandárselo a un cliente.
         izq = [Paragraph("NOXA Detail", est_titulo)]
     # Sin bajada: el logo ya dice "CAR CARE", así que repetirlo en texto sobraba.
-    izq.append(Paragraph("Prado Veraniego, Bogotá", est_sub))
+    izq.append(Paragraph(
+        "Prado Veraniego, Bogotá<br/>"
+        "<font color='#c8a04a'>noxadetail.com</font>", est_sub))
     der = [
         Paragraph("<b>COTIZACIÓN</b>", est_der),
         Paragraph(f"<font size=13 color='#c8a04a'><b>{cot.code}</b></font>", est_der),
@@ -12373,7 +12506,12 @@ def _construir_pdf_cotizacion(cot: "Quote") -> bytes:
     if cot.items:
         filas = [["Servicio", "Cant.", "Valor unitario", "Total"]]
         for it in cot.items:
-            celda = [Paragraph(it.description, est_celda)]
+            # La garantía va en la misma línea del nombre, entre paréntesis y
+            # en gris: es parte de lo que se está cotizando, no una nota aparte.
+            nombre = it.description
+            if it.warranty:
+                nombre += f" <font size=8 color='#6b6b6b'>(garantía {it.warranty})</font>"
+            celda = [Paragraph(nombre, est_celda)]
             if it.detail:
                 celda.append(Paragraph(it.detail, est_detalle))
             filas.append([celda, str(it.quantity), _cop(it.unit_price), _cop(it.total)])
@@ -12432,6 +12570,7 @@ def _construir_pdf_cotizacion(cot: "Quote") -> bytes:
                 f"<font size=7.5 color='#c8a04a'>garantía {garantia} años</font>", est_marca))
         filas_ppf = [encabezado]
 
+        absorbidas = cot.ppf_absorbidas
         for it in cot.ppf_items:
             precios = it.precios
             celda = [Paragraph(it.coverage, ParagraphStyle(
@@ -12439,10 +12578,19 @@ def _construir_pdf_cotizacion(cot: "Quote") -> bytes:
             if it.contains:
                 celda.append(Paragraph(it.contains, est_detalle))
             fila = [celda]
-            for marca, _g in marcas:
-                p = precios.get(marca)
-                # "no aplica" y no un cero: un cero se leería como gratis.
-                fila.append(_cop(p) if p else "no aplica")
+            if it.coverage in absorbidas:
+                # Full Car ya la cubre. Se deja listada —el cliente pidió verla—
+                # pero sin precio, para que no parezca un cobro aparte.
+                fila.append(Paragraph(
+                    f"incluida en {PPF_COBERTURA_TOTAL}",
+                    ParagraphStyle("inc", parent=est_detalle, alignment=TA_RIGHT,
+                                   textColor=ACENTO, fontSize=8)))
+                fila += [""] * (len(marcas) - 1)
+            else:
+                for marca, _g in marcas:
+                    p = precios.get(marca)
+                    # "no aplica" y no un cero: un cero se leería como gratis.
+                    fila.append(_cop(p) if p else "no aplica")
             filas_ppf.append(fila)
 
         totales_ppf = cot.ppf_totales

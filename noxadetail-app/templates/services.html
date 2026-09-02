@@ -175,6 +175,16 @@
           </form>
         </div>
 
+        <form method="POST" action="{{ url_for('update_service_garantia', service_id=s.id) }}"
+              class="svc-campo">
+          <label>Garantía (sale en la cotización)</label>
+          <div class="d-flex gap-1">
+            <input type="text" name="garantia" class="form-control form-control-sm"
+                   value="{{ s.garantia or '' }}" placeholder="5 años, de por vida...">
+            <button type="submit" class="btn btn-sm btn-outline-secondary">Guardar</button>
+          </div>
+        </form>
+
         <form method="POST" action="{{ url_for('update_service_description', service_id=s.id) }}"
               class="svc-campo">
           <label>Descripción (tooltip del widget)</label>

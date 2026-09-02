@@ -853,3 +853,133 @@ class TestPieDePagina:
                 assert A._construir_pdf_cotizacion(c).startswith(b"%PDF")
         finally:
             _borrar(code)
+
+
+class TestFullCarAbsorbeLoExterior:
+    """Full Car cubre toda la lámina exterior. Cotizarle encima un capó o unas
+    farolas sería cobrar dos veces lo mismo: solo lo de adentro sigue sumando.
+
+    La regla vive en el modelo y no en cada pantalla — si el PDF sumara
+    distinto que el link del cliente, el documento y la web se contradirían.
+    """
+
+    def _login_admin(self, client):
+        with A.app.app_context():
+            uid = make_user(f"fc{next(_u)}", role="admin").id
+        with client.session_transaction() as sess:
+            sess["user_id"] = uid
+
+    def _cotizar(self, client, coberturas):
+        r = client.post("/quotes/new", data={"customer_name": "Full Car",
+                                             "ppf_coverage": coberturas},
+                        follow_redirects=False)
+        return r.headers["Location"].rstrip("/").split("/")[-1]
+
+    def test_lo_exterior_no_suma(self, client):
+        self._login_admin(client)
+        code = self._cotizar(client, ["Full Car", "Capó", "Farolas"])
+        try:
+            with A.app.app_context():
+                c = A.Quote.query.filter_by(code=code).first()
+                assert c.ppf_absorbidas == {"Capó", "Farolas"}
+                assert c.ppf_totales["XPEL"] == 15_000_000
+        finally:
+            _borrar(code)
+
+    def test_lo_interior_si_suma(self, client):
+        """Es la excepción que pidió el negocio: el interior no lo cubre."""
+        self._login_admin(client)
+        code = self._cotizar(client, ["Full Car", "Full Interior", "Pantalla"])
+        try:
+            with A.app.app_context():
+                c = A.Quote.query.filter_by(code=code).first()
+                assert c.ppf_absorbidas == set()
+                assert c.ppf_totales["XPEL"] == 15_000_000 + 1_500_000 + 150_000
+        finally:
+            _borrar(code)
+
+    def test_mezcla(self, client):
+        self._login_admin(client)
+        code = self._cotizar(client, ["Full Car", "Farolas", "Consola Central"])
+        try:
+            with A.app.app_context():
+                c = A.Quote.query.filter_by(code=code).first()
+                assert c.ppf_absorbidas == {"Farolas"}
+                assert c.ppf_totales["SPECTRA"] == 10_000_000 + 250_000
+        finally:
+            _borrar(code)
+
+    def test_sin_full_car_todo_suma(self, client):
+        """Contraprueba: sin Full Car, el capó y las farolas se cobran."""
+        self._login_admin(client)
+        code = self._cotizar(client, ["Capó", "Farolas"])
+        try:
+            with A.app.app_context():
+                c = A.Quote.query.filter_by(code=code).first()
+                assert c.ppf_absorbidas == set()
+                assert c.ppf_totales["XPEL"] == 950_000 + 350_000
+        finally:
+            _borrar(code)
+
+    def test_no_advierte_de_una_marca_sobre_algo_que_no_cobra(self, client):
+        """Si la cobertura está absorbida, decir que Spectra no la cubre solo
+        confunde: no se está cobrando en ninguna marca."""
+        self._login_admin(client)
+        code = self._cotizar(client, ["Full Car", "Farolas Fotocromático"])
+        try:
+            with A.app.app_context():
+                assert A.Quote.query.filter_by(code=code).first().ppf_no_cubre == {}
+        finally:
+            _borrar(code)
+
+    def test_las_zonas_estan_bien_clasificadas(self):
+        with A.app.app_context():
+            zonas = {p.coverage: p.zona for p in A.PpfPrice.query.all()}
+        assert {c for c, z in zonas.items() if z == "interior"} == {
+            "Full Interior", "Consola Central", "Pantalla"}
+
+    def test_el_pdf_no_revienta_con_absorbidas(self, client):
+        self._login_admin(client)
+        code = self._cotizar(client, ["Full Car", "Capó", "Pantalla"])
+        try:
+            with A.app.app_context():
+                c = A.Quote.query.filter_by(code=code).first()
+                assert A._construir_pdf_cotizacion(c).startswith(b"%PDF")
+        finally:
+            _borrar(code)
+
+
+class TestGarantiaDelServicio:
+    def test_la_cotizacion_congela_la_garantia(self, client):
+        """Como el precio: si mañana cambia, lo ya entregado tiene que seguir
+        diciendo lo que se prometió."""
+        with A.app.app_context():
+            uid = make_user(f"gar{next(_u)}", role="admin").id
+        with client.session_transaction() as sess:
+            sess["user_id"] = uid
+        r = client.post("/quotes/new", data={
+            "customer_name": "Con Garantía",
+            "item_desc": ["Polarizado"], "item_price": ["650000"], "item_qty": ["1"],
+            "item_service_id": [""], "item_detail": [""], "item_warranty": ["5 años"]})
+        code = r.headers["Location"].rstrip("/").split("/")[-1]
+        try:
+            with A.app.app_context():
+                assert A.Quote.query.filter_by(code=code).first().items[0].warranty == "5 años"
+        finally:
+            _borrar(code)
+
+    def test_un_servicio_sin_garantia_no_inventa_una(self, client):
+        with A.app.app_context():
+            uid = make_user(f"gar{next(_u)}", role="admin").id
+        with client.session_transaction() as sess:
+            sess["user_id"] = uid
+        r = client.post("/quotes/new", data={
+            "customer_name": "Sin Garantía",
+            "item_desc": ["Lavado"], "item_price": ["90000"], "item_qty": ["1"],
+            "item_service_id": [""], "item_detail": [""], "item_warranty": [""]})
+        code = r.headers["Location"].rstrip("/").split("/")[-1]
+        try:
+            with A.app.app_context():
+                assert A.Quote.query.filter_by(code=code).first().items[0].warranty is None
+        finally:
+            _borrar(code)

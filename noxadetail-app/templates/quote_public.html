@@ -48,9 +48,13 @@
                                accent-color:var(--acento); cursor:pointer; }
   .item .txt { flex:1; min-width:0; }
   .item .nom { font-weight:600; font-size:.95rem; }
+  .item .gar { color:var(--suave); font-weight:400; font-size:.86rem; }
   .item .que { font-size:.8rem; color:var(--suave); margin-top:3px; line-height:1.45; }
   .item .val { font-weight:700; white-space:nowrap; font-size:.95rem; }
   .item.off { opacity:.42; }
+  .item.incluido { opacity:.55; cursor:default; }
+  .item.incluido input { pointer-events:none; }
+  .incl { font-size:.78rem; color:var(--acento); font-weight:600; white-space:nowrap; }
 
   .marcas { display:flex; gap:8px; margin-bottom:6px; flex-wrap:wrap; }
   .marca { flex:1 1 150px; border:1.5px solid var(--linea); border-radius:11px;
@@ -74,6 +78,9 @@
         text-decoration:none; padding:13px; border-radius:10px; margin-top:13px; font-size:.94rem; }
   .wa:hover { background:#1eb457; }
 
+  .sitio { margin-top:16px; padding-top:14px; border-top:1px solid var(--linea);
+           font-size:.8rem; }
+  .sitio a { color:var(--acento); font-weight:700; text-decoration:none; }
   .nota { font-size:.76rem; color:var(--suave); line-height:1.55; padding:18px 24px 26px; }
 </style>
 </head>
@@ -110,7 +117,8 @@
     <label class="item" data-svc="{{ loop.index0 }}">
       <input type="checkbox" checked data-precio="{{ it.total }}">
       <span class="txt">
-        <span class="nom">{{ it.description }}{% if it.quantity > 1 %} × {{ it.quantity }}{% endif %}</span>
+        <span class="nom">{{ it.description }}{% if it.quantity > 1 %} × {{ it.quantity }}{% endif %}{%
+          if it.warranty %}<span class="gar"> (garantía {{ it.warranty }})</span>{% endif %}</span>
         {% if it.detail %}<span class="que">{{ it.detail }}</span>{% endif %}
       </span>
       <span class="val">{{ it.total|cop }}</span>
@@ -132,7 +140,7 @@
     </div>
 
     {% for it in c.ppf_items %}
-    <label class="item" data-ppf="{{ it.coverage }}">
+    <label class="item" data-ppf="{{ it.coverage }}" data-zona="{{ it.zona }}">
       <input type="checkbox" checked>
       <span class="txt">
         <span class="nom">{{ it.coverage }}</span>
@@ -167,22 +175,41 @@
       diagnóstico presencial.
     {% endif %}
     {% if c.notes %}<br><br>{{ c.notes }}{% endif %}
+    <div class="sitio">
+      <a href="https://noxadetail.com" target="_blank" rel="noopener">noxadetail.com</a>
+      · Prado Veraniego, Bogotá
+    </div>
   </div>
 </div>
 
 <script>
 const PPF = {{ c.ppf_items | map(attribute='coverage') | list | tojson }};
 const PRECIOS_PPF = {{ (c.ppf_items | map(attribute='precios') | list) | tojson }};
+const ZONAS = {{ (c.ppf_items | map(attribute='zona') | list) | tojson }};
+const TOTAL_PPF = {{ ppf_total|tojson }};
 const DESC = {tipo: {{ (c.discount_type or "")|tojson }}, valor: {{ (c.discount_value or 0)|tojson }}};
 const WA = {{ whatsapp|tojson }};
 const CODIGO = {{ c.code|tojson }};
+const VEHICULO = {{ (c.vehicle_label or "")|tojson }};
+const PLACA = {{ (c.plate or "")|tojson }};
 
 const fmt = n => "$" + (Math.round(n) || 0).toLocaleString("es-CO");
 const marcaActual = () => document.querySelector('input[name="marca"]:checked')?.value;
 
+// Full Car cubre toda la lámina exterior: cobrar además un capó o unas farolas
+// sería cobrar dos veces lo mismo. Con Full Car marcado, solo lo de adentro
+// sigue sumando aparte.
+const hayFullCar = () => {
+  const f = document.querySelector(`[data-ppf="${CSS.escape(TOTAL_PPF)}"]`);
+  return !!f && f.querySelector("input").checked;
+};
+const absorbida = i =>
+  hayFullCar() && PPF[i] !== TOTAL_PPF && ZONAS[i] !== "interior";
+
 function totalPpfDeMarca(marca, soloMarcadas) {
   let t = 0;
   PPF.forEach((cob, i) => {
+    if (absorbida(i)) return;
     const fila = document.querySelector(`[data-ppf="${CSS.escape(cob)}"]`);
     if (soloMarcadas && fila && !fila.querySelector("input").checked) return;
     t += PRECIOS_PPF[i][marca] || 0;
@@ -200,9 +227,15 @@ function pintar() {
     const fila = document.querySelector(`[data-ppf="${CSS.escape(cob)}"]`);
     const p = PRECIOS_PPF[i][marca];
     if (!celda) return;
-    if (p) { celda.textContent = fmt(p); celda.className = "val"; }
+    const abs = absorbida(i);
+    if (abs) { celda.textContent = "incluida en Full Car"; celda.className = "incl"; }
+    else if (p) { celda.textContent = fmt(p); celda.className = "val"; }
     else { celda.textContent = "no incluida"; celda.className = "na"; }
-    if (fila) fila.classList.toggle("off", !fila.querySelector("input").checked);
+    if (fila) {
+      fila.classList.toggle("incluido", abs);
+      fila.classList.toggle("off", !abs && !fila.querySelector("input").checked);
+      fila.querySelector("input").disabled = abs;
+    }
   });
 
   // Cada tarjeta de marca muestra lo que costaría con lo que hay marcado, para
@@ -227,10 +260,23 @@ function pintar() {
   if ($sub) { $sub.textContent = fmt(sub); document.getElementById("desc").textContent = "− " + fmt(desc); }
   document.getElementById("tot").textContent = fmt(sub - desc);
 
-  const texto = `Hola, sobre la cotización ${CODIGO}: me interesa por ${fmt(sub - desc)}` +
-                (marca ? ` con PPF ${marca}.` : ".");
+  // Mensaje en renglones y no en un párrafo corrido: quien lo recibe tiene que
+  // poder leer el código, la placa y el total de un vistazo, sin desarmar una
+  // frase. Los saltos de línea van literales; encodeURIComponent los cuida.
+  const lineas = [
+    "Hola, les escribo por esta cotización:",
+    "",
+    `• Código: ${CODIGO}`,
+  ];
+  if (VEHICULO) lineas.push(`• Vehículo: ${VEHICULO}`);
+  if (PLACA) lineas.push(`• Placa: ${PLACA}`);
+  if (marca) {
+    const tarjeta = document.querySelector(`.marca[data-marca="${CSS.escape(marca)}"] .g`);
+    lineas.push(`• PPF: ${marca}${tarjeta ? ` (${tarjeta.textContent.toLowerCase()})` : ""}`);
+  }
+  lineas.push(`• Total: ${fmt(sub - desc)}`);
   document.getElementById("btnWa").href =
-    `https://wa.me/${WA}?text=${encodeURIComponent(texto)}`;
+    `https://wa.me/${WA}?text=${encodeURIComponent(lineas.join("\n"))}`;
 }
 
 document.querySelectorAll('input[type=checkbox]').forEach(i => i.addEventListener("change", pintar));

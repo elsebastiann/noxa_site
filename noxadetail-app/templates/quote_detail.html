@@ -141,7 +141,8 @@ function pedirClave(form) {
         {% for it in c.items %}
         <tr>
           <td>
-            {{ it.description }}
+            {{ it.description }}{% if it.warranty %}<span class="text-muted"
+              style="font-size:.82rem"> (garantía {{ it.warranty }})</span>{% endif %}
             {% if it.detail %}
             <div class="text-muted" style="font-size:.79rem; line-height:1.35; margin-top:2px">
               {{ it.detail }}</div>
@@ -181,16 +182,22 @@ function pedirClave(form) {
       </thead>
       <tbody>
         {% for it in c.ppf_items %}
-        <tr>
+        <tr {% if it.coverage in c.ppf_absorbidas %}style="opacity:.6"{% endif %}>
           <td>
             <div class="cob">{{ it.coverage }}</div>
             {% if it.contains %}<div class="que">{{ it.contains }}</div>{% endif %}
           </td>
-          {% for marca, _g in c.ppf_marcas %}
-            {% set p = it.precios.get(marca) %}
-            {% if p %}<td class="val">{{ p|cop }}</td>
-            {% else %}<td class="na">no aplica</td>{% endif %}
-          {% endfor %}
+          {% if it.coverage in c.ppf_absorbidas %}
+            <td class="val" colspan="{{ c.ppf_marcas|length }}"
+                style="color:var(--accent,#c8a04a); font-size:.8rem; font-weight:600">
+              incluida en Full Car</td>
+          {% else %}
+            {% for marca, _g in c.ppf_marcas %}
+              {% set p = it.precios.get(marca) %}
+              {% if p %}<td class="val">{{ p|cop }}</td>
+              {% else %}<td class="na">no aplica</td>{% endif %}
+            {% endfor %}
+          {% endif %}
         </tr>
         {% endfor %}
         <tr class="tot">

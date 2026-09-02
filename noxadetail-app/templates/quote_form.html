@@ -19,6 +19,7 @@
   .svc-btn:hover { border-color:var(--accent,#c8a04a); background:rgba(200,160,74,.10); }
   .svc-btn.puesto { border-color:var(--accent,#c8a04a); background:rgba(200,160,74,.16); }
   .svc-btn .n { font-size:.88rem; color:#e9e9e9; line-height:1.25; }
+  .svc-btn .gar { color:#8f8f8f; font-size:.8rem; }
   .svc-btn .p { font-size:.86rem; color:var(--accent,#c8a04a); font-weight:700; white-space:nowrap; }
 
   .tabs { display:flex; gap:4px; margin-bottom:12px; border-bottom:1px solid rgba(255,255,255,.10); }
@@ -42,6 +43,8 @@
   .mx .cob { font-size:.89rem; color:#e9e9e9; font-weight:600; }
   .mx .que { font-size:.75rem; color:#8a8a8a; line-height:1.35; margin-top:2px; }
   .mx .val { text-align:right; font-size:.87rem; color:#ddd; white-space:nowrap; }
+  .mx .incl { text-align:right; font-size:.78rem; color:var(--accent,#c8a04a); font-weight:600; }
+  .mx tr.absorbida .cob, .mx tr.absorbida .que { opacity:.5; }
   .mx .na { text-align:right; font-size:.76rem; color:#5f5f5f; }
 
   .linea { display:grid; grid-template-columns:1fr 52px 104px 30px; gap:6px;
@@ -242,6 +245,13 @@
 const CATALOGO   = {{ catalogo|tojson }};
 const PPF        = {{ catalogo_ppf|tojson }};
 const MARCAS_PPF = {{ marcas_ppf|tojson }};
+const TOTAL_PPF  = {{ ppf_total|tojson }};
+
+// Full Car cubre toda la lámina exterior: sumarle un capó o unas farolas sería
+// cobrar dos veces lo mismo. Con Full Car puesto, solo lo de adentro suma.
+const hayFullCar = () => ppfPuestas.includes(TOTAL_PPF);
+const absorbida = cob => hayFullCar() && cob !== TOTAL_PPF &&
+  (PPF.find(x => x.cobertura === cob) || {}).zona !== "interior";
 const fmt = n => "$" + (Math.round(n)||0).toLocaleString("es-CO");
 const esc = s => (s || "").replace(/"/g, "&quot;");
 
@@ -273,7 +283,8 @@ function pintarCatalogo() {
       catActual = s.categoria;
     }
     html += `<button type="button" class="svc-btn ${puestos.has(s.id) ? "puesto" : ""}"
-               data-id="${s.id}"><span class="n">${s.nombre}</span>
+               data-id="${s.id}"><span class="n">${s.nombre}${
+                 s.garantia ? `<span class="gar"> (${s.garantia})</span>` : ""}</span>
                <span class="p">${fmt(s.precio)}</span></button>`;
   }
   $cat.innerHTML = html + "</div>";
@@ -283,7 +294,8 @@ function pintarCatalogo() {
     if (ya) ya.cant += 1;
     else {
       const s = serviciosDelTipo().find(x => x.id === id);
-      lineas.push({desc: s.nombre, precio: s.precio, cant: 1, serviceId: id, detalle: ""});
+      lineas.push({desc: s.nombre, precio: s.precio, cant: 1, serviceId: id,
+                   detalle: "", garantia: s.garantia || ""});
     }
     pintarTodo();
   });
@@ -293,12 +305,15 @@ function pintarCatalogo() {
 function pintarMatrizPpf() {
   const puestas = new Set(ppfPuestas);
   document.getElementById("cuerpoPpf").innerHTML = PPF.map(it => {
-    const celdas = MARCAS_PPF.map(([m]) => {
-      const p = it.precios[m];
-      // "no aplica" y no un cero: un cero se leería como gratis.
-      return p ? `<td class="val">${fmt(p)}</td>` : `<td class="na">no aplica</td>`;
-    }).join("");
-    return `<tr class="fila ${puestas.has(it.cobertura) ? "puesto" : ""}"
+    const abs = absorbida(it.cobertura);
+    const celdas = abs
+      ? `<td class="incl" colspan="${MARCAS_PPF.length}">incluida en ${TOTAL_PPF}</td>`
+      : MARCAS_PPF.map(([m]) => {
+          const p = it.precios[m];
+          // "no aplica" y no un cero: un cero se leería como gratis.
+          return p ? `<td class="val">${fmt(p)}</td>` : `<td class="na">no aplica</td>`;
+        }).join("");
+    return `<tr class="fila ${puestas.has(it.cobertura) ? "puesto" : ""} ${abs ? "absorbida" : ""}"
               data-cob="${esc(it.cobertura)}">
               <td><div class="cob">${it.cobertura}</div>
                   <div class="que">${it.contiene}</div></td>${celdas}</tr>`;
@@ -331,8 +346,12 @@ function pintarLineas() {
       <button type="button" class="quitar" data-i="${i}" title="Quitar">&times;</button>
       <input type="hidden" name="item_service_id" value="${l.serviceId ?? ""}">
       <input type="hidden" name="item_detail" value="${esc(l.detalle)}">
+      <input type="hidden" name="item_warranty" value="${esc(l.garantia)}">
     </div>
-    ${l.detalle ? `<div class="linea-det">${l.detalle}</div>` : ""}`).join("");
+    ${l.detalle || l.garantia
+        ? `<div class="linea-det">${l.garantia ? `Garantía ${l.garantia}` : ""}${
+             l.detalle && l.garantia ? " · " : ""}${l.detalle || ""}</div>`
+        : ""}`).join("");
 
   $lineas.querySelectorAll("input[data-c]").forEach(inp => {
     inp.oninput = () => {
@@ -350,7 +369,9 @@ function pintarLineas() {
   document.getElementById("bloquePpf").hidden = !ppfPuestas.length;
   document.getElementById("lineasPpf").innerHTML = ppfPuestas.map((cob, i) => `
     <div class="ppf-linea">
-      <span class="c">${cob}</span>
+      <span class="c">${cob}${absorbida(cob)
+        ? ` <span style="color:var(--accent,#c8a04a); font-size:.76rem">· incluida en ${TOTAL_PPF}</span>`
+        : ""}</span>
       <button type="button" class="quitar" data-i="${i}" title="Quitar">&times;</button>
       <input type="hidden" name="ppf_coverage" value="${esc(cob)}">
     </div>`).join("");
@@ -374,6 +395,7 @@ function descuentoSobre(base) {
 
 // Con PPF no hay UN total: hay uno por marca.
 const totalPpf = m => ppfPuestas.reduce((a, cob) => {
+  if (absorbida(cob)) return a;
   const it = PPF.find(x => x.cobertura === cob);
   return a + ((it && it.precios[m]) || 0);
 }, 0);
@@ -449,7 +471,7 @@ $tipo.onchange = () => {
 };
 
 document.getElementById("btnLibre").onclick = () => {
-  lineas.push({desc: "", precio: 0, cant: 1, serviceId: null, detalle: ""});
+  lineas.push({desc: "", precio: 0, cant: 1, serviceId: null, detalle: "", garantia: ""});
   pintarLineas(); pintarTotales();
   const ins = $lineas.querySelectorAll('input[data-c="desc"]');
   if (ins.length) ins[ins.length - 1].focus();
