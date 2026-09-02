@@ -951,6 +951,10 @@ class Quote(db.Model):
         "QuotePpfItem", backref="quote", lazy=True,
         cascade="all, delete-orphan", order_by="QuotePpfItem.orden",
     )
+    versiones = db.relationship(
+        "QuoteVersion", backref="quote", lazy=True,
+        cascade="all, delete-orphan", order_by="QuoteVersion.numero",
+    )
 
     @property
     def subtotal(self) -> int:
@@ -1032,6 +1036,29 @@ class Quote(db.Model):
     @property
     def ppf_absorbidas(self) -> set:
         return set(self.ppf_absorbida_por)
+
+    def total_de_seleccion(self, item_ids, coberturas, marca) -> int:
+        """Cuánto vale una selección parcial. Se calcula ACÁ, con los precios
+        que están guardados, y no se acepta el total que mande el navegador.
+
+        Aplica la misma regla de absorción: una cobertura que la total ya cubre
+        no suma, aunque el cliente la haya dejado marcada.
+        """
+        ids = set(item_ids or [])
+        cobs = set(coberturas or [])
+        total = sum(i.total for i in self.items if i.id in ids)
+
+        if cobs:
+            zonas = {PPF_COBERTURAS_TOTALES[c]: c
+                     for c in cobs if c in PPF_COBERTURAS_TOTALES}
+            for it in self.ppf_items:
+                if it.coverage not in cobs:
+                    continue
+                if it.coverage not in PPF_COBERTURAS_TOTALES and it.zona in zonas:
+                    continue   # ya la cubre la total de su zona
+                total += it.precios.get(marca) or 0
+
+        return total - self._descuento_sobre(total)
 
     @property
     def ppf_totales(self) -> dict:
@@ -1153,6 +1180,50 @@ class QuotePpfItem(db.Model):
 
     def __repr__(self):
         return f"<QuotePpfItem {self.coverage} {self.precios}>"
+
+
+class QuoteVersion(db.Model):
+    """Lo que el cliente armó por su cuenta desde el link.
+
+    NO toca la cotización original: queda como una versión aparte, numerada a
+    partir de 2, con la fecha en que se hizo. La versión 1 es siempre lo que se
+    le entregó.
+
+    Guarda QUÉ seleccionó, no cuánto dijo el navegador que costaba: el total se
+    recalcula en el servidor. Un total que llegue del cliente es un número que
+    cualquiera puede cambiar antes de mandarlo.
+    """
+    __tablename__ = "quote_versions"
+    id = db.Column(db.Integer, primary_key=True)
+    quote_id = db.Column(db.Integer, db.ForeignKey("quotes.id"), nullable=False, index=True)
+
+    numero = db.Column(db.Integer, nullable=False, default=2)
+
+    item_ids      = db.Column(db.Text, nullable=False, default="[]")   # JSON de ids
+    ppf_coverages = db.Column(db.Text, nullable=False, default="[]")   # JSON de nombres
+    ppf_brand     = db.Column(db.String(40), nullable=True)
+
+    total = db.Column(db.Integer, nullable=False, default=0)
+
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+
+    @property
+    def items_marcados(self) -> list:
+        try:
+            return json.loads(self.item_ids or "[]")
+        except Exception:
+            return []
+
+    @property
+    def coberturas_marcadas(self) -> list:
+        try:
+            return json.loads(self.ppf_coverages or "[]")
+        except Exception:
+            return []
+
+    def __repr__(self):
+        return f"<QuoteVersion v{self.numero} de {self.quote_id} = {self.total}>"
 
 
 class PpfPrice(db.Model):
@@ -7812,7 +7883,7 @@ PUBLIC_ENDPOINTS  = {
     "public_booking_mercedes", "api_public_mb_availability", "api_public_mb_book",
     "api_public_mb_price", "api_public_mb_available_days",
     "api_public_stats_appointments_count", "api_public_web_lead",
-    "quote_public",
+    "quote_public", "quote_public_pdf", "quote_public_seleccion",
 }
 CHANGE_PWD_ENDPOINTS = {"change_password", "logout", "static"}
 
@@ -12345,6 +12416,82 @@ def quote_public(token):
                                whatsapp=WHATSAPP_PUBLICO), 410
     return render_template("quote_public.html", c=cot, whatsapp=WHATSAPP_PUBLICO,
                            ppf_totales_zona=PPF_COBERTURAS_TOTALES)
+
+
+# Cuánto puede pasar entre dos cambios para que cuenten como la misma sesión.
+# Si el cliente vuelve al otro día, eso es una versión nueva, no una corrección
+# de la anterior.
+VERSION_MISMA_SESION_MIN = 30
+
+
+@app.route("/c/<token>/seleccion", methods=["POST"])
+@limiter.limit("60 per minute")
+def quote_public_seleccion(token):
+    """Guarda lo que el cliente armó, como una versión aparte de la original.
+
+    La cotización entregada no se toca: queda como versión 1 y esta entra como
+    2, 3... con su fecha. Sirve para saber qué se llevó su atención antes de
+    que escriba, y para no llegar a la conversación preguntando qué quería.
+    """
+    cot = Quote.query.filter_by(public_token=token).first()
+    if not cot or not cot.vigente:
+        return jsonify(ok=False), 404 if not cot else 410
+
+    datos = request.get_json(silent=True) or {}
+    ids = [i for i in datos.get("items", []) if isinstance(i, int)]
+    cobs = [c for c in datos.get("ppf", []) if isinstance(c, str)][:40]
+    marca = datos.get("marca")
+    if marca not in dict(cot.ppf_marcas):
+        marca = None
+
+    # Solo lo que de verdad pertenece a esta cotización: los ids llegan del
+    # navegador y podrían apuntar a las líneas de otra.
+    ids = [i.id for i in cot.items if i.id in set(ids)]
+    cobs = [c.coverage for c in cot.ppf_items if c.coverage in set(cobs)]
+
+    ahora = datetime.utcnow()
+    ultima = cot.versiones[-1] if cot.versiones else None
+    limite = ahora - timedelta(minutes=VERSION_MISMA_SESION_MIN)
+    if ultima and ultima.updated_at >= limite:
+        v = ultima                      # sigue siendo la misma sesión
+    else:
+        v = QuoteVersion(quote_id=cot.id,
+                         numero=(ultima.numero + 1) if ultima else 2,
+                         created_at=ahora)
+        db.session.add(v)
+
+    v.item_ids = json.dumps(ids)
+    v.ppf_coverages = json.dumps(cobs)
+    v.ppf_brand = marca
+    v.total = cot.total_de_seleccion(ids, cobs, marca)
+    v.updated_at = ahora
+    db.session.commit()
+    return jsonify(ok=True, version=v.numero, total=v.total)
+
+
+@app.route("/c/<token>/pdf")
+@limiter.limit("20 per minute")
+def quote_public_pdf(token):
+    """El PDF de la cotización, desde el link del cliente.
+
+    Entrega el documento COMPLETO, con el mismo código, no la selección que el
+    cliente tenga marcada en ese momento. Un PDF que dependiera de unos
+    checkboxes crearía documentos distintos con el mismo código, y ninguno
+    sería el que quedó guardado. La página interactiva es para explorar; el PDF
+    es el documento.
+
+    Caduca igual que la página: si no, el link vencido seguiría entregando
+    precios viejos por otra puerta.
+    """
+    cot = Quote.query.filter_by(public_token=token).first()
+    if not cot or not cot.vigente:
+        return render_template("quote_public_cerrada.html",
+                               motivo="vencida" if cot else "no_existe",
+                               c=cot, whatsapp=WHATSAPP_PUBLICO), 410 if cot else 404
+
+    return Response(_construir_pdf_cotizacion(cot), mimetype="application/pdf", headers={
+        "Content-Disposition": f'attachment; filename="Cotizacion-{cot.code}-NOXA.pdf"',
+    })
 
 
 @app.route("/quotes/<code>/delete", methods=["POST"])

@@ -31,6 +31,16 @@
   .tot-marca { display:flex; justify-content:space-between; padding:7px 0;
                font-size:1.15rem; font-weight:700; color:#fff; }
   .tot-marca .g { font-size:.72rem; color:var(--accent,#c8a04a); font-weight:600; }
+  .ver-caja { margin-top:26px; padding:15px 16px; border-radius:11px;
+              background:rgba(90,150,210,.08); border:1px solid rgba(90,150,210,.28); }
+  .ver-tit { font-size:.68rem; letter-spacing:.09em; text-transform:uppercase;
+             color:#8fb8e0; font-weight:700; margin-bottom:10px; }
+  .ver-fila { display:flex; justify-content:space-between; gap:14px; align-items:flex-start;
+              padding:8px 0; border-top:1px solid rgba(255,255,255,.07); }
+  .ver-fila:first-of-type { border-top:none; }
+  .ver-fecha { color:#8a8a8a; font-size:.78rem; margin-left:6px; }
+  .ver-det { font-size:.8rem; color:#a8a8a8; margin-top:3px; line-height:1.45; }
+  .ver-total { font-weight:700; white-space:nowrap; }
   .link-caja { margin-top:26px; padding:15px 16px; border-radius:11px;
                background:rgba(200,160,74,.08); border:1px solid rgba(200,160,74,.3); }
   .link-tit { font-size:.68rem; letter-spacing:.09em; text-transform:uppercase;
@@ -241,6 +251,35 @@ function pedirClave(form) {
         <div class="tot grande"><span>Total</span><span>{{ c.total|cop }}</span></div>
       {% endif %}
     </div>
+
+    {% if c.versiones %}
+    {# Lo que el cliente armó por su cuenta. La cotización entregada es la
+       versión 1 y no se toca: esto va aparte, con su fecha. #}
+    <div class="ver-caja">
+      <div class="ver-tit">El cliente armó su propia versión</div>
+      {% for v in c.versiones|reverse %}
+      <div class="ver-fila">
+        <div>
+          <strong>Versión {{ v.numero }}</strong>
+          <span class="ver-fecha">{{ v.updated_at | hace_cuanto }}</span>
+          <div class="ver-det">
+            {% set marcados = c.items | selectattr('id', 'in', v.items_marcados) | list %}
+            {% if marcados %}{{ marcados | map(attribute='description') | join(', ') }}{% endif %}
+            {% if v.coberturas_marcadas %}
+              {% if marcados %} · {% endif %}
+              PPF{% if v.ppf_brand %} {{ v.ppf_brand }}{% endif %}:
+              {{ v.coberturas_marcadas | join(', ') }}
+            {% endif %}
+            {% if not marcados and not v.coberturas_marcadas %}
+              <em>quitó todo</em>
+            {% endif %}
+          </div>
+        </div>
+        <div class="ver-total">{{ v.total|cop }}</div>
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
 
     {% if c.link_publico %}
     <div class="link-caja">

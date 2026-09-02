@@ -78,6 +78,10 @@
         text-decoration:none; padding:13px; border-radius:10px; margin-top:13px; font-size:.94rem; }
   .wa:hover { background:#1eb457; }
 
+  .pdf { display:block; text-align:center; border:1.5px solid var(--linea);
+         color:var(--tinta); font-weight:600; text-decoration:none; padding:11px;
+         border-radius:10px; margin-top:8px; font-size:.9rem; }
+  .pdf:hover { border-color:var(--acento); color:var(--acento); }
   .sitio { margin-top:16px; padding-top:14px; border-top:1px solid var(--linea);
            font-size:.8rem; }
   .sitio a { color:var(--acento); font-weight:700; text-decoration:none; }
@@ -114,7 +118,7 @@
     {% if c.items %}
     <div class="sec">Servicios</div>
     {% for it in c.items %}
-    <label class="item" data-svc="{{ loop.index0 }}">
+    <label class="item" data-svc="{{ it.id }}">
       <input type="checkbox" checked data-precio="{{ it.total }}">
       <span class="txt">
         <span class="nom">{{ it.description }}{% if it.quantity > 1 %} × {{ it.quantity }}{% endif %}{%
@@ -164,6 +168,9 @@
       <span class="lbl">Total</span><span class="grande" id="tot"></span>
     </div>
     <a class="wa" id="btnWa" target="_blank" rel="noopener">Escribirnos por WhatsApp</a>
+    <a class="pdf" href="{{ url_for('quote_public_pdf', token=c.public_token) }}">
+      Descargar cotización en PDF
+    </a>
   </div>
 
   <div class="nota">
@@ -286,12 +293,32 @@ function pintar() {
     `https://wa.me/${WA}?text=${encodeURIComponent(lineas.join("\n"))}`;
 }
 
-document.querySelectorAll('input[type=checkbox]').forEach(i => i.addEventListener("change", pintar));
+// Se guarda lo que el cliente arma, en su propia versión. Con retraso: sin él,
+// tantear cinco casillas dejaría cinco guardados y ninguno diría nada.
+let guardando = null;
+function guardarSeleccion() {
+  clearTimeout(guardando);
+  guardando = setTimeout(() => {
+    const items = [...document.querySelectorAll("[data-svc] input:checked")]
+      .map(i => Number(i.closest("[data-svc]").dataset.svc));
+    const ppf = [...document.querySelectorAll("[data-ppf] input:checked")]
+      .map(i => i.closest("[data-ppf]").dataset.ppf);
+    fetch({{ url_for('quote_public_seleccion', token=c.public_token)|tojson }}, {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({items, ppf, marca: marcaActual() || null}),
+    }).catch(() => {});   // si falla, el cliente no tiene por qué enterarse
+  }, 2500);
+}
+
+document.querySelectorAll('input[type=checkbox]').forEach(i =>
+  i.addEventListener("change", () => { pintar(); guardarSeleccion(); }));
 document.querySelectorAll(".marca").forEach(m => m.addEventListener("click", () => {
   document.querySelectorAll(".marca").forEach(x => x.classList.remove("on"));
   m.classList.add("on");
   m.querySelector("input").checked = true;
   pintar();
+  guardarSeleccion();
 }));
 
 pintar();

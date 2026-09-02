@@ -240,3 +240,190 @@ class TestSeCreaSolo:
                 assert A._construir_pdf_cotizacion(c).startswith(b"%PDF")
         finally:
             _borrar(code)
+
+
+class TestDescargarElPdf:
+    """El cliente puede bajarse el PDF desde el mismo link."""
+
+    def test_lo_descarga_sin_login(self, client):
+        code, token = _cotizacion(items=[("Lavado Premium", 110000, 1)])
+        try:
+            r = client.get(f"/c/{token}/pdf")
+            assert r.status_code == 200
+            assert r.mimetype == "application/pdf"
+            assert r.data.startswith(b"%PDF")
+        finally:
+            _borrar(code)
+
+    def test_el_archivo_se_llama_por_su_codigo(self, client):
+        """Va a quedar en la carpeta de descargas del cliente entre otros
+        archivos: tiene que poder reconocerlo."""
+        code, token = _cotizacion(items=[("Lavado", 90000, 1)])
+        try:
+            cd = client.get(f"/c/{token}/pdf").headers["Content-Disposition"]
+            assert "attachment" in cd
+            assert code in cd and "NOXA" in cd
+        finally:
+            _borrar(code)
+
+    def test_vencida_no_entrega_el_pdf(self, client):
+        """Si no, el link vencido seguiría repartiendo precios viejos por otra
+        puerta."""
+        code, token = _cotizacion(items=[("Lavado", 90000, 1)])
+        try:
+            with A.app.app_context():
+                c = A.Quote.query.filter_by(code=code).first()
+                c.valid_until = A.bogota_now().date() - dt.timedelta(days=1)
+                A.db.session.commit()
+            r = client.get(f"/c/{token}/pdf")
+            assert r.status_code == 410
+            assert not r.data.startswith(b"%PDF")
+        finally:
+            _borrar(code)
+
+    def test_un_token_inventado_no_entrega_nada(self, client):
+        assert client.get("/c/noexiste123456789012345/pdf").status_code == 404
+
+    def test_entrega_la_cotizacion_completa(self, client):
+        """El PDF es el documento guardado, no la selección que el cliente
+        tenga marcada: si dependiera de unos checkboxes habría varios PDF
+        distintos con el mismo código."""
+        import inspect
+        fuente = inspect.getsource(A.quote_public_pdf)
+        assert "_construir_pdf_cotizacion(cot)" in fuente
+
+
+class TestVersionDelCliente:
+    """Lo que el cliente arma desde el link se guarda como versión aparte.
+
+    La cotización entregada es la versión 1 y no se toca: si el cliente
+    desmarcara algo y eso reescribiera el original, se perdería el documento
+    que ya tiene en la mano.
+    """
+
+    def _seleccionar(self, client, token, **payload):
+        return client.post(f"/c/{token}/seleccion", json=payload)
+
+    def test_guarda_lo_que_el_cliente_marco(self, client):
+        code, token = _cotizacion(items=[("A", 100000, 1), ("B", 50000, 1)])
+        try:
+            with A.app.app_context():
+                ids = [i.id for i in A.Quote.query.filter_by(code=code).first().items]
+            r = self._seleccionar(client, token, items=[ids[0]], ppf=[], marca=None)
+            assert r.status_code == 200
+            with A.app.app_context():
+                c = A.Quote.query.filter_by(code=code).first()
+                assert len(c.versiones) == 1
+                assert c.versiones[0].numero == 2, "la original es la 1"
+                assert c.versiones[0].items_marcados == [ids[0]]
+                assert c.versiones[0].total == 100000
+        finally:
+            _borrar(code)
+
+    def test_no_toca_la_cotizacion_original(self, client):
+        code, token = _cotizacion(items=[("A", 100000, 1), ("B", 50000, 1)])
+        try:
+            self._seleccionar(client, token, items=[], ppf=[], marca=None)
+            with A.app.app_context():
+                c = A.Quote.query.filter_by(code=code).first()
+                assert len(c.items) == 2
+                assert c.total == 150000
+        finally:
+            _borrar(code)
+
+    def test_no_le_cree_el_total_al_navegador(self, client):
+        """Un total que llegue del cliente es un número que cualquiera puede
+        cambiar antes de mandarlo."""
+        code, token = _cotizacion(items=[("A", 100000, 1)])
+        try:
+            with A.app.app_context():
+                ids = [i.id for i in A.Quote.query.filter_by(code=code).first().items]
+            self._seleccionar(client, token, items=ids, ppf=[], marca=None, total=1)
+            with A.app.app_context():
+                assert A.Quote.query.filter_by(code=code).first().versiones[0].total == 100000
+        finally:
+            _borrar(code)
+
+    def test_ignora_lineas_de_otra_cotizacion(self, client):
+        """Los ids llegan del navegador: podrían apuntar a otra cotización."""
+        c1, t1 = _cotizacion(items=[("A", 100000, 1)])
+        c2, _t2 = _cotizacion(items=[("Ajena", 999999, 1)])
+        try:
+            with A.app.app_context():
+                ajeno = A.Quote.query.filter_by(code=c2).first().items[0].id
+            self._seleccionar(client, t1, items=[ajeno], ppf=[], marca=None)
+            with A.app.app_context():
+                v = A.Quote.query.filter_by(code=c1).first().versiones[0]
+                assert v.items_marcados == []
+                assert v.total == 0
+        finally:
+            _borrar(c1)
+            _borrar(c2)
+
+    def test_dos_cambios_seguidos_son_la_misma_version(self, client):
+        """Tantear casillas no puede dejar una versión por clic."""
+        code, token = _cotizacion(items=[("A", 100000, 1), ("B", 50000, 1)])
+        try:
+            with A.app.app_context():
+                ids = [i.id for i in A.Quote.query.filter_by(code=code).first().items]
+            self._seleccionar(client, token, items=[ids[0]], ppf=[], marca=None)
+            self._seleccionar(client, token, items=ids, ppf=[], marca=None)
+            with A.app.app_context():
+                c = A.Quote.query.filter_by(code=code).first()
+                assert len(c.versiones) == 1
+                assert c.versiones[0].total == 150000, "no guardó el último cambio"
+        finally:
+            _borrar(code)
+
+    def test_volver_despues_crea_otra_version(self, client):
+        """Si el cliente vuelve al otro día, eso es una versión nueva, no una
+        corrección de la anterior."""
+        code, token = _cotizacion(items=[("A", 100000, 1)])
+        try:
+            with A.app.app_context():
+                ids = [i.id for i in A.Quote.query.filter_by(code=code).first().items]
+            self._seleccionar(client, token, items=ids, ppf=[], marca=None)
+            with A.app.app_context():
+                v = A.Quote.query.filter_by(code=code).first().versiones[0]
+                v.updated_at = A.datetime.utcnow() - dt.timedelta(days=1)
+                A.db.session.commit()
+            self._seleccionar(client, token, items=[], ppf=[], marca=None)
+            with A.app.app_context():
+                c = A.Quote.query.filter_by(code=code).first()
+                assert [v.numero for v in c.versiones] == [2, 3]
+        finally:
+            _borrar(code)
+
+    def test_respeta_la_regla_de_full_car(self, client):
+        """Si el cliente deja marcado el capó junto a Full Car, no se puede
+        cobrar dos veces solo porque venga marcado del navegador."""
+        code, token = _cotizacion(ppf=["Full Car", "Capó"])
+        try:
+            self._seleccionar(client, token, items=[],
+                              ppf=["Full Car", "Capó"], marca="XPEL")
+            with A.app.app_context():
+                assert A.Quote.query.filter_by(code=code).first().versiones[0].total == 15_000_000
+        finally:
+            _borrar(code)
+
+    def test_una_cotizacion_vencida_no_acepta_cambios(self, client):
+        code, token = _cotizacion(items=[("A", 100000, 1)])
+        try:
+            with A.app.app_context():
+                c = A.Quote.query.filter_by(code=code).first()
+                c.valid_until = A.bogota_now().date() - dt.timedelta(days=1)
+                A.db.session.commit()
+            assert self._seleccionar(client, token, items=[], ppf=[]).status_code == 410
+            with A.app.app_context():
+                assert A.Quote.query.filter_by(code=code).first().versiones == []
+        finally:
+            _borrar(code)
+
+    def test_borrar_la_cotizacion_se_lleva_sus_versiones(self, client):
+        code, token = _cotizacion(items=[("A", 100000, 1)])
+        self._seleccionar(client, token, items=[], ppf=[], marca=None)
+        with A.app.app_context():
+            qid = A.Quote.query.filter_by(code=code).first().id
+        _borrar(code)
+        with A.app.app_context():
+            assert A.QuoteVersion.query.filter_by(quote_id=qid).count() == 0
