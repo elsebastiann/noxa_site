@@ -48,7 +48,18 @@
     </div>
     <div class="cot-sec">{{ [c.vehicle_label, c.plate]|select|join(' · ') or '—' }}</div>
     <div class="cot-sec">{{ c.created_at.strftime('%d/%m/%Y') }}</div>
-    <div class="cot-tot">{{ c.total|cop }}</div>
+    {# Una cotización con PPF no tiene UN total sino uno por marca, así que aquí
+       se muestra el rango. Poner c.total mostraría solo los servicios —cero en
+       una cotización que es puro PPF. #}
+    {% if c.tiene_ppf %}
+      {% set tots = c.totales_por_marca.values()|list %}
+      <div class="cot-tot">
+        {{ tots|min|cop }}
+        <div class="cot-sec" style="font-weight:400">a {{ tots|max|cop }}</div>
+      </div>
+    {% else %}
+      <div class="cot-tot">{{ c.total|cop }}</div>
+    {% endif %}
     <div class="text-end">
       {% if c.vigente %}<span class="chip ok">Vigente</span>
       {% else %}<span class="chip no">Vencida</span>{% endif %}

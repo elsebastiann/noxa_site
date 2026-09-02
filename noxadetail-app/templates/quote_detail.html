@@ -12,6 +12,25 @@
   .tot { display:flex; justify-content:space-between; padding:4px 0; color:#bdbdbd; }
   .tot.grande { font-size:1.45rem; font-weight:700; color:#fff;
                 border-top:1px solid rgba(255,255,255,.14); margin-top:8px; padding-top:11px; }
+  .sec-tit { font-size:.68rem; letter-spacing:.09em; text-transform:uppercase;
+             color:var(--accent,#c8a04a); font-weight:700; margin:22px 0 6px; }
+  .mx { width:100%; border-collapse:collapse; }
+  .mx th { font-size:.7rem; text-transform:uppercase; letter-spacing:.07em; color:#8a8a8a;
+           font-weight:600; padding:0 6px 8px; text-align:right;
+           border-bottom:1px solid rgba(255,255,255,.14); }
+  .mx th:first-child { text-align:left; }
+  .mx th .g { display:block; color:var(--accent,#c8a04a); font-size:.68rem;
+              text-transform:none; letter-spacing:0; }
+  .mx td { border-bottom:1px solid rgba(255,255,255,.06); padding:10px 6px; vertical-align:top; }
+  .mx .cob { font-size:.92rem; color:#e9e9e9; font-weight:600; }
+  .mx .que { font-size:.77rem; color:#8a8a8a; line-height:1.35; margin-top:2px; }
+  .mx .val { text-align:right; white-space:nowrap; }
+  .mx .na { text-align:right; font-size:.78rem; color:#5f5f5f; }
+  .mx tr.tot td { border-bottom:none; border-top:1px solid rgba(255,255,255,.14);
+                  font-weight:700; font-size:1.02rem; color:#fff; padding-top:11px; }
+  .tot-marca { display:flex; justify-content:space-between; padding:7px 0;
+               font-size:1.15rem; font-weight:700; color:#fff; }
+  .tot-marca .g { font-size:.72rem; color:var(--accent,#c8a04a); font-weight:600; }
   .chip { font-size:.75rem; padding:3px 10px; border-radius:999px; font-weight:600; }
   .chip.ok { background:rgba(80,170,110,.18); color:#7fd4a0; border:1px solid rgba(80,170,110,.4); }
   .chip.no { background:rgba(200,90,90,.16); color:#e59090; border:1px solid rgba(200,90,90,.4); }
@@ -61,6 +80,8 @@
       <div class="dato"><span class="k">Tipo</span><span>{{ c.vehicle_type_name }}</span></div>{% endif %}
     </div>
 
+    {% if c.items %}
+    {% if c.tiene_ppf %}<div class="sec-tit" style="margin-top:0">Servicios</div>{% endif %}
     <table class="table table-borderless tabla mb-3">
       <thead><tr>
         <th>Servicio</th>
@@ -85,16 +106,78 @@
         {% endfor %}
       </tbody>
     </table>
+    {% endif %}
 
-    <div class="ms-auto" style="max-width:340px">
-      <div class="tot"><span>Subtotal</span><span>{{ c.subtotal|cop }}</span></div>
-      {% if c.descuento_aplicado %}
-      <div class="tot">
-        <span>{{ c.discount_label or 'Descuento' }}{% if c.discount_type == 'percentage' %} ({{ c.discount_value }}%){% endif %}</span>
-        <span>&minus; {{ c.descuento_aplicado|cop }}</span>
-      </div>
+    {# PPF en matriz: una fila por cobertura, una columna por marca. Sin cantidad
+       ni valor unitario — una cobertura se pone o no se pone, siempre es una. #}
+    {% if c.tiene_ppf %}
+    <div class="sec-tit" {% if not c.items %}style="margin-top:0"{% endif %}>Protección PPF</div>
+    <table class="mx mb-2">
+      <thead>
+        <tr>
+          <th>Cobertura</th>
+          {% for marca, garantia in c.ppf_marcas %}
+          <th>{{ marca }}<span class="g">garantía {{ garantia }} años</span></th>
+          {% endfor %}
+        </tr>
+      </thead>
+      <tbody>
+        {% for it in c.ppf_items %}
+        <tr>
+          <td>
+            <div class="cob">{{ it.coverage }}</div>
+            {% if it.contains %}<div class="que">{{ it.contains }}</div>{% endif %}
+          </td>
+          {% for marca, _g in c.ppf_marcas %}
+            {% set p = it.precios.get(marca) %}
+            {% if p %}<td class="val">{{ p|cop }}</td>
+            {% else %}<td class="na">no aplica</td>{% endif %}
+          {% endfor %}
+        </tr>
+        {% endfor %}
+        <tr class="tot">
+          <td>Total PPF</td>
+          {% for marca, _g in c.ppf_marcas %}
+          <td class="val">{{ c.ppf_totales.get(marca, 0)|cop }}</td>
+          {% endfor %}
+        </tr>
+      </tbody>
+    </table>
+    {% if c.ppf_no_cubre %}
+    <div class="text-muted mb-3" style="font-size:.78rem">
+      {% for marca, cobs in c.ppf_no_cubre.items() %}{{ marca }} no cubre: {{ cobs|join(', ') }}. {% endfor %}
+    </div>
+    {% endif %}
+    {% endif %}
+
+    <div class="ms-auto mt-4" style="max-width:380px">
+      {% if c.tiene_ppf %}
+        {% if c.items %}
+        <div class="tot"><span>Servicios</span><span>{{ c.subtotal|cop }}</span></div>
+        {% endif %}
+        {% if c.discount_value and c.discount_type %}
+        <div class="tot">
+          <span>{{ c.discount_label or 'Descuento' }}{% if c.discount_type == 'percentage' %} ({{ c.discount_value }}%){% endif %}</span>
+          <span>aplicado a cada opción</span>
+        </div>
+        {% endif %}
+        <div class="sec-tit">Total según la marca</div>
+        {% for marca, garantia in c.ppf_marcas %}
+        <div class="tot-marca">
+          <span>{{ marca }} <span class="g">{{ garantia }} años</span></span>
+          <span>{{ c.totales_por_marca.get(marca, 0)|cop }}</span>
+        </div>
+        {% endfor %}
+      {% else %}
+        <div class="tot"><span>Subtotal</span><span>{{ c.subtotal|cop }}</span></div>
+        {% if c.descuento_aplicado %}
+        <div class="tot">
+          <span>{{ c.discount_label or 'Descuento' }}{% if c.discount_type == 'percentage' %} ({{ c.discount_value }}%){% endif %}</span>
+          <span>&minus; {{ c.descuento_aplicado|cop }}</span>
+        </div>
+        {% endif %}
+        <div class="tot grande"><span>Total</span><span>{{ c.total|cop }}</span></div>
       {% endif %}
-      <div class="tot grande"><span>Total</span><span>{{ c.total|cop }}</span></div>
     </div>
 
     {% if c.notes %}

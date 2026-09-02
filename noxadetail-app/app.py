@@ -861,6 +861,11 @@ class Quote(db.Model):
     notes       = db.Column(db.Text, nullable=True)
     valid_until = db.Column(db.Date, nullable=True)
 
+    # Copia de las marcas y garantías con las que se emitió, en JSON. Igual que
+    # los precios: si mañana entra una marca nueva o cambia una garantía, este
+    # documento tiene que seguir imprimiéndose como el cliente lo recibió.
+    ppf_brands = db.Column(db.Text, nullable=True)
+
     created_by = db.Column(db.String(80), nullable=True)
     created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
 
@@ -868,41 +873,94 @@ class Quote(db.Model):
         "QuoteItem", backref="quote", lazy=True,
         cascade="all, delete-orphan", order_by="QuoteItem.id",
     )
+    ppf_items = db.relationship(
+        "QuotePpfItem", backref="quote", lazy=True,
+        cascade="all, delete-orphan", order_by="QuotePpfItem.orden",
+    )
 
     @property
     def subtotal(self) -> int:
+        """Solo los servicios. El PPF no entra aquí porque no tiene UN precio:
+        tiene uno por marca, y se suma aparte en `ppf_totales`."""
         return sum(i.total for i in self.items)
 
-    @property
-    def descuento_aplicado(self) -> int:
-        """El descuento en pesos, ya resuelto sea porcentaje o monto fijo.
+    def _descuento_sobre(self, base: int) -> int:
+        """El descuento en pesos sobre una base, sea porcentaje o monto fijo.
 
-        Se topa contra el subtotal: un descuento absoluto mal digitado (500000
+        Se topa contra la base: un descuento absoluto mal digitado (500000
         sobre una cotización de 300000) daría un total negativo impreso en un
         documento que se le entrega al cliente.
         """
         if not self.discount_value or not self.discount_type:
             return 0
         if self.discount_type == "percentage":
-            pct = max(0, min(100, self.discount_value))
-            return round(self.subtotal * pct / 100)
-        return max(0, min(self.discount_value, self.subtotal))
+            return round(base * max(0, min(100, self.discount_value)) / 100)
+        return max(0, min(self.discount_value, base))
+
+    @property
+    def descuento_aplicado(self) -> int:
+        return self._descuento_sobre(self.subtotal)
 
     @property
     def total(self) -> int:
         return self.subtotal - self.descuento_aplicado
 
+    # ---------------- PPF ----------------
+    @property
+    def tiene_ppf(self) -> bool:
+        return bool(self.ppf_items)
+
+    @property
+    def ppf_marcas(self) -> list:
+        """[(marca, garantía), ...] como estaban al emitir la cotización."""
+        if self.ppf_brands:
+            try:
+                return [(m, g) for m, g in json.loads(self.ppf_brands)]
+            except Exception:
+                pass
+        return list(PPF_MARCAS)
+
+    @property
+    def ppf_totales(self) -> dict:
+        """{marca: total}. Una cobertura que la marca no ofrece no suma."""
+        tot = {m: 0 for m, _g in self.ppf_marcas}
+        for it in self.ppf_items:
+            for marca, precio in it.precios.items():
+                if precio and marca in tot:
+                    tot[marca] += precio
+        return tot
+
+    @property
+    def ppf_no_cubre(self) -> dict:
+        """{marca: [coberturas que esa marca no ofrece]}.
+
+        Hay que decirlo en el documento. Sin esto, la columna más barata parece
+        la mejor oferta cuando en realidad está cubriendo menos partes —Spectra
+        no hace fotocromático— y el cliente compararía dos cosas distintas
+        creyendo que compara lo mismo.
+        """
+        faltan = {m: [] for m, _g in self.ppf_marcas}
+        for it in self.ppf_items:
+            for marca in faltan:
+                if not it.precios.get(marca):
+                    faltan[marca].append(it.coverage)
+        return {m: cobs for m, cobs in faltan.items() if cobs}
+
+    @property
+    def totales_por_marca(self) -> dict:
+        """{marca: total final} = servicios + PPF de esa marca, ya con descuento.
+
+        El descuento se calcula sobre cada base y no una sola vez, porque un
+        porcentaje sobre totales distintos da montos distintos.
+        """
+        return {
+            m: (base := self.subtotal + self.ppf_totales.get(m, 0)) - self._descuento_sobre(base)
+            for m, _g in self.ppf_marcas
+        }
+
     @property
     def vigente(self) -> bool:
         return self.valid_until is None or self.valid_until >= bogota_now().date()
-
-    @property
-    def tiene_ppf(self) -> bool:
-        """El PPF se cotiza sin haber visto el carro, así que su PDF lleva una
-        advertencia extra. Se detecta por el nombre y no por una bandera aparte
-        porque el nombre es lo que quedó copiado en la línea, y sigue siendo
-        cierto aunque el catálogo cambie después."""
-        return any((i.description or "").upper().startswith("PPF ") for i in self.items)
 
     def __repr__(self):
         return f"<Quote {self.code} {self.customer_name} total={self.total}>"
@@ -937,6 +995,40 @@ class QuoteItem(db.Model):
 
     def __repr__(self):
         return f"<QuoteItem {self.description!r} x{self.quantity} = {self.total}>"
+
+
+class QuotePpfItem(db.Model):
+    """Una cobertura de PPF dentro de una cotización, con el precio de CADA marca.
+
+    Va en su propia tabla y no en `quote_items` porque no es la misma cosa: un
+    servicio tiene un precio, una cobertura de PPF tiene tres —uno por marca— y
+    se imprime como matriz para que el cliente compare. Meterla en `quote_items`
+    habría significado una fila por marca, que es justo lo que alarga la tabla
+    hasta volverla ilegible.
+
+    La cantidad no se guarda: una cobertura se pone o no se pone, siempre es una.
+    """
+    __tablename__ = "quote_ppf_items"
+    id = db.Column(db.Integer, primary_key=True)
+    quote_id = db.Column(db.Integer, db.ForeignKey("quotes.id"), nullable=False, index=True)
+
+    coverage = db.Column(db.String(80), nullable=False)
+    contains = db.Column(db.Text, nullable=True)
+    orden    = db.Column(db.Integer, nullable=False, default=0)
+
+    # {"SPECTRA": 2500000, "AVERY": 3000000, "XPEL": 4000000}. Un null significa
+    # que esa marca no ofrece la cobertura, y NO es lo mismo que un cero.
+    prices_json = db.Column(db.Text, nullable=False, default="{}")
+
+    @property
+    def precios(self) -> dict:
+        try:
+            return json.loads(self.prices_json or "{}")
+        except Exception:
+            return {}
+
+    def __repr__(self):
+        return f"<QuotePpfItem {self.coverage} {self.precios}>"
 
 
 class PpfPrice(db.Model):
@@ -1058,6 +1150,19 @@ def seed_ppf_prices():
             db.session.add_all(nuevos)
             db.session.commit()
             app.logger.info(f"[PPF] Se cargaron {len(nuevos)} precios de PPF.")
+
+
+def ensure_quote_ppf_brands_schema():
+    """`quotes` ya existe en producción sin esta columna."""
+    with app.app_context():
+        try:
+            db.session.execute(text("SELECT ppf_brands FROM quotes LIMIT 1"))
+        except Exception:
+            try:
+                db.session.execute(text("ALTER TABLE quotes ADD COLUMN ppf_brands TEXT"))
+                db.session.commit()
+            except Exception:
+                db.session.rollback()
 
 
 def ensure_quote_item_detail_schema():
@@ -7347,6 +7452,7 @@ ensure_users_schema()
 # Van después de ensure_users_schema() porque es quien corre db.create_all():
 # antes de eso las tablas de cotizaciones y PPF pueden no existir todavía.
 ensure_quote_item_detail_schema()
+ensure_quote_ppf_brands_schema()
 seed_ppf_prices()
 
 # --- Seed: crear super admin si no existe ningún usuario ---
@@ -11661,27 +11767,34 @@ def _catalogo_para_cotizar() -> dict:
     return catalogo
 
 
-def _catalogo_ppf() -> dict:
-    """{marca: [{cobertura, contiene, precio, garantia}, ...]}
+def _catalogo_ppf() -> list:
+    """[{cobertura, contiene, precios: {marca: precio|None}}, ...]
 
-    Se manda entero al navegador igual que el catálogo de servicios: cambiar de
-    marca tiene que reordenar los precios al instante, porque la comparación
-    entre Spectra, Avery y Xpel es justo la conversación que se tiene con el
-    cliente.
+    Agrupado por COBERTURA y no por marca, porque así se cotiza: se eligen las
+    partes a cubrir y el documento compara las tres marcas en columnas. Antes
+    esto devolvía {marca: [coberturas]}, que servía para elegir una marca —el
+    modelo que se reemplazó.
     """
     filas = (PpfPrice.query
              .filter(PpfPrice.is_active == True)
              .order_by(PpfPrice.orden, PpfPrice.coverage)
              .all())
-    cat = {}
+    por_cobertura = {}
     for f in filas:
-        cat.setdefault(f.brand, []).append({
-            "cobertura": f.coverage,
-            "contiene": f.contains or "",
-            "precio": f.price,
-            "garantia": PPF_GARANTIAS.get(f.brand, 0),
+        entrada = por_cobertura.setdefault(f.coverage, {
+            "cobertura": f.coverage, "contiene": f.contains or "",
+            "orden": f.orden, "precios": {},
         })
-    return cat
+        entrada["precios"][f.brand] = f.price
+        if f.contains and not entrada["contiene"]:
+            entrada["contiene"] = f.contains
+    salida = sorted(por_cobertura.values(), key=lambda e: (e["orden"], e["cobertura"]))
+    for e in salida:
+        # Explícito: una marca que no ofrece la cobertura va en None, que no es
+        # lo mismo que cero, y la pantalla lo tiene que poder distinguir.
+        for marca, _g in PPF_MARCAS:
+            e["precios"].setdefault(marca, None)
+    return salida
 
 
 @app.route("/ppf-prices", methods=["GET", "POST"])
@@ -11775,8 +11888,28 @@ def quote_new():
                 service_id=int(sid_raw) if (sid_raw or "").isdigit() else None,
             ))
 
-        if not lineas:
-            flash("Agrega al menos un servicio a la cotización.", "danger")
+        # El navegador manda solo los nombres de las coberturas; los precios se
+        # congelan aquí, contra la tabla, para que no se puedan alterar desde el
+        # formulario y para que queden fijos como el resto de la cotización.
+        ppf_lineas = []
+        vistas = set()
+        for orden, cob in enumerate(request.form.getlist("ppf_coverage")):
+            cob = (cob or "").strip()
+            if not cob or cob in vistas:
+                continue
+            vistas.add(cob)
+            filas = PpfPrice.query.filter_by(coverage=cob, is_active=True).all()
+            if not filas:
+                continue
+            ppf_lineas.append(QuotePpfItem(
+                coverage=cob,
+                contains=next((f.contains for f in filas if f.contains), None),
+                orden=filas[0].orden if filas else orden,
+                prices_json=json.dumps({f.brand: f.price for f in filas}),
+            ))
+
+        if not lineas and not ppf_lineas:
+            flash("Agrega al menos un servicio o una cobertura de PPF.", "danger")
             return redirect(url_for("quote_new"))
 
         tipo_desc = request.form.get("discount_type") or None
@@ -11810,6 +11943,9 @@ def quote_new():
             created_by=getattr(getattr(g, "current_user", None), "username", None),
         )
         cot.items = lineas
+        cot.ppf_items = ppf_lineas
+        if ppf_lineas:
+            cot.ppf_brands = json.dumps([[m, g] for m, g in PPF_MARCAS])
         db.session.add(cot)
         db.session.commit()
 
@@ -11937,59 +12073,168 @@ def _construir_pdf_cotizacion(cot: "Quote") -> bytes:
     ]))
     hist += [t_datos, Spacer(1, 6 * mm)]
 
-    # --- Servicios -----------------------------------------------------------
+    est_seccion = ParagraphStyle("sec", parent=est_txt, fontSize=8, textColor=ACENTO,
+                                 fontName="Helvetica-Bold", spaceAfter=3)
     est_detalle = ParagraphStyle("d", parent=est_celda, fontSize=8,
                                  textColor=SUAVE, leading=10, spaceBefore=2)
+    est_marca   = ParagraphStyle("mk", parent=est_txt, fontSize=8, alignment=TA_RIGHT,
+                                 textColor=SUAVE, leading=10)
 
-    filas = [["Servicio", "Cant.", "Valor unitario", "Total"]]
-    for it in cot.items:
-        celda = [Paragraph(it.description, est_celda)]
-        if it.detail:
-            celda.append(Paragraph(it.detail, est_detalle))
-        filas.append([celda, str(it.quantity), _cop(it.unit_price), _cop(it.total)])
+    # --- Servicios -----------------------------------------------------------
+    if cot.items:
+        filas = [["Servicio", "Cant.", "Valor unitario", "Total"]]
+        for it in cot.items:
+            celda = [Paragraph(it.description, est_celda)]
+            if it.detail:
+                celda.append(Paragraph(it.detail, est_detalle))
+            filas.append([celda, str(it.quantity), _cop(it.unit_price), _cop(it.total)])
 
-    tabla = Table(filas, colWidths=[95 * mm, 15 * mm, 32 * mm, 33 * mm], repeatRows=1)
-    tabla.setStyle(TableStyle([
-        ("FONTNAME",   (0, 0), (-1, 0), "Helvetica-Bold"),
-        ("FONTSIZE",   (0, 0), (-1, 0), 8.5),
-        ("TEXTCOLOR",  (0, 0), (-1, 0), SUAVE),
-        ("LINEBELOW",  (0, 0), (-1, 0), 0.8, LINEA),
-        ("FONTSIZE",   (0, 1), (-1, -1), 9.5),
-        ("TEXTCOLOR",  (0, 1), (-1, -1), TINTA),
-        ("ALIGN",      (1, 0), (1, -1), "CENTER"),
-        ("ALIGN",      (2, 0), (-1, -1), "RIGHT"),
-        ("VALIGN",     (0, 0), (-1, -1), "MIDDLE"),
-        ("LEFTPADDING",  (0, 0), (-1, -1), 0),
-        ("RIGHTPADDING", (0, 0), (-1, -1), 0),
-        ("TOPPADDING",   (0, 1), (-1, -1), 6),
-        ("BOTTOMPADDING",(0, 1), (-1, -1), 6),
-        ("LINEBELOW",  (0, 1), (-1, -2), 0.4, LINEA),
-    ]))
-    hist += [tabla, Spacer(1, 4 * mm)]
+        tabla = Table(filas, colWidths=[95 * mm, 15 * mm, 32 * mm, 33 * mm], repeatRows=1)
+        tabla.setStyle(TableStyle([
+            ("FONTNAME",   (0, 0), (-1, 0), "Helvetica-Bold"),
+            ("FONTSIZE",   (0, 0), (-1, 0), 8.5),
+            ("TEXTCOLOR",  (0, 0), (-1, 0), SUAVE),
+            ("LINEBELOW",  (0, 0), (-1, 0), 0.8, LINEA),
+            ("FONTSIZE",   (0, 1), (-1, -1), 9.5),
+            ("TEXTCOLOR",  (0, 1), (-1, -1), TINTA),
+            ("ALIGN",      (1, 0), (1, -1), "CENTER"),
+            ("ALIGN",      (2, 0), (-1, -1), "RIGHT"),
+            ("VALIGN",     (0, 0), (-1, -1), "MIDDLE"),
+            ("LEFTPADDING",  (0, 0), (-1, -1), 0),
+            ("RIGHTPADDING", (0, 0), (-1, -1), 0),
+            ("TOPPADDING",   (0, 1), (-1, -1), 6),
+            ("BOTTOMPADDING",(0, 1), (-1, -1), 6),
+            ("LINEBELOW",  (0, 1), (-1, -2), 0.4, LINEA),
+        ]))
+        if cot.tiene_ppf:
+            hist += [Paragraph("SERVICIOS", est_seccion)]
+        hist += [tabla, Spacer(1, 4 * mm)]
+
+    # --- PPF: matriz de cobertura x marca ------------------------------------
+    # Una fila por cobertura y una columna por marca, en vez de una fila por
+    # cada combinación. Con 3 marcas y 6 coberturas eso es 6 filas en lugar de
+    # 18, y además deja al cliente comparar las marcas de un vistazo, que es la
+    # decisión que tiene que tomar. No lleva cantidad ni valor unitario: una
+    # cobertura se pone o no se pone, siempre es una.
+    if cot.ppf_items:
+        marcas = cot.ppf_marcas
+        n = len(marcas)
+        ancho_marca = (105 / n) * mm
+        anchos = [175 * mm - ancho_marca * n] + [ancho_marca] * n
+
+        encabezado = [Paragraph("Cobertura", ParagraphStyle(
+            "hc", parent=est_txt, fontSize=8.5, fontName="Helvetica-Bold", textColor=SUAVE))]
+        for marca, garantia in marcas:
+            encabezado.append(Paragraph(
+                f"<font size=9><b>{marca}</b></font><br/>"
+                f"<font size=7.5 color='#c8a04a'>garantía {garantia} años</font>", est_marca))
+        filas_ppf = [encabezado]
+
+        for it in cot.ppf_items:
+            precios = it.precios
+            celda = [Paragraph(it.coverage, ParagraphStyle(
+                "cv", parent=est_celda, fontName="Helvetica-Bold", fontSize=9.5))]
+            if it.contains:
+                celda.append(Paragraph(it.contains, est_detalle))
+            fila = [celda]
+            for marca, _g in marcas:
+                p = precios.get(marca)
+                # "no aplica" y no un cero: un cero se leería como gratis.
+                fila.append(_cop(p) if p else "no aplica")
+            filas_ppf.append(fila)
+
+        totales_ppf = cot.ppf_totales
+        filas_ppf.append(["TOTAL PPF"] + [_cop(totales_ppf.get(m, 0)) for m, _g in marcas])
+
+        t_ppf = Table(filas_ppf, colWidths=anchos, repeatRows=1)
+        t_ppf.setStyle(TableStyle([
+            ("LINEBELOW",  (0, 0), (-1, 0), 0.8, LINEA),
+            ("FONTSIZE",   (0, 1), (-1, -1), 9.5),
+            ("TEXTCOLOR",  (0, 1), (-1, -1), TINTA),
+            ("ALIGN",      (1, 0), (-1, -1), "RIGHT"),
+            ("VALIGN",     (0, 0), (-1, -1), "TOP"),
+            ("VALIGN",     (0, 1), (-1, -2), "MIDDLE"),
+            ("LEFTPADDING",  (0, 0), (-1, -1), 0),
+            ("RIGHTPADDING", (0, 0), (-1, -1), 0),
+            ("TOPPADDING",   (0, 1), (-1, -1), 7),
+            ("BOTTOMPADDING",(0, 1), (-1, -1), 7),
+            ("LINEBELOW",  (0, 1), (-1, -3), 0.4, LINEA),
+            # Fila de totales
+            ("LINEABOVE",  (0, -1), (-1, -1), 0.8, LINEA),
+            ("FONTNAME",   (0, -1), (-1, -1), "Helvetica-Bold"),
+            ("FONTSIZE",   (0, -1), (-1, -1), 10),
+            ("VALIGN",     (0, -1), (-1, -1), "MIDDLE"),
+        ]))
+        hist += [Paragraph("PROTECCIÓN PPF", est_seccion), t_ppf, Spacer(1, 3 * mm)]
+
+        # Decirlo explícitamente: sin esta nota, la columna más barata parece la
+        # mejor oferta cuando en realidad está cubriendo menos partes.
+        no_cubre = cot.ppf_no_cubre
+        if no_cubre:
+            avisos = [f"{m} no cubre: {', '.join(cobs)}." for m, cobs in no_cubre.items()]
+            hist += [Paragraph(" ".join(avisos), est_detalle), Spacer(1, 3 * mm)]
+        hist += [Spacer(1, 2 * mm)]
 
     # --- Totales -------------------------------------------------------------
-    tot = [["Subtotal", _cop(cot.subtotal)]]
-    if cot.descuento_aplicado:
-        etiqueta = cot.discount_label or "Descuento"
-        if cot.discount_type == "percentage":
-            etiqueta += f" ({cot.discount_value}%)"
-        tot.append([etiqueta, "− " + _cop(cot.descuento_aplicado)])
-    tot.append(["TOTAL", _cop(cot.total)])
+    if cot.tiene_ppf:
+        # Con PPF no hay UN total: hay uno por marca. Solo se imprime este
+        # bloque si aporta algo que la fila "TOTAL PPF" no diga ya —o sea,
+        # cuando además hay servicios o hay descuento.
+        if cot.items or cot.descuento_aplicado:
+            tot = []
+            if cot.items:
+                tot.append(["Servicios", _cop(cot.subtotal)])
+            if cot.discount_value and cot.discount_type:
+                etiqueta = cot.discount_label or "Descuento"
+                if cot.discount_type == "percentage":
+                    etiqueta += f" ({cot.discount_value}%)"
+                tot.append([etiqueta, "aplicado a cada opción"])
+            t_res = Table(tot, colWidths=[110 * mm, 65 * mm], hAlign="RIGHT")
+            t_res.setStyle(TableStyle([
+                ("ALIGN", (0, 0), (-1, -1), "RIGHT"),
+                ("TEXTCOLOR", (0, 0), (-1, -1), SUAVE),
+                ("FONTSIZE", (0, 0), (-1, -1), 9.5),
+                ("RIGHTPADDING", (0, 0), (-1, -1), 0),
+            ]))
+            hist += [t_res, Spacer(1, 3 * mm)]
 
-    t_tot = Table(tot, colWidths=[110 * mm, 65 * mm], hAlign="RIGHT")
-    estilos_tot = [
-        ("ALIGN",      (0, 0), (-1, -1), "RIGHT"),
-        ("TEXTCOLOR",  (0, 0), (-1, -2), SUAVE),
-        ("FONTSIZE",   (0, 0), (-1, -2), 9.5),
-        ("FONTNAME",   (0, -1), (-1, -1), "Helvetica-Bold"),
-        ("FONTSIZE",   (0, -1), (-1, -1), 13),
-        ("TEXTCOLOR",  (0, -1), (-1, -1), TINTA),
-        ("LINEABOVE",  (0, -1), (-1, -1), 0.8, LINEA),
-        ("TOPPADDING", (0, -1), (-1, -1), 7),
-        ("RIGHTPADDING", (0, 0), (-1, -1), 0),
-    ]
-    t_tot.setStyle(TableStyle(estilos_tot))
-    hist += [t_tot, Spacer(1, 8 * mm)]
+            finales = cot.totales_por_marca
+            filas_fin = [["TOTAL con " + m, _cop(finales.get(m, 0))] for m, _g in cot.ppf_marcas]
+            t_fin = Table(filas_fin, colWidths=[110 * mm, 65 * mm], hAlign="RIGHT")
+            t_fin.setStyle(TableStyle([
+                ("ALIGN", (0, 0), (-1, -1), "RIGHT"),
+                ("FONTNAME", (0, 0), (-1, -1), "Helvetica-Bold"),
+                ("FONTSIZE", (0, 0), (-1, -1), 12),
+                ("TEXTCOLOR", (0, 0), (-1, -1), TINTA),
+                ("LINEABOVE", (0, 0), (-1, 0), 0.8, LINEA),
+                ("TOPPADDING", (0, 0), (-1, -1), 6),
+                ("RIGHTPADDING", (0, 0), (-1, -1), 0),
+            ]))
+            hist += [t_fin, Spacer(1, 8 * mm)]
+        else:
+            hist += [Spacer(1, 5 * mm)]
+    else:
+        tot = [["Subtotal", _cop(cot.subtotal)]]
+        if cot.descuento_aplicado:
+            etiqueta = cot.discount_label or "Descuento"
+            if cot.discount_type == "percentage":
+                etiqueta += f" ({cot.discount_value}%)"
+            tot.append([etiqueta, "− " + _cop(cot.descuento_aplicado)])
+        tot.append(["TOTAL", _cop(cot.total)])
+
+        t_tot = Table(tot, colWidths=[110 * mm, 65 * mm], hAlign="RIGHT")
+        t_tot.setStyle(TableStyle([
+            ("ALIGN",      (0, 0), (-1, -1), "RIGHT"),
+            ("TEXTCOLOR",  (0, 0), (-1, -2), SUAVE),
+            ("FONTSIZE",   (0, 0), (-1, -2), 9.5),
+            ("FONTNAME",   (0, -1), (-1, -1), "Helvetica-Bold"),
+            ("FONTSIZE",   (0, -1), (-1, -1), 13),
+            ("TEXTCOLOR",  (0, -1), (-1, -1), TINTA),
+            ("LINEABOVE",  (0, -1), (-1, -1), 0.8, LINEA),
+            ("TOPPADDING", (0, -1), (-1, -1), 7),
+            ("RIGHTPADDING", (0, 0), (-1, -1), 0),
+        ]))
+        hist += [t_tot, Spacer(1, 8 * mm)]
 
     # --- Notas y vigencia ----------------------------------------------------
     if cot.notes:
@@ -12005,7 +12250,7 @@ def _construir_pdf_cotizacion(cot: "Quote") -> bytes:
         pie.append("Los valores de PPF son estimados: pueden variar según marca, modelo, "
                    "estado del vehículo y complejidad de la instalación. Se confirman al "
                    "revisar el carro.")
-    else:
+    if cot.items:
         pie.append("Los precios pueden variar según el estado real del vehículo, "
                    "que se confirma en el diagnóstico presencial.")
     hist += [Table([[""]], colWidths=[175 * mm], style=TableStyle([

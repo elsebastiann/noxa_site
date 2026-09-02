@@ -381,60 +381,202 @@ class TestPreciosPpf:
                 A.PpfPrice.query.filter_by(coverage="Manijas", brand="XPEL").first().price = original
                 A.db.session.commit()
 
-    def test_el_catalogo_agrupa_por_marca(self):
+    def test_el_catalogo_se_agrupa_por_cobertura(self):
+        """Agrupado por cobertura y no por marca: así se cotiza, eligiendo las
+        partes a cubrir para después comparar las marcas en columnas."""
         with A.app.app_context():
             cat = A._catalogo_ppf()
-        assert set(cat) == {"SPECTRA", "AVERY", "XPEL"}
-        full = next(x for x in cat["XPEL"] if x["cobertura"] == "Full Car")
-        assert full["precio"] == 15_000_000
-        assert full["garantia"] == 10
+        assert len(cat) == 16
+        full = next(x for x in cat if x["cobertura"] == "Full Car")
+        assert full["precios"] == {"SPECTRA": 10_000_000, "AVERY": 13_000_000, "XPEL": 15_000_000}
         assert "capó" in full["contiene"].lower()
+
+    def test_el_catalogo_marca_en_none_lo_que_no_se_ofrece(self):
+        """None y no 0: un cero se leería como gratis."""
+        with A.app.app_context():
+            cat = A._catalogo_ppf()
+        foto = next(x for x in cat if x["cobertura"] == "Farolas Fotocromático")
+        assert foto["precios"]["SPECTRA"] is None
+        assert foto["precios"]["AVERY"] == 300_000
 
 
 class TestCotizarPpf:
+    """El PPF va en matriz: una fila por cobertura, una columna por marca.
+
+    Con 3 marcas y 6 coberturas eso son 6 filas en vez de 18 — que era el
+    problema: la tabla se alargaba hasta volverse ilegible. Y de paso deja al
+    cliente comparar las marcas, que es la decisión que tiene que tomar.
+    """
+
     def _login_admin(self, client):
         with A.app.app_context():
             uid = make_user(f"ppf{next(_u)}", role="admin").id
         with client.session_transaction() as sess:
             sess["user_id"] = uid
 
-    def test_una_cotizacion_de_ppf_guarda_lo_que_cubre(self, client):
-        """Es el punto: la cotización se manda sin ver el carro, así que el
-        cliente necesita leer qué piezas cubre cada cobertura."""
+    def _cotizar_ppf(self, client, coberturas, **extra):
+        datos = {"customer_name": "Cliente PPF", "ppf_coverage": coberturas}
+        datos.update(extra)
+        r = client.post("/quotes/new", data=datos, follow_redirects=False)
+        assert r.status_code == 302, "no creó la cotización"
+        return r.headers["Location"].rstrip("/").split("/")[-1]
+
+    def test_una_cobertura_guarda_el_precio_de_las_tres_marcas(self, client):
         self._login_admin(client)
-        r = client.post("/quotes/new", data={
-            "customer_name": "Cliente PPF",
-            "item_desc": ["PPF Full Front — XPEL (garantía 10 años)"],
-            "item_price": ["4000000"], "item_qty": ["1"],
-            "item_service_id": [""],
-            "item_detail": ["Bómper delantero, capó, guardabarros delanteros, "
-                            "espejos retrovisores, farolas delanteras"],
-        }, follow_redirects=False)
-        code = r.headers["Location"].rstrip("/").split("/")[-1]
+        code = self._cotizar_ppf(client, ["Full Front"])
         try:
             with A.app.app_context():
                 c = A.Quote.query.filter_by(code=code).first()
-                assert "capó" in c.items[0].detail
                 assert c.tiene_ppf
-                assert c.total == 4_000_000
+                assert c.ppf_items[0].precios == {
+                    "SPECTRA": 2_500_000, "AVERY": 3_000_000, "XPEL": 4_000_000}
         finally:
             _borrar(code)
 
-    def test_el_pdf_de_ppf_advierte_que_el_precio_puede_variar(self):
-        code = _cotizacion(items=[("PPF Full Car — XPEL (garantía 10 años)", 15_000_000, 1)])
+    def test_guarda_que_cubre_la_cobertura(self, client):
+        """La cotización se manda sin ver el carro: "Full Front" solo no le dice
+        nada al cliente."""
+        self._login_admin(client)
+        code = self._cotizar_ppf(client, ["Full Front"])
+        try:
+            with A.app.app_context():
+                assert "capó" in A.Quote.query.filter_by(code=code).first().ppf_items[0].contains
+        finally:
+            _borrar(code)
+
+    def test_los_precios_no_viajan_por_el_formulario(self, client):
+        """El navegador manda solo el nombre; el precio lo congela el servidor.
+        Si viajara en el POST, se podría alterar desde el formulario."""
+        self._login_admin(client)
+        code = self._cotizar_ppf(client, ["Manijas"], ppf_price=["1"])
+        try:
+            with A.app.app_context():
+                assert A.Quote.query.filter_by(code=code).first().ppf_items[0].precios["XPEL"] == 350_000
+        finally:
+            _borrar(code)
+
+    def test_total_por_marca(self, client):
+        self._login_admin(client)
+        code = self._cotizar_ppf(client, ["Full Front", "Manijas"])
         try:
             with A.app.app_context():
                 c = A.Quote.query.filter_by(code=code).first()
-                assert c.tiene_ppf, "no reconoció la línea como PPF"
-                assert A._construir_pdf_cotizacion(c).startswith(b"%PDF")
+                assert c.ppf_totales == {
+                    "SPECTRA": 2_500_000 + 150_000,
+                    "AVERY":   3_000_000 + 250_000,
+                    "XPEL":    4_000_000 + 350_000,
+                }
         finally:
             _borrar(code)
 
-    def test_una_cotizacion_sin_ppf_no_lleva_esa_advertencia(self):
+    def test_lo_que_una_marca_no_cubre_no_le_suma(self, client):
+        """Spectra no hace fotocromático: su columna no puede sumar ese valor."""
+        self._login_admin(client)
+        code = self._cotizar_ppf(client, ["Farolas Fotocromático"])
+        try:
+            with A.app.app_context():
+                c = A.Quote.query.filter_by(code=code).first()
+                assert c.ppf_totales["SPECTRA"] == 0
+                assert c.ppf_totales["AVERY"] == 300_000
+        finally:
+            _borrar(code)
+
+    def test_avisa_lo_que_una_marca_no_cubre(self, client):
+        """Sin este aviso, la columna más barata parece la mejor oferta cuando
+        en realidad está cubriendo menos partes."""
+        self._login_admin(client)
+        code = self._cotizar_ppf(client, ["Farolas Fotocromático", "Manijas"])
+        try:
+            with A.app.app_context():
+                c = A.Quote.query.filter_by(code=code).first()
+                assert c.ppf_no_cubre == {"SPECTRA": ["Farolas Fotocromático"]}
+        finally:
+            _borrar(code)
+
+    def test_el_total_suma_servicios_mas_ppf_de_cada_marca(self, client):
+        self._login_admin(client)
+        code = self._cotizar_ppf(
+            client, ["Manijas"],
+            item_desc=["Lavado"], item_price=["100000"], item_qty=["1"],
+            item_service_id=[""], item_detail=[""])
+        try:
+            with A.app.app_context():
+                c = A.Quote.query.filter_by(code=code).first()
+                assert c.subtotal == 100_000
+                assert c.totales_por_marca["XPEL"] == 100_000 + 350_000
+                assert c.totales_por_marca["SPECTRA"] == 100_000 + 150_000
+        finally:
+            _borrar(code)
+
+    def test_el_descuento_se_aplica_a_cada_marca(self, client):
+        """Un 10% sobre bases distintas da montos distintos: no se puede
+        calcular una sola vez y restarlo a todas."""
+        self._login_admin(client)
+        code = self._cotizar_ppf(client, ["Full Front"],
+                                 discount_type="percentage", discount_value="10")
+        try:
+            with A.app.app_context():
+                t = A.Quote.query.filter_by(code=code).first().totales_por_marca
+                assert t["SPECTRA"] == 2_250_000
+                assert t["XPEL"] == 3_600_000
+        finally:
+            _borrar(code)
+
+    def test_no_duplica_una_cobertura_repetida(self, client):
+        self._login_admin(client)
+        code = self._cotizar_ppf(client, ["Manijas", "Manijas"])
+        try:
+            with A.app.app_context():
+                assert len(A.Quote.query.filter_by(code=code).first().ppf_items) == 1
+        finally:
+            _borrar(code)
+
+    def test_guarda_las_garantias_del_momento(self, client):
+        """Si mañana cambia una garantía, este documento tiene que seguir
+        imprimiéndose como el cliente lo recibió."""
+        self._login_admin(client)
+        code = self._cotizar_ppf(client, ["Manijas"])
+        try:
+            with A.app.app_context():
+                assert A.Quote.query.filter_by(code=code).first().ppf_marcas == [
+                    ("SPECTRA", 5), ("AVERY", 7), ("XPEL", 10)]
+        finally:
+            _borrar(code)
+
+    def test_una_cotizacion_solo_de_ppf_es_valida(self, client):
+        """Sin servicios: antes el formulario la habría rechazado por vacía."""
+        self._login_admin(client)
+        code = self._cotizar_ppf(client, ["Full Car"])
+        try:
+            with A.app.app_context():
+                c = A.Quote.query.filter_by(code=code).first()
+                assert c.items == []
+                assert c.ppf_totales["XPEL"] == 15_000_000
+        finally:
+            _borrar(code)
+
+    def test_el_pdf_con_matriz_sale(self, client):
+        self._login_admin(client)
+        code = self._cotizar_ppf(
+            client, ["Full Front", "Farolas y Stops", "Farolas Fotocromático"],
+            item_desc=["Lavado Premium"], item_price=["110000"], item_qty=["1"],
+            item_service_id=[""], item_detail=[""],
+            discount_type="percentage", discount_value="10")
+        try:
+            with A.app.app_context():
+                pdf = A._construir_pdf_cotizacion(A.Quote.query.filter_by(code=code).first())
+            assert pdf.startswith(b"%PDF")
+            assert len(pdf) > 2000
+        finally:
+            _borrar(code)
+
+    def test_una_cotizacion_sin_ppf_no_lleva_matriz(self):
         code = _cotizacion(items=[("Lavado Premium", 90000, 1)])
         try:
             with A.app.app_context():
-                assert not A.Quote.query.filter_by(code=code).first().tiene_ppf
+                c = A.Quote.query.filter_by(code=code).first()
+                assert not c.tiene_ppf
+                assert c.total == 90000
         finally:
             _borrar(code)
 
