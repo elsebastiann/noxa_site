@@ -1,7 +1,7 @@
 {
   "app.py": {
-    "mtime": 1788370651.6796217,
-    "ast_hash": "8d9c94237d0336e3898fdb4335e0a7bd",
+    "mtime": 1788372621.7979505,
+    "ast_hash": "37f961faeea1d2a434057e70e46da38a",
     "semantic_hash": ""
   },
   "migrate_prices.py": {
@@ -415,13 +415,13 @@
     "semantic_hash": ""
   },
   "tests/test_cotizacion_publica.py": {
-    "mtime": 1788369276.8518343,
-    "ast_hash": "0709a495d0e91d1d2951841da18ee796",
+    "mtime": 1788372691.8500595,
+    "ast_hash": "e4dfc5f092cb60097f3221da7344f4e0",
     "semantic_hash": ""
   },
   "templates/quote_public.html": {
-    "mtime": 1788369240.4236302,
-    "ast_hash": "86bf71a1708a27a4433c8b1be935eb0b",
+    "mtime": 1788372635.3512828,
+    "ast_hash": "a56e3e2c7212c2e19a5410a1c6dbeca2",
     "semantic_hash": ""
   },
   "templates/quote_public_cerrada.html": {

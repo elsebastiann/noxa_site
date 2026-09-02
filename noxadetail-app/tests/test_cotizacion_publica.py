@@ -284,13 +284,78 @@ class TestDescargarElPdf:
     def test_un_token_inventado_no_entrega_nada(self, client):
         assert client.get("/c/noexiste123456789012345/pdf").status_code == 404
 
-    def test_entrega_la_cotizacion_completa(self, client):
-        """El PDF es el documento guardado, no la selección que el cliente
-        tenga marcada: si dependiera de unos checkboxes habría varios PDF
-        distintos con el mismo código."""
-        import inspect
-        fuente = inspect.getsource(A.quote_public_pdf)
-        assert "_construir_pdf_cotizacion(cot)" in fuente
+    def test_por_get_baja_la_cotizacion_completa(self, client):
+        code, token = _cotizacion(items=[("A", 100000, 1), ("B", 50000, 1)])
+        try:
+            r = client.get(f"/c/{token}/pdf")
+            assert r.data.startswith(b"%PDF")
+            assert "-v" not in r.headers["Content-Disposition"], "no es una versión"
+        finally:
+            _borrar(code)
+
+    def test_por_post_baja_lo_que_el_cliente_tiene_marcado(self, client):
+        """Es lo pedido: el papel sale con la combinación que armó, no con la
+        cotización entera."""
+        code, token = _cotizacion(items=[("A", 100000, 1), ("B", 50000, 1)])
+        try:
+            with A.app.app_context():
+                ids = [i.id for i in A.Quote.query.filter_by(code=code).first().items]
+            r = client.post(f"/c/{token}/pdf", data={"items": [str(ids[0])]})
+            assert r.status_code == 200
+            assert r.data.startswith(b"%PDF")
+            with A.app.app_context():
+                c = A.Quote.query.filter_by(code=code).first()
+                assert len(c.versiones) == 1
+                assert c.versiones[0].total == 100000
+                assert len(c.items) == 2, "la cotización original no se toca"
+        finally:
+            _borrar(code)
+
+    def test_el_archivo_de_una_version_lo_dice_en_el_nombre(self, client):
+        """Dos PDF con el mismo código en la carpeta de descargas tienen que
+        poder distinguirse."""
+        code, token = _cotizacion(items=[("A", 100000, 1)])
+        try:
+            with A.app.app_context():
+                ids = [i.id for i in A.Quote.query.filter_by(code=code).first().items]
+            cd = client.post(f"/c/{token}/pdf",
+                             data={"items": [str(ids[0])]}).headers["Content-Disposition"]
+            assert "-v2" in cd, cd
+        finally:
+            _borrar(code)
+
+    def test_el_pdf_de_la_version_respeta_la_absorcion(self, client):
+        """Si el cliente manda el capó junto a Full Car, el PDF no puede
+        cobrarlo dos veces solo porque venga marcado del navegador."""
+        code, token = _cotizacion(ppf=["Full Car", "Capó"])
+        try:
+            r = client.post(f"/c/{token}/pdf",
+                            data={"ppf": ["Full Car", "Capó"], "marca": "XPEL"})
+            assert r.data.startswith(b"%PDF")
+            with A.app.app_context():
+                assert A.Quote.query.filter_by(code=code).first().versiones[0].total == 15_000_000
+        finally:
+            _borrar(code)
+
+    def test_una_seleccion_vacia_no_revienta(self, client):
+        code, token = _cotizacion(items=[("A", 100000, 1)])
+        try:
+            r = client.post(f"/c/{token}/pdf", data={})
+            assert r.status_code == 200
+            assert r.data.startswith(b"%PDF")
+        finally:
+            _borrar(code)
+
+    def test_vencida_tampoco_por_post(self, client):
+        code, token = _cotizacion(items=[("A", 100000, 1)])
+        try:
+            with A.app.app_context():
+                c = A.Quote.query.filter_by(code=code).first()
+                c.valid_until = A.bogota_now().date() - dt.timedelta(days=1)
+                A.db.session.commit()
+            assert client.post(f"/c/{token}/pdf", data={}).status_code == 410
+        finally:
+            _borrar(code)
 
 
 class TestVersionDelCliente:

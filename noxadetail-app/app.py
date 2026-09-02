@@ -1020,18 +1020,7 @@ class Quote(db.Model):
 
     @property
     def ppf_absorbida_por(self) -> dict:
-        """{cobertura: la cobertura total que ya la incluye}.
-
-        La regla vive acá y no en cada pantalla: si el PDF sumara distinto que
-        el link que ve el cliente, el documento y la web se contradirían, y la
-        que se creería es la que el cliente tenga a mano.
-        """
-        zonas = {PPF_COBERTURAS_TOTALES[it.coverage]: it.coverage
-                 for it in self.ppf_items if it.coverage in PPF_COBERTURAS_TOTALES}
-        if not zonas:
-            return {}
-        return {it.coverage: zonas[it.zona] for it in self.ppf_items
-                if it.coverage not in PPF_COBERTURAS_TOTALES and it.zona in zonas}
+        return absorbidas_en(self.ppf_items)
 
     @property
     def ppf_absorbidas(self) -> set:
@@ -1048,31 +1037,17 @@ class Quote(db.Model):
         cobs = set(coberturas or [])
         total = sum(i.total for i in self.items if i.id in ids)
 
-        if cobs:
-            zonas = {PPF_COBERTURAS_TOTALES[c]: c
-                     for c in cobs if c in PPF_COBERTURAS_TOTALES}
-            for it in self.ppf_items:
-                if it.coverage not in cobs:
-                    continue
-                if it.coverage not in PPF_COBERTURAS_TOTALES and it.zona in zonas:
-                    continue   # ya la cubre la total de su zona
-                total += it.precios.get(marca) or 0
+        if cobs and marca:
+            elegidas = [it for it in self.ppf_items if it.coverage in cobs]
+            total += ppf_totales_de(elegidas, [marca]).get(marca, 0)
 
         return total - self._descuento_sobre(total)
 
     @property
     def ppf_totales(self) -> dict:
-        """{marca: total}. No suma lo que la marca no ofrece ni lo que Full Car
-        ya cubre."""
-        tot = {m: 0 for m, _g in self.ppf_marcas}
-        absorbidas = self.ppf_absorbidas
-        for it in self.ppf_items:
-            if it.coverage in absorbidas:
-                continue
-            for marca, precio in it.precios.items():
-                if precio and marca in tot:
-                    tot[marca] += precio
-        return tot
+        """{marca: total}. No suma lo que la marca no ofrece ni lo que ya cubre
+        una cobertura total."""
+        return ppf_totales_de(self.ppf_items, [m for m, _g in self.ppf_marcas])
 
     @property
     def ppf_no_cubre(self) -> dict:
@@ -1269,6 +1244,47 @@ PPF_MARCAS = [("SPECTRA", 5), ("AVERY", 7), ("XPEL", 10)]
 # las farolas, y Full Interior ya trae la consola y la pantalla.
 # {cobertura total: zona que cubre}
 PPF_COBERTURAS_TOTALES = {"Full Car": "exterior", "Full Interior": "interior"}
+
+
+def absorbidas_en(ppf_items) -> dict:
+    """{cobertura: la cobertura total que ya la incluye}, sobre la lista dada.
+
+    Recibe la lista y no una cotización porque también se aplica a lo que el
+    cliente seleccionó, que es un subconjunto: si desmarcó Full Car, el capó
+    vuelve a cobrarse. Una sola implementación para el PDF, la pantalla y el
+    link — si cada uno tuviera la suya, tarde o temprano sumarían distinto.
+    """
+    zonas = {PPF_COBERTURAS_TOTALES[it.coverage]: it.coverage
+             for it in ppf_items if it.coverage in PPF_COBERTURAS_TOTALES}
+    if not zonas:
+        return {}
+    return {it.coverage: zonas[it.zona] for it in ppf_items
+            if it.coverage not in PPF_COBERTURAS_TOTALES and it.zona in zonas}
+
+
+def _ppf_no_cubre_en(ppf_items, marcas, absorbidas) -> dict:
+    """{marca: [coberturas que no ofrece]}, sobre la lista dada."""
+    faltan = {m: [] for m, _g in marcas}
+    for it in ppf_items:
+        if it.coverage in absorbidas:
+            continue
+        for marca in faltan:
+            if not it.precios.get(marca):
+                faltan[marca].append(it.coverage)
+    return {m: c for m, c in faltan.items() if c}
+
+
+def ppf_totales_de(ppf_items, marcas) -> dict:
+    """{marca: total} sobre una lista de coberturas, sin lo absorbido."""
+    absorbidas = absorbidas_en(ppf_items)
+    tot = {m: 0 for m in marcas}
+    for it in ppf_items:
+        if it.coverage in absorbidas:
+            continue
+        for marca, precio in it.precios.items():
+            if precio and marca in tot:
+                tot[marca] += precio
+    return tot
 PPF_GARANTIAS = dict(PPF_MARCAS)
 
 # (cobertura, qué contiene, {marca: precio}, zona). Un None en un precio
@@ -12437,7 +12453,16 @@ def quote_public_seleccion(token):
     if not cot or not cot.vigente:
         return jsonify(ok=False), 404 if not cot else 410
 
-    datos = request.get_json(silent=True) or {}
+    return jsonify(**_guardar_version_cliente(cot, request.get_json(silent=True) or {}))
+
+
+def _guardar_version_cliente(cot: "Quote", datos: dict) -> dict:
+    """Registra la combinación del cliente y devuelve el resumen.
+
+    Compartida por el guardado automático y por el botón de descargar: los dos
+    tienen que dejar exactamente la misma versión, o el PDF diría una cosa y lo
+    guardado otra.
+    """
     ids = [i for i in datos.get("items", []) if isinstance(i, int)]
     cobs = [c for c in datos.get("ppf", []) if isinstance(c, str)][:40]
     marca = datos.get("marca")
@@ -12466,19 +12491,21 @@ def quote_public_seleccion(token):
     v.total = cot.total_de_seleccion(ids, cobs, marca)
     v.updated_at = ahora
     db.session.commit()
-    return jsonify(ok=True, version=v.numero, total=v.total)
+    return {"ok": True, "version": v.numero, "total": v.total, "id": v.id}
 
 
-@app.route("/c/<token>/pdf")
+@app.route("/c/<token>/pdf", methods=["GET", "POST"])
 @limiter.limit("20 per minute")
 def quote_public_pdf(token):
-    """El PDF de la cotización, desde el link del cliente.
+    """El PDF desde el link del cliente.
 
-    Entrega el documento COMPLETO, con el mismo código, no la selección que el
-    cliente tenga marcada en ese momento. Un PDF que dependiera de unos
-    checkboxes crearía documentos distintos con el mismo código, y ninguno
-    sería el que quedó guardado. La página interactiva es para explorar; el PDF
-    es el documento.
+    Por POST viene la selección que tiene marcada y el PDF sale con ESA
+    combinación, guardada además como versión. Se hace en un solo POST y no
+    "guardar y luego descargar" porque el guardado automático corre con retraso:
+    si el cliente cambia algo y descarga enseguida, el papel no puede salir con
+    lo anterior.
+
+    Por GET entrega la cotización completa, que es la versión 1.
 
     Caduca igual que la página: si no, el link vencido seguiría entregando
     precios viejos por otra puerta.
@@ -12489,8 +12516,21 @@ def quote_public_pdf(token):
                                motivo="vencida" if cot else "no_existe",
                                c=cot, whatsapp=WHATSAPP_PUBLICO), 410 if cot else 404
 
-    return Response(_construir_pdf_cotizacion(cot), mimetype="application/pdf", headers={
-        "Content-Disposition": f'attachment; filename="Cotizacion-{cot.code}-NOXA.pdf"',
+    version = None
+    if request.method == "POST":
+        datos = {
+            "items": [int(i) for i in request.form.getlist("items") if i.isdigit()],
+            "ppf": request.form.getlist("ppf"),
+            "marca": request.form.get("marca") or None,
+        }
+        version = QuoteVersion.query.get(_guardar_version_cliente(cot, datos)["id"])
+
+    nombre = f"Cotizacion-{cot.code}"
+    if version:
+        nombre += f"-v{version.numero}"
+    return Response(_construir_pdf_cotizacion(cot, version=version),
+                    mimetype="application/pdf", headers={
+        "Content-Disposition": f'attachment; filename="{nombre}-NOXA.pdf"',
     })
 
 
@@ -12551,8 +12591,14 @@ def quote_pdf(code):
     })
 
 
-def _construir_pdf_cotizacion(cot: "Quote") -> bytes:
+def _construir_pdf_cotizacion(cot: "Quote", version=None) -> bytes:
     """El PDF que se le entrega al cliente.
+
+    Con `version`, imprime la combinación que el cliente armó desde el link en
+    vez de la cotización completa, y lo dice en el encabezado. El código no
+    cambia —es la misma cotización— pero el documento tiene que declarar qué
+    versión es: si no, habría dos papeles distintos con el mismo número y
+    ninguna forma de saber cuál manda.
 
     Se arma con reportlab (Python puro, sin librerías del sistema) porque las
     alternativas buenas —weasyprint, wkhtmltopdf— necesitan cairo/pango
@@ -12579,6 +12625,27 @@ def _construir_pdf_cotizacion(cot: "Quote") -> bytes:
     est_txt    = ParagraphStyle("n", parent=base["Normal"], fontSize=9.5, textColor=TINTA, leading=13)
     est_der    = ParagraphStyle("r", parent=est_txt, alignment=TA_RIGHT)
     est_celda  = ParagraphStyle("c", parent=est_txt, fontSize=9.5, leading=12)
+
+    # Todo lo que sigue trabaja sobre estas listas, no sobre la cotización: es
+    # lo que permite imprimir tanto el documento completo como la versión del
+    # cliente con el mismo código.
+    if version:
+        ids = set(version.items_marcados)
+        cobs = set(version.coberturas_marcadas)
+        items = [i for i in cot.items if i.id in ids]
+        ppf_items = [p for p in cot.ppf_items if p.coverage in cobs]
+        # Si el cliente ya eligió marca, el documento deja de comparar las tres:
+        # la decisión ya está tomada y mostrar las otras dos solo estorba.
+        marcas = [(m, g) for m, g in cot.ppf_marcas if m == version.ppf_brand] \
+                 or cot.ppf_marcas
+    else:
+        items, ppf_items, marcas = cot.items, cot.ppf_items, cot.ppf_marcas
+
+    subtotal = sum(i.total for i in items)
+    absorbidas = absorbidas_en(ppf_items)
+    totales_ppf = ppf_totales_de(ppf_items, [m for m, _g in marcas])
+    finales = {m: (base := subtotal + totales_ppf.get(m, 0)) - cot._descuento_sobre(base)
+               for m, _g in marcas}
 
     buf = io.BytesIO()
     doc = SimpleDocTemplate(
@@ -12612,7 +12679,13 @@ def _construir_pdf_cotizacion(cot: "Quote") -> bytes:
         Paragraph(cot.created_at.strftime("%d/%m/%Y"), ParagraphStyle(
             "rs", parent=est_sub, alignment=TA_RIGHT)),
     ]
-    if cot.updated_at:
+    if version:
+        der.append(Paragraph(
+            f"<b>Versión {version.numero}</b> · armada por el cliente<br/>"
+            f"{version.updated_at.strftime('%d/%m/%Y')}",
+            ParagraphStyle("rv", parent=est_sub, alignment=TA_RIGHT, fontSize=7.5,
+                           textColor=ACENTO, leading=9.5)))
+    elif cot.updated_at:
         # El cliente puede tener en la mano un PDF viejo con este mismo código.
         der.append(Paragraph(
             f"actualizada el {cot.updated_at.strftime('%d/%m/%Y')}",
@@ -12661,9 +12734,9 @@ def _construir_pdf_cotizacion(cot: "Quote") -> bytes:
                                   textColor=ACENTO, spaceBefore=2)
 
     # --- Servicios -----------------------------------------------------------
-    if cot.items:
+    if items:
         filas = [["Servicio", "Cant.", "Valor unitario", "Total"]]
-        for it in cot.items:
+        for it in items:
             # La garantía va en la misma línea del nombre, entre paréntesis y
             # en gris: es parte de lo que se está cotizando, no una nota aparte.
             nombre = it.description
@@ -12678,8 +12751,8 @@ def _construir_pdf_cotizacion(cot: "Quote") -> bytes:
         # sin esto había que sumar las líneas a mano para saber cuánto vale la
         # parte de servicios frente a la de PPF. Si el PPF no está, el bloque de
         # totales de abajo ya cumple ese papel y repetirlo sobraría.
-        if cot.tiene_ppf:
-            filas.append(["TOTAL SERVICIOS", "", "", _cop(cot.subtotal)])
+        if ppf_items:
+            filas.append(["TOTAL SERVICIOS", "", "", _cop(subtotal)])
 
         tabla = Table(filas, colWidths=[95 * mm, 15 * mm, 32 * mm, 33 * mm], repeatRows=1)
         tabla.setStyle(TableStyle([
@@ -12698,7 +12771,7 @@ def _construir_pdf_cotizacion(cot: "Quote") -> bytes:
             ("BOTTOMPADDING",(0, 1), (-1, -1), 5),
             ("LINEBELOW",  (0, 1), (-1, -2), 0.4, LINEA),
         ]))
-        if cot.tiene_ppf:
+        if ppf_items:
             tabla.setStyle(TableStyle([
                 ("LINEABOVE", (0, -1), (-1, -1), 0.8, LINEA),
                 ("FONTNAME",  (0, -1), (-1, -1), "Helvetica-Bold"),
@@ -12714,8 +12787,7 @@ def _construir_pdf_cotizacion(cot: "Quote") -> bytes:
     # 18, y además deja al cliente comparar las marcas de un vistazo, que es la
     # decisión que tiene que tomar. No lleva cantidad ni valor unitario: una
     # cobertura se pone o no se pone, siempre es una.
-    if cot.ppf_items:
-        marcas = cot.ppf_marcas
+    if ppf_items:
         n = len(marcas)
         ancho_marca = (105 / n) * mm
         anchos = [175 * mm - ancho_marca * n] + [ancho_marca] * n
@@ -12728,15 +12800,14 @@ def _construir_pdf_cotizacion(cot: "Quote") -> bytes:
                 f"<font size=7.5 color='#c8a04a'>garantía {garantia} años</font>", est_marca))
         filas_ppf = [encabezado]
 
-        absorbidas = cot.ppf_absorbidas
-        for it in cot.ppf_items:
+        for it in ppf_items:
             precios = it.precios
             celda = [Paragraph(it.coverage, ParagraphStyle(
                 "cv", parent=est_celda, fontName="Helvetica-Bold", fontSize=9.5))]
             if it.contains:
                 celda.append(Paragraph(it.contains, est_detalle))
             fila = [celda]
-            absorbe = cot.ppf_absorbida_por.get(it.coverage)
+            absorbe = absorbidas.get(it.coverage)
             if absorbe:
                 # Los precios SÍ se muestran, pero en gris claro y sin entrar al
                 # total: sirven de referencia —cuánto valdría esa pieza suelta—
@@ -12753,7 +12824,6 @@ def _construir_pdf_cotizacion(cot: "Quote") -> bytes:
                     fila.append(_cop(p) if p else "no aplica")
             filas_ppf.append(fila)
 
-        totales_ppf = cot.ppf_totales
         filas_ppf.append(["TOTAL PPF"] + [_cop(totales_ppf.get(m, 0)) for m, _g in marcas])
 
         t_ppf = Table(filas_ppf, colWidths=anchos, repeatRows=1)
@@ -12779,18 +12849,18 @@ def _construir_pdf_cotizacion(cot: "Quote") -> bytes:
 
         # Decirlo explícitamente: sin esta nota, la columna más barata parece la
         # mejor oferta cuando en realidad está cubriendo menos partes.
-        no_cubre = cot.ppf_no_cubre
+        no_cubre = _ppf_no_cubre_en(ppf_items, marcas, absorbidas)
         if no_cubre:
             avisos = [f"{m} no cubre: {', '.join(cobs)}." for m, cobs in no_cubre.items()]
             hist += [Paragraph(" ".join(avisos), est_detalle)]
         hist += [Spacer(1, 3 * mm)]
 
     # --- Totales -------------------------------------------------------------
-    if cot.tiene_ppf:
+    if ppf_items:
         # Con PPF no hay UN total: hay uno por marca. Solo se imprime este
         # bloque si aporta algo que la fila "TOTAL PPF" no diga ya —o sea,
         # cuando además hay servicios o hay descuento.
-        if cot.items or cot.descuento_aplicado:
+        if items or cot._descuento_sobre(subtotal):
             tot = []
             if cot.discount_value and cot.discount_type:
                 etiqueta = cot.discount_label or "Descuento"
@@ -12807,8 +12877,7 @@ def _construir_pdf_cotizacion(cot: "Quote") -> bytes:
                 ]))
                 hist += [t_res, Spacer(1, 3 * mm)]
 
-            finales = cot.totales_por_marca
-            filas_fin = [["TOTAL con " + m, _cop(finales.get(m, 0))] for m, _g in cot.ppf_marcas]
+            filas_fin = [["TOTAL con " + m, _cop(finales.get(m, 0))] for m, _g in marcas]
             t_fin = Table(filas_fin, colWidths=[110 * mm, 65 * mm], hAlign="RIGHT")
             t_fin.setStyle(TableStyle([
                 ("ALIGN", (0, 0), (-1, -1), "RIGHT"),
@@ -12823,13 +12892,13 @@ def _construir_pdf_cotizacion(cot: "Quote") -> bytes:
         else:
             hist += [Spacer(1, 5 * mm)]
     else:
-        tot = [["Subtotal", _cop(cot.subtotal)]]
-        if cot.descuento_aplicado:
+        tot = [["Subtotal", _cop(subtotal)]]
+        if cot._descuento_sobre(subtotal):
             etiqueta = cot.discount_label or "Descuento"
             if cot.discount_type == "percentage":
                 etiqueta += f" ({cot.discount_value}%)"
-            tot.append([etiqueta, "− " + _cop(cot.descuento_aplicado)])
-        tot.append(["TOTAL", _cop(cot.total)])
+            tot.append([etiqueta, "− " + _cop(cot._descuento_sobre(subtotal))])
+        tot.append(["TOTAL", _cop(subtotal - cot._descuento_sobre(subtotal))])
 
         t_tot = Table(tot, colWidths=[110 * mm, 65 * mm], hAlign="RIGHT")
         t_tot.setStyle(TableStyle([
@@ -12858,19 +12927,39 @@ def _construir_pdf_cotizacion(cot: "Quote") -> bytes:
     # Una sola advertencia. Cuando el documento traía servicios y PPF salían dos
     # líneas diciendo lo mismo con otras palabras, y un pie que se repite se
     # deja de leer.
-    if cot.link_publico:
-        pie.append(f"Míralo interactivo y arma tu combinación en: {cot.link_publico}")
-    if cot.tiene_ppf and cot.items:
+
+    if ppf_items and items:
         pie.append("Los valores son estimados y se confirman al revisar el carro: pueden "
                    "variar según el estado real del vehículo y, en PPF, según marca, "
                    "modelo y complejidad de la instalación.")
-    elif cot.tiene_ppf:
+    elif ppf_items:
         pie.append("Los valores de PPF son estimados: pueden variar según marca, modelo, "
                    "estado del vehículo y complejidad de la instalación. Se confirman al "
                    "revisar el carro.")
     else:
         pie.append("Los precios pueden variar según el estado real del vehículo, "
                    "que se confirma en el diagnóstico presencial.")
+    # El link va en su propio recuadro y como enlace real: perdido entre la
+    # letra menuda del pie, nadie lo veía — y es lo que convierte el papel en
+    # algo con lo que el cliente puede jugar.
+    if cot.link_publico:
+        invita = Paragraph(
+            f'<font size=9 color="#1a1a1a"><b>Ármala a tu medida</b></font><br/>'
+            f'<font size=8 color="#6b6b6b">Marca y desmarca servicios y mira el total en vivo:</font><br/>'
+            f'<link href="{cot.link_publico}">'
+            f'<font size=9 color="#c8a04a"><b>{cot.link_publico}</b></font></link>',
+            ParagraphStyle("lk", parent=est_txt, leading=13))
+        caja = Table([[invita]], colWidths=[175 * mm])
+        caja.setStyle(TableStyle([
+            ("BOX", (0, 0), (-1, -1), 1, ACENTO),
+            ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#fdfaf2")),
+            ("LEFTPADDING", (0, 0), (-1, -1), 11),
+            ("RIGHTPADDING", (0, 0), (-1, -1), 11),
+            ("TOPPADDING", (0, 0), (-1, -1), 9),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 9),
+        ]))
+        hist += [caja, Spacer(1, 5 * mm)]
+
     hist += [Table([[""]], colWidths=[175 * mm], style=TableStyle([
         ("LINEBELOW", (0, 0), (-1, -1), 0.6, LINEA)]))]
     hist += [Spacer(1, 2.5 * mm),

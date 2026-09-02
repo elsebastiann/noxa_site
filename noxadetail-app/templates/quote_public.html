@@ -78,7 +78,7 @@
         text-decoration:none; padding:13px; border-radius:10px; margin-top:13px; font-size:.94rem; }
   .wa:hover { background:#1eb457; }
 
-  .pdf { display:block; text-align:center; border:1.5px solid var(--linea);
+  .pdf { display:block; width:100%; background:none; cursor:pointer; text-align:center; border:1.5px solid var(--linea);
          color:var(--tinta); font-weight:600; text-decoration:none; padding:11px;
          border-radius:10px; margin-top:8px; font-size:.9rem; }
   .pdf:hover { border-color:var(--acento); color:var(--acento); }
@@ -168,9 +168,15 @@
       <span class="lbl">Total</span><span class="grande" id="tot"></span>
     </div>
     <a class="wa" id="btnWa" target="_blank" rel="noopener">Escribirnos por WhatsApp</a>
-    <a class="pdf" href="{{ url_for('quote_public_pdf', token=c.public_token) }}">
-      Descargar cotización en PDF
-    </a>
+    {# Form y no enlace: el PDF sale con lo que el cliente tiene marcado en ese
+       momento. Un GET habría bajado siempre la cotización completa, y el
+       guardado automático corre con retraso, así que tampoco servía guardar
+       primero y descargar después. #}
+    <form method="POST" action="{{ url_for('quote_public_pdf', token=c.public_token) }}"
+          id="formPdf" class="m-0">
+      <div id="camposPdf"></div>
+      <button type="submit" class="pdf">Descargar esta cotización en PDF</button>
+    </form>
   </div>
 
   <div class="nota">
@@ -274,21 +280,40 @@ function pintar() {
   if ($sub) { $sub.textContent = fmt(sub); document.getElementById("desc").textContent = "− " + fmt(desc); }
   document.getElementById("tot").textContent = fmt(sub - desc);
 
-  // Mensaje en renglones y no en un párrafo corrido: quien lo recibe tiene que
-  // poder leer el código, la placa y el total de un vistazo, sin desarmar una
-  // frase. Los saltos de línea van literales; encodeURIComponent los cuida.
+  // El mensaje lleva TODO lo que el cliente armó, detallado y en renglones.
+  // Antes solo nombraba la marca de PPF, así que al otro lado llegaba un total
+  // sin manera de saber de qué se compone — y tocaba volver a preguntarlo.
   const lineas = [
     "Hola, les escribo por esta cotización:",
     "",
-    `• Código: ${CODIGO}`,
+    `Código: ${CODIGO}`,
   ];
-  if (VEHICULO) lineas.push(`• Vehículo: ${VEHICULO}`);
-  if (PLACA) lineas.push(`• Placa: ${PLACA}`);
-  if (marca) {
-    const tarjeta = document.querySelector(`.marca[data-marca="${CSS.escape(marca)}"] .g`);
-    lineas.push(`• PPF: ${marca}${tarjeta ? ` (${tarjeta.textContent.toLowerCase()})` : ""}`);
+  if (VEHICULO) lineas.push(`Vehículo: ${VEHICULO}`);
+  if (PLACA) lineas.push(`Placa: ${PLACA}`);
+
+  const svcs = [...document.querySelectorAll("[data-svc]")].filter(f => f.querySelector("input").checked);
+  if (svcs.length) {
+    lineas.push("", "Servicios:");
+    svcs.forEach(f => lineas.push(
+      `• ${f.querySelector(".nom").textContent.trim()} — ${f.querySelector(".val").textContent.trim()}`));
   }
-  lineas.push(`• Total: ${fmt(sub - desc)}`);
+
+  const cobs = PPF.map((cob, i) => ({cob, i}))
+    .filter(({cob}) => document.querySelector(`[data-ppf="${CSS.escape(cob)}"] input`).checked);
+  if (cobs.length && marca) {
+    const gar = document.querySelector(`.marca[data-marca="${CSS.escape(marca)}"] .g`);
+    lineas.push("", `PPF ${marca}${gar ? ` (${gar.textContent.toLowerCase()})` : ""}:`);
+    cobs.forEach(({cob, i}) => {
+      const porQuien = absorbidaPor(i);
+      // La absorbida se nombra igual —el cliente la quiere— pero sin precio,
+      // para que el listado sume lo mismo que el total de abajo.
+      const p = PRECIOS_PPF[i][marca];
+      lineas.push(`• ${cob} — ${porQuien ? `incluida en ${porQuien}`
+                                         : (p ? fmt(p) : "no incluida")}`);
+    });
+  }
+
+  lineas.push("", `Total: ${fmt(sub - desc)}`);
   document.getElementById("btnWa").href =
     `https://wa.me/${WA}?text=${encodeURIComponent(lineas.join("\n"))}`;
 }
@@ -310,6 +335,19 @@ function guardarSeleccion() {
     }).catch(() => {});   // si falla, el cliente no tiene por qué enterarse
   }, 2500);
 }
+
+// El formulario del PDF se llena justo antes de enviarse, con lo que esté
+// marcado en ese instante.
+document.getElementById("formPdf").addEventListener("submit", () => {
+  const campos = [];
+  document.querySelectorAll("[data-svc] input:checked").forEach(i =>
+    campos.push(`<input type="hidden" name="items" value="${i.closest("[data-svc]").dataset.svc}">`));
+  document.querySelectorAll("[data-ppf] input:checked").forEach(i =>
+    campos.push(`<input type="hidden" name="ppf" value="${esc(i.closest("[data-ppf]").dataset.ppf)}">`));
+  const m = marcaActual();
+  if (m) campos.push(`<input type="hidden" name="marca" value="${esc(m)}">`);
+  document.getElementById("camposPdf").innerHTML = campos.join("");
+});
 
 document.querySelectorAll('input[type=checkbox]').forEach(i =>
   i.addEventListener("change", () => { pintar(); guardarSeleccion(); }));
