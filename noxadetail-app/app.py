@@ -12648,7 +12648,8 @@ def _construir_pdf_cotizacion(cot: "Quote", version=None) -> bytes:
     from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
     from reportlab.lib.units import mm
     from reportlab.platypus import (
-        Image as RLImage, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle,
+        Image as RLImage, KeepTogether, Paragraph, SimpleDocTemplate, Spacer,
+        Table, TableStyle,
     )
 
     TINTA   = colors.HexColor("#1a1a1a")
@@ -12899,21 +12900,20 @@ def _construir_pdf_cotizacion(cot: "Quote", version=None) -> bytes:
         # bloque si aporta algo que la fila "TOTAL PPF" no diga ya —o sea,
         # cuando además hay servicios o hay descuento.
         if items or cot._descuento_sobre(subtotal):
-            tot = []
+            bloque = []
             if cot.discount_value and cot.discount_type:
                 etiqueta = cot.discount_label or "Descuento"
                 if cot.discount_type == "percentage":
                     etiqueta += f" ({cot.discount_value}%)"
-                tot.append([etiqueta, "aplicado a cada opción"])
-            if tot:
-                t_res = Table(tot, colWidths=[110 * mm, 65 * mm], hAlign="RIGHT")
+                t_res = Table([[etiqueta, "aplicado a cada opción"]],
+                              colWidths=[110 * mm, 65 * mm], hAlign="RIGHT")
                 t_res.setStyle(TableStyle([
                     ("ALIGN", (0, 0), (-1, -1), "RIGHT"),
                     ("TEXTCOLOR", (0, 0), (-1, -1), SUAVE),
                     ("FONTSIZE", (0, 0), (-1, -1), 9.5),
                     ("RIGHTPADDING", (0, 0), (-1, -1), 0),
                 ]))
-                hist += [t_res, Spacer(1, 3 * mm)]
+                bloque += [t_res, Spacer(1, 3 * mm)]
 
             filas_fin = [["TOTAL con " + m, _cop(finales.get(m, 0))] for m, _g in marcas]
             t_fin = Table(filas_fin, colWidths=[110 * mm, 65 * mm], hAlign="RIGHT")
@@ -12926,7 +12926,12 @@ def _construir_pdf_cotizacion(cot: "Quote", version=None) -> bytes:
                 ("TOPPADDING", (0, 0), (-1, -1), 6),
                 ("RIGHTPADDING", (0, 0), (-1, -1), 0),
             ]))
-            hist += [t_fin, Spacer(1, 5 * mm)]
+            bloque.append(t_fin)
+
+            # Va entero o pasa a la página siguiente. Ver dos de tres totales al
+            # final de una hoja y el tercero solo arriba de la otra hace ver el
+            # documento roto justo donde el cliente compara precios.
+            hist += [KeepTogether(bloque), Spacer(1, 5 * mm)]
         else:
             hist += [Spacer(1, 5 * mm)]
     else:
