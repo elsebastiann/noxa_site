@@ -592,3 +592,161 @@ class TestCotizarPpf:
         with client.session_transaction() as sess:
             sess["user_id"] = uid
         assert client.get("/ppf-prices").status_code == 302
+
+
+class TestEditar:
+    """Editar una cotización ya emitida conservando su código."""
+
+    def _login_admin(self, client):
+        with A.app.app_context():
+            uid = make_user(f"ed{next(_u)}", role="admin").id
+        with client.session_transaction() as sess:
+            sess["user_id"] = uid
+
+    def test_la_pantalla_precarga_los_datos(self, client):
+        self._login_admin(client)
+        code = _cotizacion(customer_name="Ana Restrepo", items=[("Lavado", 90000, 1)])
+        try:
+            r = client.get(f"/quotes/{code}/edit")
+            assert r.status_code == 200
+            assert "Ana Restrepo".encode() in r.data
+        finally:
+            _borrar(code)
+
+    def test_el_codigo_no_cambia(self, client):
+        """Es el identificador que el cliente ya tiene; cambiarlo lo dejaría
+        buscando una cotización que no existe."""
+        self._login_admin(client)
+        code = _cotizacion(items=[("Lavado", 90000, 1)])
+        try:
+            client.post(f"/quotes/{code}/edit", data={
+                "customer_name": "Otro Nombre",
+                "item_desc": ["Lavado"], "item_price": ["90000"], "item_qty": ["1"],
+                "item_service_id": [""], "item_detail": [""],
+            })
+            with A.app.app_context():
+                c = A.Quote.query.filter_by(code=code).first()
+                assert c is not None, "se perdió el código"
+                assert c.customer_name == "Otro Nombre"
+        finally:
+            _borrar(code)
+
+    def test_reemplaza_las_lineas_no_las_suma(self, client):
+        self._login_admin(client)
+        code = _cotizacion(items=[("A", 100000, 1), ("B", 50000, 1)])
+        try:
+            client.post(f"/quotes/{code}/edit", data={
+                "customer_name": "Cliente Prueba",
+                "item_desc": ["Solo esta"], "item_price": ["70000"], "item_qty": ["1"],
+                "item_service_id": [""], "item_detail": [""],
+            })
+            with A.app.app_context():
+                c = A.Quote.query.filter_by(code=code).first()
+                assert len(c.items) == 1
+                assert c.total == 70000
+        finally:
+            _borrar(code)
+
+    def test_deja_registrado_que_se_edito(self, client):
+        self._login_admin(client)
+        code = _cotizacion(items=[("A", 100000, 1)])
+        try:
+            with A.app.app_context():
+                assert A.Quote.query.filter_by(code=code).first().updated_at is None
+            client.post(f"/quotes/{code}/edit", data={
+                "customer_name": "Cliente Prueba",
+                "item_desc": ["A"], "item_price": ["100000"], "item_qty": ["1"],
+                "item_service_id": [""], "item_detail": [""],
+            })
+            with A.app.app_context():
+                c = A.Quote.query.filter_by(code=code).first()
+                assert c.updated_at is not None
+                assert c.updated_by
+        finally:
+            _borrar(code)
+
+    def test_guardar_sin_cambios_no_revalida_la_cotizacion(self, client):
+        """Si la vigencia se contara desde hoy, abrir y guardar una cotización
+        vencida la revalidaría sola sin que nadie lo decidiera."""
+        self._login_admin(client)
+        code = _cotizacion(items=[("A", 100000, 1)])
+        with A.app.app_context():
+            c = A.Quote.query.filter_by(code=code).first()
+            c.created_at = A.datetime.utcnow() - A.timedelta(days=40)
+            c.valid_until = c.created_at.date() + A.timedelta(days=15)
+            A.db.session.commit()
+            vencia = c.valid_until
+        try:
+            client.post(f"/quotes/{code}/edit", data={
+                "customer_name": "Cliente Prueba", "valid_days": "15",
+                "item_desc": ["A"], "item_price": ["100000"], "item_qty": ["1"],
+                "item_service_id": [""], "item_detail": [""],
+            })
+            with A.app.app_context():
+                c = A.Quote.query.filter_by(code=code).first()
+                assert c.valid_until == vencia
+                assert not c.vigente
+        finally:
+            _borrar(code)
+
+    def test_una_cobertura_que_sigue_puesta_conserva_su_precio(self, client):
+        """Refrescarla contra la tabla cambiaría en silencio una cifra que el
+        cliente ya vio."""
+        self._login_admin(client)
+        r = client.post("/quotes/new", data={
+            "customer_name": "PPF Edit", "ppf_coverage": ["Manijas"]})
+        code = r.headers["Location"].rstrip("/").split("/")[-1]
+        try:
+            with A.app.app_context():
+                p = A.PpfPrice.query.filter_by(coverage="Manijas", brand="XPEL").first()
+                original, p.price = p.price, 999_000
+                A.db.session.commit()
+            client.post(f"/quotes/{code}/edit", data={
+                "customer_name": "PPF Edit", "ppf_coverage": ["Manijas"]})
+            with A.app.app_context():
+                c = A.Quote.query.filter_by(code=code).first()
+                assert c.ppf_items[0].precios["XPEL"] == original
+                A.PpfPrice.query.filter_by(coverage="Manijas", brand="XPEL").first().price = original
+                A.db.session.commit()
+        finally:
+            _borrar(code)
+
+    def test_una_cobertura_nueva_toma_el_precio_vigente(self, client):
+        self._login_admin(client)
+        r = client.post("/quotes/new", data={
+            "customer_name": "PPF Edit2", "ppf_coverage": ["Manijas"]})
+        code = r.headers["Location"].rstrip("/").split("/")[-1]
+        try:
+            client.post(f"/quotes/{code}/edit", data={
+                "customer_name": "PPF Edit2", "ppf_coverage": ["Manijas", "Full Front"]})
+            with A.app.app_context():
+                c = A.Quote.query.filter_by(code=code).first()
+                nueva = next(i for i in c.ppf_items if i.coverage == "Full Front")
+                assert nueva.precios["XPEL"] == 4_000_000
+        finally:
+            _borrar(code)
+
+    def test_no_se_puede_dejar_vacia(self, client):
+        self._login_admin(client)
+        code = _cotizacion(items=[("A", 100000, 1)])
+        try:
+            client.post(f"/quotes/{code}/edit", data={"customer_name": "Cliente Prueba"})
+            with A.app.app_context():
+                assert len(A.Quote.query.filter_by(code=code).first().items) == 1
+        finally:
+            _borrar(code)
+
+    def test_editar_una_que_no_existe_no_revienta(self, client):
+        self._login_admin(client)
+        assert client.get("/quotes/NX-NOEXIS/edit").status_code == 302
+
+    def test_el_operario_no_puede_editar(self, client):
+        with A.app.app_context():
+            uid = make_user(f"edop{next(_u)}", role="operario").id
+        with client.session_transaction() as sess:
+            sess["user_id"] = uid
+        code = _cotizacion(items=[("A", 100000, 1)])
+        try:
+            assert client.get(f"/quotes/{code}/edit").status_code == 302
+        finally:
+            _borrar(code)

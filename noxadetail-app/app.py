@@ -868,6 +868,11 @@ class Quote(db.Model):
 
     created_by = db.Column(db.String(80), nullable=True)
     created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    # Se llena solo cuando la cotización se edita después de emitida. Importa
+    # porque el cliente puede tener en la mano un PDF viejo con este mismo
+    # código, y hay que poder saber cuál es cuál.
+    updated_at = db.Column(db.DateTime, nullable=True)
+    updated_by = db.Column(db.String(80), nullable=True)
 
     items = db.relationship(
         "QuoteItem", backref="quote", lazy=True,
@@ -1150,6 +1155,21 @@ def seed_ppf_prices():
             db.session.add_all(nuevos)
             db.session.commit()
             app.logger.info(f"[PPF] Se cargaron {len(nuevos)} precios de PPF.")
+
+
+def ensure_quote_updated_schema():
+    """`quotes` ya existe en producción sin estas columnas."""
+    with app.app_context():
+        try:
+            db.session.execute(text("SELECT updated_at, updated_by FROM quotes LIMIT 1"))
+        except Exception:
+            for ddl in ("ALTER TABLE quotes ADD COLUMN updated_at DATETIME",
+                        "ALTER TABLE quotes ADD COLUMN updated_by VARCHAR(80)"):
+                try:
+                    db.session.execute(text(ddl))
+                    db.session.commit()
+                except Exception:
+                    db.session.rollback()
 
 
 def ensure_quote_ppf_brands_schema():
@@ -7453,6 +7473,7 @@ ensure_users_schema()
 # antes de eso las tablas de cotizaciones y PPF pueden no existir todavía.
 ensure_quote_item_detail_schema()
 ensure_quote_ppf_brands_schema()
+ensure_quote_updated_schema()
 seed_ppf_prices()
 
 # --- Seed: crear super admin si no existe ningún usuario ---
@@ -11855,6 +11876,101 @@ def quotes_list():
     return render_template("quotes_list.html", cotizaciones=cotizaciones, busqueda=busqueda)
 
 
+def _leer_formulario_de_cotizacion(cot: "Quote") -> str | None:
+    """Vuelca el formulario sobre `cot`. Devuelve el error, o None si quedó bien.
+
+    Compartida por crear y editar: si cada una armara la cotización por su lado,
+    una regla que se corrija en un sitio —el tope del descuento, la
+    normalización de la placa— se quedaría sin corregir en el otro.
+    """
+    nombre = (request.form.get("customer_name") or "").strip()
+    if not nombre:
+        return "El nombre del cliente es obligatorio."
+
+    descripciones = request.form.getlist("item_desc")
+    precios       = request.form.getlist("item_price")
+    cantidades    = request.form.getlist("item_qty")
+    servicios     = request.form.getlist("item_service_id")
+    detalles      = request.form.getlist("item_detail")
+
+    lineas = []
+    for i, desc in enumerate(descripciones):
+        desc = (desc or "").strip()
+        if not desc:
+            continue
+        precio = max(0, _int_o_cero(precios[i] if i < len(precios) else 0))
+        cant   = max(1, _int_o_cero(cantidades[i] if i < len(cantidades) else 1))
+        sid_raw = servicios[i] if i < len(servicios) else ""
+        det = (detalles[i] if i < len(detalles) else "") or ""
+        lineas.append(QuoteItem(
+            description=desc[:200], unit_price=precio, quantity=cant,
+            detail=det.strip() or None,
+            service_id=int(sid_raw) if (sid_raw or "").isdigit() else None,
+        ))
+
+    # Al editar, una cobertura que ya estaba conserva los precios con los que se
+    # emitió. Refrescarlos contra la tabla cambiaría en silencio cifras que el
+    # cliente ya vio, que es justo lo que el diseño evita en todo lo demás.
+    previos = {it.coverage: it.prices_json for it in (cot.ppf_items or [])}
+
+    # El navegador manda solo los nombres; los precios de una cobertura NUEVA se
+    # congelan aquí, contra la tabla, para que no se puedan alterar desde el POST.
+    ppf_lineas = []
+    vistas = set()
+    for orden, cob in enumerate(request.form.getlist("ppf_coverage")):
+        cob = (cob or "").strip()
+        if not cob or cob in vistas:
+            continue
+        vistas.add(cob)
+        filas = PpfPrice.query.filter_by(coverage=cob, is_active=True).all()
+        if not filas:
+            continue
+        ppf_lineas.append(QuotePpfItem(
+            coverage=cob,
+            contains=next((f.contains for f in filas if f.contains), None),
+            orden=filas[0].orden if filas else orden,
+            prices_json=previos.get(cob) or json.dumps({f.brand: f.price for f in filas}),
+        ))
+
+    if not lineas and not ppf_lineas:
+        return "Agrega al menos un servicio o una cobertura de PPF."
+
+    tipo_desc = request.form.get("discount_type") or None
+    if tipo_desc not in ("percentage", "absolute"):
+        tipo_desc, valor_desc = None, 0
+    else:
+        valor_desc = max(0, _int_o_cero(request.form.get("discount_value")))
+        if tipo_desc == "percentage":
+            valor_desc = min(100, valor_desc)
+        if valor_desc == 0:
+            tipo_desc = None
+
+    vt_id = request.form.get("vehicle_type_id")
+    vt = VehicleType.query.get(int(vt_id)) if (vt_id or "").isdigit() else None
+
+    dias = _int_o_cero(request.form.get("valid_days")) or QUOTE_VALID_DAYS
+    # La vigencia se cuenta desde que se emitió, no desde hoy: si contara desde
+    # hoy, abrir y guardar una cotización sin cambiarle nada la revalidaría sola.
+    desde = (cot.created_at or datetime.utcnow()).date()
+
+    cot.customer_name  = nombre[:120]
+    cot.customer_phone = (request.form.get("customer_phone") or "").strip()[:40] or None
+    cot.plate          = normalize_plate(request.form.get("plate") or "") or None
+    cot.vehicle_label  = (request.form.get("vehicle_label") or "").strip()[:120] or None
+    cot.vehicle_type_id   = vt.id if vt else None
+    cot.vehicle_type_name = vt.name if vt else None
+    cot.discount_type  = tipo_desc
+    cot.discount_value = valor_desc
+    cot.discount_label = (request.form.get("discount_label") or "").strip()[:120] or None
+    cot.notes          = (request.form.get("notes") or "").strip() or None
+    cot.valid_until    = desde + timedelta(days=max(1, dias))
+    cot.items     = lineas
+    cot.ppf_items = ppf_lineas
+    if ppf_lineas and not cot.ppf_brands:
+        cot.ppf_brands = json.dumps([[m, g] for m, g in PPF_MARCAS])
+    return None
+
+
 @app.route("/quotes/new", methods=["GET", "POST"])
 def quote_new():
     if not puede_cotizar():
@@ -11862,104 +11978,66 @@ def quote_new():
         return redirect(url_for("calendar_view"))
 
     if request.method == "POST":
-        nombre = (request.form.get("customer_name") or "").strip()
-        if not nombre:
-            flash("El nombre del cliente es obligatorio.", "danger")
+        cot = Quote(code=_nuevo_codigo_cotizacion(), customer_name="",
+                    created_at=datetime.utcnow(),
+                    created_by=getattr(getattr(g, "current_user", None), "username", None))
+        error = _leer_formulario_de_cotizacion(cot)
+        if error:
+            flash(error, "danger")
             return redirect(url_for("quote_new"))
-
-        descripciones = request.form.getlist("item_desc")
-        precios       = request.form.getlist("item_price")
-        cantidades    = request.form.getlist("item_qty")
-        servicios     = request.form.getlist("item_service_id")
-        detalles      = request.form.getlist("item_detail")
-
-        lineas = []
-        for i, desc in enumerate(descripciones):
-            desc = (desc or "").strip()
-            if not desc:
-                continue
-            precio = max(0, _int_o_cero(precios[i] if i < len(precios) else 0))
-            cant   = max(1, _int_o_cero(cantidades[i] if i < len(cantidades) else 1))
-            sid_raw = servicios[i] if i < len(servicios) else ""
-            det = (detalles[i] if i < len(detalles) else "") or ""
-            lineas.append(QuoteItem(
-                description=desc[:200], unit_price=precio, quantity=cant,
-                detail=det.strip() or None,
-                service_id=int(sid_raw) if (sid_raw or "").isdigit() else None,
-            ))
-
-        # El navegador manda solo los nombres de las coberturas; los precios se
-        # congelan aquí, contra la tabla, para que no se puedan alterar desde el
-        # formulario y para que queden fijos como el resto de la cotización.
-        ppf_lineas = []
-        vistas = set()
-        for orden, cob in enumerate(request.form.getlist("ppf_coverage")):
-            cob = (cob or "").strip()
-            if not cob or cob in vistas:
-                continue
-            vistas.add(cob)
-            filas = PpfPrice.query.filter_by(coverage=cob, is_active=True).all()
-            if not filas:
-                continue
-            ppf_lineas.append(QuotePpfItem(
-                coverage=cob,
-                contains=next((f.contains for f in filas if f.contains), None),
-                orden=filas[0].orden if filas else orden,
-                prices_json=json.dumps({f.brand: f.price for f in filas}),
-            ))
-
-        if not lineas and not ppf_lineas:
-            flash("Agrega al menos un servicio o una cobertura de PPF.", "danger")
-            return redirect(url_for("quote_new"))
-
-        tipo_desc = request.form.get("discount_type") or None
-        if tipo_desc not in ("percentage", "absolute"):
-            tipo_desc, valor_desc = None, 0
-        else:
-            valor_desc = max(0, _int_o_cero(request.form.get("discount_value")))
-            if tipo_desc == "percentage":
-                valor_desc = min(100, valor_desc)
-            if valor_desc == 0:
-                tipo_desc = None
-
-        vt_id = request.form.get("vehicle_type_id")
-        vt = VehicleType.query.get(int(vt_id)) if (vt_id or "").isdigit() else None
-
-        dias = _int_o_cero(request.form.get("valid_days")) or QUOTE_VALID_DAYS
-
-        cot = Quote(
-            code=_nuevo_codigo_cotizacion(),
-            customer_name=nombre[:120],
-            customer_phone=(request.form.get("customer_phone") or "").strip()[:40] or None,
-            plate=normalize_plate(request.form.get("plate") or "") or None,
-            vehicle_label=(request.form.get("vehicle_label") or "").strip()[:120] or None,
-            vehicle_type_id=vt.id if vt else None,
-            vehicle_type_name=vt.name if vt else None,
-            discount_type=tipo_desc,
-            discount_value=valor_desc,
-            discount_label=(request.form.get("discount_label") or "").strip()[:120] or None,
-            notes=(request.form.get("notes") or "").strip() or None,
-            valid_until=bogota_now().date() + timedelta(days=max(1, dias)),
-            created_by=getattr(getattr(g, "current_user", None), "username", None),
-        )
-        cot.items = lineas
-        cot.ppf_items = ppf_lineas
-        if ppf_lineas:
-            cot.ppf_brands = json.dumps([[m, g] for m, g in PPF_MARCAS])
         db.session.add(cot)
         db.session.commit()
-
         flash(f"Cotización {cot.code} creada.", "success")
         return redirect(url_for("quote_detail", code=cot.code))
 
-    tipos = VehicleType.query.filter_by(is_active=True).order_by(VehicleType.name).all()
     return render_template(
         "quote_form.html",
-        tipos=tipos,
+        cot=None,
+        tipos=VehicleType.query.filter_by(is_active=True).order_by(VehicleType.name).all(),
         catalogo=_catalogo_para_cotizar(),
         catalogo_ppf=_catalogo_ppf(),
         marcas_ppf=PPF_MARCAS,
         dias_por_defecto=QUOTE_VALID_DAYS,
+    )
+
+
+@app.route("/quotes/<code>/edit", methods=["GET", "POST"])
+def quote_edit(code):
+    if not puede_cotizar():
+        flash("Acceso restringido.", "danger")
+        return redirect(url_for("calendar_view"))
+    cot = Quote.query.filter_by(code=code).first()
+    if not cot:
+        flash("No existe esa cotización.", "danger")
+        return redirect(url_for("quotes_list"))
+
+    if request.method == "POST":
+        error = _leer_formulario_de_cotizacion(cot)
+        if error:
+            flash(error, "danger")
+            return redirect(url_for("quote_edit", code=cot.code))
+        cot.updated_at = datetime.utcnow()
+        cot.updated_by = getattr(getattr(g, "current_user", None), "username", None)
+        db.session.commit()
+        flash(f"Cotización {cot.code} actualizada.", "success")
+        return redirect(url_for("quote_detail", code=cot.code))
+
+    # Estado inicial para el JS: las mismas estructuras que arma el navegador.
+    lineas = [{"desc": it.description, "precio": it.unit_price, "cant": it.quantity,
+               "serviceId": it.service_id, "detalle": it.detail or ""}
+              for it in cot.items]
+    dias = max(1, (cot.valid_until - cot.created_at.date()).days) if cot.valid_until else QUOTE_VALID_DAYS
+
+    return render_template(
+        "quote_form.html",
+        cot=cot,
+        lineas_iniciales=lineas,
+        ppf_iniciales=[it.coverage for it in cot.ppf_items],
+        tipos=VehicleType.query.filter_by(is_active=True).order_by(VehicleType.name).all(),
+        catalogo=_catalogo_para_cotizar(),
+        catalogo_ppf=_catalogo_ppf(),
+        marcas_ppf=PPF_MARCAS,
+        dias_por_defecto=dias,
     )
 
 
@@ -12043,6 +12121,11 @@ def _construir_pdf_cotizacion(cot: "Quote") -> bytes:
         Paragraph(cot.created_at.strftime("%d/%m/%Y"), ParagraphStyle(
             "rs", parent=est_sub, alignment=TA_RIGHT)),
     ]
+    if cot.updated_at:
+        # El cliente puede tener en la mano un PDF viejo con este mismo código.
+        der.append(Paragraph(
+            f"actualizada el {cot.updated_at.strftime('%d/%m/%Y')}",
+            ParagraphStyle("ru", parent=est_sub, alignment=TA_RIGHT, fontSize=7.5)))
     cab = Table([[izq, der]], colWidths=[100 * mm, 75 * mm])
     cab.setStyle(TableStyle([
         ("VALIGN", (0, 0), (-1, -1), "TOP"),

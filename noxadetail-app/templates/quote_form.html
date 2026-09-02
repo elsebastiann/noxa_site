@@ -67,6 +67,12 @@
                font-weight:700; color:#fff; }
   .tot-marca .g { font-size:.72rem; color:var(--accent,#c8a04a); font-weight:600; }
   .vacio { color:#8a8a8a; font-size:.87rem; text-align:center; padding:22px 8px; }
+  .todas { display:flex; align-items:center; gap:7px; font-size:.83rem; color:#cfcfcf;
+           cursor:pointer; white-space:nowrap; background:rgba(255,255,255,.04);
+           border:1px solid rgba(255,255,255,.10); border-radius:8px; padding:6px 11px; }
+  .todas:hover { border-color:var(--accent,#c8a04a); color:#fff; }
+  .todas input { accent-color:var(--accent,#c8a04a); width:15px; height:15px; cursor:pointer; }
+
   .aviso-precio { font-size:.79rem; color:#ffd9a0; background:rgba(200,140,40,.14);
                   border:1px solid rgba(200,140,40,.4); border-radius:7px; padding:7px 9px; margin-top:9px; }
 </style>
@@ -75,9 +81,20 @@
 {% block content %}
 <div class="container-fluid px-3 px-lg-4 mt-4">
   <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
-    <h2 class="mb-0">Nueva cotización</h2>
-    <a href="{{ url_for('quotes_list') }}" class="btn btn-outline-secondary btn-sm">Ver cotizaciones</a>
+    <h2 class="mb-0">
+      {% if cot %}Editar cotización <span style="color:var(--accent,#c8a04a)">{{ cot.code }}</span>
+      {% else %}Nueva cotización{% endif %}
+    </h2>
+    <a href="{{ url_for('quote_detail', code=cot.code) if cot else url_for('quotes_list') }}"
+       class="btn btn-outline-secondary btn-sm">{{ 'Cancelar' if cot else 'Ver cotizaciones' }}</a>
   </div>
+
+  {% if cot %}
+  <div class="alert alert-secondary py-2 px-3 mb-3" style="font-size:.84rem">
+    El código <strong>{{ cot.code }}</strong> no cambia. Si ya le mandaste el PDF al cliente,
+    va a tener uno viejo con este mismo código — vuelve a enviárselo después de guardar.
+  </div>
+  {% endif %}
 
   <form method="POST" id="formCot">
   <div class="cot-wrap">
@@ -88,19 +105,23 @@
         <div class="row g-2">
           <div class="col-12 col-md-4">
             <label class="form-label small text-muted mb-1">Cliente *</label>
-            <input type="text" name="customer_name" class="form-control" required autofocus>
+            <input type="text" name="customer_name" class="form-control" required autofocus
+                   value="{{ cot.customer_name if cot else '' }}">
           </div>
           <div class="col-6 col-md-3">
             <label class="form-label small text-muted mb-1">Teléfono</label>
-            <input type="text" name="customer_phone" class="form-control">
+            <input type="text" name="customer_phone" class="form-control"
+                   value="{{ cot.customer_phone or '' if cot else '' }}">
           </div>
           <div class="col-6 col-md-2">
             <label class="form-label small text-muted mb-1">Placa</label>
-            <input type="text" name="plate" class="form-control text-uppercase">
+            <input type="text" name="plate" class="form-control text-uppercase"
+                   value="{{ cot.plate or '' if cot else '' }}">
           </div>
           <div class="col-12 col-md-3">
             <label class="form-label small text-muted mb-1">Vehículo</label>
-            <input type="text" name="vehicle_label" class="form-control" placeholder="Mazda 3 2021">
+            <input type="text" name="vehicle_label" class="form-control" placeholder="Mazda 3 2021"
+                   value="{{ cot.vehicle_label or '' if cot else '' }}">
           </div>
         </div>
       </div>
@@ -116,7 +137,7 @@
             <label class="small text-muted mb-0">Tipo de vehículo</label>
             <select name="vehicle_type_id" id="tipoVeh" class="form-select form-select-sm" style="width:auto">
               {% for t in tipos %}
-              <option value="{{ t.id }}">{{ t.name }}</option>
+              <option value="{{ t.id }}" {% if cot and cot.vehicle_type_id == t.id %}selected{% endif %}>{{ t.name }}</option>
               {% endfor %}
             </select>
           </div>
@@ -125,10 +146,15 @@
         </div>
 
         <div id="panePpf" hidden>
-          <p class="text-muted mb-3" style="font-size:.8rem">
-            Elige las partes a cubrir. La cotización compara las tres marcas en columnas,
-            para que el cliente decida.
-          </p>
+          <div class="d-flex justify-content-between align-items-center gap-3 mb-3 flex-wrap">
+            <p class="text-muted mb-0" style="font-size:.8rem; max-width:520px">
+              Elige las partes a cubrir. La cotización compara las tres marcas en columnas,
+              para que el cliente decida.
+            </p>
+            <label class="todas">
+              <input type="checkbox" id="ppfTodas"> Marcar todas
+            </label>
+          </div>
           <table class="mx">
             <thead>
               <tr>
@@ -174,24 +200,26 @@
         <div class="col-5">
           <select name="discount_type" id="dtipo" class="form-select form-select-sm">
             <option value="">Sin descuento</option>
-            <option value="percentage">Porcentaje</option>
-            <option value="absolute">Monto fijo</option>
+            <option value="percentage" {% if cot and cot.discount_type == 'percentage' %}selected{% endif %}>Porcentaje</option>
+            <option value="absolute" {% if cot and cot.discount_type == 'absolute' %}selected{% endif %}>Monto fijo</option>
           </select>
         </div>
         <div class="col-3">
           <input type="number" name="discount_value" id="dvalor" class="form-control form-control-sm"
-                 min="0" value="0" disabled>
+                 min="0" value="{{ cot.discount_value if cot and cot.discount_type else 0 }}"
+                 {% if not (cot and cot.discount_type) %}disabled{% endif %}>
         </div>
         <div class="col-4">
           <input type="text" name="discount_label" id="detiqueta" class="form-control form-control-sm"
-                 placeholder="Motivo" disabled>
+                 placeholder="Motivo" value="{{ cot.discount_label or '' if cot else '' }}"
+                 {% if not (cot and cot.discount_type) %}disabled{% endif %}>
         </div>
       </div>
 
       <div id="totales"></div>
 
       <label class="form-label small text-muted mb-1 mt-3">Observaciones</label>
-      <textarea name="notes" class="form-control form-control-sm" rows="2"></textarea>
+      <textarea name="notes" class="form-control form-control-sm" rows="2">{{ cot.notes or '' if cot else '' }}</textarea>
 
       <div class="d-flex align-items-center gap-2 mt-2">
         <label class="small text-muted mb-0">Válida por</label>
@@ -201,7 +229,7 @@
       </div>
 
       <button type="submit" class="btn btn-warning w-100 mt-3 fw-bold" id="btnGuardar" disabled>
-        Generar cotización y PDF
+        {{ 'Guardar cambios' if cot else 'Generar cotización y PDF' }}
       </button>
     </div>
   </div>
@@ -218,10 +246,10 @@ const fmt = n => "$" + (Math.round(n)||0).toLocaleString("es-CO");
 const esc = s => (s || "").replace(/"/g, "&quot;");
 
 // Servicios: {desc, precio, cant, serviceId|null, detalle}
-let lineas = [];
+let lineas = {{ (lineas_iniciales if cot else [])|tojson }};
 // PPF: solo el nombre de la cobertura. Los precios de las tres marcas los
 // congela el servidor al guardar, contra la tabla — no viajan por el formulario.
-let ppfPuestas = [];
+let ppfPuestas = {{ (ppf_iniciales if cot else [])|tojson }};
 
 const $cat = document.getElementById("catalogo");
 const $lineas = document.getElementById("lineas");
@@ -282,7 +310,16 @@ function pintarMatrizPpf() {
     if (i >= 0) ppfPuestas.splice(i, 1); else ppfPuestas.push(cob);
     pintarTodo();
   });
+
+  const $todas = document.getElementById("ppfTodas");
+  $todas.checked = ppfPuestas.length === PPF.length && PPF.length > 0;
+  $todas.indeterminate = ppfPuestas.length > 0 && ppfPuestas.length < PPF.length;
 }
+
+document.getElementById("ppfTodas").onchange = e => {
+  ppfPuestas = e.target.checked ? PPF.map(x => x.cobertura) : [];
+  pintarTodo();
+};
 
 /* ---------------- líneas de la derecha ---------------- */
 function pintarLineas() {
