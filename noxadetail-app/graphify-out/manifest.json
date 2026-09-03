@@ -75,8 +75,8 @@
     "semantic_hash": ""
   },
   "templates/base.html": {
-    "mtime": 1788357058.7775123,
-    "ast_hash": "9d7f2febd6cc7cdadc62218e2f93ab37",
+    "mtime": 1788455830.7702365,
+    "ast_hash": "2e00208b66e555752d21e3b6fef07a9e",
     "semantic_hash": ""
   },
   "templates/calendar.html": {
@@ -432,6 +432,11 @@
   "tests/test_convenio_polarizado.py": {
     "mtime": 1788387728.3950245,
     "ast_hash": "69d2bd0dca0a117db329cfac079c20a1",
+    "semantic_hash": ""
+  },
+  "tests/test_nav_movil.py": {
+    "mtime": 1788455848.081235,
+    "ast_hash": "bbd888ecad72bc26af4cdaead63fc3f1",
     "semantic_hash": ""
   }
 }
