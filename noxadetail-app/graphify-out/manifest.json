@@ -1,7 +1,7 @@
 {
   "app.py": {
-    "mtime": 1788483790.8207762,
-    "ast_hash": "c19d53b18520b9b4724ca291399f59c1",
+    "mtime": 1788484921.90714,
+    "ast_hash": "3bde33a1eccfd9585235bb9b05ccd5b0",
     "semantic_hash": ""
   },
   "migrate_prices.py": {
@@ -390,8 +390,8 @@
     "semantic_hash": ""
   },
   "templates/quote_form.html": {
-    "mtime": 1788368927.332392,
-    "ast_hash": "84ee26ad6611664ce3b1d3391a8ef571",
+    "mtime": 1788484724.5062413,
+    "ast_hash": "84308c29f79ba07eb79f7cad7e6af387",
     "semantic_hash": ""
   },
   "templates/quotes_list.html": {
@@ -442,6 +442,11 @@
   "tests/test_marcas_ppf.py": {
     "mtime": 1788483881.297582,
     "ast_hash": "118706b11ecaf4016527ba7a1e4bd44a",
+    "semantic_hash": ""
+  },
+  "tests/test_grupos_libres.py": {
+    "mtime": 1788485008.6270149,
+    "ast_hash": "49d91ca15fd70e4a6cceff7a43a55ff5",
     "semantic_hash": ""
   }
 }

@@ -1146,6 +1146,12 @@ class QuotePpfItem(db.Model):
     parts_json = db.Column(db.Text, nullable=True)
     # "exterior"/"interior" cuando el grupo cubre una zona entera.
     cubre_zona = db.Column(db.String(20), nullable=True)
+    # Adicional de fotocromático por marca, ya congelado. Vacío o nulo = no se
+    # cotizó con fotocromático. Se guarda aparte del precio y no sumado dentro
+    # para poder mostrarle al cliente de dónde sale el sobrecosto.
+    foto_prices_json = db.Column(db.Text, nullable=True)
+    # Un grupo armado en la cotización, que no está en el catálogo.
+    es_personalizado = db.Column(db.Boolean, nullable=False, default=False)
     orden    = db.Column(db.Integer, nullable=False, default=0)
 
     # {"SPECTRA": 2500000, "AVERY": 3000000, "XPEL": 4000000}. Un null significa
@@ -1165,6 +1171,17 @@ class QuotePpfItem(db.Model):
             return json.loads(self.parts_json or "[]")
         except Exception:
             return []
+
+    @property
+    def precios_foto(self) -> dict:
+        try:
+            return json.loads(self.foto_prices_json or "{}")
+        except Exception:
+            return {}
+
+    @property
+    def con_fotocromatico(self) -> bool:
+        return bool(self.precios_foto)
 
     def __repr__(self):
         return f"<QuotePpfItem {self.coverage} {self.precios}>"
@@ -1690,15 +1707,21 @@ def _ppf_no_cubre_en(ppf_items, marcas, absorbidas) -> dict:
 
 
 def ppf_totales_de(ppf_items, marcas) -> dict:
-    """{marca: total} sobre una lista de coberturas, sin lo absorbido."""
+    """{marca: total} sobre una lista de coberturas, sin lo absorbido.
+
+    El adicional de fotocromático se suma al precio del grupo. Solo cuenta en
+    las marcas que además tienen precio base: cobrar el adicional de una marca
+    que no ofrece el grupo sería cobrar el extra de algo que no se vende.
+    """
     absorbidas = absorbidas_en(ppf_items)
     tot = {m: 0 for m in marcas}
     for it in ppf_items:
         if it.coverage in absorbidas:
             continue
+        extra = getattr(it, "precios_foto", {}) or {}
         for marca, precio in it.precios.items():
             if precio and marca in tot:
-                tot[marca] += precio
+                tot[marca] += precio + (extra.get(marca) or 0)
     return tot
 
 
@@ -1857,7 +1880,9 @@ def seed_ppf_prices():
 
 def ensure_quote_ppf_parts_schema():
     with app.app_context():
-        for col, tipo in (("parts_json", "TEXT"), ("cubre_zona", "VARCHAR(20)")):
+        for col, tipo in (("parts_json", "TEXT"), ("cubre_zona", "VARCHAR(20)"),
+                          ("foto_prices_json", "TEXT"),
+                          ("es_personalizado", "BOOLEAN DEFAULT 0")):
             try:
                 db.session.execute(text(f"SELECT {col} FROM quote_ppf_items LIMIT 1"))
                 continue
@@ -12607,6 +12632,15 @@ def _catalogo_para_cotizar() -> dict:
     return catalogo
 
 
+def _partes_ppf() -> list:
+    """[{nombre, zona, comodin}, ...] para armar grupos en la cotización."""
+    return [
+        {"nombre": p.name, "zona": p.zona, "comodin": bool(p.es_comodin)}
+        for p in PpfPart.query.filter_by(is_active=True)
+                              .order_by(PpfPart.orden, PpfPart.id).all()
+    ]
+
+
 def _catalogo_ppf() -> list:
     """[{cobertura, contiene, partes, precios, foto, cubre_zona}, ...]
 
@@ -12762,12 +12796,26 @@ def _leer_formulario_de_cotizacion(cot: "Quote") -> str | None:
     # Al editar, una cobertura que ya estaba conserva los precios con los que se
     # emitió. Refrescarlos contra la tabla cambiaría en silencio cifras que el
     # cliente ya vio, que es justo lo que el diseño evita en todo lo demás.
-    previos = {it.coverage: it.prices_json for it in (cot.ppf_items or [])}
+    previos = {it.coverage: it for it in (cot.ppf_items or [])}
 
-    # El navegador manda solo los nombres; los precios de una cobertura NUEVA se
-    # congelan aquí, contra la tabla, para que no se puedan alterar desde el POST.
+    # Las marcas que se van a cotizar, con su garantía. Pueden no ser las del
+    # sistema: una cotización puede ir solo con dos marcas, o con una garantía
+    # negociada distinta de la de lista.
+    marcas_pedidas = []
+    for nombre in request.form.getlist("ppf_marca"):
+        nombre = (nombre or "").strip()
+        if not nombre or nombre in dict(marcas_pedidas):
+            continue
+        crudo = (request.form.get(f"ppf_garantia::{nombre}") or "").strip()
+        marcas_pedidas.append((nombre, _int_o_cero(crudo) if crudo else None))
+    marcas_validas = {m for m, _g in (marcas_pedidas or ppf_marcas_activas())}
+
     ppf_lineas = []
     vistas = set()
+
+    # 1) Grupos del catálogo. El navegador manda solo el nombre; los precios se
+    #    congelan acá, contra la tabla, para que no se puedan alterar desde el
+    #    formulario.
     for orden, cob in enumerate(request.form.getlist("ppf_coverage")):
         cob = (cob or "").strip()
         if not cob or cob in vistas:
@@ -12777,6 +12825,11 @@ def _leer_formulario_de_cotizacion(cot: "Quote") -> str | None:
         if not paquete:
             continue
         partes = [x.name for x in paquete.parts]
+        anterior = previos.get(cob)
+        # El adicional solo si se pidió Y el grupo lo admite.
+        con_foto = request.form.get(f"ppf_foto::{cob}") == "1" and paquete.admite_fotocromatico
+        foto = {m: v for m, v in paquete.precios_fotocromatico.items()
+                if m in marcas_validas} if con_foto else {}
         ppf_lineas.append(QuotePpfItem(
             coverage=cob,
             contains=paquete.contains or ", ".join(partes),
@@ -12785,7 +12838,45 @@ def _leer_formulario_de_cotizacion(cot: "Quote") -> str | None:
             parts_json=json.dumps(partes),
             cubre_zona=paquete.cubre_zona,
             orden=paquete.orden,
-            prices_json=previos.get(cob) or json.dumps(paquete.precios),
+            prices_json=(anterior.prices_json if anterior
+                         else json.dumps({m: v for m, v in paquete.precios.items()
+                                          if m in marcas_validas})),
+            foto_prices_json=json.dumps(foto) if foto else None,
+        ))
+
+    # 2) Grupos armados en la cotización. Acá los precios SÍ vienen del
+    #    formulario: no existen en ninguna tabla, los escribió quien cotiza.
+    # OJO con el nombre de la variable: `nombre` de arriba es el del CLIENTE y
+    # se usa más abajo para asignarlo. Reutilizarlo acá renombraba al cliente
+    # con el último grupo armado, en silencio.
+    for i, nombre_grupo in enumerate(request.form.getlist("libre_nombre")):
+        nombre_grupo = (nombre_grupo or "").strip()[:80]
+        if not nombre_grupo or nombre_grupo in vistas:
+            continue
+        partes = [p.strip()[:80] for p in request.form.getlist(f"libre_partes_{i}") if p.strip()]
+        precios, foto = {}, {}
+        for marca in marcas_validas:
+            crudo = (request.form.get(f"libre_precio_{i}::{marca}") or "").strip()
+            if crudo:
+                precios[marca] = max(0, _int_o_cero(crudo))
+            crudo_foto = (request.form.get(f"libre_foto_{i}::{marca}") or "").strip()
+            if crudo_foto:
+                foto[marca] = max(0, _int_o_cero(crudo_foto))
+        if not precios:
+            continue                    # un grupo sin ningún precio no cotiza nada
+        vistas.add(nombre_grupo)
+        ppf_lineas.append(QuotePpfItem(
+            coverage=nombre_grupo,
+            contains=", ".join(partes) or None,
+            zona="interior" if partes and all(
+                (PpfPart.query.filter_by(name=p).first() or PpfPart(zona="exterior")).zona
+                == "interior" for p in partes) else "exterior",
+            parts_json=json.dumps(partes),
+            cubre_zona=None,
+            orden=900 + i,              # después de los del catálogo
+            prices_json=json.dumps(precios),
+            foto_prices_json=json.dumps(foto) if foto else None,
+            es_personalizado=True,
         ))
 
     if not lineas and not ppf_lineas:
@@ -12823,15 +12914,21 @@ def _leer_formulario_de_cotizacion(cot: "Quote") -> str | None:
     cot.items     = lineas
     cot.ppf_items = ppf_lineas
     if ppf_lineas and not cot.ppf_brands:
-        # Solo las marcas que tienen precio en ALGUNA de las coberturas
-        # elegidas. Una marca recién creada, sin precios cargados, ocuparía una
-        # columna entera de "no aplica" y dispararía el aviso de "no cubre" en
-        # todas las filas — ruido puro. Cuando le carguen precios entra sola.
+        # Las marcas quedan congeladas con la garantía que se cotizó, que puede
+        # no ser la de lista: una negociación puede dar más años, y el papel
+        # tiene que decir lo que se prometió, no lo que diga el catálogo un mes
+        # después.
         con_precio = set()
         for linea in ppf_lineas:
             con_precio.update(m for m, p in json.loads(linea.prices_json).items() if p)
-        marcas = [(m, g) for m, g in ppf_marcas_activas() if m in con_precio]
-        cot.ppf_brands = json.dumps([[m, g] for m, g in (marcas or ppf_marcas_activas())])
+        if marcas_pedidas:
+            elegidas = [(m, g) for m, g in marcas_pedidas if m in con_precio]
+        else:
+            # Sin elección explícita: las que tengan precio en ALGUNA línea. Una
+            # marca sin precios ocuparía una columna entera de "no aplica" y
+            # dispararía el aviso de "no cubre" en cada fila — ruido puro.
+            elegidas = [(m, g) for m, g in ppf_marcas_activas() if m in con_precio]
+        cot.ppf_brands = json.dumps([[m, g] for m, g in (elegidas or ppf_marcas_activas())])
     return None
 
 
@@ -12862,6 +12959,7 @@ def quote_new():
         catalogo=_catalogo_para_cotizar(),
         catalogo_ppf=_catalogo_ppf(),
         marcas_ppf=ppf_marcas_activas(),
+        partes_ppf=_partes_ppf(),
         ppf_totales_zona=PPF_COBERTURAS_TOTALES,
         dias_por_defecto=QUOTE_VALID_DAYS,
     )
@@ -12903,6 +13001,7 @@ def quote_edit(code):
         catalogo=_catalogo_para_cotizar(),
         catalogo_ppf=_catalogo_ppf(),
         marcas_ppf=ppf_marcas_activas(),
+        partes_ppf=_partes_ppf(),
         ppf_totales_zona=PPF_COBERTURAS_TOTALES,
         dias_por_defecto=dias,
     )
@@ -13371,6 +13470,18 @@ def _construir_pdf_cotizacion(cot: "Quote", version=None) -> bytes:
                     fila.append(_cop(p) if p else "no aplica")
             filas_ppf.append(fila)
 
+            # El adicional va en su propia fila. Sumarlo callado dentro del
+            # precio dejaba un documento que no cuadra: las líneas daban una
+            # cosa y el total otra, y eso lo nota el cliente.
+            extra = it.precios_foto if not absorbe else {}
+            if extra:
+                fila_extra = [Paragraph("+ fotocromático", est_incluida)]
+                for marca, _g in marcas:
+                    monto = extra.get(marca) if precios.get(marca) else None
+                    fila_extra.append(Paragraph(
+                        _cop(monto) if monto else "no aplica", est_gris_der))
+                filas_ppf.append(fila_extra)
+
         filas_ppf.append(["TOTAL PPF"] + [_cop(totales_ppf.get(m, 0)) for m, _g in marcas])
 
         t_ppf = Table(filas_ppf, colWidths=anchos, repeatRows=1)
@@ -13385,7 +13496,7 @@ def _construir_pdf_cotizacion(cot: "Quote", version=None) -> bytes:
             ("RIGHTPADDING", (0, 0), (-1, -1), 0),
             ("TOPPADDING",   (0, 1), (-1, -1), 5.5),
             ("BOTTOMPADDING",(0, 1), (-1, -1), 5.5),
-            ("LINEBELOW",  (0, 1), (-1, -3), 0.4, LINEA),
+            ("LINEBELOW",  (0, 1), (-1, -2), 0.4, LINEA),
             # Fila de totales
             ("LINEABOVE",  (0, -1), (-1, -1), 0.8, LINEA),
             ("FONTNAME",   (0, -1), (-1, -1), "Helvetica-Bold"),

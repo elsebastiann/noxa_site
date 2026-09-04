@@ -70,6 +70,49 @@
                font-weight:700; color:#fff; }
   .tot-marca .g { font-size:.72rem; color:var(--accent,#c8a04a); font-weight:600; }
   .vacio { color:#8a8a8a; font-size:.87rem; text-align:center; padding:22px 8px; }
+  .marcas-cot { background:rgba(200,160,74,.07); border:1px solid rgba(200,160,74,.26);
+                border-radius:10px; padding:12px 14px; margin-bottom:16px; }
+  .mc-tit { font-size:.66rem; letter-spacing:.09em; text-transform:uppercase;
+            color:var(--accent,#c8a04a); font-weight:700; margin-bottom:9px; }
+  .mc-grid { display:flex; gap:8px; flex-wrap:wrap; }
+  .mc-item { display:flex; align-items:center; gap:7px; background:rgba(255,255,255,.04);
+             border:1px solid rgba(255,255,255,.10); border-radius:8px; padding:6px 10px;
+             cursor:pointer; font-size:.84rem; }
+  .mc-item.on { border-color:var(--accent,#c8a04a); background:rgba(200,160,74,.13); }
+  .mc-item input[type=checkbox] { accent-color:var(--accent,#c8a04a); width:15px; height:15px; }
+  .mc-nom { font-weight:700; color:#eee; }
+  .mc-gar { color:#9a9a9a; font-size:.76rem; display:flex; align-items:center; gap:4px; }
+  .mc-gar input { width:46px; text-align:center; background:rgba(0,0,0,.3);
+                  border:1px solid rgba(255,255,255,.12); color:#eee;
+                  border-radius:5px; padding:2px 4px; font-size:.78rem; }
+
+  .libre-caja { margin-top:22px; padding:14px 15px; border-radius:10px;
+                background:rgba(255,255,255,.03); border:1px dashed rgba(255,255,255,.16); }
+  .libre-tit { font-size:.66rem; letter-spacing:.09em; text-transform:uppercase;
+               color:var(--accent,#c8a04a); font-weight:700; margin-bottom:10px; }
+  .libre { border:1px solid rgba(255,255,255,.10); border-radius:9px;
+           padding:12px 13px; margin-bottom:10px; background:rgba(0,0,0,.18); }
+  .libre .fila1 { display:flex; gap:8px; align-items:center; margin-bottom:10px; }
+  .libre .fila1 input { flex:1; background:rgba(255,255,255,.05);
+                        border:1px solid rgba(255,255,255,.12); color:#eee;
+                        border-radius:6px; padding:6px 9px; font-size:.87rem; }
+  .partes-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(190px,1fr));
+                 gap:5px; margin-bottom:10px; }
+  .parte { display:flex; align-items:center; gap:6px; font-size:.79rem; color:#c9c9c9;
+           cursor:pointer; padding:3px 5px; border-radius:5px; }
+  .parte:hover { background:rgba(255,255,255,.05); }
+  .parte input { accent-color:var(--accent,#c8a04a); width:14px; height:14px; }
+  .parte-zona { font-size:.63rem; letter-spacing:.08em; text-transform:uppercase;
+                color:#7a7a7a; grid-column:1/-1; margin-top:6px; }
+  .precios-libre { display:grid; grid-template-columns:repeat(auto-fill,minmax(140px,1fr)); gap:6px; }
+  .precios-libre label { font-size:.72rem; color:#9a9a9a; display:block; }
+  .precios-libre input { width:100%; background:rgba(255,255,255,.05);
+                         border:1px solid rgba(255,255,255,.12); color:#eee;
+                         border-radius:6px; padding:5px 8px; font-size:.83rem; text-align:right; }
+  .foto-check { display:flex; align-items:center; gap:7px; font-size:.79rem;
+                color:var(--accent,#c8a04a); margin-top:8px; cursor:pointer; }
+  .foto-check input { accent-color:var(--accent,#c8a04a); width:15px; height:15px; }
+
   .todas { display:flex; align-items:center; gap:7px; font-size:.83rem; color:#cfcfcf;
            cursor:pointer; white-space:nowrap; background:rgba(255,255,255,.04);
            border:1px solid rgba(255,255,255,.10); border-radius:8px; padding:6px 11px; }
@@ -149,26 +192,54 @@
         </div>
 
         <div id="panePpf" hidden>
-          <div class="d-flex justify-content-between align-items-center gap-3 mb-3 flex-wrap">
+          {# Las marcas de ESTA cotización. Pueden no ser las del sistema: se
+             puede cotizar con dos, o con una garantía negociada distinta de la
+             de lista. Lo que se elija acá queda congelado en el documento. #}
+          <div class="marcas-cot">
+            <div class="mc-tit">Marcas a cotizar y su garantía</div>
+            <div class="mc-grid">
+              {% for marca, garantia in marcas_ppf %}
+              <label class="mc-item {% if garantia %}on{% endif %}" data-marca="{{ marca }}">
+                <input type="checkbox" name="ppf_marca" value="{{ marca }}"
+                       {% if garantia %}checked{% endif %}>
+                <span class="mc-nom">{{ marca }}</span>
+                <span class="mc-gar">
+                  <input type="number" name="ppf_garantia::{{ marca }}" min="0" max="99"
+                         value="{{ garantia if garantia is not none else '' }}"
+                         placeholder="—"> años
+                </span>
+              </label>
+              {% endfor %}
+            </div>
+          </div>
+
+          <div class="d-flex justify-content-between align-items-center gap-3 mb-2 flex-wrap">
             <p class="text-muted mb-0" style="font-size:.8rem; max-width:520px">
-              Elige las partes a cubrir. La cotización compara las tres marcas en columnas,
+              Elige las partes a cubrir. La cotización compara las marcas en columnas,
               para que el cliente decida.
             </p>
             <label class="todas">
               <input type="checkbox" id="ppfTodas"> Marcar todas
             </label>
           </div>
+
           <table class="mx">
             <thead>
-              <tr>
-                <th>Cobertura</th>
-                {% for marca, garantia in marcas_ppf %}
-                <th>{{ marca }}<span class="g">garantía {{ garantia }} años</span></th>
-                {% endfor %}
-              </tr>
+              <tr id="cabeceraPpf"><th>Cobertura</th></tr>
             </thead>
             <tbody id="cuerpoPpf"></tbody>
           </table>
+
+          {# Armar un grupo que no está en el catálogo. Los precios los escribe
+             quien cotiza: no existen en ninguna tabla. #}
+          <div class="libre-caja">
+            <div class="libre-tit">Armar un grupo</div>
+            <div id="libres"></div>
+            <button type="button" id="btnLibre2" class="btn btn-outline-warning btn-sm mt-2">
+              + Armar un grupo con partes sueltas
+            </button>
+          </div>
+
           <div class="text-muted mt-3" style="font-size:.76rem">
             Valores estimados: pueden variar según marca, modelo, estado del vehículo
             y complejidad de la instalación.
@@ -245,6 +316,17 @@
 const CATALOGO   = {{ catalogo|tojson }};
 const PPF        = {{ catalogo_ppf|tojson }};
 const MARCAS_PPF = {{ marcas_ppf|tojson }};
+const PARTES_PPF = {{ partes_ppf|tojson }};
+let libres = [];        // grupos armados a mano: {nombre, partes[], precios{}, foto{}}
+let ppfFoto = {};       // {cobertura: true} para los del catálogo con adicional
+
+// Las marcas que esta cotización va a comparar. Se leen de las casillas, no de
+// la lista del sistema: se puede cotizar con dos marcas y no con las cinco.
+function marcasElegidas() {
+  const activas = new Set([...document.querySelectorAll('input[name="ppf_marca"]:checked')]
+    .map(i => i.value));
+  return MARCAS_PPF.filter(([m]) => activas.has(m));
+}
 const TOTALES_PPF = {{ ppf_totales_zona|tojson }};   // {cobertura: zona que cubre}
 
 // Una cobertura total cubre su zona entera: sumarle una pieza suelta de esa
@@ -308,13 +390,26 @@ function pintarCatalogo() {
 }
 
 /* ---------------- matriz de PPF ---------------- */
+function pintarCabeceraPpf() {
+  // Se reescribe la FILA entera y no una celda: reemplazar un <th> por
+  // outerHTML se lleva su id, y la segunda llamada ya no lo encontraría.
+  const marcas = marcasElegidas();
+  document.getElementById("cabeceraPpf").innerHTML =
+    "<th>Cobertura</th>" + (marcas.length
+      ? marcas.map(([m, g]) =>
+          `<th>${m}<span class="g">${g ? `garantía ${g} años` : "sin garantía"}</span></th>`).join("")
+      : '<th class="na">elige al menos una marca</th>');
+}
+
 function pintarMatrizPpf() {
+  pintarCabeceraPpf();
+  const marcas = marcasElegidas();
   const puestas = new Set(ppfPuestas);
   document.getElementById("cuerpoPpf").innerHTML = PPF.map(it => {
     const abs = absorbida(it.cobertura);
     const celdas = abs
-      ? `<td class="incl" colspan="${MARCAS_PPF.length}">incluida en ${absorbidaPor(it.cobertura)}</td>`
-      : MARCAS_PPF.map(([m]) => {
+      ? `<td class="incl" colspan="${Math.max(1, marcas.length)}">incluida en ${absorbidaPor(it.cobertura)}</td>`
+      : marcas.map(([m]) => {
           const p = it.precios[m];
           // "no aplica" y no un cero: un cero se leería como gratis.
           return p ? `<td class="val">${fmt(p)}</td>` : `<td class="na">no aplica</td>`;
@@ -322,8 +417,20 @@ function pintarMatrizPpf() {
     return `<tr class="fila ${puestas.has(it.cobertura) ? "puesto" : ""} ${abs ? "absorbida" : ""}"
               data-cob="${esc(it.cobertura)}">
               <td><div class="cob">${it.cobertura}</div>
-                  <div class="que">${it.contiene}</div></td>${celdas}</tr>`;
+                  <div class="que">${it.contiene}</div>
+                  ${Object.keys(it.foto || {}).length && puestas.has(it.cobertura) && !abs
+                    ? `<label class="foto-check"><input type="checkbox" data-foto="${esc(it.cobertura)}"
+                         ${ppfFoto[it.cobertura] ? "checked" : ""}> + fotocromático</label>` : ""}
+              </td>${celdas}</tr>`;
   }).join("");
+
+  // El adicional viaja como campo aparte: el servidor decide si el grupo lo
+  // admite, no el navegador.
+  document.querySelectorAll("[data-foto]").forEach(cb => cb.onclick = e => {
+    e.stopPropagation();
+    ppfFoto[cb.dataset.foto] = cb.checked;
+    pintarTotales();
+  });
 
   document.querySelectorAll("#cuerpoPpf .fila").forEach(tr => tr.onclick = () => {
     const cob = tr.dataset.cob;
@@ -372,15 +479,32 @@ function pintarLineas() {
 
   // El PPF no lleva cantidad ni valor unitario: una cobertura se pone o no se
   // pone, siempre es una, y su precio depende de la marca que elija el cliente.
-  document.getElementById("bloquePpf").hidden = !ppfPuestas.length;
-  document.getElementById("lineasPpf").innerHTML = ppfPuestas.map((cob, i) => `
+  const hayPpf = ppfPuestas.length || libres.some(g => g.nombre);
+  document.getElementById("bloquePpf").hidden = !hayPpf;
+  const delCatalogo = ppfPuestas.map((cob, i) => `
     <div class="ppf-linea">
       <span class="c">${cob}${absorbida(cob)
         ? ` <span style="color:var(--accent,#c8a04a); font-size:.76rem">· incluida en ${absorbidaPor(cob)}</span>`
-        : ""}</span>
+        : ""}${ppfFoto[cob]
+        ? ` <span style="color:var(--accent,#c8a04a); font-size:.76rem">+ fotocromático</span>` : ""}</span>
       <button type="button" class="quitar" data-i="${i}" title="Quitar">&times;</button>
       <input type="hidden" name="ppf_coverage" value="${esc(cob)}">
+      ${ppfFoto[cob] ? `<input type="hidden" name="ppf_foto::${esc(cob)}" value="1">` : ""}
     </div>`).join("");
+
+  // Los armados a mano también se listan: si no, quien cotiza no ve en el
+  // resumen lo que acaba de construir y no sabe si quedó.
+  const armados = libres
+    .map((g, i) => ({g, i}))
+    .filter(({g}) => g.nombre && Object.values(g.precios).some(v => v))
+    .map(({g}) => `
+    <div class="ppf-linea">
+      <span class="c">${g.nombre}
+        <span style="color:#8a8a8a; font-size:.74rem; display:block">
+          ${g.partes.join(" · ") || "sin partes"}</span></span>
+    </div>`).join("");
+
+  document.getElementById("lineasPpf").innerHTML = delCatalogo + armados;
   document.querySelectorAll("#lineasPpf .quitar").forEach(b => b.onclick = () => {
     ppfPuestas.splice(Number(b.dataset.i), 1); pintarTodo();
   });
@@ -400,11 +524,21 @@ function descuentoSobre(base) {
 }
 
 // Con PPF no hay UN total: hay uno por marca.
-const totalPpf = m => ppfPuestas.reduce((a, cob) => {
-  if (absorbida(cob)) return a;
-  const it = PPF.find(x => x.cobertura === cob);
-  return a + ((it && it.precios[m]) || 0);
-}, 0);
+const totalPpf = m => {
+  let t = ppfPuestas.reduce((a, cob) => {
+    if (absorbida(cob)) return a;
+    const it = PPF.find(x => x.cobertura === cob);
+    if (!it || !it.precios[m]) return a;
+    // El adicional solo suma donde hay precio base: cobrar el extra de algo
+    // que esa marca no vende no tiene sentido.
+    return a + it.precios[m] + (ppfFoto[cob] ? (it.foto?.[m] || 0) : 0);
+  }, 0);
+  for (const g of libres) {
+    const base = g.precios[m] || 0;
+    if (base) t += base + (g.foto[m] || 0);
+  }
+  return t;
+};
 
 function pintarTotales() {
   const sub = lineas.reduce((a, l) => a + l.precio * l.cant, 0);
@@ -414,7 +548,8 @@ function pintarTotales() {
               (tipo === "percentage" ? ` (${val}%)` : "");
   const $t = document.getElementById("totales");
 
-  if (!ppfPuestas.length) {
+  const hayLibres = libres.some(g => g.nombre && Object.values(g.precios).some(v => v));
+  if (!ppfPuestas.length && !hayLibres) {
     const desc = descuentoSobre(sub);
     $t.innerHTML =
       `<div class="tot-fila"><span>Subtotal</span><span>${fmt(sub)}</span></div>` +
@@ -430,13 +565,13 @@ function pintarTotales() {
   if (sub) {
     html += `<div class="tot-fila"><span>Total servicios</span><span>${fmt(sub)}</span></div>`;
     html += `<div class="bloque-tit mt-2">Total PPF</div>`;
-    for (const [m] of MARCAS_PPF) {
+    for (const [m] of marcasElegidas()) {
       html += `<div class="tot-fila"><span>${m}</span><span>${fmt(totalPpf(m))}</span></div>`;
     }
   }
   if (tipo && val) html += `<div class="tot-fila mt-2"><span>${etq}</span><span>aplicado a cada opción</span></div>`;
   html += `<div class="bloque-tit mt-2">Total según la marca</div>`;
-  for (const [m, g] of MARCAS_PPF) {
+  for (const [m, g] of marcasElegidas()) {
     const base = sub + totalPpf(m);
     html += `<div class="tot-marca">
                <span>${m} <span class="g">${g} años</span></span>
@@ -445,7 +580,85 @@ function pintarTotales() {
   $t.innerHTML = html;
 }
 
-function pintarTodo() { pintarCatalogo(); pintarMatrizPpf(); pintarLineas(); pintarTotales(); }
+/* ---------------- grupos armados a mano ---------------- */
+function pintarLibres() {
+  document.getElementById("libres").innerHTML = libres.map((g, i) => {
+    let partes = "", zonaActual = null;
+    for (const p of PARTES_PPF) {
+      if (p.zona !== zonaActual) {
+        partes += `<div class="parte-zona">${p.zona}</div>`;
+        zonaActual = p.zona;
+      }
+      const puesta = g.partes.includes(p.nombre);
+      partes += `<label class="parte"><input type="checkbox" data-libre="${i}"
+                   data-parte="${esc(p.nombre)}" ${puesta ? "checked" : ""}>
+                   ${p.nombre}${p.comodin ? " (¿cuál?)" : ""}</label>`;
+    }
+    // El adicional solo si el grupo tiene farolas o stops: es donde existe la
+    // película.
+    const admiteFoto = g.partes.some(x => /farola|stop/i.test(x));
+    const precios = marcasElegidas().map(([m]) => `
+      <div>
+        <label>${m}</label>
+        <input type="number" min="0" step="1000" name="libre_precio_${i}::${m}"
+               value="${g.precios[m] ?? ""}" data-lp="${i}" data-marca="${m}"
+               placeholder="no aplica">
+        ${admiteFoto ? `<input type="number" min="0" step="1000"
+               name="libre_foto_${i}::${m}" value="${g.foto[m] ?? ""}"
+               data-lf="${i}" data-marca="${m}" placeholder="+ fotocrom." 
+               style="margin-top:4px">` : ""}
+      </div>`).join("");
+
+    return `<div class="libre">
+      <div class="fila1">
+        <input type="text" name="libre_nombre" value="${esc(g.nombre)}" data-ln="${i}"
+               placeholder="Nombre del grupo (ej. Frente reforzado)">
+        <button type="button" class="quitar" data-libre-del="${i}" title="Quitar">&times;</button>
+      </div>
+      <div class="partes-grid">${partes}</div>
+      ${g.partes.map(x => `<input type="hidden" name="libre_partes_${i}" value="${esc(x)}">`).join("")}
+      <div class="precios-libre">${precios}</div>
+    </div>`;
+  }).join("");
+
+  document.querySelectorAll("[data-parte]").forEach(cb => cb.onchange = () => {
+    const g = libres[cb.dataset.libre], nombre = cb.dataset.parte;
+    if (cb.checked) { if (!g.partes.includes(nombre)) g.partes.push(nombre); }
+    else g.partes = g.partes.filter(x => x !== nombre);
+    pintarLibres(); pintarTotales();
+  });
+  document.querySelectorAll("[data-ln]").forEach(inp => inp.oninput = () => {
+    libres[inp.dataset.ln].nombre = inp.value; pintarTotales();
+  });
+  document.querySelectorAll("[data-lp]").forEach(inp => inp.oninput = () => {
+    libres[inp.dataset.lp].precios[inp.dataset.marca] = Number(inp.value) || 0;
+    pintarTotales();
+  });
+  document.querySelectorAll("[data-lf]").forEach(inp => inp.oninput = () => {
+    libres[inp.dataset.lf].foto[inp.dataset.marca] = Number(inp.value) || 0;
+    pintarTotales();
+  });
+  document.querySelectorAll("[data-libre-del]").forEach(b => b.onclick = () => {
+    libres.splice(Number(b.dataset.libreDel), 1); pintarLibres(); pintarTotales();
+  });
+}
+
+document.getElementById("btnLibre2").onclick = () => {
+  libres.push({nombre: "", partes: [], precios: {}, foto: {}});
+  pintarLibres();
+};
+
+document.querySelectorAll('input[name="ppf_marca"]').forEach(cb =>
+  cb.addEventListener("change", () => {
+    cb.closest(".mc-item").classList.toggle("on", cb.checked);
+    pintarTodo();
+  }));
+document.querySelectorAll('.mc-gar input').forEach(inp =>
+  inp.addEventListener("input", () => pintarTodo()));
+
+function pintarTodo() {
+  pintarCatalogo(); pintarMatrizPpf(); pintarLibres(); pintarLineas(); pintarTotales();
+}
 
 /* ---------------- pestañas ---------------- */
 document.querySelectorAll(".tab").forEach(t => t.onclick = () => {
