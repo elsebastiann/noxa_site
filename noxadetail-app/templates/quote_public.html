@@ -67,6 +67,12 @@
   .marca .t { font-size:.8rem; color:var(--suave); margin-top:5px; }
   .na { font-size:.8rem; color:#a5a5a5; font-style:italic; white-space:nowrap; }
 
+  .sub-parte { display:flex; justify-content:space-between; align-items:baseline;
+               padding:12px 0 4px; margin-top:6px; font-weight:700; font-size:.95rem;
+               border-top:1.5px solid var(--linea); }
+  .sub-parte span:first-child { color:var(--suave); font-weight:600; font-size:.86rem; }
+  .sub-parte #subMarca { font-weight:600; font-size:.8rem; color:var(--acento); }
+
   .total { position:sticky; bottom:0; background:var(--papel);
            border-top:1px solid var(--linea); padding:16px 24px;
            box-shadow:0 -3px 16px rgba(0,0,0,.06); }
@@ -115,8 +121,10 @@
       {% if c.tiene_ppf %}En PPF, elige primero la marca de película.{% endif %}
     </div>
 
+    {% set dos_partes = c.items and c.tiene_ppf %}
+
     {% if c.items %}
-    <div class="sec">Servicios</div>
+    <div class="sec">{% if dos_partes %}Parte 1 · Servicios{% else %}Servicios{% endif %}</div>
     {% for it in c.items %}
     <label class="item" data-svc="{{ it.id }}">
       <input type="checkbox" checked data-precio="{{ it.total }}">
@@ -128,10 +136,20 @@
       <span class="val">{{ it.total|cop }}</span>
     </label>
     {% endfor %}
+    {% if dos_partes %}
+    <div class="sub-parte"><span>Total servicios</span><span id="subServicios"></span></div>
+    {% endif %}
     {% endif %}
 
     {% if c.tiene_ppf %}
-    <div class="sec">Protección PPF — elige la marca</div>
+    <div class="sec">
+      {% if dos_partes %}Parte 2 · Protección PPF{% else %}Protección PPF{% endif %} — elige la marca
+    </div>
+    {% if dos_partes %}
+    <p class="text-muted" style="font-size:.8rem; color:var(--suave); margin:-4px 0 12px">
+      Se cotiza aparte porque el precio depende de la marca de película.
+    </p>
+    {% endif %}
     <div class="marcas">
       {% for marca, garantia in c.ppf_marcas %}
       <label class="marca {% if loop.first %}on{% endif %}" data-marca="{{ marca }}">
@@ -147,12 +165,17 @@
     <label class="item" data-ppf="{{ it.coverage }}" data-zona="{{ it.zona }}">
       <input type="checkbox" checked>
       <span class="txt">
-        <span class="nom">{{ it.coverage }}</span>
+        <span class="nom">{{ it.coverage }}{% if it.con_fotocromatico %}<span class="gar">
+          · con fotocromático</span>{% endif %}</span>
         {% if it.contains %}<span class="que">{{ it.contains }}</span>{% endif %}
       </span>
       <span class="val" data-val-ppf="{{ it.coverage }}"></span>
     </label>
     {% endfor %}
+    {% if dos_partes %}
+    <div class="sub-parte"><span>Total PPF <span id="subMarca"></span></span>
+      <span id="subPpf"></span></div>
+    {% endif %}
     {% endif %}
   </div>
 
@@ -198,6 +221,9 @@
 <script>
 const PPF = {{ c.ppf_items | map(attribute='coverage') | list | tojson }};
 const PRECIOS_PPF = {{ (c.ppf_items | map(attribute='precios') | list) | tojson }};
+// Adicional de fotocromático ya cotizado, por línea. Sin esto el link sumaba
+// menos que el PDF y el cliente veía dos totales distintos del mismo código.
+const FOTO_PPF = {{ (c.ppf_items | map(attribute='precios_foto') | list) | tojson }};
 const ZONAS = {{ (c.ppf_items | map(attribute='zona') | list) | tojson }};
 const TOTALES_PPF = {{ ppf_totales_zona|tojson }};   // {cobertura: zona que cubre}
 const DESC = {tipo: {{ (c.discount_type or "")|tojson }}, valor: {{ (c.discount_value or 0)|tojson }}};
@@ -232,7 +258,11 @@ function totalPpfDeMarca(marca, soloMarcadas) {
     if (absorbida(i)) return;
     const fila = document.querySelector(`[data-ppf="${CSS.escape(cob)}"]`);
     if (soloMarcadas && fila && !fila.querySelector("input").checked) return;
-    t += PRECIOS_PPF[i][marca] || 0;
+    const base = PRECIOS_PPF[i][marca] || 0;
+    if (!base) return;
+    // El adicional solo suma donde hay precio base: cobrar el extra de algo
+    // que esa marca no vende no tiene sentido.
+    t += base + ((FOTO_PPF[i] || {})[marca] || 0);
   });
   return t;
 }
@@ -249,7 +279,11 @@ function pintar() {
     if (!celda) return;
     const porQuien = absorbidaPor(i), abs = porQuien !== null;
     if (abs) { celda.textContent = `incluida en ${porQuien}`; celda.className = "incl"; }
-    else if (p) { celda.textContent = fmt(p); celda.className = "val"; }
+    else if (p) {
+      const extra = (FOTO_PPF[i] || {})[marca] || 0;
+      celda.textContent = extra ? `${fmt(p + extra)}` : fmt(p);
+      celda.className = "val";
+    }
     else { celda.textContent = "no incluida"; celda.className = "na"; }
     if (fila) {
       fila.classList.toggle("incluido", abs);
@@ -275,6 +309,17 @@ function pintar() {
   let desc = 0;
   if (DESC.tipo === "percentage") desc = Math.round(sub * Math.min(100, DESC.valor) / 100);
   else if (DESC.tipo === "absolute") desc = Math.min(DESC.valor, sub);
+
+  const $subS = document.getElementById("subServicios");
+  if ($subS) {
+    let soloServicios = 0;
+    document.querySelectorAll("[data-svc] input:checked").forEach(i =>
+      soloServicios += Number(i.dataset.precio) || 0);
+    $subS.textContent = fmt(soloServicios);
+    document.getElementById("subPpf").textContent =
+      fmt(marca ? totalPpfDeMarca(marca, true) : 0);
+    document.getElementById("subMarca").textContent = marca ? `· ${marca}` : "";
+  }
 
   const $sub = document.getElementById("sub");
   if ($sub) { $sub.textContent = fmt(sub); document.getElementById("desc").textContent = "− " + fmt(desc); }

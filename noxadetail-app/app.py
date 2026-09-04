@@ -13368,6 +13368,30 @@ def _construir_pdf_cotizacion(cot: "Quote", version=None) -> bytes:
 
     est_seccion = ParagraphStyle("sec", parent=est_txt, fontSize=8, textColor=ACENTO,
                                  fontName="Helvetica-Bold", spaceAfter=3)
+    est_parte = ParagraphStyle("pt", parent=est_txt, fontSize=9.5, textColor=TINTA,
+                               fontName="Helvetica-Bold", leading=12)
+
+    # Cuando el documento trae las dos cosas, cada una se presenta como una
+    # cotización aparte —con su banda y su total— y al final se suman. Es lo que
+    # se pidió: dos cotizaciones en un mismo archivo. Con una sola parte no se
+    # numera nada: "Parte 1 de 1" es ruido.
+    dos_partes = bool(items) and bool(ppf_items)
+
+    def banda(numero, titulo, subtitulo=""):
+        txt = f"PARTE {numero} · {titulo}"
+        celda = [Paragraph(txt, est_parte)]
+        if subtitulo:
+            celda.append(Paragraph(subtitulo, est_sub))
+        t = Table([[celda]], colWidths=[175 * mm])
+        t.setStyle(TableStyle([
+            ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#f4f1ea")),
+            ("LINEBELOW", (0, 0), (-1, -1), 1, ACENTO),
+            ("LEFTPADDING", (0, 0), (-1, -1), 10),
+            ("RIGHTPADDING", (0, 0), (-1, -1), 10),
+            ("TOPPADDING", (0, 0), (-1, -1), 6),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
+        ]))
+        return [t, Spacer(1, 4 * mm)]
     est_detalle = ParagraphStyle("d", parent=est_celda, fontSize=8,
                                  textColor=SUAVE, leading=10, spaceBefore=2)
     est_marca   = ParagraphStyle("mk", parent=est_txt, fontSize=8, alignment=TA_RIGHT,
@@ -13424,7 +13448,7 @@ def _construir_pdf_cotizacion(cot: "Quote", version=None) -> bytes:
                 ("FONTSIZE",  (0, -1), (-1, -1), 10),
                 ("TOPPADDING", (0, -1), (-1, -1), 8),
             ]))
-            hist += [Paragraph("SERVICIOS", est_seccion)]
+            hist += banda(1, "SERVICIOS") if dos_partes else [Paragraph("SERVICIOS", est_seccion)]
         hist += [tabla, Spacer(1, 4 * mm)]
 
     # --- PPF: matriz de cobertura x marca ------------------------------------
@@ -13503,7 +13527,12 @@ def _construir_pdf_cotizacion(cot: "Quote", version=None) -> bytes:
             ("FONTSIZE",   (0, -1), (-1, -1), 10),
             ("VALIGN",     (0, -1), (-1, -1), "MIDDLE"),
         ]))
-        hist += [Paragraph("PROTECCIÓN PPF", est_seccion), t_ppf, Spacer(1, 3 * mm)]
+        if dos_partes:
+            hist += banda(2, "PROTECCIÓN PPF",
+                          "Se cotiza aparte porque el precio depende de la marca de película.")
+        else:
+            hist += [Paragraph("PROTECCIÓN PPF", est_seccion)]
+        hist += [t_ppf, Spacer(1, 3 * mm)]
 
         # Decirlo explícitamente: sin esta nota, la columna más barata parece la
         # mejor oferta cuando en realidad está cubriendo menos partes.
@@ -13520,6 +13549,21 @@ def _construir_pdf_cotizacion(cot: "Quote", version=None) -> bytes:
         # cuando además hay servicios o hay descuento.
         if items or cot._descuento_sobre(subtotal):
             bloque = []
+            if dos_partes:
+                # Se repiten los dos subtotales antes de sumarlos: es lo que
+                # convierte dos bloques sueltos en un cierre que se entiende
+                # sin devolverse a buscarlos.
+                bloque += [Paragraph("RESUMEN", est_seccion), Spacer(1, 2 * mm)]
+                resumen = [["Parte 1 · Servicios", _cop(subtotal)],
+                           ["Parte 2 · Protección PPF", "según la marca"]]
+                t_resumen = Table(resumen, colWidths=[110 * mm, 65 * mm], hAlign="RIGHT")
+                t_resumen.setStyle(TableStyle([
+                    ("ALIGN", (0, 0), (-1, -1), "RIGHT"),
+                    ("TEXTCOLOR", (0, 0), (-1, -1), SUAVE),
+                    ("FONTSIZE", (0, 0), (-1, -1), 9.5),
+                    ("RIGHTPADDING", (0, 0), (-1, -1), 0),
+                ]))
+                bloque += [t_resumen, Spacer(1, 2 * mm)]
             if cot.discount_value and cot.discount_type:
                 etiqueta = cot.discount_label or "Descuento"
                 if cot.discount_type == "percentage":

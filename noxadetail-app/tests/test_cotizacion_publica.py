@@ -587,3 +587,110 @@ class TestGarantiasDePolarizado:
             lavado = A.Service.query.filter(A.Service.name.ilike("%lavado%")).first()
             if lavado:
                 assert lavado.garantia in (None, "")
+
+
+class TestElLinkYElPdfDicenLoMismo:
+    """El link sumaba menos que el PDF cuando había fotocromático: el JS no
+    conocía el adicional. El cliente veía dos totales distintos del mismo
+    código, y el que tuviera a mano sería el que creyera.
+    """
+
+    def _con_fotocromatico(self):
+        import json
+        import secrets
+        with A.app.app_context():
+            pk = A.PpfPackage.query.filter_by(name="Farolas y Stops").first()
+            c = A.Quote(code=A._nuevo_codigo_cotizacion(),
+                        public_token=secrets.token_urlsafe(24),
+                        customer_name="Coherencia", created_at=A.datetime.utcnow(),
+                        valid_until=A.bogota_now().date() + dt.timedelta(days=15),
+                        ppf_brands=json.dumps([["Avery", 7], ["Xpel", 10]]))
+            c.ppf_items = [A.QuotePpfItem(
+                coverage=pk.name, contains=pk.contains, zona="exterior",
+                parts_json=json.dumps([x.name for x in pk.parts]), orden=pk.orden,
+                prices_json=json.dumps(pk.precios),
+                foto_prices_json=json.dumps(pk.precios_fotocromatico))]
+            A.db.session.add(c)
+            A.db.session.commit()
+            return c.code, c.public_token
+
+    def test_el_link_manda_el_adicional_al_navegador(self, client):
+        code, token = self._con_fotocromatico()
+        try:
+            cuerpo = client.get(f"/c/{token}").data.decode()
+            assert "FOTO_PPF" in cuerpo, "el navegador no recibe el adicional"
+            linea = next(l for l in cuerpo.splitlines() if "const FOTO_PPF" in l)
+            assert "100000" in linea and "150000" in linea
+        finally:
+            _borrar(code)
+
+    def test_el_total_del_servidor_incluye_el_adicional(self, client):
+        """Es contra este número que tiene que cuadrar el del navegador."""
+        code, _token = self._con_fotocromatico()
+        try:
+            with A.app.app_context():
+                c = A.Quote.query.filter_by(code=code).first()
+                assert c.ppf_totales["Avery"] == 400_000 + 100_000
+                assert c.ppf_totales["Xpel"] == 450_000 + 150_000
+        finally:
+            _borrar(code)
+
+    def test_la_pagina_dice_que_lleva_fotocromatico(self, client):
+        code, token = self._con_fotocromatico()
+        try:
+            assert "con fotocromático" in client.get(f"/c/{token}").data.decode()
+        finally:
+            _borrar(code)
+
+
+class TestDosPartes:
+    """Servicios y PPF salen como dos cotizaciones con su total, y una suma al
+    final — en un mismo archivo y un mismo link."""
+
+    def _mixta(self):
+        import json
+        import secrets
+        with A.app.app_context():
+            pk = A.PpfPackage.query.filter_by(name="Manijas").first()
+            c = A.Quote(code=A._nuevo_codigo_cotizacion(),
+                        public_token=secrets.token_urlsafe(24),
+                        customer_name="Mixta", created_at=A.datetime.utcnow(),
+                        valid_until=A.bogota_now().date() + dt.timedelta(days=15),
+                        ppf_brands=json.dumps([["Xpel", 10]]))
+            c.items = [A.QuoteItem(description="Lavado", unit_price=90_000, quantity=1)]
+            c.ppf_items = [A.QuotePpfItem(
+                coverage=pk.name, contains=pk.contains, zona="exterior",
+                parts_json=json.dumps([x.name for x in pk.parts]), orden=pk.orden,
+                prices_json=json.dumps(pk.precios))]
+            A.db.session.add(c)
+            A.db.session.commit()
+            return c.code, c.public_token
+
+    def test_el_link_numera_las_partes(self, client):
+        code, token = self._mixta()
+        try:
+            cuerpo = client.get(f"/c/{token}").data.decode()
+            assert "Parte 1 · Servicios" in cuerpo
+            assert "Parte 2 · Protección PPF" in cuerpo
+        finally:
+            _borrar(code)
+
+    def test_con_una_sola_parte_no_numera(self, client):
+        """"Parte 1 de 1" es ruido."""
+        code, token = _cotizacion(items=[("Lavado", 90000, 1)])
+        try:
+            cuerpo = client.get(f"/c/{token}").data.decode()
+            assert "Parte 1" not in cuerpo
+        finally:
+            _borrar(code)
+
+    def test_el_pdf_sale_con_las_dos_partes(self, client):
+        code, _token = self._mixta()
+        try:
+            with A.app.app_context():
+                c = A.Quote.query.filter_by(code=code).first()
+                assert c.items and c.ppf_items
+                assert A._construir_pdf_cotizacion(c).startswith(b"%PDF")
+                assert c.totales_por_marca["Xpel"] == 90_000 + 350_000
+        finally:
+            _borrar(code)
