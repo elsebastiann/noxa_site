@@ -9,6 +9,7 @@ import itertools
 import pytest
 
 from conftest import app_module as A, make_user
+from precios_ppf import foto, precio
 
 _u = itertools.count(1)
 
@@ -84,8 +85,8 @@ class TestLaMigracionDeNombres:
         with A.app.app_context():
             cat = A._catalogo_ppf()
         ff = next(x for x in cat if x["cobertura"] == "Full Front")
-        assert ff["precios"]["Spectra"] == 2_500_000
-        assert ff["precios"]["Xpel"] == 4_000_000
+        assert ff["precios"]["Spectra"] == precio("Full Front", "Spectra")
+        assert ff["precios"]["Xpel"] == precio("Full Front", "Xpel")
 
     def test_correrla_dos_veces_no_duplica(self):
         """Es lo que rompió durante el desarrollo: el sembrado corrió antes que
@@ -215,7 +216,8 @@ class TestElFotocromaticoNuncaVaIncluido:
                 assert "Farolas y Stops" in c.ppf_absorbidas, "Full Car debe cubrir el grupo"
                 # 15.000.000 de Full Car + 150.000 del adicional, que no está
                 # incluido en ningún grupo.
-                assert c.ppf_totales["Xpel"] == 15_000_000 + 150_000
+                assert c.ppf_totales["Xpel"] == (precio("Full Car", "Xpel")
+                                                 + foto("Farolas y Stops", "Xpel"))
         finally:
             with A.app.app_context():
                 q = A.Quote.query.filter_by(code=code).first()
@@ -280,3 +282,15 @@ class TestPreciosPorParteSuelta:
             with A.app.app_context():
                 A.PpfPart.query.filter_by(name="Techo").first().prices_json = None
                 A.db.session.commit()
+
+
+class TestLaCabeceraDelPdf:
+    def test_una_marca_sin_garantia_conserva_su_nombre(self):
+        """Se vaciaba la celda entera cuando no había garantía, así que la
+        columna quedaba sin título encima de sus precios."""
+        import inspect
+        fuente = inspect.getsource(A._construir_pdf_cotizacion)
+        i = fuente.index("for marca, garantia in marcas:")
+        bloque = fuente[i:i + 600]
+        assert 'titulo = f"<font size=9><b>{marca}</b></font>"' in bloque, (
+            "el nombre de la marca debe ir siempre, con o sin garantía")

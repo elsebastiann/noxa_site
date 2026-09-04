@@ -1,7 +1,7 @@
 {
   "app.py": {
-    "mtime": 1788486540.702079,
-    "ast_hash": "8688f0ab88c1b593f149763833b1dbdb",
+    "mtime": 1788489560.013578,
+    "ast_hash": "004abd9cfd984b7ecead602da61a5939",
     "semantic_hash": ""
   },
   "migrate_prices.py": {
@@ -380,13 +380,13 @@
     "semantic_hash": ""
   },
   "tests/test_cotizaciones.py": {
-    "mtime": 1788486462.0149422,
-    "ast_hash": "783945b2fb51fcf5543f0df98b7a6cf2",
+    "mtime": 1788489485.488165,
+    "ast_hash": "8f38ba65327d6652bc688fb9309c53b8",
     "semantic_hash": ""
   },
   "templates/quote_detail.html": {
-    "mtime": 1788486352.1415813,
-    "ast_hash": "44244cecab35f3bbc6c263585d218ad0",
+    "mtime": 1788489142.1261172,
+    "ast_hash": "76c77d7ba1c80ac91ebe39223ddac4cd",
     "semantic_hash": ""
   },
   "templates/quote_form.html": {
@@ -415,13 +415,13 @@
     "semantic_hash": ""
   },
   "tests/test_cotizacion_publica.py": {
-    "mtime": 1788485455.380509,
-    "ast_hash": "254ae6aa075e7bd01b14774ee8040985",
+    "mtime": 1788489432.2164664,
+    "ast_hash": "11b5598c132368c6f9718eadb2c6c285",
     "semantic_hash": ""
   },
   "templates/quote_public.html": {
-    "mtime": 1788486352.1409376,
-    "ast_hash": "b0f0232f303804f9b69aa0aef7bf9ceb",
+    "mtime": 1788489142.07315,
+    "ast_hash": "44fdf1ab0d3878903e957231ba74aa4c",
     "semantic_hash": ""
   },
   "templates/quote_public_cerrada.html": {
@@ -440,13 +440,18 @@
     "semantic_hash": ""
   },
   "tests/test_marcas_ppf.py": {
-    "mtime": 1788486763.4102519,
-    "ast_hash": "6b8c542efc3f08891fdfb69d52bf22a9",
+    "mtime": 1788489560.0241315,
+    "ast_hash": "0a3fff09a01a7f6f5d6e13acd93e3f67",
     "semantic_hash": ""
   },
   "tests/test_grupos_libres.py": {
-    "mtime": 1788485008.6270149,
-    "ast_hash": "49d91ca15fd70e4a6cceff7a43a55ff5",
+    "mtime": 1788489432.215083,
+    "ast_hash": "32e890dab51aba49433f89213fa0330f",
+    "semantic_hash": ""
+  },
+  "tests/precios_ppf.py": {
+    "mtime": 1788489388.4513085,
+    "ast_hash": "224b009b8ca16a9bd58de030bf0dbb8b",
     "semantic_hash": ""
   }
 }

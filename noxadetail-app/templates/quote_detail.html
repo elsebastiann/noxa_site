@@ -14,6 +14,9 @@
                 border-top:1px solid rgba(255,255,255,.14); margin-top:8px; padding-top:11px; }
   .sec-tit { font-size:.68rem; letter-spacing:.09em; text-transform:uppercase;
              color:var(--accent,#c8a04a); font-weight:700; margin:22px 0 6px; }
+  .aviso-ref { font-size:.79rem; color:#d8c48a; background:rgba(200,160,74,.09);
+               border:1px solid rgba(200,160,74,.26); border-radius:8px;
+               padding:9px 11px; margin-bottom:12px; line-height:1.45; }
   .mx { width:100%; border-collapse:collapse; }
   .mx th { font-size:.7rem; text-transform:uppercase; letter-spacing:.07em; color:#8a8a8a;
            font-weight:600; padding:0 6px 8px; text-align:right;
@@ -181,6 +184,11 @@ function pedirClave(form) {
        ni valor unitario — una cobertura se pone o no se pone, siempre es una. #}
     {% if c.tiene_ppf %}
     <div class="sec-tit" {% if not c.items %}style="margin-top:0"{% endif %}>Protección PPF</div>
+    <div class="aviso-ref">
+      <strong>Valores de referencia.</strong> El precio final puede variar según marca,
+      modelo, estado de la pintura y complejidad del montaje. Se confirma en el
+      diagnóstico presencial.
+    </div>
     <table class="mx mb-2">
       <thead>
         <tr>

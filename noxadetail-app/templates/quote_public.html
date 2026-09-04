@@ -146,10 +146,16 @@
       {% if dos_partes %}Parte 2 · Protección PPF{% else %}Protección PPF{% endif %} — elige la marca
     </div>
     {% if dos_partes %}
-    <p class="text-muted" style="font-size:.8rem; color:var(--suave); margin:-4px 0 12px">
+    <p style="font-size:.8rem; color:var(--suave); margin:-4px 0 12px">
       Se cotiza aparte porque el precio depende de la marca de película.
     </p>
     {% endif %}
+    {# Junto a las cifras y no solo en el pie: al pie casi nadie llega. #}
+    <div class="instruccion" style="margin-bottom:16px">
+      <strong>Valores de referencia.</strong> Cada vehículo es distinto: el precio final
+      puede variar según marca, modelo, estado de la pintura y complejidad del montaje,
+      y se confirma en el diagnóstico presencial.
+    </div>
     <div class="marcas">
       {% for marca, garantia in c.ppf_marcas %}
       <label class="marca {% if loop.first %}on{% endif %}" data-marca="{{ marca }}">

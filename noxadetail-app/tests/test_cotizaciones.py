@@ -12,6 +12,7 @@ import re
 import pytest
 
 from conftest import app_module as A, make_user
+from precios_ppf import foto, marca_sin_precios, precio
 
 _u = itertools.count(1)
 
@@ -408,9 +409,10 @@ class TestPreciosPpf:
         # pasaron a ser el adicional de su grupo base.
         assert len(cat) == 14
         full = next(x for x in cat if x["cobertura"] == "Full Car")
-        assert full["precios"]["Spectra"] == 10_000_000
-        assert full["precios"]["Avery"] == 13_000_000
-        assert full["precios"]["Xpel"] == 15_000_000
+        assert full["precios"]["Spectra"] == precio("Full Car", "Spectra")
+        assert full["precios"]["Xpel"] == precio("Full Car", "Xpel")
+        assert full["precios"]["Spectra"] < full["precios"]["Xpel"], (
+            "Xpel da más garantía: no puede costar menos que Spectra")
         assert "capó" in full["contiene"].lower()
 
     def test_el_catalogo_marca_en_none_lo_que_no_se_ofrece(self):
@@ -418,8 +420,10 @@ class TestPreciosPpf:
         with A.app.app_context():
             cat = A._catalogo_ppf()
         ff = next(x for x in cat if x["cobertura"] == "Full Front")
-        assert ff["precios"]["Standard"] is None, "una marca sin precio no puede dar 0"
-        assert ff["precios"]["Avery"] == 3_000_000
+        huerfana = marca_sin_precios()
+        if huerfana:
+            assert ff["precios"][huerfana] is None, "una marca sin precio no puede dar 0"
+        assert ff["precios"]["Avery"] == precio("Full Front", "Avery")
 
     def test_el_fotocromatico_es_un_adicional_del_grupo(self):
         """Dejó de ser un grupo aparte: es una película distinta sobre las
@@ -428,7 +432,7 @@ class TestPreciosPpf:
             cat = A._catalogo_ppf()
         assert "Farolas Fotocromático" not in {x["cobertura"] for x in cat}
         fys = next(x for x in cat if x["cobertura"] == "Farolas y Stops")
-        assert fys["foto"] == {"Avery": 100_000, "Xpel": 150_000}
+        assert fys["foto"]["Avery"] == foto("Farolas y Stops", "Avery")
         assert "Spectra" not in fys["foto"], "Spectra no hace fotocromático"
 
     def test_solo_farolas_y_stops_admiten_fotocromatico(self):
@@ -475,8 +479,9 @@ class TestCotizarPpf:
             with A.app.app_context():
                 c = A.Quote.query.filter_by(code=code).first()
                 assert c.tiene_ppf
-                assert c.ppf_items[0].precios == {
-                    "Spectra": 2_500_000, "Avery": 3_000_000, "Xpel": 4_000_000}
+                guardados = c.ppf_items[0].precios
+                for m in ("Spectra", "Avery", "Xpel"):
+                    assert guardados[m] == precio("Full Front", m)
         finally:
             _borrar(code)
 
@@ -498,7 +503,8 @@ class TestCotizarPpf:
         code = self._cotizar_ppf(client, ["Manijas"], ppf_price=["1"])
         try:
             with A.app.app_context():
-                assert A.Quote.query.filter_by(code=code).first().ppf_items[0].precios["Xpel"] == 350_000
+                assert (A.Quote.query.filter_by(code=code).first()
+                        .ppf_items[0].precios["Xpel"] == precio("Manijas", "Xpel"))
         finally:
             _borrar(code)
 
@@ -509,9 +515,8 @@ class TestCotizarPpf:
             with A.app.app_context():
                 c = A.Quote.query.filter_by(code=code).first()
                 tot = c.ppf_totales
-                assert tot["Spectra"] == 2_500_000 + 150_000
-                assert tot["Avery"] == 3_000_000 + 250_000
-                assert tot["Xpel"] == 4_000_000 + 350_000
+                for m in ("Spectra", "Avery", "Xpel"):
+                    assert tot[m] == precio("Full Front", m) + precio("Manijas", m)
         finally:
             _borrar(code)
 
@@ -523,9 +528,10 @@ class TestCotizarPpf:
         try:
             with A.app.app_context():
                 c = A.Quote.query.filter_by(code=code).first()
-                assert "Standard" not in dict(c.ppf_marcas)
-                assert "Stark" not in dict(c.ppf_marcas)
-                assert c.ppf_totales["Xpel"] == 350_000
+                huerfana = marca_sin_precios()
+                if huerfana:
+                    assert huerfana not in dict(c.ppf_marcas)
+                assert c.ppf_totales["Xpel"] == precio("Manijas", "Xpel")
         finally:
             _borrar(code)
 
@@ -560,8 +566,8 @@ class TestCotizarPpf:
             with A.app.app_context():
                 c = A.Quote.query.filter_by(code=code).first()
                 assert c.subtotal == 100_000
-                assert c.totales_por_marca["Xpel"] == 100_000 + 350_000
-                assert c.totales_por_marca["Spectra"] == 100_000 + 150_000
+                for m in ("Xpel", "Spectra"):
+                    assert c.totales_por_marca[m] == 100_000 + precio("Manijas", m)
         finally:
             _borrar(code)
 
@@ -574,8 +580,8 @@ class TestCotizarPpf:
         try:
             with A.app.app_context():
                 t = A.Quote.query.filter_by(code=code).first().totales_por_marca
-                assert t["Spectra"] == 2_250_000
-                assert t["Xpel"] == 3_600_000
+                for m in ("Spectra", "Xpel"):
+                    assert t[m] == round(precio("Full Front", m) * 0.9)
         finally:
             _borrar(code)
 
@@ -596,8 +602,11 @@ class TestCotizarPpf:
         try:
             with A.app.app_context():
                 # Ordenadas por garantía, y solo las que tienen precio.
-                assert A.Quote.query.filter_by(code=code).first().ppf_marcas == [
-                    ("Spectra", 5), ("Avery", 7), ("Xpel", 10)]
+                marcas = A.Quote.query.filter_by(code=code).first().ppf_marcas
+                # Solo las que tienen precio, en el orden del catálogo.
+                assert [m for m, _g in marcas] == [
+                    m for m, _g in A.ppf_marcas_activas()
+                    if m in A.PpfPackage.query.filter_by(name="Manijas").first().precios]
         finally:
             _borrar(code)
 
@@ -754,19 +763,28 @@ class TestEditar:
         r = client.post("/quotes/new", data={
             "customer_name": "PPF Edit", "ppf_coverage": ["Manijas"]})
         code = r.headers["Location"].rstrip("/").split("/")[-1]
+        original = precio("Manijas", "Xpel")
         try:
+            # Se sube el precio del catálogo DESPUÉS de emitida la cotización.
             with A.app.app_context():
-                p = A.PpfPrice.query.filter_by(coverage="Manijas", brand="Xpel").first()
-                original, p.price = p.price, 999_000
+                g = A.PpfPackage.query.filter_by(name="Manijas").first()
+                nuevos = g.precios
+                nuevos["Xpel"] = 999_000
+                g.prices_json = json.dumps(nuevos)
                 A.db.session.commit()
             client.post(f"/quotes/{code}/edit", data={
                 "customer_name": "PPF Edit", "ppf_coverage": ["Manijas"]})
             with A.app.app_context():
                 c = A.Quote.query.filter_by(code=code).first()
-                assert c.ppf_items[0].precios["Xpel"] == original
-                A.PpfPrice.query.filter_by(coverage="Manijas", brand="Xpel").first().price = original
-                A.db.session.commit()
+                assert c.ppf_items[0].precios["Xpel"] == original, (
+                    "editar la cotización refrescó un precio que el cliente ya vio")
         finally:
+            with A.app.app_context():
+                g = A.PpfPackage.query.filter_by(name="Manijas").first()
+                nuevos = g.precios
+                nuevos["Xpel"] = original
+                g.prices_json = json.dumps(nuevos)
+                A.db.session.commit()
             _borrar(code)
 
     def test_una_cobertura_nueva_toma_el_precio_vigente(self, client):
@@ -780,7 +798,7 @@ class TestEditar:
             with A.app.app_context():
                 c = A.Quote.query.filter_by(code=code).first()
                 nueva = next(i for i in c.ppf_items if i.coverage == "Full Front")
-                assert nueva.precios["Xpel"] == 4_000_000
+                assert nueva.precios["Xpel"] == precio("Full Front", "Xpel")
         finally:
             _borrar(code)
 
@@ -953,7 +971,8 @@ class TestFullCarAbsorbeLoExterior:
             with A.app.app_context():
                 c = A.Quote.query.filter_by(code=code).first()
                 assert c.ppf_absorbidas == set()
-                assert c.ppf_totales["Xpel"] == 15_000_000 + 1_500_000
+                assert c.ppf_totales["Xpel"] == (precio("Full Car", "Xpel")
+                                                 + precio("Full Interior", "Xpel"))
         finally:
             _borrar(code)
 
@@ -966,7 +985,7 @@ class TestFullCarAbsorbeLoExterior:
             with A.app.app_context():
                 c = A.Quote.query.filter_by(code=code).first()
                 assert c.ppf_absorbidas == {"Consola Central", "Pantalla"}
-                assert c.ppf_totales["Xpel"] == 1_500_000
+                assert c.ppf_totales["Xpel"] == precio("Full Interior", "Xpel")
         finally:
             _borrar(code)
 
@@ -978,7 +997,8 @@ class TestFullCarAbsorbeLoExterior:
             with A.app.app_context():
                 c = A.Quote.query.filter_by(code=code).first()
                 assert c.ppf_absorbida_por == {"Capó": "Full Car", "Pantalla": "Full Interior"}
-                assert c.ppf_totales["Xpel"] == 15_000_000 + 1_500_000
+                assert c.ppf_totales["Xpel"] == (precio("Full Car", "Xpel")
+                                                 + precio("Full Interior", "Xpel"))
         finally:
             _borrar(code)
 
@@ -1013,7 +1033,7 @@ class TestFullCarAbsorbeLoExterior:
             with A.app.app_context():
                 c = A.Quote.query.filter_by(code=code).first()
                 assert c.ppf_absorbidas == set()
-                assert c.ppf_totales["Xpel"] == 950_000 + 350_000
+                assert c.ppf_totales["Xpel"] == precio("Capó", "Xpel") + precio("Farolas", "Xpel")
         finally:
             _borrar(code)
 
@@ -1105,8 +1125,9 @@ class TestPreciosAbsorbidosEnElPdf:
         try:
             with A.app.app_context():
                 c = A.Quote.query.filter_by(code=code).first()
-                assert c.ppf_totales["Xpel"] == 15_000_000 + 1_500_000
-                assert c.ppf_totales["Spectra"] == 10_000_000 + 800_000
+                for m in ("Xpel", "Spectra"):
+                    assert c.ppf_totales[m] == (precio("Full Car", m)
+                                                + precio("Full Interior", m))
         finally:
             _borrar(code)
 

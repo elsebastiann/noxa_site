@@ -10,6 +10,7 @@ import json
 import pytest
 
 from conftest import app_module as A, make_user
+from precios_ppf import foto, precio
 
 _u = itertools.count(1)
 
@@ -109,7 +110,7 @@ class TestArmarUnGrupo:
             with A.app.app_context():
                 c = A.Quote.query.filter_by(code=code).first()
                 assert {i.coverage for i in c.ppf_items} == {"Manijas", "Frente reforzado"}
-                assert c.ppf_totales["Xpel"] == 350_000 + 3_900_000
+                assert c.ppf_totales["Xpel"] == precio("Manijas", "Xpel") + 3_900_000
         finally:
             _borrar(code)
 
@@ -148,8 +149,9 @@ class TestFotocromatico:
             with A.app.app_context():
                 c = A.Quote.query.filter_by(code=code).first()
                 assert c.ppf_items[0].con_fotocromatico
-                assert c.ppf_totales["Avery"] == 400_000 + 100_000
-                assert c.ppf_totales["Xpel"] == 450_000 + 150_000
+                for m in ("Avery", "Xpel"):
+                    assert c.ppf_totales[m] == (precio("Farolas y Stops", m)
+                                                + foto("Farolas y Stops", m))
         finally:
             _borrar(code)
 
@@ -159,7 +161,8 @@ class TestFotocromatico:
                       **{"ppf_foto::Farolas y Stops": "1"})
         try:
             with A.app.app_context():
-                assert A.Quote.query.filter_by(code=code).first().ppf_totales["Spectra"] == 350_000
+                assert (A.Quote.query.filter_by(code=code).first()
+                        .ppf_totales["Spectra"] == precio("Farolas y Stops", "Spectra"))
         finally:
             _borrar(code)
 
@@ -171,7 +174,7 @@ class TestFotocromatico:
             with A.app.app_context():
                 c = A.Quote.query.filter_by(code=code).first()
                 assert not c.ppf_items[0].con_fotocromatico
-                assert c.ppf_totales["Xpel"] == 350_000
+                assert c.ppf_totales["Xpel"] == precio("Manijas", "Xpel")
         finally:
             _borrar(code)
 

@@ -11,6 +11,7 @@ import itertools
 import pytest
 
 from conftest import app_module as A, make_user
+from precios_ppf import foto, precio
 
 _u = itertools.count(1)
 
@@ -630,8 +631,9 @@ class TestElLinkYElPdfDicenLoMismo:
         try:
             with A.app.app_context():
                 c = A.Quote.query.filter_by(code=code).first()
-                assert c.ppf_totales["Avery"] == 400_000 + 100_000
-                assert c.ppf_totales["Xpel"] == 450_000 + 150_000
+                for m in ("Avery", "Xpel"):
+                    assert c.ppf_totales[m] == (precio("Farolas y Stops", m)
+                                                + foto("Farolas y Stops", m))
         finally:
             _borrar(code)
 
@@ -691,6 +693,6 @@ class TestDosPartes:
                 c = A.Quote.query.filter_by(code=code).first()
                 assert c.items and c.ppf_items
                 assert A._construir_pdf_cotizacion(c).startswith(b"%PDF")
-                assert c.totales_por_marca["Xpel"] == 90_000 + 350_000
+                assert c.totales_por_marca["Xpel"] == 90_000 + precio("Manijas", "Xpel")
         finally:
             _borrar(code)

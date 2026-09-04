@@ -1439,6 +1439,141 @@ PPF_GRUPOS_FOTOCROMATICO = {
 }
 
 
+class AppMigration(db.Model):
+    """Migraciones de DATOS que deben correr una sola vez.
+
+    Distintas de las de esquema: estas cargan o corrigen contenido del negocio,
+    y volver a aplicarlas pisaría lo que alguien haya ajustado después desde la
+    pantalla. La marca queda en la base, así que sobrevive al redespliegue.
+    """
+    __tablename__ = "app_migrations"
+    id = db.Column(db.Integer, primary_key=True)
+    clave = db.Column(db.String(80), nullable=False, unique=True)
+    aplicada_en = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+
+
+def migracion_ya_aplicada(clave: str) -> bool:
+    try:
+        return AppMigration.query.filter_by(clave=clave).first() is not None
+    except Exception:
+        db.session.rollback()
+        return True          # ante la duda, no se aplica: repetirla haría daño
+
+
+def marcar_migracion(clave: str):
+    db.session.add(AppMigration(clave=clave))
+    db.session.commit()
+
+
+# Generado del Excel que devolvió la administración. No editar a mano:
+# si cambian los precios, se ajustan desde la pantalla de Precios PPF.
+PRECIOS_PARTES = {
+    'Bómper delantero': {'Standard': 910000, 'Spectra': 1300000, 'Avery': 1560000, 'Stark': 1760000, 'Xpel': 1950000},
+    'Bómper trasero': {'Standard': 840000, 'Spectra': 1200000, 'Avery': 1440000, 'Stark': 1620000, 'Xpel': 1800000},
+    'Capó': {'Standard': 520000, 'Spectra': 750000, 'Avery': 900000, 'Stark': 1010000, 'Xpel': 1120000},
+    'Guardabarros delanteros': {'Standard': 630000, 'Spectra': 900000, 'Avery': 1080000, 'Stark': 1220000, 'Xpel': 1350000},
+    'Guardabarros traseros': {'Standard': 630000, 'Spectra': 900000, 'Avery': 1080000, 'Stark': 1220000, 'Xpel': 1350000},
+    'Espejos retrovisores': {'Standard': 140000, 'Spectra': 200000, 'Avery': 240000, 'Stark': 270000, 'Xpel': 300000},
+    'Puertas': {'Standard': 2240000, 'Spectra': 3200000, 'Avery': 3840000, 'Stark': 4320000, 'Xpel': 4800000},
+    'Borde de puertas': {'Standard': 110000, 'Spectra': 200000, 'Avery': 250000, 'Stark': 300000, 'Xpel': 350000},
+    'Manijas': {'Standard': 110000, 'Spectra': 200000, 'Avery': 250000, 'Stark': 300000, 'Xpel': 350000},
+    'Uñeros': {'Standard': 80000, 'Spectra': 120000, 'Avery': 160000, 'Stark': 190000, 'Xpel': 210000},
+    'Pilares': {'Standard': 140000, 'Spectra': 200000, 'Avery': 240000, 'Stark': 270000, 'Xpel': 300000},
+    'Techo': {'Standard': 980000, 'Spectra': 1400000, 'Avery': 1680000, 'Stark': 1890000, 'Xpel': 2100000},
+    'Baúl': {'Standard': 630000, 'Spectra': 900000, 'Avery': 1080000, 'Stark': 1220000, 'Xpel': 1350000},
+    'Zona de carga del baúl': {'Standard': 180000, 'Spectra': 250000, 'Avery': 300000, 'Stark': 340000, 'Xpel': 380000},
+    'Farolas delanteras': {'Standard': 150000, 'Spectra': 250000, 'Avery': 290000, 'Stark': 350000, 'Xpel': 450000},
+    'Stops traseros': {'Standard': 150000, 'Spectra': 250000, 'Avery': 290000, 'Stark': 350000, 'Xpel': 450000},
+    'Molduras piano black exteriores': {'Standard': 320000, 'Spectra': 450000, 'Avery': 540000, 'Stark': 610000, 'Xpel': 680000},
+    'Posa pies': {'Standard': 250000, 'Spectra': 360000, 'Avery': 420000, 'Stark': 500000, 'Xpel': 550000},
+    'Pantalla de infoentretenimiento': {'Standard': 40000, 'Spectra': 60000, 'Avery': 70000, 'Stark': 80000, 'Xpel': 90000},
+    'Panel digital de instrumentos': {'Standard': 40000, 'Spectra': 50000, 'Avery': 60000, 'Stark': 70000, 'Xpel': 80000},
+    'Consola central': {'Standard': 130000, 'Spectra': 180000, 'Avery': 220000, 'Stark': 240000, 'Xpel': 270000},
+    'Touchpad y/o mandos centrales': {'Standard': 80000, 'Spectra': 120000, 'Avery': 140000, 'Stark': 160000, 'Xpel': 180000},
+    'Touchpad y/o mandos del timón': {'Standard': 80000, 'Spectra': 120000, 'Avery': 140000, 'Stark': 160000, 'Xpel': 180000},
+    'Acabados piano black interiores': {'Standard': 140000, 'Spectra': 200000, 'Avery': 240000, 'Stark': 270000, 'Xpel': 300000},
+    'Paneles vulnerables a rayones': {'Standard': 180000, 'Spectra': 250000, 'Avery': 300000, 'Stark': 340000, 'Xpel': 380000},
+}
+
+# Partes que no existían en el catálogo.
+PARTES_NUEVAS = [
+    ('Difusor', 'exterior', {'Standard': 350000, 'Spectra': 500000, 'Avery': 600000, 'Stark': 680000, 'Xpel': 750000}),
+    ('Aletas del bómper', 'exterior', {'Standard': 140000, 'Spectra': 200000, 'Avery': 240000, 'Stark': 270000, 'Xpel': 300000}),
+    ('Spoiler', 'exterior', {'Standard': 210000, 'Spectra': 300000, 'Avery': 360000, 'Stark': 400000, 'Xpel': 450000}),
+    ('Persiana frontal', 'exterior', {'Standard': 180000, 'Spectra': 250000, 'Avery': 300000, 'Stark': 340000, 'Xpel': 380000}),
+    ('Boceles y parales de puertas', 'exterior', {'Standard': 280000, 'Spectra': 400000, 'Avery': 480000, 'Stark': 540000, 'Xpel': 600000}),
+]
+
+PRECIOS_GRUPOS = {
+    'Full Car': {'Standard': 7000000, 'Spectra': 10000000, 'Avery': 12000000, 'Stark': 13500000, 'Xpel': 15000000},
+    'Full Front': {'Standard': 1750000, 'Spectra': 2500000, 'Avery': 3000000, 'Stark': 3380000, 'Xpel': 3750000},
+    'Protección Urbana': {'Standard': 600000, 'Spectra': 850000, 'Avery': 1020000, 'Stark': 1150000, 'Xpel': 1280000},
+    'Pianos Exteriores': {'Standard': 140000, 'Spectra': 200000, 'Avery': 240000, 'Stark': 270000, 'Xpel': 300000},
+    'Farolas': {'Standard': 140000, 'Spectra': 200000, 'Avery': 240000, 'Stark': 270000, 'Xpel': 300000},
+    'Farolas y Stops': {'Standard': 240000, 'Spectra': 350000, 'Avery': 420000, 'Stark': 470000, 'Xpel': 520000},
+    'Full Interior': {'Standard': 560000, 'Spectra': 800000, 'Avery': 960000, 'Stark': 1080000, 'Xpel': 1200000},
+    'Consola Central': {'Standard': 180000, 'Spectra': 250000, 'Avery': 300000, 'Stark': 340000, 'Xpel': 380000},
+    'Pantalla': {'Standard': 60000, 'Spectra': 80000, 'Avery': 100000, 'Stark': 110000, 'Xpel': 120000},
+    'Retrovisores': {'Standard': 140000, 'Spectra': 200000, 'Avery': 240000, 'Stark': 270000, 'Xpel': 300000},
+    'Manijas': {'Standard': 100000, 'Spectra': 150000, 'Avery': 180000, 'Stark': 200000, 'Xpel': 220000},
+    'Capó': {'Standard': 520000, 'Spectra': 750000, 'Avery': 900000, 'Stark': 1010000, 'Xpel': 1120000},
+    'Puertas': {'Standard': 2240000, 'Spectra': 3200000, 'Avery': 3840000, 'Stark': 4320000, 'Xpel': 4800000},
+    'Bómper Trasero y Delantero': {'Standard': 1750000, 'Spectra': 2500000, 'Avery': 3000000, 'Stark': 3380000, 'Xpel': 3750000},
+}
+
+# Adicional de fotocromático. Vacío = esa marca no lo ofrece.
+PRECIOS_FOTO = {
+    'Farolas': {'Avery': 50000, 'Xpel': 50000},
+    'Farolas y Stops': {'Avery': 100000, 'Xpel': 150000},
+}
+
+
+
+def seed_precios_ppf_desde_lista():
+    """Carga la lista de precios que definió la administración.
+
+    Corre UNA sola vez. Si volviera a correr, pisaría cualquier ajuste hecho
+    después desde la pantalla de Precios PPF — y esa pantalla existe justamente
+    para que estos números se muevan sin tocar código.
+    """
+    CLAVE = "precios_ppf_lista_2026_09"
+    with app.app_context():
+        if migracion_ya_aplicada(CLAVE):
+            return
+        try:
+            partes = {p.name: p for p in PpfPart.query.all()}
+        except Exception:
+            db.session.rollback()
+            return
+
+        # Partes nuevas que salieron de las cotizaciones del instalador.
+        orden = max((p.orden for p in partes.values()), default=0)
+        for nombre, zona, precios in PARTES_NUEVAS:
+            if nombre in partes:
+                continue
+            orden += 1
+            p = PpfPart(name=nombre, zona=zona, orden=orden, is_active=True,
+                        prices_json=json.dumps(precios))
+            db.session.add(p)
+            partes[nombre] = p
+
+        for nombre, precios in PRECIOS_PARTES.items():
+            if nombre in partes:
+                partes[nombre].prices_json = json.dumps(precios)
+
+        for paquete in PpfPackage.query.all():
+            if paquete.name in PRECIOS_GRUPOS:
+                paquete.prices_json = json.dumps(PRECIOS_GRUPOS[paquete.name])
+            foto = PRECIOS_FOTO.get(paquete.name)
+            paquete.foto_prices_json = json.dumps(foto) if foto else None
+
+        marcar_migracion(CLAVE)
+        app.logger.warning(
+            f"[PPF] Lista de precios cargada: {len(PRECIOS_PARTES)} partes, "
+            f"{len(PRECIOS_GRUPOS)} grupos, {len(PARTES_NUEVAS)} partes nuevas."
+        )
+
+
 def seed_ppf_parts():
     """Crea las partes que falten, sin tocar las que ya están."""
     with app.app_context():
@@ -8368,6 +8503,7 @@ normalizar_marcas_en_precios()
 seed_ppf_prices()
 seed_ppf_parts()
 migrar_precios_a_grupos()
+seed_precios_ppf_desde_lista()
 seed_garantias_polarizado()
 
 # --- Seed: crear super admin si no existe ningún usuario ---
@@ -13539,10 +13675,14 @@ def _construir_pdf_cotizacion(cot: "Quote", version=None) -> bytes:
         encabezado = [Paragraph("Cobertura", ParagraphStyle(
             "hc", parent=est_txt, fontSize=8.5, fontName="Helvetica-Bold", textColor=SUAVE))]
         for marca, garantia in marcas:
-            encabezado.append(Paragraph(
-                f"<font size=9><b>{marca}</b></font><br/>"
-                f"<font size=7.5 color='#c8a04a'>garantía {texto_garantia(garantia)}</font>"
-                if garantia else "", est_marca))
+            # El nombre va SIEMPRE; lo que se omite cuando no hay garantía es
+            # la segunda línea. Antes se vaciaba la celda entera y la columna
+            # quedaba sin título encima de sus precios.
+            titulo = f"<font size=9><b>{marca}</b></font>"
+            if garantia:
+                titulo += (f"<br/><font size=7.5 color='#c8a04a'>"
+                           f"garantía {texto_garantia(garantia)}</font>")
+            encabezado.append(Paragraph(titulo, est_marca))
         filas_ppf = [encabezado]
 
         for it in ppf_items:
@@ -13607,7 +13747,23 @@ def _construir_pdf_cotizacion(cot: "Quote", version=None) -> bytes:
                           "Se cotiza aparte porque el precio depende de la marca de película.")
         else:
             hist += [Paragraph("PROTECCIÓN PPF", est_seccion)]
-        hist += [t_ppf, Spacer(1, 3 * mm)]
+
+        # Cada carro es distinto y estos valores se dan sin haberlo visto. Va
+        # acá, junto a las cifras, y no solo en el pie: al pie casi nadie llega.
+        aviso = Paragraph(
+            "<b>Valores de referencia.</b> Cada vehículo es distinto: el precio final "
+            "puede variar según marca, modelo, estado de la pintura y complejidad del "
+            "montaje, y se confirma en el diagnóstico presencial.",
+            ParagraphStyle("av", parent=est_txt, fontSize=8, leading=11,
+                           textColor=colors.HexColor("#6b5a2e")))
+        caja_aviso = Table([[aviso]], colWidths=[175 * mm])
+        caja_aviso.setStyle(TableStyle([
+            ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#fbf7ec")),
+            ("BOX", (0, 0), (-1, -1), 0.6, colors.HexColor("#e8dcbb")),
+            ("LEFTPADDING", (0, 0), (-1, -1), 9), ("RIGHTPADDING", (0, 0), (-1, -1), 9),
+            ("TOPPADDING", (0, 0), (-1, -1), 6), ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
+        ]))
+        hist += [caja_aviso, Spacer(1, 4 * mm), t_ppf, Spacer(1, 3 * mm)]
 
         # Decirlo explícitamente: sin esta nota, la columna más barata parece la
         # mejor oferta cuando en realidad está cubriendo menos partes.
