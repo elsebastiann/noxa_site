@@ -13271,7 +13271,27 @@ def quote_edit(code):
         "quote_form.html",
         cot=cot,
         lineas_iniciales=lineas,
-        ppf_iniciales=[it.coverage for it in cot.ppf_items],
+        # Los del CATÁLOGO. Un grupo armado a mano no va acá: iba, y como al
+        # guardar esa lista viaja como `ppf_coverage`, el servidor lo buscaba en
+        # la tabla de grupos, no lo encontraba y lo saltaba — editar la
+        # cotización le borraba el grupo sin decir nada.
+        ppf_iniciales=[it.coverage for it in cot.ppf_items if not it.es_personalizado],
+        # Los armados a mano vuelven a su propia caja, con sus partes y sus
+        # precios, para poder corregirlos.
+        libres_iniciales=[{
+            "nombre": it.coverage,
+            "partes": it.partes,
+            "precios": it.precios,
+            "foto": it.precios_foto,
+            # Marcados como escritos a mano: si no, la sugerencia por suma de
+            # partes los recalcularía al primer cambio y movería un precio que
+            # el cliente ya vio.
+            "manual": {m: True for m, v in it.precios.items() if v},
+        } for it in cot.ppf_items if it.es_personalizado],
+        # El adicional de fotocromático arrancaba apagado, así que guardar sin
+        # tocar nada se lo quitaba a la cotización.
+        ppf_foto_iniciales={it.coverage: True for it in cot.ppf_items
+                            if not it.es_personalizado and it.con_fotocromatico},
         # Los precios con los que se emitió, no los de lista: al editar, el
         # armador tiene que mostrar la cifra que la cotización realmente lleva.
         # Antes pintaba la de catálogo mientras guardaba la congelada, así que

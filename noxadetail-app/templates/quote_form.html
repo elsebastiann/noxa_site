@@ -349,8 +349,10 @@ const CATALOGO   = {{ catalogo|tojson }};
 const PPF        = {{ catalogo_ppf|tojson }};
 const MARCAS_PPF = {{ marcas_ppf|tojson }};
 const PARTES_PPF = {{ partes_ppf|tojson }};
-let libres = [];        // grupos armados a mano: {nombre, partes[], precios{}, foto{}}
-let ppfFoto = {};       // {cobertura: true} para los del catálogo con adicional
+// Grupos armados a mano: {nombre, partes[], precios{}, foto{}, manual{}}
+let libres = {{ (libres_iniciales if cot else [])|tojson }};
+// {cobertura: true} para los del catálogo con adicional de fotocromático
+let ppfFoto = {{ (ppf_foto_iniciales if cot else {})|tojson }};
 
 // Las marcas que esta cotización va a comparar. Se leen de las casillas, no de
 // la lista del sistema: se puede cotizar con dos marcas y no con las cinco.
