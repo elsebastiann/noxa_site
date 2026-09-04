@@ -7,34 +7,76 @@
   .ppf-tabla th.num { text-align:right; }
   .ppf-tabla td { padding:8px; border-top:1px solid rgba(255,255,255,.07); vertical-align:top; }
   .ppf-cob { font-weight:600; color:#e9e9e9; font-size:.92rem; }
-  .ppf-que { font-size:.77rem; color:#8a8a8a; line-height:1.35; margin-top:2px; max-width:420px; }
+  .ppf-que { font-size:.77rem; color:#8a8a8a; line-height:1.35; max-width:380px; margin-top:2px; }
   .ppf-tabla input { background:rgba(255,255,255,.05); border:1px solid rgba(255,255,255,.10);
                      color:#eee; border-radius:6px; padding:5px 8px; font-size:.87rem;
-                     width:118px; text-align:right; }
+                     width:112px; text-align:right; }
   .ppf-tabla input:focus { border-color:var(--accent,#c8a04a); outline:none; }
-  .ppf-na { color:#5f5f5f; font-size:.8rem; }
+  .ppf-tabla input.vacio { border-style:dashed; border-color:rgba(255,255,255,.16); }
   .gar { font-size:.74rem; color:var(--accent,#c8a04a); font-weight:600; }
+  .gar-vacia { font-size:.74rem; color:#e0a458; font-weight:600; }
+
+  .marcas-caja { background:rgba(200,160,74,.07); border:1px solid rgba(200,160,74,.28);
+                 border-radius:11px; padding:15px 16px; margin-bottom:26px; }
+  .marcas-tit { font-size:.68rem; letter-spacing:.09em; text-transform:uppercase;
+                color:var(--accent,#c8a04a); font-weight:700; margin-bottom:10px; }
+  .marcas-grid { display:flex; gap:10px; flex-wrap:wrap; }
+  .marca-campo { flex:1 1 150px; }
+  .marca-campo label { display:block; font-size:.8rem; color:#ddd; font-weight:600; margin-bottom:4px; }
+  .marca-campo input { width:100%; text-align:left; background:rgba(0,0,0,.28);
+                       border:1px solid rgba(255,255,255,.12); color:#eee;
+                       border-radius:7px; padding:6px 10px; font-size:.85rem; }
+  .aviso { font-size:.79rem; color:#ffd9a0; background:rgba(200,140,40,.14);
+           border:1px solid rgba(200,140,40,.4); border-radius:7px; padding:9px 11px; margin-bottom:20px; }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="container mt-4 mb-5">
+<div class="container-fluid px-3 px-lg-4 mt-4 mb-5">
   <div class="d-flex justify-content-between align-items-center mb-2 flex-wrap gap-2">
     <h2 class="mb-0">Precios de PPF</h2>
     <a href="{{ url_for('quote_new') }}" class="btn btn-outline-secondary btn-sm">Nueva cotización</a>
   </div>
-  <p class="text-muted small mb-4" style="max-width:720px">
-    Valores estimados para cotizar sin haber visto el carro. El precio final puede variar
-    según marca, modelo, estado del vehículo y complejidad de la instalación.
+  <p class="text-muted small mb-4" style="max-width:760px">
+    Valores estimados para cotizar sin haber visto el carro. Una casilla vacía significa
+    que esa marca <strong>no ofrece</strong> esa cobertura — no que valga cero.
   </p>
 
-  <form method="POST">
+  {% set sin_garantia = marcas_obj | rejectattr('warranty_years') | list %}
+  {% if sin_garantia and puede_borrar_servicios() %}
+  <div class="aviso">
+    {{ sin_garantia | map(attribute='name') | join(' y ') }}
+    {{ 'no tienen' if sin_garantia|length > 1 else 'no tiene' }} garantía definida.
+    Sin ella no sale en la cotización.
+  </div>
+  {% endif %}
+
+  <form method="POST" id="formPrecios">
+    <div class="marcas-caja">
+      <div class="marcas-tit">Garantía de cada marca (años)</div>
+      <div class="marcas-grid">
+        {% for b in marcas_obj %}
+        <div class="marca-campo">
+          <label>{{ b.name }}</label>
+          <input type="number" name="garantia_{{ b.id }}" min="0" max="99"
+                 value="{{ b.warranty_years if b.warranty_years is not none else '' }}"
+                 placeholder="sin definir"
+                 {% if not puede_borrar_servicios() %}disabled{% endif %}>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+
+    <div style="overflow-x:auto">
     <table class="ppf-tabla">
       <thead>
         <tr>
           <th>Cobertura</th>
-          {% for marca, garantia in marcas %}
-          <th class="num">{{ marca }}<br><span class="gar">{{ garantia }} años</span></th>
+          {% for nombre, garantia in marcas %}
+          <th class="num">{{ nombre }}<br>
+            {% if garantia %}<span class="gar">{{ garantia }} años</span>
+            {% else %}<span class="gar-vacia">sin garantía</span>{% endif %}
+          </th>
           {% endfor %}
         </tr>
       </thead>
@@ -42,33 +84,32 @@
         {% for cob in coberturas %}
         <tr>
           <td>
-            <div class="ppf-cob">{{ cob }}</div>
-            {% set fila = por_cobertura[cob] %}
-            {% set primero = fila.values()|list|first %}
-            {% if primero and primero.contains %}
-            <div class="ppf-que">{{ primero.contains }}</div>
-            {% endif %}
+            <div class="ppf-cob">{{ cob.cobertura }}</div>
+            {% if cob.contiene %}<div class="ppf-que">{{ cob.contiene }}</div>{% endif %}
           </td>
-          {% for marca, _g in marcas %}
+          {% for nombre, _g in marcas %}
+          {% set precio = cob.precios.get(nombre) %}
           <td class="text-end">
-            {% set p = por_cobertura[cob].get(marca) %}
-            {% if p %}
-              <input type="number" name="precio_{{ p.id }}" value="{{ p.price }}"
-                     min="0" step="1000" {% if not puede_borrar_servicios() %}disabled{% endif %}>
-            {% else %}
-              {# Spectra no ofrece fotocromático: se deja explícito en vez de un cero
-                 que se leería como "gratis". #}
-              <span class="ppf-na">no aplica</span>
-            {% endif %}
+            {# La cobertura y la marca van en el NOMBRE del campo, no en un
+               hidden aparte: un input deshabilitado no se envía, y con listas
+               paralelas eso desalinearía valores con claves. Además así se
+               puede crear la fila que todavía no existe. #}
+            <input type="number" name="precio::{{ cob.cobertura }}||{{ nombre }}"
+                   min="0" step="1000"
+                   class="{% if precio is none %}vacio{% endif %}"
+                   value="{{ precio if precio is not none else '' }}"
+                   placeholder="no aplica"
+                   {% if not puede_borrar_servicios() %}disabled{% endif %}>
           </td>
           {% endfor %}
         </tr>
         {% endfor %}
       </tbody>
     </table>
+    </div>
 
     {% if puede_borrar_servicios() %}
-    <button type="submit" class="btn btn-warning fw-bold mt-4">Guardar precios</button>
+    <button type="submit" class="btn btn-warning fw-bold mt-4">Guardar</button>
     {% else %}
     <p class="text-muted small mt-4">Solo un administrador puede cambiar estos precios.</p>
     {% endif %}

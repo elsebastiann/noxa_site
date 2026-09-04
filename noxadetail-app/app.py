@@ -1016,7 +1016,7 @@ class Quote(db.Model):
                 return [(m, g) for m, g in json.loads(self.ppf_brands)]
             except Exception:
                 pass
-        return list(PPF_MARCAS)
+        return ppf_marcas_activas()
 
     @property
     def ppf_absorbida_por(self) -> dict:
@@ -1201,6 +1201,126 @@ class QuoteVersion(db.Model):
         return f"<QuoteVersion v{self.numero} de {self.quote_id} = {self.total}>"
 
 
+class PpfFilmBrand(db.Model):
+    """Las marcas de película que se cotizan, con su garantía.
+
+    Era una constante en el código —tres marcas fijas— y dejó de servir apenas
+    entraron dos más. Además la fase siguiente necesita elegir marcas y
+    garantías por cotización, y eso no se puede hacer sobre una lista escrita
+    a mano en el fuente.
+
+    La garantía es opcional: una marca puede existir antes de que alguien sepa
+    con cuántos años se va a vender.
+    """
+    __tablename__ = "ppf_film_brands"
+    id = db.Column(db.Integer, primary_key=True)
+
+    name = db.Column(db.String(40), nullable=False, unique=True)
+    warranty_years = db.Column(db.Integer, nullable=True)
+    orden = db.Column(db.Integer, nullable=False, default=0)
+    is_active = db.Column(db.Boolean, nullable=False, default=True)
+
+    def __repr__(self):
+        return f"<PpfFilmBrand {self.name} {self.warranty_years}a>"
+
+
+# Semilla. El orden es de menor a mayor gama, que es como se le presentan al
+# cliente. Standard y Stark entran sin garantía: nadie la ha definido todavía y
+# es mejor que salga en blanco a que salga inventada.
+PPF_MARCAS_SEMILLA = [
+    ("Standard", None),
+    ("Avery", 7),
+    ("Stark", None),
+    ("Spectra", 5),
+    ("Xpel", 10),
+]
+
+
+def seed_ppf_brands():
+    """Crea las marcas que falten. No toca las que ya están: si alguien ajustó
+    una garantía desde la pantalla, un redespliegue no se la revierte."""
+    with app.app_context():
+        try:
+            existentes = {b.name.strip().lower() for b in PpfFilmBrand.query.all()}
+        except Exception:
+            db.session.rollback()
+            return
+        nuevas = [
+            PpfFilmBrand(name=nombre, warranty_years=garantia, orden=i, is_active=True)
+            for i, (nombre, garantia) in enumerate(PPF_MARCAS_SEMILLA)
+            if nombre.strip().lower() not in existentes
+        ]
+        if nuevas:
+            db.session.add_all(nuevas)
+            db.session.commit()
+            app.logger.warning(
+                f"[PPF] {len(nuevas)} marca(s) creadas: "
+                + ", ".join(b.name for b in nuevas)
+            )
+
+
+def normalizar_marcas_en_precios():
+    """Pone los precios existentes bajo el nombre canónico de cada marca.
+
+    Los precios se sembraron con SPECTRA/AVERY/XPEL en mayúsculas, y las marcas
+    de la tabla son Spectra/Avery/Xpel. Se comparan por nombre exacto en varios
+    sitios, así que sin esto cada precio quedaría huérfano y la matriz entera
+    saldría en "no aplica" — sin ningún error visible.
+
+    Las cotizaciones ya emitidas no se tocan: guardan su propia copia, que es
+    justamente para que un cambio de catálogo no las altere.
+    """
+    with app.app_context():
+        try:
+            canonicas = {b.name.strip().lower(): b.name for b in PpfFilmBrand.query.all()}
+            filas = PpfPrice.query.all()
+        except Exception:
+            db.session.rollback()
+            return
+        # Renombrar a secas revienta contra el UNIQUE(coverage, brand) cuando ya
+        # existe la fila canónica. Puede existir: si esta migración corriera
+        # después del sembrado, el sembrado habría creado la fila con el nombre
+        # nuevo sin reconocer la vieja, y quedarían las dos. Así que se fusiona.
+        ya_canonicas = {(f.coverage, f.brand) for f in filas
+                        if f.brand in set(canonicas.values())}
+        renombradas = 0
+        duplicadas = []
+        for f in sorted(filas, key=lambda x: x.id):
+            canonica = canonicas.get((f.brand or "").strip().lower())
+            if not canonica or f.brand == canonica:
+                continue
+            if (f.coverage, canonica) in ya_canonicas:
+                # Gana la fila de id más bajo, que es la original: la otra es la
+                # copia que dejó el sembrado.
+                duplicadas.append(f)
+            else:
+                f.brand = canonica
+                ya_canonicas.add((f.coverage, canonica))
+                renombradas += 1
+        for f in duplicadas:
+            db.session.delete(f)
+        if renombradas or duplicadas:
+            db.session.commit()
+            app.logger.warning(
+                f"[PPF] {renombradas} precio(s) renombrados a la marca canónica"
+                + (f" y {len(duplicadas)} duplicado(s) eliminados." if duplicadas else ".")
+            )
+
+
+def ppf_marcas_activas() -> list:
+    """[(nombre, garantía), ...] en el orden en que se muestran.
+
+    Devuelve tuplas y no objetos porque es lo que ya consumen las plantillas,
+    el PDF y el JSON que viaja al navegador — así el cambio de constante a
+    tabla no se propaga a todo el resto.
+    """
+    return [
+        (b.name, b.warranty_years)
+        for b in PpfFilmBrand.query.filter_by(is_active=True)
+                                   .order_by(PpfFilmBrand.orden, PpfFilmBrand.id).all()
+    ]
+
+
 class PpfPrice(db.Model):
     """Precios de PPF, que no caben en `service_prices`.
 
@@ -1237,7 +1357,7 @@ class PpfPrice(db.Model):
 # Garantía en años que da cada marca. Va en la línea de la cotización porque es
 # la mitad de la decisión del cliente: Xpel cuesta más pero cubre el doble de
 # tiempo que Spectra.
-PPF_MARCAS = [("SPECTRA", 5), ("AVERY", 7), ("XPEL", 10)]
+
 
 # Coberturas que cubren una zona entera. Cotizar además una pieza suelta de esa
 # misma zona sería cobrar dos veces la misma lámina: Full Car ya trae el capó y
@@ -1285,7 +1405,7 @@ def ppf_totales_de(ppf_items, marcas) -> dict:
             if precio and marca in tot:
                 tot[marca] += precio
     return tot
-PPF_GARANTIAS = dict(PPF_MARCAS)
+
 
 # (cobertura, qué contiene, {marca: precio}, zona). Un None en un precio
 # significa que esa marca no ofrece esa cobertura — el fotocromático no existe
@@ -1414,8 +1534,11 @@ def seed_ppf_prices():
             return  # la tabla todavía no existe; db.create_all() la creará
         nuevos = []
         for i, (cobertura, contiene, precios, zona) in enumerate(PPF_CATALOGO_SEMILLA):
-            for marca, _garantia in PPF_MARCAS:
-                precio = precios.get(marca)
+            # El diccionario de la semilla está en mayúsculas y las marcas de la
+            # tabla no: se busca sin distinguir.
+            por_marca = {k.strip().lower(): v for k, v in precios.items()}
+            for marca, _garantia in ppf_marcas_activas():
+                precio = por_marca.get(marca.strip().lower())
                 if precio is None or (cobertura, marca) in existentes:
                     continue
                 nuevos.append(PpfPrice(coverage=cobertura, brand=marca, price=precio,
@@ -7850,6 +7973,8 @@ ensure_quote_updated_schema()
 ensure_quote_public_token_schema()
 ensure_quote_item_warranty_schema()
 ensure_ppf_zona_schema()
+seed_ppf_brands()
+normalizar_marcas_en_precios()
 seed_ppf_prices()
 seed_garantias_polarizado()
 
@@ -12192,48 +12317,89 @@ def _catalogo_ppf() -> list:
     for e in salida:
         # Explícito: una marca que no ofrece la cobertura va en None, que no es
         # lo mismo que cero, y la pantalla lo tiene que poder distinguir.
-        for marca, _g in PPF_MARCAS:
+        for marca, _g in ppf_marcas_activas():
             e["precios"].setdefault(marca, None)
     return salida
 
 
 @app.route("/ppf-prices", methods=["GET", "POST"])
 def ppf_prices_list():
-    """Los precios de PPF son estimados y se mueven. Sin esta pantalla,
-    ajustarlos obligaría a tocar el código y redesplegar."""
+    """Precios de PPF por cobertura y marca, y garantía de cada marca.
+
+    Toda celda es editable, exista o no la fila: si solo se dibujara input
+    donde ya hay precio, una marca nueva quedaría para siempre en "no aplica"
+    sin manera de cargarle nada.
+    """
     if not puede_cotizar():
         flash("Acceso restringido.", "danger")
         return redirect(url_for("calendar_view"))
+
+    marcas = ppf_marcas_activas()
 
     if request.method == "POST":
         if not puede_borrar_servicios():
             flash("Solo un administrador puede cambiar los precios de PPF.", "danger")
             return redirect(url_for("ppf_prices_list"))
-        cambiados = 0
-        for p in PpfPrice.query.all():
-            crudo = request.form.get(f"precio_{p.id}")
-            if crudo is None or crudo.strip() == "":
+
+        # Garantías de las marcas.
+        for b in PpfFilmBrand.query.all():
+            crudo = request.form.get(f"garantia_{b.id}")
+            if crudo is None:
                 continue
-            nuevo_precio = max(0, _int_o_cero(crudo))
-            if nuevo_precio and nuevo_precio != p.price:
-                p.price = nuevo_precio
-                cambiados += 1
+            crudo = crudo.strip()
+            b.warranty_years = _int_o_cero(crudo) if crudo else None
+
+        # La cobertura y la marca vienen en el nombre del campo
+        # ("precio::<cobertura>||<marca>"), no en una lista paralela: un input
+        # deshabilitado no se envía y eso desalinearía claves con valores.
+        indice = {(p.coverage, p.brand): p for p in PpfPrice.query.all()}
+        meta = {p.coverage: (p.contains, p.zona, p.orden) for p in PpfPrice.query.all()}
+        cambios = 0
+        for campo, crudo in request.form.items():
+            if not campo.startswith("precio::") or "||" not in campo:
+                continue
+            cobertura, marca = campo[len("precio::"):].split("||", 1)
+            crudo = (crudo or "").strip()
+            fila = indice.get((cobertura, marca))
+            if not crudo:
+                # Vacío significa "esta marca no ofrece esta cobertura", que no
+                # es lo mismo que cero: un cero se leería como gratis.
+                if fila:
+                    db.session.delete(fila)
+                    cambios += 1
+                continue
+            precio = max(0, _int_o_cero(crudo))
+            if fila:
+                if fila.price != precio:
+                    fila.price = precio
+                    cambios += 1
+            else:
+                contiene, zona, orden = meta.get(cobertura, (None, "exterior", 0))
+                db.session.add(PpfPrice(coverage=cobertura, brand=marca, price=precio,
+                                        contains=contiene, zona=zona, orden=orden,
+                                        is_active=True))
+                cambios += 1
         db.session.commit()
-        flash(f"{cambiados} precio(s) actualizado(s)." if cambiados
-              else "No hubo cambios.", "success" if cambiados else "info")
+        flash(f"{cambios} cambio(s) guardado(s)." if cambios else "No hubo cambios.",
+              "success" if cambios else "info")
         return redirect(url_for("ppf_prices_list"))
 
+    # Una fila por cobertura, con su precio en cada marca (o None).
+    filas = PpfPrice.query.order_by(PpfPrice.orden, PpfPrice.coverage).all()
     coberturas = []
-    vistos = set()
-    for p in PpfPrice.query.order_by(PpfPrice.orden, PpfPrice.coverage).all():
-        if p.coverage not in vistos:
-            vistos.add(p.coverage)
-            coberturas.append(p.coverage)
-    por_cobertura = {}
-    for p in PpfPrice.query.all():
-        por_cobertura.setdefault(p.coverage, {})[p.brand] = p
-    return render_template("ppf_prices.html", coberturas=coberturas,
-                           por_cobertura=por_cobertura, marcas=PPF_MARCAS)
+    vistas = {}
+    for p in filas:
+        if p.coverage not in vistas:
+            vistas[p.coverage] = {"cobertura": p.coverage, "contiene": p.contains or "",
+                                  "zona": p.zona, "precios": {}}
+            coberturas.append(vistas[p.coverage])
+        vistas[p.coverage]["precios"][p.brand] = p.price
+        if p.contains and not vistas[p.coverage]["contiene"]:
+            vistas[p.coverage]["contiene"] = p.contains
+
+    return render_template("ppf_prices.html", coberturas=coberturas, marcas=marcas,
+                           marcas_obj=PpfFilmBrand.query
+                                        .order_by(PpfFilmBrand.orden, PpfFilmBrand.id).all())
 
 
 @app.route("/quotes")
@@ -12349,7 +12515,15 @@ def _leer_formulario_de_cotizacion(cot: "Quote") -> str | None:
     cot.items     = lineas
     cot.ppf_items = ppf_lineas
     if ppf_lineas and not cot.ppf_brands:
-        cot.ppf_brands = json.dumps([[m, g] for m, g in PPF_MARCAS])
+        # Solo las marcas que tienen precio en ALGUNA de las coberturas
+        # elegidas. Una marca recién creada, sin precios cargados, ocuparía una
+        # columna entera de "no aplica" y dispararía el aviso de "no cubre" en
+        # todas las filas — ruido puro. Cuando le carguen precios entra sola.
+        con_precio = set()
+        for linea in ppf_lineas:
+            con_precio.update(m for m, p in json.loads(linea.prices_json).items() if p)
+        marcas = [(m, g) for m, g in ppf_marcas_activas() if m in con_precio]
+        cot.ppf_brands = json.dumps([[m, g] for m, g in (marcas or ppf_marcas_activas())])
     return None
 
 
@@ -12379,7 +12553,7 @@ def quote_new():
         tipos=VehicleType.query.filter_by(is_active=True).order_by(VehicleType.name).all(),
         catalogo=_catalogo_para_cotizar(),
         catalogo_ppf=_catalogo_ppf(),
-        marcas_ppf=PPF_MARCAS,
+        marcas_ppf=ppf_marcas_activas(),
         ppf_totales_zona=PPF_COBERTURAS_TOTALES,
         dias_por_defecto=QUOTE_VALID_DAYS,
     )
@@ -12420,7 +12594,7 @@ def quote_edit(code):
         tipos=VehicleType.query.filter_by(is_active=True).order_by(VehicleType.name).all(),
         catalogo=_catalogo_para_cotizar(),
         catalogo_ppf=_catalogo_ppf(),
-        marcas_ppf=PPF_MARCAS,
+        marcas_ppf=ppf_marcas_activas(),
         ppf_totales_zona=PPF_COBERTURAS_TOTALES,
         dias_por_defecto=dias,
     )

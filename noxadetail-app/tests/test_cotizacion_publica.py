@@ -35,7 +35,13 @@ def _cotizacion(dias=15, items=None, ppf=None, **kw):
                 orden=filas[0].orden,
                 prices_json=json.dumps({f.brand: f.price for f in filas})))
         if c.ppf_items:
-            c.ppf_brands = json.dumps([[m, g] for m, g in A.PPF_MARCAS])
+            # Igual que la ruta real: solo las marcas con precio en alguna de
+            # las coberturas elegidas.
+            con_precio = set()
+            for it in c.ppf_items:
+                con_precio.update(m for m, v in json.loads(it.prices_json).items() if v)
+            c.ppf_brands = json.dumps(
+                [[m, g] for m, g in A.ppf_marcas_activas() if m in con_precio])
         A.db.session.add(c)
         A.db.session.commit()
         return c.code, c.public_token
@@ -187,8 +193,8 @@ class TestPpfEnElLink:
         try:
             cuerpo = client.get(f"/c/{token}").data.decode()
             precios = next(l for l in cuerpo.splitlines() if "const PRECIOS_PPF" in l)
-            assert "SPECTRA" not in precios, precios
-            assert "AVERY" in precios and "XPEL" in precios
+            assert "Spectra" not in precios, precios
+            assert "Avery" in precios and "Xpel" in precios
             assert "no incluida" in cuerpo
         finally:
             _borrar(code)
@@ -330,7 +336,7 @@ class TestDescargarElPdf:
         code, token = _cotizacion(ppf=["Full Car", "Capó"])
         try:
             r = client.post(f"/c/{token}/pdf",
-                            data={"ppf": ["Full Car", "Capó"], "marca": "XPEL"})
+                            data={"ppf": ["Full Car", "Capó"], "marca": "Xpel"})
             assert r.data.startswith(b"%PDF")
             with A.app.app_context():
                 assert A.Quote.query.filter_by(code=code).first().versiones[0].total == 15_000_000
@@ -465,7 +471,7 @@ class TestVersionDelCliente:
         code, token = _cotizacion(ppf=["Full Car", "Capó"])
         try:
             self._seleccionar(client, token, items=[],
-                              ppf=["Full Car", "Capó"], marca="XPEL")
+                              ppf=["Full Car", "Capó"], marca="Xpel")
             with A.app.app_context():
                 assert A.Quote.query.filter_by(code=code).first().versiones[0].total == 15_000_000
         finally:

@@ -1,7 +1,7 @@
 {
   "app.py": {
-    "mtime": 1788387703.6987984,
-    "ast_hash": "a57aa07bb048c9d233ca9f07198bc0b2",
+    "mtime": 1788482687.3161418,
+    "ast_hash": "938f91642cee2e195da8c1a3d8cd832f",
     "semantic_hash": ""
   },
   "migrate_prices.py": {
@@ -380,8 +380,8 @@
     "semantic_hash": ""
   },
   "tests/test_cotizaciones.py": {
-    "mtime": 1788370682.0598972,
-    "ast_hash": "69ceba60bcec073a7582a96a733a9ea2",
+    "mtime": 1788482763.7368212,
+    "ast_hash": "e23825f05d7e6df9c73cf592b91af9c5",
     "semantic_hash": ""
   },
   "templates/quote_detail.html": {
@@ -400,8 +400,8 @@
     "semantic_hash": ""
   },
   "templates/ppf_prices.html": {
-    "mtime": 1788357049.2983644,
-    "ast_hash": "2b5e654b6a4958ff8ee191962c1c1162",
+    "mtime": 1788482887.119017,
+    "ast_hash": "dd2b7c4660f3f559df760817da1f30a9",
     "semantic_hash": ""
   },
   "static/img/logotipo-pdf.png": {
@@ -415,8 +415,8 @@
     "semantic_hash": ""
   },
   "tests/test_cotizacion_publica.py": {
-    "mtime": 1788375958.007479,
-    "ast_hash": "b1a834db02511e72ae89de3843c9a851",
+    "mtime": 1788482763.6849825,
+    "ast_hash": "5ba25d72aec54c48f51c8afa398c4d31",
     "semantic_hash": ""
   },
   "templates/quote_public.html": {
@@ -437,6 +437,11 @@
   "tests/test_nav_movil.py": {
     "mtime": 1788455848.081235,
     "ast_hash": "bbd888ecad72bc26af4cdaead63fc3f1",
+    "semantic_hash": ""
+  },
+  "tests/test_marcas_ppf.py": {
+    "mtime": 1788482944.8937654,
+    "ast_hash": "b7548c418c58a37c407e49cf8d5b856e",
     "semantic_hash": ""
   }
 }
