@@ -63,6 +63,15 @@
 
   .bloque-tit { font-size:.68rem; letter-spacing:.09em; text-transform:uppercase;
                 color:var(--accent,#c8a04a); font-weight:700; margin:14px 0 6px; }
+  .ajuste-caja { background:rgba(90,150,210,.09); border:1px solid rgba(90,150,210,.3);
+                 border-radius:9px; padding:10px 12px; margin-bottom:14px; }
+  .ajuste-lbl { display:block; font-size:.66rem; letter-spacing:.08em; text-transform:uppercase;
+                color:#8fb8e0; font-weight:700; margin-bottom:7px; }
+  .ajuste-fila { display:flex; align-items:center; gap:7px; }
+  .ajuste-fila input { width:64px; text-align:right; background:rgba(0,0,0,.3);
+                       border:1px solid rgba(255,255,255,.14); color:#eee;
+                       border-radius:6px; padding:4px 8px; font-size:.9rem; font-weight:700; }
+  .ajuste-nota { font-size:.72rem; color:#7f92a5; margin-left:auto; text-align:right; line-height:1.25; }
   .tot-fila { display:flex; justify-content:space-between; padding:5px 0; font-size:.9rem; color:#bdbdbd; }
   .tot-fila.grande { font-size:1.32rem; font-weight:700; color:#fff; border-top:1px solid rgba(255,255,255,.14);
                      margin-top:8px; padding-top:11px; }
@@ -270,6 +279,18 @@
 
       <hr class="my-3" style="border-color:rgba(255,255,255,.12)">
 
+      {# Solo para adentro: el cliente ve los precios ya con el aumento
+         incluido, nunca el aumento aparte. #}
+      <div class="ajuste-caja">
+        <label class="ajuste-lbl">Ajuste sobre precios de lista</label>
+        <div class="ajuste-fila">
+          <input type="number" name="ajuste_pct" id="ajustePct" min="0" max="200"
+                 value="{{ cot.ajuste_pct if cot and cot.ajuste_pct else 0 }}">
+          <span>%</span>
+          <span class="ajuste-nota">no sale en el PDF ni en el link</span>
+        </div>
+      </div>
+
       <label class="form-label small text-muted mb-1">Descuento (opcional)</label>
       <div class="row g-1 mb-2">
         <div class="col-5">
@@ -341,6 +362,16 @@ const absorbidaPor = cob => {
   return null;
 };
 const absorbida = cob => absorbidaPor(cob) !== null;
+// Lo que se le sube a los precios de LISTA. No toca lo que alguien escribió a
+// mano: ahí la cifra ya es la que se decidió cobrar.
+const factorAjuste = () => {
+  const v = Number(document.getElementById("ajustePct")?.value) || 0;
+  return 1 + Math.max(0, Math.min(200, v)) / 100;
+};
+// Redondeado a $1.000: una cotización con cifras como $2.587.431 se ve
+// calculada con calculadora.
+const conAjuste = v => v ? Math.round(v * factorAjuste() / 1000) * 1000 : v;
+
 const textoGarantia = a => !a ? "" : (a === 1 ? "1 año" : `${a} años`);
 const fmt = n => "$" + (Math.round(n)||0).toLocaleString("es-CO");
 const esc = s => (s || "").replace(/"/g, "&quot;");
@@ -375,7 +406,7 @@ function pintarCatalogo() {
     html += `<button type="button" class="svc-btn ${puestos.has(s.id) ? "puesto" : ""}"
                data-id="${s.id}"><span class="n">${s.nombre}${
                  s.garantia ? `<span class="gar"> (${s.garantia})</span>` : ""}</span>
-               <span class="p">${fmt(s.precio)}</span></button>`;
+               <span class="p">${fmt(conAjuste(s.precio))}</span></button>`;
   }
   $cat.innerHTML = html + "</div>";
   $cat.querySelectorAll(".svc-btn").forEach(b => b.onclick = () => {
@@ -384,8 +415,8 @@ function pintarCatalogo() {
     if (ya) ya.cant += 1;
     else {
       const s = serviciosDelTipo().find(x => x.id === id);
-      lineas.push({desc: s.nombre, precio: s.precio, cant: 1, serviceId: id,
-                   detalle: "", garantia: s.garantia || ""});
+      lineas.push({desc: s.nombre, precio: conAjuste(s.precio), cant: 1, serviceId: id,
+                   detalle: "", garantia: s.garantia || "", deLista: s.precio});
     }
     pintarTodo();
   });
@@ -414,7 +445,7 @@ function pintarMatrizPpf() {
       : marcas.map(([m]) => {
           const p = it.precios[m];
           // "no aplica" y no un cero: un cero se leería como gratis.
-          return p ? `<td class="val">${fmt(p)}</td>` : `<td class="na">no aplica</td>`;
+          return p ? `<td class="val">${fmt(conAjuste(p))}</td>` : `<td class="na">no aplica</td>`;
         }).join("");
     return `<tr class="fila ${puestas.has(it.cobertura) ? "puesto" : ""} ${abs ? "absorbida" : ""}"
               data-cob="${esc(it.cobertura)}">
@@ -533,7 +564,8 @@ const totalPpf = m => {
     if (!it || !it.precios[m]) return a;
     // El adicional solo suma donde hay precio base: cobrar el extra de algo
     // que esa marca no vende no tiene sentido.
-    return a + it.precios[m] + (ppfFoto[cob] ? (it.foto?.[m] || 0) : 0);
+    return a + conAjuste(it.precios[m])
+             + (ppfFoto[cob] ? conAjuste(it.foto?.[m] || 0) : 0);
   }, 0);
   for (const g of libres) {
     const base = g.precios[m] || 0;
@@ -727,6 +759,15 @@ document.getElementById("btnLibre").onclick = () => {
   const ins = $lineas.querySelectorAll('input[data-c="desc"]');
   if (ins.length) ins[ins.length - 1].focus();
 };
+
+document.getElementById("ajustePct").addEventListener("input", () => {
+  // Las líneas ya agregadas se re-tarifan sobre su precio de lista, no sobre
+  // el ajustado: aplicar el % sobre un precio ya ajustado lo compondría.
+  for (const l of lineas) {
+    if (l.deLista) l.precio = conAjuste(l.deLista);
+  }
+  pintarTodo();
+});
 
 ["dvalor", "detiqueta"].forEach(id =>
   document.getElementById(id).addEventListener("input", pintarTotales));

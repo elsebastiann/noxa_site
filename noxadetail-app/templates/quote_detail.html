@@ -110,6 +110,13 @@ function pedirClave(form) {
         <div class="text-muted small mt-1">
           {{ c.created_at.strftime('%d/%m/%Y') }}{% if c.created_by %} · {{ c.created_by }}{% endif %}
         </div>
+        {% if c.ajuste_pct %}
+        {# Solo acá: el PDF y el link muestran los precios ya con el aumento
+           adentro, nunca el aumento aparte. #}
+        <div class="small mt-1" style="color:#8fb8e0">
+          Precios de lista +{{ c.ajuste_pct }}% · solo visible aquí
+        </div>
+        {% endif %}
         {% if c.updated_at %}
         {# Importa: el cliente puede tener un PDF viejo con este mismo código. #}
         <div class="small mt-1" style="color:var(--accent,#c8a04a)">

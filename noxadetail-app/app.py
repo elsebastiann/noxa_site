@@ -928,6 +928,12 @@ class Quote(db.Model):
     # documento tiene que seguir imprimiéndose como el cliente lo recibió.
     ppf_brands = db.Column(db.Text, nullable=True)
 
+    # Porcentaje que se le subió a los precios de lista al armar la cotización.
+    # Es información INTERNA: el cliente ve los valores ya con el aumento
+    # adentro, nunca el aumento aparte. Si saliera como línea, sabría cuánto se
+    # le movió el precio de lista.
+    ajuste_pct = db.Column(db.Integer, nullable=True)
+
     # Token del link público. NO se usa el `code` para esto: el código es corto
     # y está hecho para dictarse por teléfono y leerse de un papel, así que
     # sirve de identificador pero no de secreto — con 6 caracteres, adivinar
@@ -2135,6 +2141,22 @@ def ensure_quote_public_token_schema():
             except Exception as exc:
                 db.session.rollback()
                 app.logger.error(f"[Migración] quotes.public_token: {exc}")
+
+
+def ensure_quote_ajuste_schema():
+    with app.app_context():
+        db.session.rollback()
+        try:
+            db.session.execute(text("SELECT ajuste_pct FROM quotes LIMIT 1"))
+            return
+        except Exception:
+            db.session.rollback()
+        try:
+            db.session.execute(text("ALTER TABLE quotes ADD COLUMN ajuste_pct INTEGER"))
+            db.session.commit()
+        except Exception as exc:
+            db.session.rollback()
+            app.logger.error(f"[Migración] quotes.ajuste_pct: {exc}")
 
 
 def ensure_quote_updated_schema():
@@ -8493,6 +8515,7 @@ ensure_users_schema()
 ensure_quote_item_detail_schema()
 ensure_quote_ppf_brands_schema()
 ensure_quote_updated_schema()
+ensure_quote_ajuste_schema()
 ensure_quote_public_token_schema()
 ensure_quote_item_warranty_schema()
 ensure_ppf_zona_schema()
@@ -13020,6 +13043,21 @@ def _leer_formulario_de_cotizacion(cot: "Quote") -> str | None:
         marcas_pedidas.append((nombre, _int_o_cero(crudo) if crudo else None))
     marcas_validas = {m for m, _g in (marcas_pedidas or ppf_marcas_activas())}
 
+    # El ajuste lo aplica el SERVIDOR sobre el precio de lista, no el
+    # navegador: los precios de catálogo se congelan acá justamente para que no
+    # se puedan alterar desde el formulario, y dejar que el aumento llegue
+    # calculado abriría esa puerta.
+    ajuste = max(0, min(200, _int_o_cero(request.form.get("ajuste_pct"))))
+    cot.ajuste_pct = ajuste or None
+
+    def con_ajuste(precios: dict) -> dict:
+        """Sube los precios de lista y redondea a $1.000: una cotización con
+        cifras como $2.587.431 se ve calculada con calculadora."""
+        if not ajuste:
+            return precios
+        return {m: int(round(v * (1 + ajuste / 100) / 1000)) * 1000
+                for m, v in precios.items() if v}
+
     ppf_lineas = []
     vistas = set()
 
@@ -13038,8 +13076,8 @@ def _leer_formulario_de_cotizacion(cot: "Quote") -> str | None:
         anterior = previos.get(cob)
         # El adicional solo si se pidió Y el grupo lo admite.
         con_foto = request.form.get(f"ppf_foto::{cob}") == "1" and paquete.admite_fotocromatico
-        foto = {m: v for m, v in paquete.precios_fotocromatico.items()
-                if m in marcas_validas} if con_foto else {}
+        foto = con_ajuste({m: v for m, v in paquete.precios_fotocromatico.items()
+                           if m in marcas_validas}) if con_foto else {}
         ppf_lineas.append(QuotePpfItem(
             coverage=cob,
             contains=paquete.contains or ", ".join(partes),
@@ -13049,8 +13087,8 @@ def _leer_formulario_de_cotizacion(cot: "Quote") -> str | None:
             cubre_zona=paquete.cubre_zona,
             orden=paquete.orden,
             prices_json=(anterior.prices_json if anterior
-                         else json.dumps({m: v for m, v in paquete.precios.items()
-                                          if m in marcas_validas})),
+                         else json.dumps(con_ajuste({m: v for m, v in paquete.precios.items()
+                                                     if m in marcas_validas}))),
             foto_prices_json=json.dumps(foto) if foto else None,
         ))
 
