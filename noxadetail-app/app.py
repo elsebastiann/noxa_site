@@ -13034,19 +13034,25 @@ def _leer_formulario_de_cotizacion(cot: "Quote") -> str | None:
     # Las marcas que se van a cotizar, con su garantía. Pueden no ser las del
     # sistema: una cotización puede ir solo con dos marcas, o con una garantía
     # negociada distinta de la de lista.
+    # OJO con el nombre de la variable: `nombre` es el del CLIENTE y se asigna
+    # más abajo. Este bucle lo pisaba, así que toda cotización que eligiera
+    # marcas quedaba con la última marca por nombre de cliente —"Xpel"—, en
+    # silencio. Es la segunda vez que pasa acá: la primera fue con los grupos
+    # armados a mano.
     marcas_pedidas = []
-    for nombre in request.form.getlist("ppf_marca"):
-        nombre = (nombre or "").strip()
-        if not nombre or nombre in dict(marcas_pedidas):
+    for marca in request.form.getlist("ppf_marca"):
+        marca = (marca or "").strip()
+        if not marca or marca in dict(marcas_pedidas):
             continue
-        crudo = (request.form.get(f"ppf_garantia::{nombre}") or "").strip()
-        marcas_pedidas.append((nombre, _int_o_cero(crudo) if crudo else None))
+        crudo = (request.form.get(f"ppf_garantia::{marca}") or "").strip()
+        marcas_pedidas.append((marca, _int_o_cero(crudo) if crudo else None))
     marcas_validas = {m for m, _g in (marcas_pedidas or ppf_marcas_activas())}
 
     # El ajuste lo aplica el SERVIDOR sobre el precio de lista, no el
     # navegador: los precios de catálogo se congelan acá justamente para que no
     # se puedan alterar desde el formulario, y dejar que el aumento llegue
     # calculado abriría esa puerta.
+    ajuste_previo = cot.ajuste_pct or 0
     ajuste = max(0, min(200, _int_o_cero(request.form.get("ajuste_pct"))))
     cot.ajuste_pct = ajuste or None
 
@@ -13078,6 +13084,29 @@ def _leer_formulario_de_cotizacion(cot: "Quote") -> str | None:
         con_foto = request.form.get(f"ppf_foto::{cob}") == "1" and paquete.admite_fotocromatico
         foto = con_ajuste({m: v for m, v in paquete.precios_fotocromatico.items()
                            if m in marcas_validas}) if con_foto else {}
+
+        # Valor exacto para ESTE carro. El precio de lista es una referencia: una
+        # pintura difícil o un bómper lleno de sensores no valen lo mismo que el
+        # promedio, y hasta ahora la única salida era armar un grupo a mano
+        # duplicando uno que ya existía. Lo que se escribe acá manda sobre el
+        # catálogo y sobre el ajuste: ya es la cifra que se decidió cobrar, no un
+        # precio de lista al que haya que subirle nada.
+        exactos = {}
+        for m in marcas_validas:
+            crudo = (request.form.get(f"ppf_precio::{cob}||{m}") or "").strip()
+            if crudo:
+                exactos[m] = max(0, _int_o_cero(crudo))
+
+        precios = {}
+        if anterior and ajuste == ajuste_previo:
+            precios = {m: v for m, v in anterior.precios.items() if m in marcas_validas and v}
+        # Una marca agregada después no estaba en la cotización anterior: sin
+        # esto su columna quedaría vacía. Y si el ajuste cambió, `precios` viene
+        # vacío a propósito, para que todo se vuelva a tarifar con el nuevo.
+        precios.update(con_ajuste({m: v for m, v in paquete.precios.items()
+                                   if m in marcas_validas and v and m not in precios}))
+        precios.update(exactos)
+
         ppf_lineas.append(QuotePpfItem(
             coverage=cob,
             contains=paquete.contains or ", ".join(partes),
@@ -13086,9 +13115,7 @@ def _leer_formulario_de_cotizacion(cot: "Quote") -> str | None:
             parts_json=json.dumps(partes),
             cubre_zona=paquete.cubre_zona,
             orden=paquete.orden,
-            prices_json=(anterior.prices_json if anterior
-                         else json.dumps(con_ajuste({m: v for m, v in paquete.precios.items()
-                                                     if m in marcas_validas}))),
+            prices_json=json.dumps(precios),
             foto_prices_json=json.dumps(foto) if foto else None,
         ))
 
@@ -13245,6 +13272,12 @@ def quote_edit(code):
         cot=cot,
         lineas_iniciales=lineas,
         ppf_iniciales=[it.coverage for it in cot.ppf_items],
+        # Los precios con los que se emitió, no los de lista: al editar, el
+        # armador tiene que mostrar la cifra que la cotización realmente lleva.
+        # Antes pintaba la de catálogo mientras guardaba la congelada, así que
+        # la pantalla decía una cosa y el PDF salía con otra.
+        ppf_exactos_iniciales={it.coverage: it.precios for it in cot.ppf_items
+                               if not it.es_personalizado},
         tipos=VehicleType.query.filter_by(is_active=True).order_by(VehicleType.name).all(),
         catalogo=_catalogo_para_cotizar(),
         catalogo_ppf=_catalogo_ppf(),

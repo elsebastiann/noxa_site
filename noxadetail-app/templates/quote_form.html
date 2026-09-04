@@ -46,6 +46,14 @@
   .mx .incl { text-align:right; font-size:.78rem; color:var(--accent,#c8a04a); font-weight:600; }
   .mx tr.absorbida .cob, .mx tr.absorbida .que { opacity:.5; }
   .mx .na { text-align:right; font-size:.76rem; color:#5f5f5f; }
+  /* Solo las filas puestas traen campo: se ve de lista hasta que alguien
+     escribe, y ahí se marca en verde para distinguir la cifra a mano. */
+  .mx input.exacto { background:rgba(0,0,0,.25); border:1px solid rgba(255,255,255,.12);
+                     color:#eee; border-radius:6px; padding:4px 7px; font-size:.85rem;
+                     width:108px; text-align:right; }
+  .mx input.exacto::placeholder { color:#5f5f5f; font-size:.76rem; }
+  .mx input.exacto:focus { border-color:var(--accent,#c8a04a); outline:none; }
+  .mx input.exacto.puesto { border-color:#7fc8a9; color:#bfe6d5; }
 
   .linea { display:grid; grid-template-columns:1fr 52px 104px 30px; gap:6px;
            align-items:center; padding:7px 0; border-bottom:1px solid rgba(255,255,255,.07); }
@@ -226,7 +234,9 @@
           <div class="d-flex justify-content-between align-items-center gap-3 mb-2 flex-wrap">
             <p class="text-muted mb-0" style="font-size:.8rem; max-width:520px">
               Elige las partes a cubrir. La cotización compara las marcas en columnas,
-              para que el cliente decida.
+              para que el cliente decida. Al marcar un grupo su precio queda editable:
+              escribe el valor exacto de este carro, o déjalo como está para cobrar el
+              de lista.
             </p>
             <label class="todas">
               <input type="checkbox" id="ppfTodas"> Marcar todas
@@ -372,6 +382,31 @@ const factorAjuste = () => {
 // calculada con calculadora.
 const conAjuste = v => v ? Math.round(v * factorAjuste() / 1000) * 1000 : v;
 
+// Precios escritos a mano para un grupo del catálogo: {cobertura: {marca: valor}}.
+// Al editar arranca con los precios con los que se emitió la cotización, para
+// que lo que se ve en la matriz sea lo que se va a guardar.
+let ppfExacto = {{ (ppf_exactos_iniciales if cot else {})|tojson }};
+
+// Lo que vale un grupo en ESTA cotización: el valor exacto si se escribió uno,
+// y si no el de lista con el ajuste. Un 0 escrito a mano es un precio válido
+// —un grupo de cortesía—, así que se distingue de "no hay valor exacto".
+function precioPpf(cob, marca) {
+  const ex = (ppfExacto[cob] || {})[marca];
+  if (ex !== undefined && ex !== null && ex !== "") return Number(ex) || 0;
+  const it = PPF.find(x => x.cobertura === cob);
+  return conAjuste((it && it.precios[marca]) || 0);
+}
+// Se resalta lo que se APARTA de la lista, no todo lo que traiga valor: al
+// editar, una cotización ya emitida llega con TODOS sus precios congelados, y
+// pintarlos todos de verde no distinguiría el que alguien decidió a mano.
+function esExacto(cob, marca) {
+  const ex = (ppfExacto[cob] || {})[marca];
+  if (ex === undefined || ex === null || ex === "") return false;
+  const it = PPF.find(x => x.cobertura === cob);
+  return Number(ex) !== conAjuste((it && it.precios[marca]) || 0);
+}
+const tieneExacto = cob => marcasElegidas().some(([m]) => esExacto(cob, m));
+
 const textoGarantia = a => !a ? "" : (a === 1 ? "1 año" : `${a} años`);
 const fmt = n => "$" + (Math.round(n)||0).toLocaleString("es-CO");
 const esc = s => (s || "").replace(/"/g, "&quot;");
@@ -444,6 +479,21 @@ function pintarMatrizPpf() {
       ? `<td class="incl" colspan="${Math.max(1, marcas.length)}">incluida en ${absorbidaPor(it.cobertura)}</td>`
       : marcas.map(([m]) => {
           const p = it.precios[m];
+          // Un grupo puesto se puede tarifar exacto: los de lista son una
+          // referencia y este carro puede no valer eso. Los que no están en la
+          // cotización siguen de solo lectura, para no llenar la matriz de
+          // casillas que nadie va a usar.
+          if (puestas.has(it.cobertura)) {
+            const ex = (ppfExacto[it.cobertura] || {})[m];
+            const hay = ex !== undefined && ex !== null && ex !== "";
+            return `<td class="val">
+              <input type="number" min="0" step="1000"
+                     class="exacto${esExacto(it.cobertura, m) ? " puesto" : ""}"
+                     ${hay ? `name="ppf_precio::${esc(it.cobertura)}||${esc(m)}"` : ""}
+                     value="${hay ? ex : (p ? conAjuste(p) : "")}"
+                     placeholder="${p ? "" : "no aplica"}"
+                     data-ex="${esc(it.cobertura)}" data-marca="${esc(m)}"></td>`;
+          }
           // "no aplica" y no un cero: un cero se leería como gratis.
           return p ? `<td class="val">${fmt(conAjuste(p))}</td>` : `<td class="na">no aplica</td>`;
         }).join("");
@@ -463,6 +513,28 @@ function pintarMatrizPpf() {
     e.stopPropagation();
     ppfFoto[cb.dataset.foto] = cb.checked;
     pintarTotales();
+  });
+
+  // El name se pone y se quita a mano en vez de repintar: repintar en cada
+  // tecla le movería el cursor a quien está escribiendo. Sin name el campo no
+  // se envía, y el servidor tarifa ese grupo con el precio de lista — así
+  // "vacío" significa "el de lista" y no "gratis".
+  document.querySelectorAll("#cuerpoPpf input.exacto").forEach(inp => {
+    inp.onclick = e => e.stopPropagation();
+    inp.oninput = () => {
+      const cob = inp.dataset.ex, m = inp.dataset.marca, v = inp.value.trim();
+      ppfExacto[cob] = ppfExacto[cob] || {};
+      if (v === "") {
+        delete ppfExacto[cob][m];
+        inp.removeAttribute("name");
+      } else {
+        ppfExacto[cob][m] = Math.max(0, Number(v) || 0);
+        inp.name = `ppf_precio::${cob}||${m}`;
+      }
+      inp.classList.toggle("puesto", esExacto(cob, m));
+      pintarTotales();
+      pintarLineas();
+    };
   });
 
   document.querySelectorAll("#cuerpoPpf .fila").forEach(tr => tr.onclick = () => {
@@ -519,10 +591,19 @@ function pintarLineas() {
       <span class="c">${cob}${absorbida(cob)
         ? ` <span style="color:var(--accent,#c8a04a); font-size:.76rem">· incluida en ${absorbidaPor(cob)}</span>`
         : ""}${ppfFoto[cob]
-        ? ` <span style="color:var(--accent,#c8a04a); font-size:.76rem">+ fotocromático</span>` : ""}</span>
+        ? ` <span style="color:var(--accent,#c8a04a); font-size:.76rem">+ fotocromático</span>` : ""}${
+        tieneExacto(cob)
+        ? ` <span style="color:#7fc8a9; font-size:.76rem">· precio a mano</span>` : ""}</span>
       <button type="button" class="quitar" data-i="${i}" title="Quitar">&times;</button>
       <input type="hidden" name="ppf_coverage" value="${esc(cob)}">
       ${ppfFoto[cob] ? `<input type="hidden" name="ppf_foto::${esc(cob)}" value="1">` : ""}
+      ${/* Una absorbida no tiene campos en la matriz —ahí dice "incluida en"—,
+            así que su precio a mano viaja desde acá. Se sigue guardando aunque
+            no sume: el PDF la muestra en gris, y tendría que mostrar la cifra
+            que se escribió, no la de lista. */
+        absorbida(cob) ? Object.entries(ppfExacto[cob] || {}).map(([m, v]) =>
+          `<input type="hidden" name="ppf_precio::${esc(cob)}||${esc(m)}" value="${v}">`
+        ).join("") : ""}
     </div>`).join("");
 
   // Los armados a mano también se listan: si no, quien cotiza no ve en el
@@ -561,11 +642,12 @@ const totalPpf = m => {
   let t = ppfPuestas.reduce((a, cob) => {
     if (absorbida(cob)) return a;
     const it = PPF.find(x => x.cobertura === cob);
-    if (!it || !it.precios[m]) return a;
+    if (!it) return a;
+    const base = precioPpf(cob, m);
     // El adicional solo suma donde hay precio base: cobrar el extra de algo
     // que esa marca no vende no tiene sentido.
-    return a + conAjuste(it.precios[m])
-             + (ppfFoto[cob] ? conAjuste(it.foto?.[m] || 0) : 0);
+    if (!base) return a;
+    return a + base + (ppfFoto[cob] ? conAjuste(it.foto?.[m] || 0) : 0);
   }, 0);
   for (const g of libres) {
     const base = g.precios[m] || 0;
