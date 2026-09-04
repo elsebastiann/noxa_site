@@ -155,7 +155,7 @@
       <label class="marca {% if loop.first %}on{% endif %}" data-marca="{{ marca }}">
         <input type="radio" name="marca" value="{{ marca }}" {% if loop.first %}checked{% endif %}>
         <div class="m">{{ marca }}</div>
-        <div class="g">Garantía {{ garantia }} años</div>
+        <div class="g">Garantía {{ garantia_texto(garantia) }}</div>
         <div class="t" data-tot-marca="{{ marca }}"></div>
       </label>
       {% endfor %}

@@ -1260,6 +1260,18 @@ class PpfPart(db.Model):
     # cotización por una pieza que nadie previó.
     es_comodin = db.Column(db.Boolean, nullable=False, default=False)
 
+    # Precio de la pieza suelta, por marca. Es OTRO precio que el del grupo:
+    # forrar solo el capó no cuesta lo que cuesta dentro de un Full Front, así
+    # que no se deduce uno del otro. Una marca ausente = no se vende suelta.
+    prices_json = db.Column(db.Text, nullable=True)
+
+    @property
+    def precios(self) -> dict:
+        try:
+            return json.loads(self.prices_json or "{}")
+        except Exception:
+            return {}
+
     def __repr__(self):
         return f"<PpfPart {self.name} ({self.zona})>"
 
@@ -1596,11 +1608,26 @@ def ppf_marcas_activas() -> list:
     el PDF y el JSON que viaja al navegador — así el cambio de constante a
     tabla no se propaga a todo el resto.
     """
-    return [
-        (b.name, b.warranty_years)
-        for b in PpfFilmBrand.query.filter_by(is_active=True)
-                                   .order_by(PpfFilmBrand.orden, PpfFilmBrand.id).all()
-    ]
+    marcas = PpfFilmBrand.query.filter_by(is_active=True).all()
+    # De menor a mayor garantía: es como se le presentan al cliente, de la
+    # opción de entrada a la premium. Las que no tienen garantía definida van
+    # al final, porque no se sabe dónde ubicarlas.
+    marcas.sort(key=lambda b: (b.warranty_years is None,
+                               b.warranty_years or 0, b.orden, b.id))
+    return [(b.name, b.warranty_years) for b in marcas]
+
+
+def texto_garantia(anios) -> str:
+    """"1 año" / "5 años" / "" — el singular importa: "1 años" se ve descuidado
+    justo en el dato que sustenta el precio."""
+    if not anios:
+        return ""
+    return f"{anios} año" if anios == 1 else f"{anios} años"
+
+
+@app.template_global()
+def garantia_texto(anios) -> str:
+    return texto_garantia(anios)
 
 
 class PpfPrice(db.Model):
@@ -1716,12 +1743,17 @@ def ppf_totales_de(ppf_items, marcas) -> dict:
     absorbidas = absorbidas_en(ppf_items)
     tot = {m: 0 for m in marcas}
     for it in ppf_items:
-        if it.coverage in absorbidas:
-            continue
         extra = getattr(it, "precios_foto", {}) or {}
+        absorbida = it.coverage in absorbidas
         for marca, precio in it.precios.items():
-            if precio and marca in tot:
-                tot[marca] += precio + (extra.get(marca) or 0)
+            if not precio or marca not in tot:
+                continue
+            # El fotocromático es OTRA película, no una parte del carro: ningún
+            # grupo lo trae incluido. Aunque Full Car cubra las farolas, la
+            # versión fotocromática se sigue cobrando aparte.
+            if not absorbida:
+                tot[marca] += precio
+            tot[marca] += extra.get(marca) or 0
     return tot
 
 
@@ -1876,6 +1908,25 @@ def seed_ppf_prices():
         if arregladas:
             db.session.commit()
             app.logger.warning(f"[PPF] {arregladas} cobertura(s) marcadas como interior.")
+
+
+def ensure_ppf_part_prices_schema():
+    with app.app_context():
+        # Rollback ANTES de sondear: si una migración anterior dejó la sesión
+        # con una excepción encima, el SELECT falla por eso y no porque falte
+        # la columna, y se termina intentando un ALTER que ya sobra.
+        db.session.rollback()
+        try:
+            db.session.execute(text("SELECT prices_json FROM ppf_parts LIMIT 1"))
+            return
+        except Exception:
+            db.session.rollback()
+        try:
+            db.session.execute(text("ALTER TABLE ppf_parts ADD COLUMN prices_json TEXT"))
+            db.session.commit()
+        except Exception as exc:
+            db.session.rollback()
+            app.logger.error(f"[Migración] ppf_parts.prices_json: {exc}")
 
 
 def ensure_quote_ppf_parts_schema():
@@ -8311,6 +8362,7 @@ ensure_quote_public_token_schema()
 ensure_quote_item_warranty_schema()
 ensure_ppf_zona_schema()
 ensure_quote_ppf_parts_schema()
+ensure_ppf_part_prices_schema()
 seed_ppf_brands()
 normalizar_marcas_en_precios()
 seed_ppf_prices()
@@ -12635,7 +12687,8 @@ def _catalogo_para_cotizar() -> dict:
 def _partes_ppf() -> list:
     """[{nombre, zona, comodin}, ...] para armar grupos en la cotización."""
     return [
-        {"nombre": p.name, "zona": p.zona, "comodin": bool(p.es_comodin)}
+        {"nombre": p.name, "zona": p.zona, "comodin": bool(p.es_comodin),
+         "precios": p.precios}
         for p in PpfPart.query.filter_by(is_active=True)
                               .order_by(PpfPart.orden, PpfPart.id).all()
     ]
@@ -12719,6 +12772,25 @@ def ppf_prices_list():
                 else:
                     destino[nombre][marca] = max(0, _int_o_cero(crudo))
 
+        partes = {p.name: p for p in PpfPart.query.all()}
+        parte_nuevos = {n: dict(p.precios) for n, p in partes.items()}
+        for campo, crudo in request.form.items():
+            if not campo.startswith("parte::") or "||" not in campo:
+                continue
+            nombre, marca = campo[len("parte::"):].split("||", 1)
+            if nombre not in parte_nuevos:
+                continue
+            crudo = (crudo or "").strip()
+            if not crudo:
+                parte_nuevos[nombre].pop(marca, None)
+            else:
+                parte_nuevos[nombre][marca] = max(0, _int_o_cero(crudo))
+        for nombre, parte in partes.items():
+            nuevo_json = json.dumps(parte_nuevos[nombre]) if parte_nuevos[nombre] else None
+            if (parte.prices_json or None) != nuevo_json:
+                parte.prices_json = nuevo_json
+                cambios += 1
+
         for nombre, paquete in paquetes.items():
             nuevo_precios = json.dumps(precios_nuevos[nombre])
             nuevo_foto = json.dumps(foto_nuevos[nombre]) if foto_nuevos[nombre] else None
@@ -12736,6 +12808,8 @@ def ppf_prices_list():
     grupos = (PpfPackage.query.filter_by(is_active=True)
                         .order_by(PpfPackage.orden, PpfPackage.name).all())
     return render_template("ppf_prices.html", grupos=grupos, marcas=marcas,
+                           partes=PpfPart.query.filter_by(is_active=True)
+                                       .order_by(PpfPart.orden, PpfPart.id).all(),
                            marcas_obj=PpfFilmBrand.query
                                         .order_by(PpfFilmBrand.orden, PpfFilmBrand.id).all())
 
@@ -13467,7 +13541,8 @@ def _construir_pdf_cotizacion(cot: "Quote", version=None) -> bytes:
         for marca, garantia in marcas:
             encabezado.append(Paragraph(
                 f"<font size=9><b>{marca}</b></font><br/>"
-                f"<font size=7.5 color='#c8a04a'>garantía {garantia} años</font>", est_marca))
+                f"<font size=7.5 color='#c8a04a'>garantía {texto_garantia(garantia)}</font>"
+                if garantia else "", est_marca))
         filas_ppf = [encabezado]
 
         for it in ppf_items:
@@ -13497,7 +13572,7 @@ def _construir_pdf_cotizacion(cot: "Quote", version=None) -> bytes:
             # El adicional va en su propia fila. Sumarlo callado dentro del
             # precio dejaba un documento que no cuadra: las líneas daban una
             # cosa y el total otra, y eso lo nota el cliente.
-            extra = it.precios_foto if not absorbe else {}
+            extra = it.precios_foto
             if extra:
                 fila_extra = [Paragraph("+ fotocromático", est_incluida)]
                 for marca, _g in marcas:

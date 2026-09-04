@@ -25,8 +25,29 @@ def _login_admin(client, usuario="diana"):
 class TestLasCincoMarcas:
     def test_estan_las_cinco(self):
         with A.app.app_context():
-            assert [m for m, _g in A.ppf_marcas_activas()] == [
-                "Standard", "Avery", "Stark", "Spectra", "Xpel"]
+            assert set(m for m, _g in A.ppf_marcas_activas()) == {
+                "Standard", "Avery", "Stark", "Spectra", "Xpel"}
+
+    def test_van_ordenadas_de_menor_a_mayor_garantia(self):
+        """Es como se le presentan al cliente: de la opción de entrada a la
+        premium. Se prueba la regla y no una lista fija, que quedaría vieja al
+        primer cambio de garantía."""
+        with A.app.app_context():
+            anios = [g for _m, g in A.ppf_marcas_activas() if g is not None]
+        assert anios == sorted(anios)
+
+    def test_las_que_no_tienen_garantia_van_al_final(self):
+        with A.app.app_context():
+            marcas = A.ppf_marcas_activas()
+        sin = [i for i, (_m, g) in enumerate(marcas) if g is None]
+        con = [i for i, (_m, g) in enumerate(marcas) if g is not None]
+        assert not con or not sin or min(sin) > max(con)
+
+    def test_el_singular_del_ano(self):
+        """"1 años" se ve descuidado justo en el dato que sustenta el precio."""
+        assert A.texto_garantia(1) == "1 año"
+        assert A.texto_garantia(5) == "5 años"
+        assert A.texto_garantia(None) == ""
 
     def test_las_garantias_conocidas(self):
         with A.app.app_context():
@@ -170,3 +191,92 @@ class TestLaPantallaDePrecios:
         client.post("/ppf-prices", data={"precio::Manijas||Standard": "999000"})
         with A.app.app_context():
             assert "Standard" not in A.PpfPackage.query.filter_by(name="Manijas").first().precios
+
+
+class TestElFotocromaticoNuncaVaIncluido:
+    """Es OTRA película, no una parte del carro. Ningún grupo lo trae: aunque
+    Full Car cubra las farolas, la versión fotocromática se cobra aparte."""
+
+    def _login_admin(self, client):
+        with A.app.app_context():
+            uid = make_user(f"foto{next(_u)}", role="admin").id
+        with client.session_transaction() as sess:
+            sess["user_id"] = uid
+
+    def test_full_car_absorbe_el_grupo_pero_no_su_adicional(self, client):
+        self._login_admin(client)
+        r = client.post("/quotes/new", data={
+            "customer_name": "Foto", "ppf_coverage": ["Full Car", "Farolas y Stops"],
+            "ppf_foto::Farolas y Stops": "1"}, follow_redirects=False)
+        code = r.headers["Location"].rstrip("/").split("/")[-1]
+        try:
+            with A.app.app_context():
+                c = A.Quote.query.filter_by(code=code).first()
+                assert "Farolas y Stops" in c.ppf_absorbidas, "Full Car debe cubrir el grupo"
+                # 15.000.000 de Full Car + 150.000 del adicional, que no está
+                # incluido en ningún grupo.
+                assert c.ppf_totales["Xpel"] == 15_000_000 + 150_000
+        finally:
+            with A.app.app_context():
+                q = A.Quote.query.filter_by(code=code).first()
+                if q:
+                    A.db.session.delete(q)
+                    A.db.session.commit()
+
+
+class TestPreciosPorParteSuelta:
+    """Además del precio por grupo, cada pieza tiene el suyo.
+
+    Son dos precios distintos y ninguno se deduce del otro: un capó dentro de
+    un Full Front no cuesta lo que cuesta un capó suelto.
+    """
+
+    def test_la_pantalla_trae_las_dos_pestanas(self, client):
+        _login_admin(client)
+        cuerpo = client.get("/ppf-prices").data.decode()
+        assert "Por grupo" in cuerpo and "Por parte suelta" in cuerpo
+
+    def test_hay_casilla_para_cada_parte_y_marca(self, client):
+        _login_admin(client)
+        cuerpo = client.get("/ppf-prices").data.decode()
+        assert 'name="parte::Capó||Avery"' in cuerpo
+        assert 'name="parte::Uñeros||Xpel"' in cuerpo
+
+    def test_el_comodin_no_se_tarifa(self, client):
+        """"Otro" se nombra al usarla: no tiene precio de lista."""
+        _login_admin(client)
+        assert 'name="parte::Otro||Avery"' not in client.get("/ppf-prices").data.decode()
+
+    def test_guardar_le_pone_precio_a_una_parte(self, client):
+        _login_admin(client)
+        client.post("/ppf-prices", data={"parte::Techo||Avery": "1200000"})
+        try:
+            with A.app.app_context():
+                assert A.PpfPart.query.filter_by(name="Techo").first().precios["Avery"] == 1_200_000
+        finally:
+            with A.app.app_context():
+                A.PpfPart.query.filter_by(name="Techo").first().prices_json = None
+                A.db.session.commit()
+
+    def test_vaciarla_quita_el_precio(self, client):
+        _login_admin(client)
+        client.post("/ppf-prices", data={"parte::Techo||Avery": "1200000"})
+        client.post("/ppf-prices", data={"parte::Techo||Avery": ""})
+        with A.app.app_context():
+            assert "Avery" not in A.PpfPart.query.filter_by(name="Techo").first().precios
+
+    def test_el_cotizador_recibe_los_precios_de_las_partes(self):
+        """Es lo que le permite sugerir el precio de un grupo armado."""
+        with A.app.app_context():
+            pt = A.PpfPart.query.filter_by(name="Techo").first()
+            pt.prices_json = A.json.dumps({"Avery": 1_200_000})
+            A.db.session.commit()
+        try:
+            with A.app.app_context():
+                partes = A._partes_ppf()
+            techo = next(p for p in partes if p["nombre"] == "Techo")
+            assert techo["precios"]["Avery"] == 1_200_000
+        finally:
+            with A.app.app_context():
+                A.PpfPart.query.filter_by(name="Techo").first().prices_json = None
+                A.db.session.commit()

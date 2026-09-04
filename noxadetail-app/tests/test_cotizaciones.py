@@ -372,7 +372,7 @@ class TestPreciosPpf:
     def test_las_cinco_marcas(self):
         with A.app.app_context():
             nombres = [m for m, _g in A.ppf_marcas_activas()]
-        assert nombres == ["Standard", "Avery", "Stark", "Spectra", "Xpel"]
+        assert set(nombres) == {"Standard", "Avery", "Stark", "Spectra", "Xpel"}
 
     def test_standard_y_stark_entran_sin_garantia(self):
         """Nadie la ha definido: mejor en blanco que inventada."""
@@ -595,9 +595,9 @@ class TestCotizarPpf:
         code = self._cotizar_ppf(client, ["Manijas"])
         try:
             with A.app.app_context():
-                # En el orden de la tabla, y solo las que tienen precio.
+                # Ordenadas por garantía, y solo las que tienen precio.
                 assert A.Quote.query.filter_by(code=code).first().ppf_marcas == [
-                    ("Avery", 7), ("Spectra", 5), ("Xpel", 10)]
+                    ("Spectra", 5), ("Avery", 7), ("Xpel", 10)]
         finally:
             _borrar(code)
 

@@ -186,7 +186,7 @@ function pedirClave(form) {
         <tr>
           <th>Cobertura</th>
           {% for marca, garantia in c.ppf_marcas %}
-          <th>{{ marca }}<span class="g">garantía {{ garantia }} años</span></th>
+          <th>{{ marca }}<span class="g">garantía {{ garantia_texto(garantia) }}</span></th>
           {% endfor %}
         </tr>
       </thead>
@@ -236,7 +236,7 @@ function pedirClave(form) {
         <div class="sec-tit">Total según la marca</div>
         {% for marca, garantia in c.ppf_marcas %}
         <div class="tot-marca">
-          <span>{{ marca }} <span class="g">{{ garantia }} años</span></span>
+          <span>{{ marca }} <span class="g">{{ garantia_texto(garantia) }}</span></span>
           <span>{{ c.totales_por_marca.get(marca, 0)|cop }}</span>
         </div>
         {% endfor %}

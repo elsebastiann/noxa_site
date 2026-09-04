@@ -109,6 +109,7 @@
   .precios-libre input { width:100%; background:rgba(255,255,255,.05);
                          border:1px solid rgba(255,255,255,.12); color:#eee;
                          border-radius:6px; padding:5px 8px; font-size:.83rem; text-align:right; }
+  .sugerido { font-size:.74rem; color:#e0a458; margin-top:7px; line-height:1.35; }
   .foto-check { display:flex; align-items:center; gap:7px; font-size:.79rem;
                 color:var(--accent,#c8a04a); margin-top:8px; cursor:pointer; }
   .foto-check input { accent-color:var(--accent,#c8a04a); width:15px; height:15px; }
@@ -340,6 +341,7 @@ const absorbidaPor = cob => {
   return null;
 };
 const absorbida = cob => absorbidaPor(cob) !== null;
+const textoGarantia = a => !a ? "" : (a === 1 ? "1 año" : `${a} años`);
 const fmt = n => "$" + (Math.round(n)||0).toLocaleString("es-CO");
 const esc = s => (s || "").replace(/"/g, "&quot;");
 
@@ -397,7 +399,7 @@ function pintarCabeceraPpf() {
   document.getElementById("cabeceraPpf").innerHTML =
     "<th>Cobertura</th>" + (marcas.length
       ? marcas.map(([m, g]) =>
-          `<th>${m}<span class="g">${g ? `garantía ${g} años` : "sin garantía"}</span></th>`).join("")
+          `<th>${m}<span class="g">${g ? `garantía ${textoGarantia(g)}` : "sin garantía"}</span></th>`).join("")
       : '<th class="na">elige al menos una marca</th>');
 }
 
@@ -574,13 +576,37 @@ function pintarTotales() {
   for (const [m, g] of marcasElegidas()) {
     const base = sub + totalPpf(m);
     html += `<div class="tot-marca">
-               <span>${m} <span class="g">${g} años</span></span>
+               <span>${m} <span class="g">${textoGarantia(g)}</span></span>
                <span>${fmt(base - descuentoSobre(base))}</span></div>`;
   }
   $t.innerHTML = html;
 }
 
 /* ---------------- grupos armados a mano ---------------- */
+
+// Suma lo que valen sueltas las partes elegidas y lo propone como precio.
+// Solo rellena lo que esté vacío: si alguien ya escribió una cifra, esa manda
+// —el precio del grupo casi nunca es la suma de sus piezas, y quien cotiza lo
+// sabe mejor que la suma.
+function sugerirPrecios(g) {
+  g.manual = g.manual || {};
+  let hubo = false;
+  for (const [m] of marcasElegidas()) {
+    // Una marca que ya se escribió a mano no se vuelve a tocar. Las demás se
+    // RECALCULAN en cada cambio de partes: con la versión anterior, que solo
+    // rellenaba lo vacío, agregar una segunda pieza dejaba el precio de la
+    // primera y el grupo quedaba cotizado de menos.
+    if (g.manual[m]) continue;
+    const suma = g.partes.reduce((a, nombre) => {
+      const p = PARTES_PPF.find(x => x.nombre === nombre);
+      return a + ((p && p.precios && p.precios[m]) || 0);
+    }, 0);
+    if (suma) { g.precios[m] = suma; hubo = true; }
+    else delete g.precios[m];
+  }
+  g.sugerido = hubo;
+}
+
 function pintarLibres() {
   document.getElementById("libres").innerHTML = libres.map((g, i) => {
     let partes = "", zonaActual = null;
@@ -618,6 +644,8 @@ function pintarLibres() {
       <div class="partes-grid">${partes}</div>
       ${g.partes.map(x => `<input type="hidden" name="libre_partes_${i}" value="${esc(x)}">`).join("")}
       <div class="precios-libre">${precios}</div>
+      ${g.sugerido ? `<div class="sugerido">Precio sugerido con la suma de las partes
+        sueltas. Ajústalo si el grupo vale otra cosa.</div>` : ""}
     </div>`;
   }).join("");
 
@@ -625,13 +653,17 @@ function pintarLibres() {
     const g = libres[cb.dataset.libre], nombre = cb.dataset.parte;
     if (cb.checked) { if (!g.partes.includes(nombre)) g.partes.push(nombre); }
     else g.partes = g.partes.filter(x => x !== nombre);
+    sugerirPrecios(g);
     pintarLibres(); pintarTotales();
   });
   document.querySelectorAll("[data-ln]").forEach(inp => inp.oninput = () => {
     libres[inp.dataset.ln].nombre = inp.value; pintarTotales();
   });
   document.querySelectorAll("[data-lp]").forEach(inp => inp.oninput = () => {
-    libres[inp.dataset.lp].precios[inp.dataset.marca] = Number(inp.value) || 0;
+    const g = libres[inp.dataset.lp];
+    g.precios[inp.dataset.marca] = Number(inp.value) || 0;
+    g.manual = g.manual || {};
+    g.manual[inp.dataset.marca] = true;   // desde acá manda lo escrito
     pintarTotales();
   });
   document.querySelectorAll("[data-lf]").forEach(inp => inp.oninput = () => {
