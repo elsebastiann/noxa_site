@@ -1140,6 +1140,12 @@ class QuotePpfItem(db.Model):
     coverage = db.Column(db.String(80), nullable=False)
     contains = db.Column(db.Text, nullable=True)
     zona     = db.Column(db.String(20), nullable=False, default="exterior")
+    # Copia de las partes del grupo, para que la cotización siga sabiendo qué
+    # cubre aunque el grupo cambie después. Es lo que permite detectar que dos
+    # grupos se pisan sin depender de la etiqueta de zona.
+    parts_json = db.Column(db.Text, nullable=True)
+    # "exterior"/"interior" cuando el grupo cubre una zona entera.
+    cubre_zona = db.Column(db.String(20), nullable=True)
     orden    = db.Column(db.Integer, nullable=False, default=0)
 
     # {"SPECTRA": 2500000, "AVERY": 3000000, "XPEL": 4000000}. Un null significa
@@ -1152,6 +1158,13 @@ class QuotePpfItem(db.Model):
             return json.loads(self.prices_json or "{}")
         except Exception:
             return {}
+
+    @property
+    def partes(self) -> list:
+        try:
+            return json.loads(self.parts_json or "[]")
+        except Exception:
+            return []
 
     def __repr__(self):
         return f"<QuotePpfItem {self.coverage} {self.precios}>"
@@ -1201,6 +1214,93 @@ class QuoteVersion(db.Model):
         return f"<QuoteVersion v{self.numero} de {self.quote_id} = {self.total}>"
 
 
+# Qué partes trae cada grupo. Tabla puente sin modelo propio: no lleva datos
+# suyos, solo la relación.
+ppf_package_parts = db.Table(
+    "ppf_package_parts",
+    db.Column("package_id", db.Integer, db.ForeignKey("ppf_packages.id"), primary_key=True),
+    db.Column("part_id", db.Integer, db.ForeignKey("ppf_parts.id"), primary_key=True),
+)
+
+
+class PpfPart(db.Model):
+    """Una parte del carro que se puede forrar.
+
+    Es la unidad mínima y NO tiene precio: el negocio cotiza paquetes, no
+    piezas sueltas —"cuánto vale un capó en Avery" no existe como número—, y
+    forrar el frente completo no cuesta lo que suman sus piezas por separado.
+    Las partes sirven para describir un grupo y para saber cuándo dos grupos se
+    pisan.
+    """
+    __tablename__ = "ppf_parts"
+    id = db.Column(db.Integer, primary_key=True)
+
+    name = db.Column(db.String(80), nullable=False, unique=True)
+    zona = db.Column(db.String(20), nullable=False, default="exterior")
+    orden = db.Column(db.Integer, nullable=False, default=0)
+    is_active = db.Column(db.Boolean, nullable=False, default=True)
+    # "Otro": al usarla se escribe el nombre. Existe para no frenar una
+    # cotización por una pieza que nadie previó.
+    es_comodin = db.Column(db.Boolean, nullable=False, default=False)
+
+    def __repr__(self):
+        return f"<PpfPart {self.name} ({self.zona})>"
+
+
+class PpfPackage(db.Model):
+    """Un grupo de partes con su precio por marca. Lo que hoy se llama cobertura.
+
+    Los precios viven acá en JSON y no en una tabla aparte: tenerlos en dos
+    lugares es la forma más segura de que un día discrepen, y nadie los
+    consulta por SQL — el catálogo entero se carga de una para el navegador.
+    """
+    __tablename__ = "ppf_packages"
+    id = db.Column(db.Integer, primary_key=True)
+
+    name = db.Column(db.String(80), nullable=False, unique=True)
+    contains = db.Column(db.Text, nullable=True)      # texto heredado, informativo
+    orden = db.Column(db.Integer, nullable=False, default=0)
+    is_active = db.Column(db.Boolean, nullable=False, default=True)
+
+    # {"Avery": 3000000, ...}. Una marca ausente es "no la ofrece", que no es
+    # lo mismo que cero.
+    prices_json = db.Column(db.Text, nullable=False, default="{}")
+    # Adicional de fotocromático, que SE SUMA al precio. Solo tiene sentido en
+    # grupos con farolas o stops.
+    foto_prices_json = db.Column(db.Text, nullable=True)
+
+    # "exterior" | "interior" | None. Un grupo que cubre una zona ENTERA, no
+    # una lista de piezas: Full Car es "toda la lámina exterior". Se guarda
+    # aparte porque enumerar sus partes no diría lo mismo — cubre también lo
+    # que nadie listó.
+    cubre_zona = db.Column(db.String(20), nullable=True)
+
+    parts = db.relationship("PpfPart", secondary=ppf_package_parts,
+                            order_by="PpfPart.orden", lazy="joined")
+
+    @property
+    def precios(self) -> dict:
+        try:
+            return json.loads(self.prices_json or "{}")
+        except Exception:
+            return {}
+
+    @property
+    def precios_fotocromatico(self) -> dict:
+        try:
+            return json.loads(self.foto_prices_json or "{}")
+        except Exception:
+            return {}
+
+    @property
+    def admite_fotocromatico(self) -> bool:
+        """Solo aplica sobre farolas y stops."""
+        return any(p.name in PPF_PARTES_FOTOCROMATICO for p in self.parts)
+
+    def __repr__(self):
+        return f"<PpfPackage {self.name} ({len(self.parts)} partes)>"
+
+
 class PpfFilmBrand(db.Model):
     """Las marcas de película que se cotizan, con su garantía.
 
@@ -1234,6 +1334,171 @@ PPF_MARCAS_SEMILLA = [
     ("Spectra", 5),
     ("Xpel", 10),
 ]
+
+
+# (nombre, zona). El orden es el de la lista, y es el que se ve en pantalla:
+# de adelante hacia atrás por fuera, y de la pantalla hacia los paneles por
+# dentro. Es como se recorre un carro al señalarlo.
+PPF_PARTES_SEMILLA = [
+    ("Bómper delantero", "exterior"),
+    ("Bómper trasero", "exterior"),
+    ("Capó", "exterior"),
+    ("Guardabarros delanteros", "exterior"),
+    ("Guardabarros traseros", "exterior"),
+    ("Espejos retrovisores", "exterior"),
+    ("Puertas", "exterior"),
+    ("Borde de puertas", "exterior"),
+    ("Manijas", "exterior"),
+    ("Uñeros", "exterior"),
+    ("Pilares", "exterior"),
+    ("Techo", "exterior"),
+    ("Baúl", "exterior"),
+    ("Zona de carga del baúl", "exterior"),
+    ("Farolas delanteras", "exterior"),
+    ("Stops traseros", "exterior"),
+    ("Molduras piano black exteriores", "exterior"),
+    ("Posa pies", "exterior"),
+    ("Pantalla de infoentretenimiento", "interior"),
+    ("Panel digital de instrumentos", "interior"),
+    ("Consola central", "interior"),
+    ("Touchpad y/o mandos centrales", "interior"),
+    ("Touchpad y/o mandos del timón", "interior"),
+    ("Acabados piano black interiores", "interior"),
+    ("Paneles vulnerables a rayones", "interior"),
+]
+
+# El fotocromático solo aplica sobre estas.
+PPF_PARTES_FOTOCROMATICO = {"Farolas delanteras", "Stops traseros"}
+
+PPF_PARTE_COMODIN = "Otro"
+
+# Qué partes trae cada grupo de los que ya existen. Sale de los textos de "qué
+# contiene" que ya tenían, que hasta ahora eran decorativos: el sistema no
+# sabía que Full Front incluye el capó.
+PPF_PARTES_POR_GRUPO = {
+    "Full Car": ["Bómper delantero", "Bómper trasero", "Capó", "Guardabarros delanteros",
+                 "Guardabarros traseros", "Espejos retrovisores", "Puertas", "Pilares",
+                 "Techo", "Baúl", "Zona de carga del baúl"],
+    "Full Front": ["Bómper delantero", "Capó", "Guardabarros delanteros",
+                   "Espejos retrovisores", "Farolas delanteras"],
+    "Protección Urbana": ["Espejos retrovisores", "Manijas", "Borde de puertas",
+                          "Zona de carga del baúl", "Posa pies"],
+    "Pianos Exteriores": ["Molduras piano black exteriores"],
+    "Farolas": ["Farolas delanteras"],
+    "Farolas y Stops": ["Farolas delanteras", "Stops traseros"],
+    "Full Interior": ["Pantalla de infoentretenimiento", "Panel digital de instrumentos",
+                      "Consola central", "Touchpad y/o mandos centrales",
+                      "Acabados piano black interiores", "Paneles vulnerables a rayones"],
+    "Consola Central": ["Consola central", "Touchpad y/o mandos centrales",
+                        "Acabados piano black interiores"],
+    "Pantalla": ["Pantalla de infoentretenimiento", "Panel digital de instrumentos"],
+    "Retrovisores": ["Espejos retrovisores"],
+    "Manijas": ["Manijas"],
+    "Capó": ["Capó"],
+    "Puertas": ["Puertas"],
+    "Bómper Trasero y Delantero": ["Bómper delantero", "Bómper trasero"],
+}
+
+# Los que cubren una zona entera y no una lista de piezas.
+PPF_GRUPOS_DE_ZONA = {"Full Car": "exterior", "Full Interior": "interior"}
+
+# El grupo con fotocromático deja de ser un grupo aparte y pasa a ser un
+# adicional del grupo base. {grupo con foto: grupo base}
+PPF_GRUPOS_FOTOCROMATICO = {
+    "Farolas Fotocromático": "Farolas",
+    "Farolas y Stops Fotocromático": "Farolas y Stops",
+}
+
+
+def seed_ppf_parts():
+    """Crea las partes que falten, sin tocar las que ya están."""
+    with app.app_context():
+        try:
+            existentes = {p.name for p in PpfPart.query.all()}
+        except Exception:
+            db.session.rollback()
+            return
+        nuevas = [
+            PpfPart(name=nombre, zona=zona, orden=i, is_active=True)
+            for i, (nombre, zona) in enumerate(PPF_PARTES_SEMILLA)
+            if nombre not in existentes
+        ]
+        if PPF_PARTE_COMODIN not in existentes:
+            nuevas.append(PpfPart(name=PPF_PARTE_COMODIN, zona="exterior",
+                                  orden=len(PPF_PARTES_SEMILLA), es_comodin=True))
+        if nuevas:
+            db.session.add_all(nuevas)
+            db.session.commit()
+            app.logger.warning(f"[PPF] {len(nuevas)} parte(s) creadas.")
+
+
+def migrar_precios_a_grupos():
+    """Convierte las filas de `ppf_prices` en grupos con partes y precios.
+
+    `ppf_prices` queda intacta pero deja de leerse: se conserva como respaldo
+    de esta migración y se puede borrar más adelante. Lo que NO se hace es
+    leer de las dos, que es como se terminan contradiciendo.
+
+    Los dos grupos "Fotocromático" no se convierten en grupos: pasan a ser el
+    adicional del grupo base, con la diferencia de precio por marca. Es lo que
+    son —una película distinta sobre las mismas piezas—, y así el adicional se
+    suma en vez de duplicar la fila.
+    """
+    with app.app_context():
+        try:
+            if PpfPackage.query.first():
+                return                      # ya migrado
+            filas = PpfPrice.query.all()
+            partes = {p.name: p for p in PpfPart.query.all()}
+        except Exception:
+            db.session.rollback()
+            return
+        if not filas:
+            return
+
+        # Precios y metadatos por nombre de cobertura.
+        por_grupo = {}
+        for f in filas:
+            g = por_grupo.setdefault(f.coverage, {"precios": {}, "contiene": None, "orden": f.orden})
+            g["precios"][f.brand] = f.price
+            if f.contains and not g["contiene"]:
+                g["contiene"] = f.contains
+
+        creados = 0
+        for nombre, datos in sorted(por_grupo.items(), key=lambda kv: kv[1]["orden"]):
+            if nombre in PPF_GRUPOS_FOTOCROMATICO:
+                continue                    # se resuelve abajo como adicional
+            paquete = PpfPackage(
+                name=nombre, contains=datos["contiene"], orden=datos["orden"],
+                prices_json=json.dumps(datos["precios"]),
+                cubre_zona=PPF_GRUPOS_DE_ZONA.get(nombre),
+                is_active=True,
+            )
+            paquete.parts = [partes[n] for n in PPF_PARTES_POR_GRUPO.get(nombre, [])
+                             if n in partes]
+            db.session.add(paquete)
+            creados += 1
+        db.session.flush()
+
+        # El fotocromático, como diferencia sobre el grupo base.
+        indice = {p.name: p for p in PpfPackage.query.all()}
+        for con_foto, base in PPF_GRUPOS_FOTOCROMATICO.items():
+            precios_foto = por_grupo.get(con_foto, {}).get("precios", {})
+            paquete = indice.get(base)
+            if not paquete or not precios_foto:
+                continue
+            adicional = {}
+            for marca, precio_foto in precios_foto.items():
+                precio_base = paquete.precios.get(marca)
+                if precio_base is not None and precio_foto > precio_base:
+                    adicional[marca] = precio_foto - precio_base
+            if adicional:
+                paquete.foto_prices_json = json.dumps(adicional)
+
+        db.session.commit()
+        app.logger.warning(
+            f"[PPF] {creados} grupo(s) migrados desde ppf_prices, con sus partes."
+        )
 
 
 def seed_ppf_brands():
@@ -1367,19 +1632,49 @@ PPF_COBERTURAS_TOTALES = {"Full Car": "exterior", "Full Interior": "interior"}
 
 
 def absorbidas_en(ppf_items) -> dict:
-    """{cobertura: la cobertura total que ya la incluye}, sobre la lista dada.
+    """{cobertura: la que ya la incluye}, sobre la lista dada.
 
     Recibe la lista y no una cotización porque también se aplica a lo que el
     cliente seleccionó, que es un subconjunto: si desmarcó Full Car, el capó
     vuelve a cobrarse. Una sola implementación para el PDF, la pantalla y el
     link — si cada uno tuviera la suya, tarde o temprano sumarían distinto.
+
+    Dos formas de cubrir, y hacen falta las dos:
+
+    - Por ZONA: Full Car es "toda la lámina exterior", no una lista de piezas.
+      Enumerar sus partes diría menos de lo que cubre.
+    - Por PARTES: un grupo armado a mano puede contener todas las piezas de
+      otro sin ser un grupo de zona. Ahí la única forma de saberlo es comparar.
+
+    Las cotizaciones viejas no tienen partes guardadas; para ellas solo aplica
+    la regla de zona, que es como se comportaban cuando se emitieron.
     """
-    zonas = {PPF_COBERTURAS_TOTALES[it.coverage]: it.coverage
-             for it in ppf_items if it.coverage in PPF_COBERTURAS_TOTALES}
-    if not zonas:
-        return {}
-    return {it.coverage: zonas[it.zona] for it in ppf_items
-            if it.coverage not in PPF_COBERTURAS_TOTALES and it.zona in zonas}
+    zonas = {}
+    for it in ppf_items:
+        zona = getattr(it, "cubre_zona", None) or PPF_COBERTURAS_TOTALES.get(it.coverage)
+        if zona:
+            zonas.setdefault(zona, it.coverage)
+
+    totales = {c for c in zonas.values()}
+    absorbidas = {}
+    for it in ppf_items:
+        if it.coverage in totales:
+            continue
+        if it.zona in zonas:
+            absorbidas[it.coverage] = zonas[it.zona]
+            continue
+        # Sin regla de zona: ¿alguien más contiene todas sus partes?
+        mias = set(it.partes or [])
+        if not mias:
+            continue
+        for otro in ppf_items:
+            if otro is it or otro.coverage in absorbidas:
+                continue
+            suyas = set(otro.partes or [])
+            if suyas > mias:          # estrictamente mayor: lo contiene y trae más
+                absorbidas[it.coverage] = otro.coverage
+                break
+    return absorbidas
 
 
 def _ppf_no_cubre_en(ppf_items, marcas, absorbidas) -> dict:
@@ -1558,6 +1853,23 @@ def seed_ppf_prices():
         if arregladas:
             db.session.commit()
             app.logger.warning(f"[PPF] {arregladas} cobertura(s) marcadas como interior.")
+
+
+def ensure_quote_ppf_parts_schema():
+    with app.app_context():
+        for col, tipo in (("parts_json", "TEXT"), ("cubre_zona", "VARCHAR(20)")):
+            try:
+                db.session.execute(text(f"SELECT {col} FROM quote_ppf_items LIMIT 1"))
+                continue
+            except Exception:
+                db.session.rollback()
+            try:
+                db.session.execute(text(
+                    f"ALTER TABLE quote_ppf_items ADD COLUMN {col} {tipo}"))
+                db.session.commit()
+            except Exception as exc:
+                db.session.rollback()
+                app.logger.error(f"[Migración] quote_ppf_items.{col}: {exc}")
 
 
 def ensure_ppf_zona_schema():
@@ -7973,9 +8285,12 @@ ensure_quote_updated_schema()
 ensure_quote_public_token_schema()
 ensure_quote_item_warranty_schema()
 ensure_ppf_zona_schema()
+ensure_quote_ppf_parts_schema()
 seed_ppf_brands()
 normalizar_marcas_en_precios()
 seed_ppf_prices()
+seed_ppf_parts()
+migrar_precios_a_grupos()
 seed_garantias_polarizado()
 
 # --- Seed: crear super admin si no existe ningún usuario ---
@@ -12293,42 +12608,42 @@ def _catalogo_para_cotizar() -> dict:
 
 
 def _catalogo_ppf() -> list:
-    """[{cobertura, contiene, precios: {marca: precio|None}}, ...]
+    """[{cobertura, contiene, partes, precios, foto, cubre_zona}, ...]
 
-    Agrupado por COBERTURA y no por marca, porque así se cotiza: se eligen las
-    partes a cubrir y el documento compara las tres marcas en columnas. Antes
-    esto devolvía {marca: [coberturas]}, que servía para elegir una marca —el
-    modelo que se reemplazó.
+    Sale de `ppf_packages`, que es la única fuente desde la migración:
+    `ppf_prices` quedó como respaldo y ya no se lee. Leer de las dos es como se
+    terminan contradiciendo.
     """
-    filas = (PpfPrice.query
-             .filter(PpfPrice.is_active == True)
-             .order_by(PpfPrice.orden, PpfPrice.coverage)
-             .all())
-    por_cobertura = {}
-    for f in filas:
-        entrada = por_cobertura.setdefault(f.coverage, {
-            "cobertura": f.coverage, "contiene": f.contains or "",
-            "zona": f.zona, "orden": f.orden, "precios": {},
-        })
-        entrada["precios"][f.brand] = f.price
-        if f.contains and not entrada["contiene"]:
-            entrada["contiene"] = f.contains
-    salida = sorted(por_cobertura.values(), key=lambda e: (e["orden"], e["cobertura"]))
-    for e in salida:
-        # Explícito: una marca que no ofrece la cobertura va en None, que no es
-        # lo mismo que cero, y la pantalla lo tiene que poder distinguir.
+    salida = []
+    for p in (PpfPackage.query.filter_by(is_active=True)
+                        .order_by(PpfPackage.orden, PpfPackage.name).all()):
+        precios = dict(p.precios)
+        # Explícito: una marca que no ofrece el grupo va en None, que la
+        # pantalla distingue de un cero.
         for marca, _g in ppf_marcas_activas():
-            e["precios"].setdefault(marca, None)
+            precios.setdefault(marca, None)
+        salida.append({
+            "cobertura": p.name,
+            "contiene": p.contains or ", ".join(x.name for x in p.parts),
+            "partes": [x.name for x in p.parts],
+            "zona": "interior" if p.parts and all(x.zona == "interior" for x in p.parts)
+                    else "exterior",
+            "cubre_zona": p.cubre_zona,
+            "precios": precios,
+            "foto": p.precios_fotocromatico if p.admite_fotocromatico else {},
+            "orden": p.orden,
+        })
     return salida
 
 
 @app.route("/ppf-prices", methods=["GET", "POST"])
 def ppf_prices_list():
-    """Precios de PPF por cobertura y marca, y garantía de cada marca.
+    """Grupos de PPF: qué partes trae cada uno, su precio por marca y el
+    adicional de fotocromático donde aplica.
 
-    Toda celda es editable, exista o no la fila: si solo se dibujara input
-    donde ya hay precio, una marca nueva quedaría para siempre en "no aplica"
-    sin manera de cargarle nada.
+    Toda celda es editable exista o no el precio: si solo se dibujara donde ya
+    hay valor, una marca nueva quedaría para siempre en "no aplica" sin manera
+    de cargarle nada.
     """
     if not puede_cotizar():
         flash("Acceso restringido.", "danger")
@@ -12341,63 +12656,52 @@ def ppf_prices_list():
             flash("Solo un administrador puede cambiar los precios de PPF.", "danger")
             return redirect(url_for("ppf_prices_list"))
 
-        # Garantías de las marcas.
         for b in PpfFilmBrand.query.all():
             crudo = request.form.get(f"garantia_{b.id}")
-            if crudo is None:
-                continue
-            crudo = crudo.strip()
-            b.warranty_years = _int_o_cero(crudo) if crudo else None
+            if crudo is not None:
+                crudo = crudo.strip()
+                b.warranty_years = _int_o_cero(crudo) if crudo else None
 
-        # La cobertura y la marca vienen en el nombre del campo
-        # ("precio::<cobertura>||<marca>"), no en una lista paralela: un input
-        # deshabilitado no se envía y eso desalinearía claves con valores.
-        indice = {(p.coverage, p.brand): p for p in PpfPrice.query.all()}
-        meta = {p.coverage: (p.contains, p.zona, p.orden) for p in PpfPrice.query.all()}
+        # Cobertura y marca viajan en el NOMBRE del campo: un input
+        # deshabilitado no se envía, y con listas paralelas eso desalinearía
+        # valores con claves.
         cambios = 0
+        paquetes = {p.name: p for p in PpfPackage.query.all()}
+        precios_nuevos = {n: dict(p.precios) for n, p in paquetes.items()}
+        foto_nuevos = {n: dict(p.precios_fotocromatico) for n, p in paquetes.items()}
+
         for campo, crudo in request.form.items():
-            if not campo.startswith("precio::") or "||" not in campo:
-                continue
-            cobertura, marca = campo[len("precio::"):].split("||", 1)
-            crudo = (crudo or "").strip()
-            fila = indice.get((cobertura, marca))
-            if not crudo:
-                # Vacío significa "esta marca no ofrece esta cobertura", que no
-                # es lo mismo que cero: un cero se leería como gratis.
-                if fila:
-                    db.session.delete(fila)
-                    cambios += 1
-                continue
-            precio = max(0, _int_o_cero(crudo))
-            if fila:
-                if fila.price != precio:
-                    fila.price = precio
-                    cambios += 1
-            else:
-                contiene, zona, orden = meta.get(cobertura, (None, "exterior", 0))
-                db.session.add(PpfPrice(coverage=cobertura, brand=marca, price=precio,
-                                        contains=contiene, zona=zona, orden=orden,
-                                        is_active=True))
+            for prefijo, destino in (("precio::", precios_nuevos), ("foto::", foto_nuevos)):
+                if not campo.startswith(prefijo) or "||" not in campo:
+                    continue
+                nombre, marca = campo[len(prefijo):].split("||", 1)
+                if nombre not in destino:
+                    continue
+                crudo = (crudo or "").strip()
+                if not crudo:
+                    # Vacío es "esta marca no lo ofrece", que no es cero: un
+                    # cero se leería como gratis.
+                    destino[nombre].pop(marca, None)
+                else:
+                    destino[nombre][marca] = max(0, _int_o_cero(crudo))
+
+        for nombre, paquete in paquetes.items():
+            nuevo_precios = json.dumps(precios_nuevos[nombre])
+            nuevo_foto = json.dumps(foto_nuevos[nombre]) if foto_nuevos[nombre] else None
+            if paquete.prices_json != nuevo_precios:
+                paquete.prices_json = nuevo_precios
+                cambios += 1
+            if (paquete.foto_prices_json or None) != nuevo_foto:
+                paquete.foto_prices_json = nuevo_foto
                 cambios += 1
         db.session.commit()
         flash(f"{cambios} cambio(s) guardado(s)." if cambios else "No hubo cambios.",
               "success" if cambios else "info")
         return redirect(url_for("ppf_prices_list"))
 
-    # Una fila por cobertura, con su precio en cada marca (o None).
-    filas = PpfPrice.query.order_by(PpfPrice.orden, PpfPrice.coverage).all()
-    coberturas = []
-    vistas = {}
-    for p in filas:
-        if p.coverage not in vistas:
-            vistas[p.coverage] = {"cobertura": p.coverage, "contiene": p.contains or "",
-                                  "zona": p.zona, "precios": {}}
-            coberturas.append(vistas[p.coverage])
-        vistas[p.coverage]["precios"][p.brand] = p.price
-        if p.contains and not vistas[p.coverage]["contiene"]:
-            vistas[p.coverage]["contiene"] = p.contains
-
-    return render_template("ppf_prices.html", coberturas=coberturas, marcas=marcas,
+    grupos = (PpfPackage.query.filter_by(is_active=True)
+                        .order_by(PpfPackage.orden, PpfPackage.name).all())
+    return render_template("ppf_prices.html", grupos=grupos, marcas=marcas,
                            marcas_obj=PpfFilmBrand.query
                                         .order_by(PpfFilmBrand.orden, PpfFilmBrand.id).all())
 
@@ -12469,15 +12773,19 @@ def _leer_formulario_de_cotizacion(cot: "Quote") -> str | None:
         if not cob or cob in vistas:
             continue
         vistas.add(cob)
-        filas = PpfPrice.query.filter_by(coverage=cob, is_active=True).all()
-        if not filas:
+        paquete = PpfPackage.query.filter_by(name=cob, is_active=True).first()
+        if not paquete:
             continue
+        partes = [x.name for x in paquete.parts]
         ppf_lineas.append(QuotePpfItem(
             coverage=cob,
-            contains=next((f.contains for f in filas if f.contains), None),
-            zona=filas[0].zona,
-            orden=filas[0].orden if filas else orden,
-            prices_json=previos.get(cob) or json.dumps({f.brand: f.price for f in filas}),
+            contains=paquete.contains or ", ".join(partes),
+            zona="interior" if partes and all(x.zona == "interior" for x in paquete.parts)
+                 else "exterior",
+            parts_json=json.dumps(partes),
+            cubre_zona=paquete.cubre_zona,
+            orden=paquete.orden,
+            prices_json=previos.get(cob) or json.dumps(paquete.precios),
         ))
 
     if not lineas and not ppf_lineas:

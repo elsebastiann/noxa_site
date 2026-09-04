@@ -77,12 +77,35 @@ class TestLaMigracionDeNombres:
             assert A.PpfPrice.query.count() == antes
 
 
+def _quitar_precio(grupo, marca):
+    with A.app.app_context():
+        g = A.PpfPackage.query.filter_by(name=grupo).first()
+        precios = g.precios
+        precios.pop(marca, None)
+        g.prices_json = A.json.dumps(precios)
+        A.db.session.commit()
+
+
 class TestLaPantallaDePrecios:
     def test_abre_con_las_cinco_columnas(self, client):
         _login_admin(client)
         cuerpo = client.get("/ppf-prices").data.decode()
         for marca in ("Standard", "Avery", "Stark", "Spectra", "Xpel"):
             assert marca in cuerpo
+
+    def test_muestra_las_partes_de_cada_grupo(self, client):
+        """Es el punto de la migración: el texto de "qué contiene" era
+        decorativo y ahora son partes de verdad."""
+        _login_admin(client)
+        cuerpo = client.get("/ppf-prices").data.decode()
+        assert "Guardabarros delanteros" in cuerpo
+        assert "cubre todo lo exterior" in cuerpo   # Full Car
+
+    def test_el_adicional_solo_sale_donde_aplica(self, client):
+        _login_admin(client)
+        cuerpo = client.get("/ppf-prices").data.decode()
+        assert 'name="foto::Farolas||Avery"' in cuerpo
+        assert 'name="foto::Manijas||Avery"' not in cuerpo
 
     def test_hay_casilla_incluso_donde_no_hay_precio(self, client):
         """Sin esto, una marca nueva quedaría para siempre en "no aplica" sin
@@ -91,26 +114,39 @@ class TestLaPantallaDePrecios:
         cuerpo = client.get("/ppf-prices").data.decode()
         assert 'name="precio::Full Front||Standard"' in cuerpo
 
-    def test_guardar_crea_la_fila_que_no_existia(self, client):
+    def test_guardar_le_pone_precio_a_una_marca_que_no_lo_tenia(self, client):
         _login_admin(client)
         client.post("/ppf-prices", data={"precio::Manijas||Standard": "120000"})
         try:
             with A.app.app_context():
-                p = A.PpfPrice.query.filter_by(coverage="Manijas", brand="Standard").first()
-                assert p is not None and p.price == 120_000
+                g = A.PpfPackage.query.filter_by(name="Manijas").first()
+                assert g.precios["Standard"] == 120_000
+        finally:
+            _quitar_precio("Manijas", "Standard")
+
+    def test_guarda_el_adicional_de_fotocromatico(self, client):
+        _login_admin(client)
+        client.post("/ppf-prices", data={"foto::Farolas||Standard": "40000"})
+        try:
+            with A.app.app_context():
+                g = A.PpfPackage.query.filter_by(name="Farolas").first()
+                assert g.precios_fotocromatico["Standard"] == 40_000
         finally:
             with A.app.app_context():
-                A.PpfPrice.query.filter_by(coverage="Manijas", brand="Standard").delete()
+                g = A.PpfPackage.query.filter_by(name="Farolas").first()
+                foto = g.precios_fotocromatico
+                foto.pop("Standard", None)
+                g.foto_prices_json = A.json.dumps(foto)
                 A.db.session.commit()
 
-    def test_vaciar_la_casilla_borra_la_fila(self, client):
-        """Vacío significa "esta marca no ofrece esta cobertura", que no es lo
+    def test_vaciar_la_casilla_quita_el_precio(self, client):
+        """Vacío significa "esta marca no ofrece este grupo", que no es lo
         mismo que cero."""
         _login_admin(client)
         client.post("/ppf-prices", data={"precio::Manijas||Standard": "120000"})
         client.post("/ppf-prices", data={"precio::Manijas||Standard": ""})
         with A.app.app_context():
-            assert A.PpfPrice.query.filter_by(coverage="Manijas", brand="Standard").first() is None
+            assert "Standard" not in A.PpfPackage.query.filter_by(name="Manijas").first().precios
 
     def test_guarda_la_garantia(self, client):
         _login_admin(client)
@@ -133,4 +169,4 @@ class TestLaPantallaDePrecios:
             sess["user_id"] = uid
         client.post("/ppf-prices", data={"precio::Manijas||Standard": "999000"})
         with A.app.app_context():
-            assert A.PpfPrice.query.filter_by(coverage="Manijas", brand="Standard").first() is None
+            assert "Standard" not in A.PpfPackage.query.filter_by(name="Manijas").first().precios

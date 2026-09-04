@@ -13,6 +13,10 @@
                      width:112px; text-align:right; }
   .ppf-tabla input:focus { border-color:var(--accent,#c8a04a); outline:none; }
   .ppf-tabla input.vacio { border-style:dashed; border-color:rgba(255,255,255,.16); }
+  .zona { font-size:.7rem; color:var(--accent,#c8a04a); font-weight:600;
+          margin-left:8px; text-transform:none; }
+  .fila-foto td { border-top:none; padding-top:0; }
+  .foto-lbl { font-size:.79rem; color:var(--accent,#c8a04a); padding-left:14px; }
   .gar { font-size:.74rem; color:var(--accent,#c8a04a); font-weight:600; }
   .gar-vacia { font-size:.74rem; color:#e0a458; font-weight:600; }
 
@@ -81,20 +85,21 @@
         </tr>
       </thead>
       <tbody>
-        {% for cob in coberturas %}
+        {% for g in grupos %}
         <tr>
           <td>
-            <div class="ppf-cob">{{ cob.cobertura }}</div>
-            {% if cob.contiene %}<div class="ppf-que">{{ cob.contiene }}</div>{% endif %}
+            <div class="ppf-cob">{{ g.name }}
+              {% if g.cubre_zona %}<span class="zona">cubre todo lo {{ g.cubre_zona }}</span>{% endif %}
+            </div>
+            <div class="ppf-que">
+              {% if g.parts %}{{ g.parts | map(attribute='name') | join(' · ') }}
+              {% else %}<em>sin partes asignadas</em>{% endif %}
+            </div>
           </td>
           {% for nombre, _g in marcas %}
-          {% set precio = cob.precios.get(nombre) %}
+          {% set precio = g.precios.get(nombre) %}
           <td class="text-end">
-            {# La cobertura y la marca van en el NOMBRE del campo, no en un
-               hidden aparte: un input deshabilitado no se envía, y con listas
-               paralelas eso desalinearía valores con claves. Además así se
-               puede crear la fila que todavía no existe. #}
-            <input type="number" name="precio::{{ cob.cobertura }}||{{ nombre }}"
+            <input type="number" name="precio::{{ g.name }}||{{ nombre }}"
                    min="0" step="1000"
                    class="{% if precio is none %}vacio{% endif %}"
                    value="{{ precio if precio is not none else '' }}"
@@ -103,6 +108,24 @@
           </td>
           {% endfor %}
         </tr>
+        {% if g.admite_fotocromatico %}
+        {# Solo en grupos con farolas o stops: es donde existe la película. El
+           valor SE SUMA al precio de arriba, no lo reemplaza. #}
+        <tr class="fila-foto">
+          <td><div class="foto-lbl">+ adicional fotocromático</div></td>
+          {% for nombre, _g in marcas %}
+          {% set extra = g.precios_fotocromatico.get(nombre) %}
+          <td class="text-end">
+            <input type="number" name="foto::{{ g.name }}||{{ nombre }}"
+                   min="0" step="1000"
+                   class="{% if extra is none %}vacio{% endif %}"
+                   value="{{ extra if extra is not none else '' }}"
+                   placeholder="no aplica"
+                   {% if not puede_borrar_servicios() %}disabled{% endif %}>
+          </td>
+          {% endfor %}
+        </tr>
+        {% endif %}
         {% endfor %}
       </tbody>
     </table>

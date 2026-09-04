@@ -6,6 +6,7 @@ del precio en vez de apuntar a `service_prices`: una subida de precios no puede
 reescribir en silencio un documento que el cliente ya tiene en la mano.
 """
 import itertools
+import json
 import re
 
 import pytest
@@ -403,7 +404,9 @@ class TestPreciosPpf:
         partes a cubrir para después comparar las marcas en columnas."""
         with A.app.app_context():
             cat = A._catalogo_ppf()
-        assert len(cat) == 16
+        # 14 y no 16: los dos "Fotocromático" dejaron de ser grupos aparte y
+        # pasaron a ser el adicional de su grupo base.
+        assert len(cat) == 14
         full = next(x for x in cat if x["cobertura"] == "Full Car")
         assert full["precios"]["Spectra"] == 10_000_000
         assert full["precios"]["Avery"] == 13_000_000
@@ -414,9 +417,34 @@ class TestPreciosPpf:
         """None y no 0: un cero se leería como gratis."""
         with A.app.app_context():
             cat = A._catalogo_ppf()
-        foto = next(x for x in cat if x["cobertura"] == "Farolas Fotocromático")
-        assert foto["precios"]["Spectra"] is None
-        assert foto["precios"]["Avery"] == 300_000
+        ff = next(x for x in cat if x["cobertura"] == "Full Front")
+        assert ff["precios"]["Standard"] is None, "una marca sin precio no puede dar 0"
+        assert ff["precios"]["Avery"] == 3_000_000
+
+    def test_el_fotocromatico_es_un_adicional_del_grupo(self):
+        """Dejó de ser un grupo aparte: es una película distinta sobre las
+        mismas piezas, así que se suma en vez de duplicar la fila."""
+        with A.app.app_context():
+            cat = A._catalogo_ppf()
+        assert "Farolas Fotocromático" not in {x["cobertura"] for x in cat}
+        fys = next(x for x in cat if x["cobertura"] == "Farolas y Stops")
+        assert fys["foto"] == {"Avery": 100_000, "Xpel": 150_000}
+        assert "Spectra" not in fys["foto"], "Spectra no hace fotocromático"
+
+    def test_solo_farolas_y_stops_admiten_fotocromatico(self):
+        with A.app.app_context():
+            cat = A._catalogo_ppf()
+        assert {x["cobertura"] for x in cat if x["foto"]} == {"Farolas", "Farolas y Stops"}
+
+    def test_los_grupos_traen_sus_partes(self):
+        """El texto de "qué contiene" era decorativo: el sistema no sabía que
+        Full Front incluye el capó."""
+        with A.app.app_context():
+            cat = A._catalogo_ppf()
+        ff = next(x for x in cat if x["cobertura"] == "Full Front")
+        assert "Capó" in ff["partes"]
+        assert "Farolas delanteras" in ff["partes"]
+        assert len(ff["partes"]) == 5
 
 
 class TestCotizarPpf:
@@ -488,30 +516,16 @@ class TestCotizarPpf:
             _borrar(code)
 
     def test_una_marca_que_no_puede_hacerlo_ni_se_ofrece(self, client):
-        """Spectra no hace fotocromático. Antes salía en la matriz con su
-        columna en "no aplica"; ahora ni entra: una marca que no puede hacer
-        NADA de lo cotizado solo ocupa espacio y confunde."""
+        """Standard no tiene precios cargados: ni entra a la cotización. Antes
+        habría ocupado una columna de "no aplica" en cada fila."""
         self._login_admin(client)
-        code = self._cotizar_ppf(client, ["Farolas Fotocromático"])
+        code = self._cotizar_ppf(client, ["Manijas"])
         try:
             with A.app.app_context():
                 c = A.Quote.query.filter_by(code=code).first()
-                assert "Spectra" not in dict(c.ppf_marcas)
-                assert c.ppf_totales["Avery"] == 300_000
-                assert c.ppf_totales["Xpel"] == 400_000
-        finally:
-            _borrar(code)
-
-    def test_pero_si_puede_hacer_algo_si_entra(self, client):
-        """Contraprueba: con una cobertura que Spectra sí hace, vuelve — y su
-        columna muestra "no aplica" solo en la fila que no cubre."""
-        self._login_admin(client)
-        code = self._cotizar_ppf(client, ["Farolas Fotocromático", "Manijas"])
-        try:
-            with A.app.app_context():
-                c = A.Quote.query.filter_by(code=code).first()
-                assert "Spectra" in dict(c.ppf_marcas)
-                assert c.ppf_totales["Spectra"] == 150_000
+                assert "Standard" not in dict(c.ppf_marcas)
+                assert "Stark" not in dict(c.ppf_marcas)
+                assert c.ppf_totales["Xpel"] == 350_000
         finally:
             _borrar(code)
 
@@ -519,13 +533,20 @@ class TestCotizarPpf:
         """Sin este aviso, la columna más barata parece la mejor oferta cuando
         en realidad está cubriendo menos partes."""
         self._login_admin(client)
-        code = self._cotizar_ppf(client, ["Farolas Fotocromático", "Manijas"])
+        code = self._cotizar_ppf(client, ["Farolas", "Manijas"])
         try:
             with A.app.app_context():
+                # Se le quita el precio de Spectra a una línea YA guardada, en
+                # vez de tocar el catálogo: así el test no depende de qué
+                # grupos existan hoy.
                 c = A.Quote.query.filter_by(code=code).first()
-                # Solo las marcas con precio entran a la cotización, así que
-                # Standard y Stark no aparecen mientras no tengan ninguno.
-                assert c.ppf_no_cubre == {"Spectra": ["Farolas Fotocromático"]}
+                linea = next(i for i in c.ppf_items if i.coverage == "Farolas")
+                precios = linea.precios
+                precios.pop("Spectra")
+                linea.prices_json = json.dumps(precios)
+                A.db.session.commit()
+                assert A.Quote.query.filter_by(code=code).first().ppf_no_cubre == {
+                    "Spectra": ["Farolas"]}
         finally:
             _borrar(code)
 
