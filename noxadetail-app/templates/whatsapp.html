@@ -118,6 +118,12 @@
      contenedor con overflow — un scroll horizontal sí lo hubiera cortado. */
   .wa-filter-bar { display:flex; align-items:center; gap:8px 12px; margin:8px 0 0; flex-wrap:wrap; }
   .wa-filter-bar select { background:#202c33; color:#e9edef; border:1px solid #3b4a54; border-radius:8px; padding:5px 8px; font-size:0.8rem; flex-shrink:0; }
+  .wa-fecha { background:#202c33; color:#e9edef; border:1px solid #3b4a54; border-radius:8px;
+              padding:4px 8px; font-size:0.8rem; flex-shrink:0; color-scheme:dark; }
+  .wa-fecha:focus { outline:none; border-color:#00a884; }
+  .wa-fecha-clear { background:none; border:none; color:var(--text2); font-size:1.1rem;
+                    line-height:1; cursor:pointer; padding:0 4px; }
+  .wa-fecha-clear:hover { color:#e9edef; }
   /* Dropdown de selección múltiple para Servicio: en vez de chips que envuelven
      y desordenan el alto de la barra (y peor en móvil, con la barra en scroll
      horizontal), es un solo botón del mismo alto que los <select> de al lado. */
@@ -271,6 +277,18 @@
     <option value="todas">Todas</option>
   </select>
 
+  {# Filtra por el día del PRIMER mensaje: interesa cuándo entró el lead, no
+     cuándo se le contestó de último. Los dos extremos entran. #}
+  <label for="desdeFilter" style="color:var(--text2);font-size:0.8rem;margin-left:8px;"
+         title="Filtra por la fecha del primer mensaje de la conversación">Primer mensaje:</label>
+  <input type="date" id="desdeFilter" class="wa-fecha" onchange="applyFilters()"
+         aria-label="Desde (fecha del primer mensaje)">
+  <span style="color:var(--text2);font-size:0.8rem;">a</span>
+  <input type="date" id="hastaFilter" class="wa-fecha" onchange="applyFilters()"
+         aria-label="Hasta (fecha del primer mensaje)">
+  <button type="button" id="limpiarFechas" class="wa-fecha-clear" onclick="limpiarFechas()"
+          style="display:none;" title="Quitar el filtro de fechas">&times;</button>
+
   <div class="wa-multiselect" id="serviceMultiselect">
     <button type="button" class="wa-multiselect-btn" onclick="toggleServiceMenu(event)">
       Servicio <span id="serviceCount" class="wa-multiselect-count" style="display:none;"></span>
@@ -289,13 +307,14 @@
 
 <div class="wa-shell {{ 'has-active' if conversation else '' }}">
   <div class="wa-sidebar">
-    {% for conv, last_msg in rows %}
+    {% for conv, last_msg, primer_dia in rows %}
     <a class="wa-row {{ 'active' if conversation and conversation.id == conv.id else '' }} {{ 'wa-row-escalated' if not conv.bot_active else '' }}"
        data-status="{{ conv.status }}"
        data-services="{{ conv.service_tag }}"
        data-priority="{{ conv.priority }}"
        data-calificacion="{{ conv.calificacion if conv.calificacion is not none else 'sin-dato' }}"
        data-archived="{{ '1' if conv.archivada else '0' }}"
+       data-primer="{{ primer_dia }}"
        href="{{ url_for('whatsapp_conversation', conversation_id=conv.id) }}">
       <div class="wa-avatar">{{ avatar_content(conv, marca_abreviaturas) }}</div>
       <div class="wa-row-main">
@@ -580,6 +599,8 @@
       estado: document.getElementById('statusFilter').value,
       calificacion: document.getElementById('calificacionFilter').value,
       archivadas: document.getElementById('archivedFilter').value,
+      desde: document.getElementById('desdeFilter').value,
+      hasta: document.getElementById('hastaFilter').value,
       servicios: activeServices,
     }));
   }
@@ -594,6 +615,8 @@
     // Sin el || 'ocultar', una sesión guardada antes de que existiera este filtro
     // llegaría con undefined y dejaría el select en blanco, mostrando todo.
     document.getElementById('archivedFilter').value = guardado.archivadas || 'ocultar';
+    document.getElementById('desdeFilter').value = guardado.desde || '';
+    document.getElementById('hastaFilter').value = guardado.hasta || '';
     document.querySelectorAll('#serviceMenu input[type=checkbox]').forEach(cb => {
       cb.checked = (guardado.servicios || []).includes(cb.value);
     });
@@ -605,7 +628,14 @@
     const statusValue = document.getElementById('statusFilter').value;
     const calificacionValue = document.getElementById('calificacionFilter').value;
     const archivedValue = document.getElementById('archivedFilter').value;
+    const desdeValue = document.getElementById('desdeFilter').value;
+    const hastaValue = document.getElementById('hastaFilter').value;
     const activeServices = Array.from(document.querySelectorAll('#serviceMenu input:checked')).map(c => c.value);
+
+    // Dejar solo un extremo es una manera legítima de filtrar ("desde el 26 en
+    // adelante"), así que cada uno se evalúa por su lado en vez de exigir los dos.
+    document.getElementById('limpiarFechas').style.display =
+      (desdeValue || hastaValue) ? '' : 'none';
 
     const countEl = document.getElementById('serviceCount');
     if (activeServices.length) { countEl.textContent = activeServices.length; countEl.style.display = ''; }
@@ -621,8 +651,22 @@
                        : !archivada;
       const rowServices = (row.dataset.services || '').split(',').map(s => s.trim()).filter(Boolean);
       const servicesOk = activeServices.length === 0 || activeServices.some(s => rowServices.includes(s));
-      row.style.display = (priorityOk && statusOk && calificacionOk && servicesOk && archivedOk) ? '' : 'none';
+      // Las dos fechas son ISO (aaaa-mm-dd), así que se comparan como texto sin
+      // construir Date: un Date desde "2026-08-31" se interpreta en UTC y en
+      // Bogotá cae el día anterior, que es justo el error que este filtro no
+      // puede darse el lujo de tener. Los extremos entran.
+      const primer = row.dataset.primer || '';
+      const fechaOk = (!desdeValue || (primer && primer >= desdeValue))
+                   && (!hastaValue || (primer && primer <= hastaValue));
+      row.style.display = (priorityOk && statusOk && calificacionOk && servicesOk
+                           && archivedOk && fechaOk) ? '' : 'none';
     });
+  }
+
+  function limpiarFechas() {
+    document.getElementById('desdeFilter').value = '';
+    document.getElementById('hastaFilter').value = '';
+    applyFilters();
   }
 
   restoreFilters();

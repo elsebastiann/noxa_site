@@ -1,7 +1,7 @@
 {
   "app.py": {
-    "mtime": 1788496126.32736,
-    "ast_hash": "f8bcd38486da7968b3264fb391aa49c0",
+    "mtime": 1788636016.1163037,
+    "ast_hash": "a693d436034388d710f72fab14e0de0c",
     "semantic_hash": ""
   },
   "migrate_prices.py": {
@@ -195,8 +195,8 @@
     "semantic_hash": ""
   },
   "templates/whatsapp.html": {
-    "mtime": 1787585806.7316747,
-    "ast_hash": "e666b29bacc1842abcb532d2d0e34f64",
+    "mtime": 1788636059.2115192,
+    "ast_hash": "77d9a0430e94d943cc3a1a1b21e3daed",
     "semantic_hash": ""
   },
   "templates/whatsapp_outbox.html": {
@@ -467,6 +467,11 @@
   "tests/test_editar_conserva.py": {
     "mtime": 1788496108.446236,
     "ast_hash": "7c7459d2b41a1125356d1e7a0ad344a2",
+    "semantic_hash": ""
+  },
+  "tests/test_filtro_fechas_whatsapp.py": {
+    "mtime": 1788636093.3099837,
+    "ast_hash": "5119693c44b688422af1f8ecee74d9ac",
     "semantic_hash": ""
   }
 }

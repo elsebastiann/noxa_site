@@ -12041,12 +12041,35 @@ def whatsapp_webhook():
 
 
 # ── Panel de mensajes de WhatsApp (bandeja + human takeover) ─────────────────
+def _dia_bogota_de(dt) -> str:
+    """El día calendario en Bogotá de un timestamp guardado en UTC, en ISO.
+
+    Va en ISO y no en formato humano porque lo compara el filtro de fechas del
+    navegador contra un <input type="date">, que también entrega ISO: así la
+    comparación es alfabética y no hay que parsear nada. La zona importa: entre
+    las 7 y las 12 de la noche, el día en UTC ya es el siguiente, y una
+    conversación de la noche del 31 caería en septiembre.
+    """
+    if not dt:
+        return ""
+    return dt.replace(tzinfo=pytz.utc).astimezone(_BOGOTA).date().isoformat()
+
+
 def _whatsapp_rows():
     """Orden cronológico, más reciente primero — el orden por defecto de cualquier
     bandeja de chat. La prioridad no reordena la lista; para eso está el filtro de
-    Prioridad, que sí deja ver solo Alta/Remarketing/etc. cuando hace falta."""
+    Prioridad, que sí deja ver solo Alta/Remarketing/etc. cuando hace falta.
+
+    Cada fila lleva también el día del PRIMER mensaje, que es por el que filtra
+    el rango de fechas: interesa cuándo entró el lead, no cuándo se le contestó
+    de último. Una conversación que arrancó el 31 de agosto y sigue viva en
+    septiembre pertenece a agosto.
+    """
     conversations = Conversation.query.all()
-    rows = [(c, c.messages[-1] if c.messages else None) for c in conversations]
+    rows = [(c,
+             c.messages[-1] if c.messages else None,
+             _dia_bogota_de(c.messages[0].created_at if c.messages else c.created_at))
+            for c in conversations]
     rows.sort(key=lambda r: (r[1].created_at if r[1] else r[0].created_at), reverse=True)
     return rows
 
