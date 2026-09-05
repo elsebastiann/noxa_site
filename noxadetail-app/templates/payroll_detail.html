@@ -10,7 +10,7 @@
       </h2>
       <small class="text-muted">
         {% if period.status == 'paid' %}
-          <span class="badge bg-success">Pagada el {{ period.paid_at.strftime('%d/%m/%Y %H:%M') }}</span>
+          <span class="badge bg-success">Pagada el {{ period.paid_at | hora_bogota('%d/%m/%Y %H:%M') }}</span>
         {% else %}
           <span class="badge bg-warning text-dark">Borrador</span>
         {% endif %}
@@ -208,7 +208,7 @@
               </span>
               {{ e.description }}
               <span class="text-danger">− $ {{ "{:,}".format(e.deduction).replace(",",".") }}</span>
-              <br><small class="text-muted">{{ e.created_at.strftime('%d/%m %H:%M') }}</small>
+              <br><small class="text-muted">{{ e.created_at | hora_bogota('%d/%m %H:%M') }}</small>
             </li>
             {% endfor %}
           </ul>
@@ -221,7 +221,7 @@
             <li>
               $ {{ "{:,}".format(v.amount).replace(",",".") }}
               {% if v.description %} — {{ v.description }}{% endif %}
-              <small class="text-muted">({{ v.created_at.strftime('%d/%m') }})</small>
+              <small class="text-muted">({{ v.created_at | hora_bogota('%d/%m') }})</small>
             </li>
             {% endfor %}
           </ul>

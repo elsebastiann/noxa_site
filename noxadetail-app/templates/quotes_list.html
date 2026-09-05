@@ -47,7 +47,7 @@
       {% if c.customer_phone %}<div class="cot-sec">{{ c.customer_phone }}</div>{% endif %}
     </div>
     <div class="cot-sec">{{ [c.vehicle_label, c.plate]|select|join(' · ') or '—' }}</div>
-    <div class="cot-sec">{{ c.created_at.strftime('%d/%m/%Y') }}</div>
+    <div class="cot-sec">{{ c.created_at | hora_bogota('%d/%m/%Y') }}</div>
     {# Una cotización con PPF no tiene UN total sino uno por marca, así que aquí
        se muestra el rango. Poner c.total mostraría solo los servicios —cero en
        una cotización que es puro PPF. #}

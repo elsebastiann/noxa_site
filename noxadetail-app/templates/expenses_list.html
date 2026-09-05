@@ -86,7 +86,7 @@
     {% for e in expenses %}
       <tr class="{% if e.is_void %}table-secondary text-muted{% endif %}">
         <td>{{ e.expense_date.strftime("%Y-%m-%d") }}</td>
-        <td>{{ e.created_at.strftime("%Y-%m-%d %H:%M:%S") }}</td>
+        <td>{{ e.created_at | hora_bogota("%Y-%m-%d %H:%M:%S") }}</td>
         <td>${{ "{:,.0f}".format(e.amount) }}</td>
         <td>
           {{ e.category }}

@@ -41,7 +41,7 @@
       <tbody>
         {% for v in vales %}
         <tr>
-          <td>{{ v.created_at.strftime('%d/%m/%Y %H:%M') }}</td>
+          <td>{{ v.created_at | hora_bogota('%d/%m/%Y %H:%M') }}</td>
           <td>{{ v.employee.username }}</td>
           <td class="text-end">$ {{ "{:,}".format(v.amount).replace(",", ".") }}</td>
           <td>{{ v.description or '—' }}</td>

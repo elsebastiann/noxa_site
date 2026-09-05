@@ -53,7 +53,7 @@
       <tbody>
         {% for err in errors %}
         <tr>
-          <td class="text-nowrap">{{ err.created_at.strftime('%d/%m/%Y %H:%M') }}</td>
+          <td class="text-nowrap">{{ err.created_at | hora_bogota('%d/%m/%Y %H:%M') }}</td>
           <td>
             {% if err.error_type == 'leve' %}
               <span class="badge bg-warning text-dark">Leve</span>

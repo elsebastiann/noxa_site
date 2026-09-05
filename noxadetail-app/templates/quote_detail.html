@@ -108,7 +108,7 @@ function pedirClave(form) {
         <div class="text-muted small">COTIZACIÓN</div>
         <div class="doc-cod">{{ c.code }}</div>
         <div class="text-muted small mt-1">
-          {{ c.created_at.strftime('%d/%m/%Y') }}{% if c.created_by %} · {{ c.created_by }}{% endif %}
+          {{ c.created_at | hora_bogota('%d/%m/%Y') }}{% if c.created_by %} · {{ c.created_by }}{% endif %}
         </div>
         {% if c.ajuste_pct %}
         {# Solo acá: el PDF y el link muestran los precios ya con el aumento
@@ -120,7 +120,7 @@ function pedirClave(form) {
         {% if c.updated_at %}
         {# Importa: el cliente puede tener un PDF viejo con este mismo código. #}
         <div class="small mt-1" style="color:var(--accent,#c8a04a)">
-          Actualizada el {{ c.updated_at.strftime('%d/%m/%Y') }}
+          Actualizada el {{ c.updated_at | hora_bogota('%d/%m/%Y') }}
           {%- if c.updated_by %} · {{ c.updated_by }}{% endif %}
         </div>
         {% endif %}

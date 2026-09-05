@@ -150,6 +150,43 @@ def bogota_now() -> datetime:
     return datetime.now(_BOGOTA).replace(tzinfo=None)
 
 
+def bogota_today() -> date:
+    """El día de HOY en Colombia. Va en vez de `date.today()`, que en el
+    servidor da el día en UTC: entre las 7 de la noche y la medianoche esos dos
+    días no son el mismo, y todo lo que dependa de "hoy" se corre uno.
+
+    No es teórico: el recordatorio de citas apuntaba al día equivocado justo
+    porque corre a las 7 PM, y se arregló solo ahí. Esta función existe para que
+    no haya que volver a descubrirlo sitio por sitio.
+    """
+    return bogota_now().date()
+
+
+def hora_bogota_naive(dt) -> datetime | None:
+    """El mismo instante, expresado en hora de Bogotá y sin zona.
+
+    Para lo que se lee como hora de reloj: exportes a CSV, documentos. Un
+    timestamp UTC exportado tal cual sale cinco horas adelante, y quien abre el
+    archivo no tiene cómo saber que hay que restarlas.
+    """
+    if not dt:
+        return None
+    return dt.replace(tzinfo=pytz.utc).astimezone(_BOGOTA).replace(tzinfo=None)
+
+
+def dia_bogota(dt) -> date | None:
+    """El día calendario en Bogotá de un timestamp guardado en UTC.
+
+    `created_at` y compañía se guardan con `datetime.utcnow()`. Sacarles `.date()`
+    directo da el día en UTC, y compararlo contra un día de Bogotá da diferencias
+    de un día que aparecen y desaparecen según la hora — el síntoma más confuso
+    posible.
+    """
+    if not dt:
+        return None
+    return dt.replace(tzinfo=pytz.utc).astimezone(_BOGOTA).date()
+
+
 # Servicio con el que Mariana (bot de WhatsApp) agenda diagnósticos. Se resuelve
 # por nombre contra la tabla `services` porque los ids difieren entre la BD local
 # y la de producción; se puede sobreescribir sin tocar código con la variable
@@ -2595,7 +2632,7 @@ class User(db.Model):
     def in_trial(self):
         """True si el empleado aún está en período de prueba (primer mes desde hire_date)."""
         if self.hire_date:
-            return (date.today() - self.hire_date).days < 30
+            return (bogota_today() - self.hire_date).days < 30
         return bool(self.is_trial_period)
 
     @property
@@ -4881,7 +4918,7 @@ def new_appointment():
         agreements=agreements,
         operators_list=operators_list,
         installers=Installer.query.filter_by(is_active=True).order_by(Installer.name).all(),
-        today=date.today().isoformat()
+        today=bogota_today().isoformat()
     )
 
 
@@ -4924,7 +4961,7 @@ def public_booking_mercedes():
     all_bookable_ids = [s.id for s in normal_services] + [s.id for s in diagnostic_services]
     vehicle_coverage = _vehicle_coverage_matrix(all_bookable_ids, [v.id for v in vehicle_types])
 
-    today = date.today()
+    today = bogota_today()
     return render_template(
         "public_booking_mercedes.html",
         normal_services=normal_services,
@@ -4994,7 +5031,7 @@ def api_public_mb_available_days():
     if error:
         return jsonify({"ok": False, "error": error}), 400
 
-    today = date.today()
+    today = bogota_today()
     window_end = today + timedelta(days=BOOKING_WINDOW_DAYS)
     first_of_month = date(year, month, 1)
     last_of_month = (date(year + 1, 1, 1) if month == 12 else date(year, month + 1, 1)) - timedelta(days=1)
@@ -5024,7 +5061,7 @@ def api_public_mb_availability():
     except ValueError:
         return jsonify({"ok": False, "error": "Fecha inválida."}), 400
 
-    today = date.today()
+    today = bogota_today()
     if target_date < today or target_date > today + timedelta(days=BOOKING_WINDOW_DAYS):
         return jsonify({"ok": False, "error": "Esa fecha está fuera de la ventana de agendamiento."}), 400
 
@@ -5086,7 +5123,7 @@ def api_public_mb_book():
     except (ValueError, TypeError):
         return jsonify({"ok": False, "error": "Datos inválidos."}), 400
 
-    today = date.today()
+    today = bogota_today()
     if target_date < today or target_date > today + timedelta(days=BOOKING_WINDOW_DAYS):
         return jsonify({"ok": False, "error": "Esa fecha está fuera de la ventana de agendamiento."}), 400
 
@@ -6145,7 +6182,10 @@ def _tablero_seguimiento() -> dict:
             "es_cliente": telefono in ultima_visita,
             # Sello para no escribirle dos veces sin darse cuenta. La tarjeta
             # sigue viva: lo que la resuelve es que agende.
-            "escrita_hace": (bogota_now().date() - escrita.created_at.date()).days
+            # Los dos lados en Bogotá. Mezclarlos —hoy en Bogotá contra el día
+            # en UTC del mensaje— daba "escrita hace -1 días" en las horas de la
+            # noche en que las dos fechas no coinciden.
+            "escrita_hace": (bogota_today() - dia_bogota(escrita.created_at)).days
                             if escrita else None,
             **(extra or {}),
         }
@@ -7250,7 +7290,7 @@ def sales_export():
         estimated_amount = s.base_amount
         writer.writerow([
             s.service_date.strftime("%Y-%m-%d") if s.service_date else "",
-            s.created_at.strftime("%Y-%m-%d %H:%M:%S") if s.created_at else "",
+            hora_bogota_naive(s.created_at).strftime("%Y-%m-%d %H:%M:%S") if s.created_at else "",
             s.appointment_id,
             s.vehicle_type,
             s.plate or "",
@@ -7345,7 +7385,7 @@ def expenses_new():
         "expenses_new.html",
         categories=[c.name for c in ExpenseCategory.query.filter_by(is_active=True).order_by(ExpenseCategory.name).all()],
         payment_methods=PAYMENT_METHODS,
-        today=date.today().strftime("%Y-%m-%d"),
+        today=bogota_today().strftime("%Y-%m-%d"),
         vendors=get_existing_vendors()
     )
 
@@ -7483,7 +7523,7 @@ def expenses_export():
     for e in expenses:
         writer.writerow([
             e.expense_date.strftime("%Y-%m-%d") if e.expense_date else "",
-            e.created_at.strftime("%Y-%m-%d %H:%M:%S") if e.created_at else "",
+            hora_bogota_naive(e.created_at).strftime("%Y-%m-%d %H:%M:%S") if e.created_at else "",
             f"{e.amount}" if e.amount is not None else "",
             e.category or "",
             e.payment_method or "",
@@ -8085,7 +8125,7 @@ def parking_list():
         "parking_list.html",
         parkings=parkings,
         total=total,
-        today=date.today().isoformat(),
+        today=bogota_today().isoformat(),
         filters={
             "from":  from_str or "",
             "to":    to_str or "",
@@ -8382,7 +8422,7 @@ def users_list():
         flash("Acceso restringido a administradores.", "danger")
         return redirect(url_for("calendar_view"))
     users = User.query.order_by(User.created_at.asc()).all()
-    return render_template("users.html", users=users, today=date.today())
+    return render_template("users.html", users=users, today=bogota_today())
 
 
 @app.route("/users/new", methods=["POST"])
@@ -12041,18 +12081,15 @@ def whatsapp_webhook():
 
 
 # ── Panel de mensajes de WhatsApp (bandeja + human takeover) ─────────────────
-def _dia_bogota_de(dt) -> str:
-    """El día calendario en Bogotá de un timestamp guardado en UTC, en ISO.
+def _dia_bogota_iso(dt) -> str:
+    """El día en Bogotá, en ISO, para el filtro de fechas de la bandeja.
 
-    Va en ISO y no en formato humano porque lo compara el filtro de fechas del
-    navegador contra un <input type="date">, que también entrega ISO: así la
-    comparación es alfabética y no hay que parsear nada. La zona importa: entre
-    las 7 y las 12 de la noche, el día en UTC ya es el siguiente, y una
-    conversación de la noche del 31 caería en septiembre.
+    Va en ISO y no en formato humano porque lo compara el navegador contra un
+    <input type="date">, que también entrega ISO: así la comparación es
+    alfabética y no hay que parsear nada.
     """
-    if not dt:
-        return ""
-    return dt.replace(tzinfo=pytz.utc).astimezone(_BOGOTA).date().isoformat()
+    dia = dia_bogota(dt)
+    return dia.isoformat() if dia else ""
 
 
 def _whatsapp_rows():
@@ -12068,7 +12105,7 @@ def _whatsapp_rows():
     conversations = Conversation.query.all()
     rows = [(c,
              c.messages[-1] if c.messages else None,
-             _dia_bogota_de(c.messages[0].created_at if c.messages else c.created_at))
+             _dia_bogota_iso(c.messages[0].created_at if c.messages else c.created_at))
             for c in conversations]
     rows.sort(key=lambda r: (r[1].created_at if r[1] else r[0].created_at), reverse=True)
     return rows
@@ -12360,9 +12397,7 @@ def _job_admin_reminder():
 def _job_client_reminder():
     """Corre diariamente a las 7 PM (Bogotá). Notifica a clientes con cita mañana."""
     with app.app_context():
-        # date.today() en el servidor es UTC: a las 7pm de Bogotá ya es el día
-        # siguiente en UTC, así que el recordatorio apuntaba a la fecha equivocada.
-        tomorrow = bogota_now().date() + timedelta(days=1)
+        tomorrow = bogota_today() + timedelta(days=1)
         citas = Appointment.query.filter(
             db.func.date(Appointment.start_datetime) == tomorrow,
             Appointment.status == "scheduled",
@@ -13196,7 +13231,7 @@ def _leer_formulario_de_cotizacion(cot: "Quote") -> str | None:
     dias = _int_o_cero(request.form.get("valid_days")) or QUOTE_VALID_DAYS
     # La vigencia se cuenta desde que se emitió, no desde hoy: si contara desde
     # hoy, abrir y guardar una cotización sin cambiarle nada la revalidaría sola.
-    desde = (cot.created_at or datetime.utcnow()).date()
+    desde = dia_bogota(cot.created_at) or bogota_today()
 
     cot.customer_name  = nombre[:120]
     cot.customer_phone = (request.form.get("customer_phone") or "").strip()[:40] or None
@@ -13288,7 +13323,8 @@ def quote_edit(code):
     lineas = [{"desc": it.description, "precio": it.unit_price, "cant": it.quantity,
                "serviceId": it.service_id, "detalle": it.detail or ""}
               for it in cot.items]
-    dias = max(1, (cot.valid_until - cot.created_at.date()).days) if cot.valid_until else QUOTE_VALID_DAYS
+    dias = (max(1, (cot.valid_until - dia_bogota(cot.created_at)).days)
+            if cot.valid_until else QUOTE_VALID_DAYS)
 
     return render_template(
         "quote_form.html",
@@ -13646,13 +13682,13 @@ def _construir_pdf_cotizacion(cot: "Quote", version=None) -> bytes:
     der = [
         Paragraph("<b>COTIZACIÓN</b>", est_der),
         Paragraph(f"<font size=13 color='#c8a04a'><b>{cot.code}</b></font>", est_der),
-        Paragraph(cot.created_at.strftime("%d/%m/%Y"), ParagraphStyle(
+        Paragraph(dia_bogota(cot.created_at).strftime("%d/%m/%Y"), ParagraphStyle(
             "rs", parent=est_sub, alignment=TA_RIGHT)),
     ]
     if version:
         der.append(Paragraph(
             f"<b>Versión {version.numero}</b> · armada por el cliente<br/>"
-            f"{version.updated_at.strftime('%d/%m/%Y')}",
+            f"{dia_bogota(version.updated_at).strftime('%d/%m/%Y')}",
             ParagraphStyle("rv", parent=est_sub, alignment=TA_RIGHT, fontSize=7.5,
                            textColor=ACENTO, leading=9.5)))
     elif cot.updated_at:

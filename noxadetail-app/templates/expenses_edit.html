@@ -12,7 +12,7 @@
       <label class="form-label">Fecha del gasto</label>
       <input type="date" name="expense_date" class="form-control"
              value="{{ expense.expense_date.strftime('%Y-%m-%d') }}" required>
-      <div class="form-text text-light">Fecha editable. Registro original: {{ expense.created_at.strftime('%Y-%m-%d %H:%M:%S') }}</div>
+      <div class="form-text text-light">Fecha editable. Registro original: {{ expense.created_at | hora_bogota('%Y-%m-%d %H:%M:%S') }}</div>
     </div>
 
     <div class="col-12 col-md-3">
