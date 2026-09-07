@@ -2794,7 +2794,7 @@ class AppointmentPayment(db.Model):
     appointment_id = db.Column(db.Integer, db.ForeignKey("appointments.id"),
                                nullable=False, index=True)
     amount      = db.Column(db.Integer, nullable=False, default=0)
-    paid_on     = db.Column(db.Date, nullable=False, default=date.today)
+    paid_on     = db.Column(db.Date, nullable=False, default=bogota_today)
     description = db.Column(db.String(200), nullable=True)
     created_at  = db.Column(db.DateTime, default=datetime.utcnow)
 
@@ -2807,7 +2807,7 @@ class Expense(db.Model):
     id = db.Column(db.Integer, primary_key=True)
 
     # Fecha real del gasto (editable por el usuario). Por defecto: hoy.
-    expense_date = db.Column(db.Date, nullable=False, default=date.today)
+    expense_date = db.Column(db.Date, nullable=False, default=bogota_today)
 
     # Fecha/hora del registro (automática)
     created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
@@ -2843,7 +2843,7 @@ class Parking(db.Model):
     id           = db.Column(db.Integer, primary_key=True)
     customer_name = db.Column(db.String(120), nullable=True)
     plate        = db.Column(db.String(20), nullable=False)
-    parking_date = db.Column(db.Date, nullable=False, default=date.today)
+    parking_date = db.Column(db.Date, nullable=False, default=bogota_today)
     amount       = db.Column(db.Integer, nullable=False, default=7000)
     created_at   = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
 

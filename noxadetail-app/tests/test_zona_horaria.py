@@ -53,12 +53,16 @@ class TestNoQuedaNadaCalculandoEnUtc:
 
     def test_el_codigo_no_usa_date_today(self):
         codigo = (RAIZ / "app.py").read_text(encoding="utf-8")
-        # Se busca la llamada, no la palabra: los comentarios que explican por
-        # qué NO se usa deben poder nombrarla.
+        # Se busca `date.today` con o sin paréntesis: como default de una columna
+        # va SIN llamar (`default=date.today`), y la versión anterior de este
+        # test solo miraba la llamada — se le escaparon tres columnas de fecha,
+        # que es justo donde más duele: la fecha con la que nace un gasto.
+        # Los comentarios que explican por qué no se usa deben poder nombrarla.
         sobras = [n for n, linea in enumerate(codigo.splitlines(), 1)
-                  if "date.today()" in linea and not linea.strip().startswith("#")
+                  if re.search(r"\bdate\.today\b", linea)
+                  and not linea.strip().startswith("#")
                   and '"""' not in linea and "`date.today()`" not in linea]
-        assert not sobras, f"date.today() sigue vivo en app.py, líneas {sobras}"
+        assert not sobras, f"date.today sigue vivo en app.py, líneas {sobras}"
 
     def test_ninguna_plantilla_imprime_un_timestamp_crudo(self):
         """`created_at.strftime(...)` en una plantilla pinta la hora UTC tal
