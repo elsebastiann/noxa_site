@@ -150,12 +150,16 @@
       Se cotiza aparte porque el precio depende de la marca de película.
     </p>
     {% endif %}
-    {# Junto a las cifras y no solo en el pie: al pie casi nadie llega. #}
+    {# Junto a las cifras y no solo en el pie: al pie casi nadie llega. Se
+       calla cuando la cotización se hizo sobre el carro: ahí las cifras ya son
+       definitivas y advertir que pueden cambiar las debilita. #}
+    {% if not c.precios_fijos %}
     <div class="instruccion" style="margin-bottom:16px">
       <strong>Valores de referencia.</strong> Cada vehículo es distinto: el precio final
       puede variar según marca, modelo, estado de la pintura y complejidad del montaje,
       y se confirma en el diagnóstico presencial.
     </div>
+    {% endif %}
     <div class="marcas">
       {% for marca, garantia in c.ppf_marcas %}
       <label class="marca {% if loop.first %}on{% endif %}" data-marca="{{ marca }}">

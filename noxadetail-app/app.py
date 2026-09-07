@@ -973,6 +973,10 @@ class Quote(db.Model):
     # adentro, nunca el aumento aparte. Si saliera como línea, sabría cuánto se
     # le movió el precio de lista.
     ajuste_pct = db.Column(db.Integer, nullable=True)
+    # Cuando la cotización se hizo sobre el carro en la mano, los valores ya son
+    # los definitivos y el aviso de "valores de referencia" sobra — peor: le
+    # resta firmeza a una cifra que sí está confirmada.
+    precios_fijos = db.Column(db.Boolean, nullable=False, default=False)
 
     # Token del link público. NO se usa el `code` para esto: el código es corto
     # y está hecho para dictarse por teléfono y leerse de un papel, así que
@@ -2197,6 +2201,25 @@ def ensure_quote_ajuste_schema():
         except Exception as exc:
             db.session.rollback()
             app.logger.error(f"[Migración] quotes.ajuste_pct: {exc}")
+
+
+def ensure_quote_precios_fijos_schema():
+    with app.app_context():
+        db.session.rollback()
+        try:
+            db.session.execute(text("SELECT precios_fijos FROM quotes LIMIT 1"))
+            return
+        except Exception:
+            db.session.rollback()
+        try:
+            # DEFAULT 0: las que ya existen se emitieron sin ver el carro, así
+            # que su aviso tiene que seguir apareciendo.
+            db.session.execute(text(
+                "ALTER TABLE quotes ADD COLUMN precios_fijos BOOLEAN NOT NULL DEFAULT 0"))
+            db.session.commit()
+        except Exception as exc:
+            db.session.rollback()
+            app.logger.error(f"[Migración] quotes.precios_fijos: {exc}")
 
 
 def ensure_quote_updated_schema():
@@ -8585,6 +8608,7 @@ ensure_quote_item_detail_schema()
 ensure_quote_ppf_brands_schema()
 ensure_quote_updated_schema()
 ensure_quote_ajuste_schema()
+ensure_quote_precios_fijos_schema()
 ensure_quote_public_token_schema()
 ensure_quote_item_warranty_schema()
 ensure_ppf_zona_schema()
@@ -13368,6 +13392,9 @@ def _leer_formulario_de_cotizacion(cot: "Quote") -> str | None:
     cot.discount_value = valor_desc
     cot.discount_label = (request.form.get("discount_label") or "").strip()[:120] or None
     cot.notes          = (request.form.get("notes") or "").strip() or None
+    # Una casilla desmarcada no se envía, así que su ausencia es un "no" y no un
+    # "no se tocó": al desmarcarla el aviso tiene que volver.
+    cot.precios_fijos  = request.form.get("precios_fijos") == "1"
     cot.valid_until    = desde + timedelta(days=max(1, dias))
     cot.items     = lineas
     cot.ppf_items = ppf_lineas
@@ -13701,6 +13728,10 @@ def quote_duplicate(code):
         discount_value=original.discount_value,
         discount_label=original.discount_label,
         ajuste_pct=original.ajuste_pct,
+        # `precios_fijos` NO se copia a propósito: se duplica para cotizar otro
+        # carro, y "precios confirmados sobre el vehículo" dejaría de ser cierto
+        # sin que nadie lo note. La copia nace como estimada y quien la confirme
+        # vuelve a marcarla.
         ppf_brands=original.ppf_brands,
         # La vigencia se cuenta desde hoy: heredar la del original nacería
         # vencida si la que se copia ya tenía sus días encima.
@@ -14085,22 +14116,11 @@ def _construir_pdf_cotizacion(cot: "Quote", version=None) -> bytes:
         else:
             hist += [Paragraph("PROTECCIÓN PPF", est_seccion)]
 
-        # Cada carro es distinto y estos valores se dan sin haberlo visto. Va
-        # acá, junto a las cifras, y no solo en el pie: al pie casi nadie llega.
-        aviso = Paragraph(
-            "<b>Valores de referencia.</b> Cada vehículo es distinto: el precio final "
-            "puede variar según marca, modelo, estado de la pintura y complejidad del "
-            "montaje, y se confirma en el diagnóstico presencial.",
-            ParagraphStyle("av", parent=est_txt, fontSize=8, leading=11,
-                           textColor=colors.HexColor("#6b5a2e")))
-        caja_aviso = Table([[aviso]], colWidths=[175 * mm])
-        caja_aviso.setStyle(TableStyle([
-            ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#fbf7ec")),
-            ("BOX", (0, 0), (-1, -1), 0.6, colors.HexColor("#e8dcbb")),
-            ("LEFTPADDING", (0, 0), (-1, -1), 9), ("RIGHTPADDING", (0, 0), (-1, -1), 9),
-            ("TOPPADDING", (0, 0), (-1, -1), 6), ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
-        ]))
-        hist += [caja_aviso, Spacer(1, 4 * mm), t_ppf, Spacer(1, 3 * mm)]
+        # El aviso de "valores de referencia" va UNA vez, en el pie. Estuvo
+        # también acá arriba, junto a las cifras, y el documento terminaba
+        # diciendo lo mismo dos veces: una advertencia repetida se lee como
+        # letra menuda y deja de advertir.
+        hist += [t_ppf, Spacer(1, 3 * mm)]
 
         # Decirlo explícitamente: sin esta nota, la columna más barata parece la
         # mejor oferta cuando en realidad está cubriendo menos partes.
@@ -14202,17 +14222,20 @@ def _construir_pdf_cotizacion(cot: "Quote", version=None) -> bytes:
     # líneas diciendo lo mismo con otras palabras, y un pie que se repite se
     # deja de leer.
 
-    if ppf_items and items:
-        pie.append("Los valores son estimados y se confirman al revisar el carro: pueden "
-                   "variar según el estado real del vehículo y, en PPF, según marca, "
-                   "modelo y complejidad de la instalación.")
-    elif ppf_items:
-        pie.append("Los valores de PPF son estimados: pueden variar según marca, modelo, "
-                   "estado del vehículo y complejidad de la instalación. Se confirman al "
-                   "revisar el carro.")
-    else:
-        pie.append("Los precios pueden variar según el estado real del vehículo, "
-                   "que se confirma en el diagnóstico presencial.")
+    # Con los precios ya confirmados sobre el carro, la advertencia sobra y
+    # además resta: le quita firmeza a una cifra que sí es definitiva.
+    if not cot.precios_fijos:
+        if ppf_items and items:
+            pie.append("Los valores son estimados y se confirman al revisar el carro: pueden "
+                       "variar según el estado real del vehículo y, en PPF, según marca, "
+                       "modelo y complejidad de la instalación.")
+        elif ppf_items:
+            pie.append("Los valores de PPF son estimados: pueden variar según marca, modelo, "
+                       "estado del vehículo y complejidad de la instalación. Se confirman al "
+                       "revisar el carro.")
+        else:
+            pie.append("Los precios pueden variar según el estado real del vehículo, "
+                       "que se confirma en el diagnóstico presencial.")
     # El link va en su propio recuadro y como enlace real: perdido entre la
     # letra menuda del pie, nadie lo veía — y es lo que convierte el papel en
     # algo con lo que el cliente puede jugar.

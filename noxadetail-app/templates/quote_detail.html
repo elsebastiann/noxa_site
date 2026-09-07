@@ -208,11 +208,19 @@ function pedirClave(form) {
        ni valor unitario — una cobertura se pone o no se pone, siempre es una. #}
     {% if c.tiene_ppf %}
     <div class="sec-tit" {% if not c.items %}style="margin-top:0"{% endif %}>Protección PPF</div>
+    {% if c.precios_fijos %}
+    <div class="aviso-ref" style="color:#7fd6b8; background:rgba(0,168,132,.09);
+                                  border-color:rgba(0,168,132,.3)">
+      <strong>Precios confirmados sobre el vehículo.</strong> El aviso de valores de
+      referencia no sale en el PDF ni en el link del cliente.
+    </div>
+    {% else %}
     <div class="aviso-ref">
       <strong>Valores de referencia.</strong> El precio final puede variar según marca,
       modelo, estado de la pintura y complejidad del montaje. Se confirma en el
       diagnóstico presencial.
     </div>
+    {% endif %}
     <table class="mx mb-2">
       <thead>
         <tr>

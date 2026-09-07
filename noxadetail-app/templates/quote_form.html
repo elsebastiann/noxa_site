@@ -87,6 +87,13 @@
                        border:1px solid rgba(255,255,255,.14); color:#eee;
                        border-radius:6px; padding:4px 8px; font-size:.9rem; font-weight:700; }
   .ajuste-nota { font-size:.72rem; color:#7f92a5; margin-left:auto; text-align:right; line-height:1.25; }
+  .fijos-caja { display:flex; gap:9px; align-items:flex-start; cursor:pointer;
+                background:rgba(0,168,132,.07); border:1px solid rgba(0,168,132,.26);
+                border-radius:9px; padding:10px 12px; margin-bottom:14px; }
+  .fijos-caja input { margin-top:2px; flex-shrink:0; }
+  .fijos-caja strong { display:block; font-size:.83rem; color:#bfe6d5; font-weight:700; }
+  .fijos-caja small { display:block; font-size:.73rem; color:#7f9a90; line-height:1.35;
+                      margin-top:2px; }
   .tot-fila { display:flex; justify-content:space-between; padding:5px 0; font-size:.9rem; color:#bdbdbd; }
   .tot-fila.grande { font-size:1.32rem; font-weight:700; color:#fff; border-top:1px solid rgba(255,255,255,.14);
                      margin-top:8px; padding-top:11px; }
@@ -340,6 +347,18 @@
           <span class="ajuste-nota">no sale en el PDF ni en el link</span>
         </div>
       </div>
+
+      {# Por defecto marcado como estimado: la mayoría de cotizaciones salen sin
+         haber visto el carro, y el default seguro es el que advierte. #}
+      <label class="fijos-caja">
+        <input type="checkbox" name="precios_fijos" value="1"
+               {% if cot and cot.precios_fijos %}checked{% endif %}>
+        <span>
+          <strong>Precios confirmados sobre el vehículo</strong>
+          <small>Quita el aviso de "valores de referencia" del PDF y del link.
+                 Márcalo solo si ya viste el carro.</small>
+        </span>
+      </label>
 
       <label class="form-label small text-muted mb-1">Descuento (opcional)</label>
       <div class="row g-1 mb-2">
