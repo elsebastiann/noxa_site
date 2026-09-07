@@ -6,9 +6,18 @@
   .doc-cod { font-size:1.6rem; font-weight:800; color:var(--accent,#c8a04a); letter-spacing:.04em; }
   .dato { display:flex; gap:10px; padding:3px 0; font-size:.92rem; }
   .dato .k { color:#8a8a8a; min-width:92px; }
+  /* Sin las clases `table` de Bootstrap: pintan las celdas con el color de tabla
+     del tema claro, y sobre el documento oscuro eso salía como un recuadro
+     blanco detrás de los servicios. La tabla de PPF nunca lo tuvo porque
+     siempre se estilizó sola; esta ahora hace lo mismo. */
+  .tabla { width:100%; border-collapse:collapse; }
   .tabla th { font-size:.72rem; text-transform:uppercase; letter-spacing:.07em;
-              color:#8a8a8a; font-weight:600; border-bottom:1px solid rgba(255,255,255,.14); }
-  .tabla td { border-bottom:1px solid rgba(255,255,255,.06); padding:9px 0; }
+              color:#8a8a8a; font-weight:600; padding:0 6px 8px;
+              border-bottom:1px solid rgba(255,255,255,.14); }
+  .tabla td { border-bottom:1px solid rgba(255,255,255,.06); padding:9px 6px;
+              color:#ddd; vertical-align:top; }
+  .tabla td:first-child, .tabla th:first-child { padding-left:0; }
+  .tabla td:last-child, .tabla th:last-child { padding-right:0; }
   .tot { display:flex; justify-content:space-between; padding:4px 0; color:#bdbdbd; }
   .tot.grande { font-size:1.45rem; font-weight:700; color:#fff;
                 border-top:1px solid rgba(255,255,255,.14); margin-top:8px; padding-top:11px; }
@@ -93,6 +102,14 @@ function pedirClave(form) {
       <a href="{{ url_for('quote_edit', code=c.code) }}" class="btn btn-outline-light btn-sm">Editar</a>
       <a href="{{ url_for('quote_pdf', code=c.code) }}" target="_blank"
          class="btn btn-warning btn-sm fw-bold">Descargar PDF</a>
+      {# Duplicar y no "Nueva desde esta": queda una cotización aparte, con su
+         propio código, y la original no se toca. #}
+      <form method="POST" action="{{ url_for('quote_duplicate', code=c.code) }}" class="m-0">
+        <button type="submit" class="btn btn-outline-light btn-sm"
+                title="Crea una copia con código nuevo para editarla, sin tocar esta">
+          Duplicar
+        </button>
+      </form>
       <a href="{{ url_for('quote_new') }}" class="btn btn-outline-warning btn-sm">Nueva</a>
       <form method="POST" action="{{ url_for('quote_delete', code=c.code) }}" class="m-0"
             onsubmit="return pedirClave(this)">
@@ -150,7 +167,7 @@ function pedirClave(form) {
 
     {% if c.items %}
     {% if c.tiene_ppf %}<div class="sec-tit" style="margin-top:0">Servicios</div>{% endif %}
-    <table class="table table-borderless tabla mb-3">
+    <table class="tabla mb-3">
       <thead><tr>
         <th>Servicio</th>
         <th class="text-center" style="width:70px">Cant.</th>

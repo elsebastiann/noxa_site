@@ -7843,6 +7843,32 @@ def api_client_names():
 # -----------------------
 # API: DATOS DE CLIENTE POR NOMBRE
 # -----------------------
+@app.route("/api/clients/by-phone")
+def api_client_by_phone():
+    """Cliente por teléfono, para autocompletar.
+
+    Compara solo los dígitos: el mismo número está guardado como 3103342626, +57
+    310 334 2626 y 310-334-2626 según por dónde entró, y una comparación literal
+    no encontraría ninguno de los otros dos. Se comparan los ÚLTIMOS 10, que es
+    el número nacional sin indicativo.
+    """
+    solo_digitos = re.sub(r"\D", "", request.args.get("phone") or "")[-10:]
+    if len(solo_digitos) < 7:
+        return jsonify({"found": False}), 400
+
+    for c in Client.query.filter(Client.phone.isnot(None)).order_by(Client.created_at.asc()):
+        if re.sub(r"\D", "", c.phone or "")[-10:] == solo_digitos:
+            return jsonify({
+                "found": True,
+                "plate": c.plate,
+                "full_name": c.full_name or "",
+                "phone": c.phone or "",
+                "vehicle_type_id": c.vehicle_type_id,
+                "agreement_id": c.agreement_id,
+            })
+    return jsonify({"found": False, "phone": solo_digitos})
+
+
 @app.route("/api/clients/by-name")
 def api_client_by_name():
     name = (request.args.get("name") or "").strip()
@@ -13636,6 +13662,68 @@ def quote_public_pdf(token):
                     mimetype="application/pdf", headers={
         "Content-Disposition": f'attachment; filename="{nombre}-NOXA.pdf"',
     })
+
+
+@app.route("/quotes/<code>/duplicate", methods=["POST"])
+def quote_duplicate(code):
+    """Copia una cotización a un código nuevo, para usarla de base.
+
+    Copia los precios CONGELADOS y no los de catálogo: la gracia de duplicar es
+    partir de lo que ya se negoció —el ajuste que se le puso, el precio exacto
+    que se escribió para ese grupo— y cambiar lo poco que sea distinto. Volver a
+    tarifar contra la lista dejaría exactamente el trabajo que se quería evitar.
+
+    Lo que NO se copia es todo lo que pertenece a la cotización original y no al
+    trabajo: el código, el link del cliente, las versiones que él armó y las
+    fechas de emisión. La copia nace nueva, no hereda su historia.
+    """
+    if not puede_cotizar():
+        flash("Acceso restringido.", "danger")
+        return redirect(url_for("calendar_view"))
+
+    original = Quote.query.filter_by(code=code).first()
+    if not original:
+        flash("No existe esa cotización.", "danger")
+        return redirect(url_for("quotes_list"))
+
+    copia = Quote(
+        code=_nuevo_codigo_cotizacion(),
+        public_token=secrets.token_urlsafe(24),
+        created_at=datetime.utcnow(),
+        created_by=getattr(getattr(g, "current_user", None), "username", None),
+        customer_name=original.customer_name,
+        customer_phone=original.customer_phone,
+        plate=original.plate,
+        vehicle_label=original.vehicle_label,
+        vehicle_type_id=original.vehicle_type_id,
+        notes=original.notes,
+        discount_type=original.discount_type,
+        discount_value=original.discount_value,
+        discount_label=original.discount_label,
+        ajuste_pct=original.ajuste_pct,
+        ppf_brands=original.ppf_brands,
+        # La vigencia se cuenta desde hoy: heredar la del original nacería
+        # vencida si la que se copia ya tenía sus días encima.
+        valid_until=bogota_today() + timedelta(
+            days=max(1, (original.valid_until - dia_bogota(original.created_at)).days)
+            if original.valid_until else QUOTE_VALID_DAYS),
+    )
+    for it in original.items:
+        copia.items.append(QuoteItem(
+            description=it.description, unit_price=it.unit_price, quantity=it.quantity,
+            detail=it.detail, warranty=it.warranty, service_id=it.service_id))
+    for it in original.ppf_items:
+        copia.ppf_items.append(QuotePpfItem(
+            coverage=it.coverage, contains=it.contains, zona=it.zona,
+            parts_json=it.parts_json, cubre_zona=it.cubre_zona,
+            foto_prices_json=it.foto_prices_json, es_personalizado=it.es_personalizado,
+            orden=it.orden, prices_json=it.prices_json))
+    db.session.add(copia)
+    db.session.commit()
+    app.logger.info(f"[Cotizaciones] {code} duplicada como {copia.code}")
+    flash(f"Copia de {code} creada como {copia.code}. Ajústala y guárdala.", "success")
+    # Directo a editar: se duplica para cambiar algo, no para mirarla igual.
+    return redirect(url_for("quote_edit", code=copia.code))
 
 
 @app.route("/quotes/<code>/delete", methods=["POST"])

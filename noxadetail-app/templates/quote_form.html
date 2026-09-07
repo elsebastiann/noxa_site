@@ -21,6 +21,13 @@
   .svc-btn .n { font-size:.88rem; color:#e9e9e9; line-height:1.25; }
   .svc-btn .gar { color:#8f8f8f; font-size:.8rem; }
   .svc-btn .p { font-size:.86rem; color:var(--accent,#c8a04a); font-weight:700; white-space:nowrap; }
+  .svc-btn .n { cursor:pointer; flex:1; }
+  .svc-btn input.svc-precio { width:104px; text-align:right; background:rgba(0,0,0,.28);
+                              border:1px solid rgba(255,255,255,.14); color:#eee;
+                              border-radius:6px; padding:3px 7px; font-size:.84rem;
+                              font-weight:700; }
+  .svc-btn input.svc-precio:focus { border-color:var(--accent,#c8a04a); outline:none; }
+  .svc-btn input.svc-precio.puesto { border-color:#7fc8a9; color:#bfe6d5; }
 
   .tabs { display:flex; gap:4px; margin-bottom:12px; border-bottom:1px solid rgba(255,255,255,.10); }
   .tab { background:none; border:none; border-bottom:2px solid transparent; color:#9a9a9a;
@@ -87,6 +94,23 @@
                font-weight:700; color:#fff; }
   .tot-marca .g { font-size:.72rem; color:var(--accent,#c8a04a); font-weight:600; }
   .vacio { color:#8a8a8a; font-size:.87rem; text-align:center; padding:22px 8px; }
+
+  /* El tipo de vehículo decide el precio de todo lo demás, así que es la
+     primera decisión de la cotización y se ve como tal. */
+  .tipo-caja { background:rgba(200,160,74,.07); border:1px solid rgba(200,160,74,.28);
+               border-radius:11px; padding:14px 16px; margin-bottom:16px; }
+  .tipo-caja label { display:block; font-size:.68rem; letter-spacing:.09em;
+                     text-transform:uppercase; color:var(--accent,#c8a04a);
+                     font-weight:700; margin-bottom:7px; }
+  .tipo-select { width:100%; background:rgba(0,0,0,.3); color:#eee; font-size:1rem;
+                 border:1px solid rgba(255,255,255,.14); border-radius:8px;
+                 padding:10px 12px; }
+  .tipo-select:focus { border-color:var(--accent,#c8a04a); outline:none; }
+  /* Sin tipo elegido no se puede tocar nada: se ve apagado y no recibe clics. */
+  .sin-tipo { opacity:.35; pointer-events:none; user-select:none; }
+  .pide-tipo { color:#d8c48a; background:rgba(200,160,74,.09);
+               border:1px solid rgba(200,160,74,.26); border-radius:8px;
+               padding:12px 14px; font-size:.87rem; text-align:center; }
   .marcas-cot { background:rgba(200,160,74,.07); border:1px solid rgba(200,160,74,.26);
                 border-radius:10px; padding:12px 14px; margin-bottom:16px; }
   .mc-tit { font-size:.66rem; letter-spacing:.09em; text-transform:uppercase;
@@ -187,24 +211,39 @@
             <input type="text" name="vehicle_label" class="form-control" placeholder="Mazda 3 2021"
                    value="{{ cot.vehicle_label or '' if cot else '' }}">
           </div>
+          <div class="col-12">
+            <div id="avisoCliente" hidden
+                 style="font-size:.8rem; color:#7fd6b8; margin-top:6px"></div>
+          </div>
         </div>
       </div>
 
       <div class="cot-panel">
+        {# Arranca sin elegir y bloquea el resto del armador: el precio de cada
+           servicio depende del tipo, así que cotizar antes de definirlo es
+           cotizar con la tarifa de otro carro. Va sobre las pestañas porque
+           bloquea las dos. #}
+        <div class="tipo-caja">
+          <label for="tipoVeh">Tipo de vehículo</label>
+          <select name="vehicle_type_id" id="tipoVeh" class="tipo-select">
+            <option value="">— Elige el tipo para empezar —</option>
+            {% for t in tipos %}
+            <option value="{{ t.id }}" {% if cot and cot.vehicle_type_id == t.id %}selected{% endif %}>{{ t.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div id="bloqueoTipo" class="pide-tipo" hidden>
+          Elige el tipo de vehículo para empezar a armar la cotización.
+        </div>
+
+        <div id="armador">
         <div class="tabs">
           <button type="button" class="tab on" data-pane="paneSvc">Servicios</button>
           <button type="button" class="tab" data-pane="panePpf">PPF</button>
         </div>
 
         <div id="paneSvc">
-          <div class="d-flex justify-content-end align-items-center gap-2 mb-2">
-            <label class="small text-muted mb-0">Tipo de vehículo</label>
-            <select name="vehicle_type_id" id="tipoVeh" class="form-select form-select-sm" style="width:auto">
-              {% for t in tipos %}
-              <option value="{{ t.id }}" {% if cot and cot.vehicle_type_id == t.id %}selected{% endif %}>{{ t.name }}</option>
-              {% endfor %}
-            </select>
-          </div>
           <div id="avisoRepricing"></div>
           <div id="catalogo"></div>
         </div>
@@ -268,6 +307,7 @@
             {% endif %}
           </div>
         </div>
+        </div><!-- /#armador -->
       </div>
     </div>
 
@@ -440,14 +480,28 @@ function pintarCatalogo() {
       html += `<div class="cat-titulo">${s.categoria}</div><div class="svc-grid">`;
       catActual = s.categoria;
     }
-    html += `<button type="button" class="svc-btn ${puestos.has(s.id) ? "puesto" : ""}"
-               data-id="${s.id}"><span class="n">${s.nombre}${
+    // Un servicio ya puesto muestra su precio EDITABLE, igual que la matriz de
+    // PPF: el de lista es una referencia y este carro puede valer otra cosa.
+    // Los que no están en la cotización siguen de solo lectura, para no llenar
+    // el catálogo de casillas que nadie va a usar.
+    const linea = lineas.find(l => l.serviceId === s.id);
+    const precio = linea
+      ? `<input type="number" min="0" step="1000" class="svc-precio${
+           linea.precio !== conAjuste(s.precio) ? " puesto" : ""}"
+           value="${linea.precio}" data-precio="${s.id}">`
+      : `<span class="p">${fmt(conAjuste(s.precio))}</span>`;
+    html += `<div class="svc-btn ${puestos.has(s.id) ? "puesto" : ""}" data-id="${s.id}">
+               <span class="n" data-agregar="${s.id}">${s.nombre}${
                  s.garantia ? `<span class="gar"> (${s.garantia})</span>` : ""}</span>
-               <span class="p">${fmt(conAjuste(s.precio))}</span></button>`;
+               ${precio}</div>`;
   }
   $cat.innerHTML = html + "</div>";
-  $cat.querySelectorAll(".svc-btn").forEach(b => b.onclick = () => {
-    const id = Number(b.dataset.id);
+
+  // El clic agrega desde el NOMBRE y no desde toda la tarjeta: con el precio
+  // editable adentro, un clic para corregir la cifra agregaba el servicio otra
+  // vez y subía la cantidad sin que se notara.
+  $cat.querySelectorAll("[data-agregar]").forEach(n => n.onclick = () => {
+    const id = Number(n.dataset.agregar);
     const ya = lineas.find(l => l.serviceId === id);
     if (ya) ya.cant += 1;
     else {
@@ -456,6 +510,25 @@ function pintarCatalogo() {
                    detalle: "", garantia: s.garantia || "", deLista: s.precio});
     }
     pintarTodo();
+  });
+
+  // Igual que en PPF: se escribe sin repintar, para no moverle el cursor a
+  // quien está escribiendo. Vaciar el campo devuelve el precio de lista.
+  $cat.querySelectorAll("input.svc-precio").forEach(inp => {
+    inp.onclick = e => e.stopPropagation();
+    inp.oninput = () => {
+      const id = Number(inp.dataset.precio);
+      const l = lineas.find(x => x.serviceId === id);
+      const s = serviciosDelTipo().find(x => x.id === id);
+      if (!l || !s) return;
+      const v = inp.value.trim();
+      // Escrito a mano deja de ser precio de lista, así que el ajuste ya no lo
+      // toca: la cifra que se escribió es la que se cobra.
+      if (v === "") { l.precio = conAjuste(s.precio); l.deLista = s.precio; }
+      else          { l.precio = Math.max(0, Number(v) || 0); l.deLista = null; }
+      inp.classList.toggle("puesto", l.precio !== conAjuste(s.precio));
+      pintarLineas(); pintarTotales();
+    };
   });
 }
 
@@ -806,6 +879,17 @@ document.querySelectorAll('.mc-gar input').forEach(inp =>
 
 function pintarTodo() {
   pintarCatalogo(); pintarMatrizPpf(); pintarLibres(); pintarLineas(); pintarTotales();
+  aplicarBloqueoTipo();
+}
+
+// Sin tipo de vehículo no se arma nada: el precio de cada servicio depende de
+// él, así que empezar antes es cotizar con la tarifa de otro carro y darse
+// cuenta al final —o no darse cuenta—.
+function aplicarBloqueoTipo() {
+  const hayTipo = !!$tipo.value;
+  document.getElementById("bloqueoTipo").hidden = hayTipo;
+  document.getElementById("armador").classList.toggle("sin-tipo", !hayTipo);
+  if (!hayTipo) document.getElementById("btnGuardar").disabled = true;
 }
 
 /* ---------------- pestañas ---------------- */
@@ -843,6 +927,66 @@ document.getElementById("btnLibre").onclick = () => {
   const ins = $lineas.querySelectorAll('input[data-c="desc"]');
   if (ins.length) ins[ins.length - 1].focus();
 };
+
+/* ---------------- autocompletar cliente conocido ---------------- */
+// Igual que en las citas: si la placa, el teléfono o el nombre ya están en el
+// sistema, se traen los demás datos. Solo RELLENA lo vacío — nunca pisa lo que
+// alguien acaba de escribir, porque el dato nuevo suele ser la corrección.
+const $campo = n => document.querySelector(`[name="${n}"]`);
+
+function ponerSiVacio(nombre, valor) {
+  const el = $campo(nombre);
+  if (el && valor && !el.value.trim()) { el.value = valor; return true; }
+  return false;
+}
+
+function avisarAutorrelleno(cuantos) {
+  const aviso = document.getElementById("avisoCliente");
+  if (!aviso) return;
+  aviso.hidden = !cuantos;
+  aviso.textContent = cuantos
+    ? "Cliente encontrado: se completaron los datos que estaban en blanco."
+    : "";
+}
+
+async function buscarCliente(url) {
+  let datos;
+  try {
+    const r = await fetch(url);
+    datos = await r.json();
+  } catch (e) { return; }          // sin red se sigue escribiendo a mano
+  if (!datos || !datos.found) return;
+
+  let puestos = 0;
+  puestos += ponerSiVacio("customer_name", datos.full_name);
+  puestos += ponerSiVacio("customer_phone", datos.phone);
+  puestos += ponerSiVacio("plate", datos.plate || (datos.plates || [])[0]);
+  // El tipo de vehículo es el que desbloquea el armador, así que traerlo es la
+  // mitad del ahorro de tiempo. También solo si está sin elegir.
+  if (datos.vehicle_type_id && !$tipo.value) {
+    $tipo.value = String(datos.vehicle_type_id);
+    if ($tipo.value === String(datos.vehicle_type_id)) { puestos++; pintarTodo(); }
+  }
+  avisarAutorrelleno(puestos);
+}
+
+const _yaBuscado = new Set();
+function alSalirDelCampo(nombre, arma) {
+  const el = $campo(nombre);
+  if (!el) return;
+  el.addEventListener("blur", () => {
+    const v = el.value.trim();
+    // Se busca al salir del campo y no en cada tecla: una consulta por letra
+    // son ~15 por placa, y la mitad con datos incompletos que no encuentran nada.
+    if (!v || _yaBuscado.has(nombre + v)) return;
+    _yaBuscado.add(nombre + v);
+    buscarCliente(arma(v));
+  });
+}
+
+alSalirDelCampo("plate", v => `/api/clients/by-plate?plate=${encodeURIComponent(v)}`);
+alSalirDelCampo("customer_phone", v => `/api/clients/by-phone?phone=${encodeURIComponent(v)}`);
+alSalirDelCampo("customer_name", v => `/api/clients/by-name?name=${encodeURIComponent(v)}`);
 
 document.getElementById("ajustePct").addEventListener("input", () => {
   // Las líneas ya agregadas se re-tarifan sobre su precio de lista, no sobre
