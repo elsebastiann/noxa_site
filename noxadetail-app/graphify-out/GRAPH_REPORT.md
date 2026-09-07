@@ -1,16 +1,16 @@
 # Graph Report - noxadetail-app  (2026-09-07)
 
 ## Corpus Check
-- 48 files · ~180,854 words
+- 49 files · ~182,105 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 2498 nodes · 4727 edges · 190 communities (146 shown, 44 thin omitted)
-- Extraction: 98% EXTRACTED · 2% INFERRED · 0% AMBIGUOUS · INFERRED: 93 edges (avg confidence: 0.8)
+- 2532 nodes · 4792 edges · 187 communities (143 shown, 44 thin omitted)
+- Extraction: 98% EXTRACTED · 2% INFERRED · 0% AMBIGUOUS · INFERRED: 105 edges (avg confidence: 0.8)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `b3e26511`
+- Built from commit: `bbaa24c3`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -33,7 +33,7 @@
 - test_editar_conserva.py
 - _borrar
 - Service
-- make_user
+- login_as
 - api_public_web_lead
 - _correr_turno
 - whatsapp_webhook
@@ -42,40 +42,40 @@
 - TestAlternativaEconomica
 - _cotizacion
 - TestEsquema
-- _parse_date
+- expenses_new
 - _cita
 - route
 - test_marcas_ppf.py
 - ._login_admin
-- analytics_dashboard
+- _servicios_facturables
 - _plan
 - test_saldos.py
 - _candidatas_del_job
 - TestAbreviarServicios
-- datetime
-- Appointment Form (Shared Partial)
-- appointment_money
+- test_filtro_fechas_whatsapp.py
+- puede_cotizar
+- make_user
 - test_servicios_ui.py
 - _agendar
 - _conv
-- User
+- Conversation
 - TestLaPantallaDePrecios
 - TestCosto
 - CLAUDE.md
-- precio
+- ._login_admin
 - api_public_mb_book
 - TestDefinicionDeIngresos
 - TestPreciosPpf
 - TestTablaDeIngresos
 - conftest.py
 - cuando
-- expense_categories_new
+- datetime
 - TestLineaDelPrompt
-- TestNoQuedaNadaCalculandoEnUtc
+- test_zona_horaria.py
+- festivos_colombia
 - date
-- bogota_now
 - TestTiempoAdicional
-- get_available_slots
+- book_diagnostic_from_bot
 - new_appointment
 - _tpl_reactivacion_para
 - test_preguntar_datos.py
@@ -85,8 +85,8 @@
 - PpfPackage
 - test_nav_movil.py
 - Analytics Dashboard
-- PayrollEntry
-- quality_errors_new
+- _can_see_notifications
+- _clasificar_conversacion_historica
 - TestLasCincoMarcas
 - TestElLinkYElPdfDicenLoMismo
 - ._preguntar
@@ -100,13 +100,13 @@
 - TestRegistro
 - PpfPart
 - _borrar
-- api_notifications
-- book_diagnostic_from_bot
+- whatsapp.html
+- TestLosAyudantes
 - TestSeCreaSolo
 - TestVentasSinCita
 - _borrar
 - QuoteVersion
-- ._login_admin
+- TestEliminar
 - test_parqueadero.py
 - test_cotizaciones.py
 - ._login
@@ -129,7 +129,7 @@
 - limit
 - test_colores_agenda.py
 - TestLaLogicaDelRango
-- estado_servicios
+- notify_admin_gestion_cliente
 - service_prices.html
 - push_notification
 - SeguimientoGestion
@@ -138,27 +138,27 @@
 - TestLetraLegible
 - ensure_whatsapp_canal_schema
 - RailwayCostSnapshot
-- api_events
+- appointment_money
 - apply_agreement_discount_split
-- payroll_detail.html
+- ServicePrice
 - _job_whatsapp_followup
 - _normalize_whatsapp_number
-- Conversation
+- marca_sin_precios
 - _kpis_embudo
 - TestBloqueoAlAgendarDesdeElBot
-- Appointments List (DataTable)
+- close_appointment
 - payroll_new
-- _reparto_tercerizacion
-- TestRegresionProduccion
+- TestPreciosAbsorbidosEnElPdf
+- TestElPromptSabeCuandoMarcarla
 - TestGuardarDesdeElPanel
 - TestPromptExigeDosColumnas
 - Agreements (Convenios) Management Page
-- api_estimate_price
+- service_prices_list
 - login
-- delete_appointment
+- .admin
 - promotions_list
 - payment_methods_new
-- Calendar View (FullCalendar)
+- TestPromptDeMariana
 - test_agendar_repetido.py
 - TestDiaHabil
 - excluido_de_convenio
@@ -191,12 +191,9 @@
 - _fetch_twilio_media_base64
 - inject_user
 - normalizar_marcas_en_precios
-- whatsapp_unarchive
+- _resumen_gerencial
 - _ventana_24h_abierta
 - seed_garantias_polarizado
-- toggle_service_outsourced
-- toggle_service_custom_price
-- update_service_colors
 - require_login
 - Campanita de notificaciones internas (4.3b): Notification model, push_notification(), /api/notifications
 - Manejo de objeción de precio: ancla de valor por costo diario, invitación a ver carro aplicado, prohibido ofrecer descuento
@@ -205,8 +202,8 @@
 - sesion
 
 ## God Nodes (most connected - your core abstractions)
-1. `make_user()` - 180 edges
-2. `login_as()` - 118 edges
+1. `make_user()` - 182 edges
+2. `login_as()` - 120 edges
 3. `_borrar()` - 57 edges
 4. `Base Layout Template` - 56 edges
 5. `_borrar()` - 43 edges
@@ -217,8 +214,6 @@
 10. `make_admin()` - 28 edges
 
 ## Surprising Connections (you probably didn't know these)
-- `Calendar View (FullCalendar)` --references--> `calendar_view()`  [INFERRED]
-  templates/calendar.html → noxadetail-app/app.py
 - `New Appointment Page` --references--> `new_appointment()`  [INFERRED]
   templates/new_appointment.html → noxadetail-app/app.py
 - `Calendar View (FullCalendar)` --references--> `delete_appointment()`  [INFERRED]
@@ -227,6 +222,8 @@
   templates/calendar.html → noxadetail-app/app.py
 - `Edit Appointment Page` --references--> `edit_appointment()`  [INFERRED]
   templates/edit_appointment.html → noxadetail-app/app.py
+- `Managerial Dashboard (Tablero Gerencial)` --references--> `dashboard_gerencial()`  [INFERRED]
+  templates/gerencial.html → noxadetail-app/app.py
 
 ## Import Cycles
 - None detected.
@@ -239,7 +236,7 @@
 - **Mercedes Club Booking Data Flow** — templates_public_booking_mercedes, templates_service_prices, templates_vehicle_types, templates_services [INFERRED 0.80]
 - **Mariana WhatsApp Bot Operations** — templates_whatsapp, templates_whatsapp_outbox, docs_mariana_base_conocimiento [INFERRED 0.85]
 
-## Communities (190 total, 44 thin omitted)
+## Communities (187 total, 44 thin omitted)
 
 ### Community 0 - "_S3Falso"
 Cohesion: 0.14
@@ -282,8 +279,8 @@ Cohesion: 0.11
 Nodes (16): base_sin_columnas(), _codigo(), _columnas(), fixture, parametrize, Las migraciones de arranque no pueden tumbar la app. Caso real (2026-09-02):…, La causa raíz. Una función de migración no puede consultar por el ORM: el…, El arreglo no puede haberse llevado por delante lo que la función hace: sin el… (+8 more)
 
 ### Community 11 - "test_backfill_calificacion.py"
-Cohesion: 0.13
-Nodes (9): conversacion_vieja(), _fake_claude_response(), fixture, Backfill de calificación para conversaciones que existían antes de que ese…, Una conversación con mensajes pero sin ninguna de las columnas nuevas — el…, Caso real visto en producción: un cliente dijo que su carro era un 'Spark Life'…, Importante para que lo guardado siempre calce con MARCA_ABREVIATURA y con el…, TestClasificarConversacionHistorica (+1 more)
+Cohesion: 0.08
+Nodes (15): conversacion_vieja(), _fake_claude_response(), fixture, Backfill de calificación para conversaciones que existían antes de que ese…, Idempotencia: una conversación que YA tiene calificación no se toca, así que…, Dos fallas vistas en vivo el 2026-08-18 al correr el backfill contra…, Una conversación con mensajes pero sin ninguna de las columnas nuevas — el…, Otro servicio' y 'PPF o wrap' existían en el SERVICE_TAGS de antes de ampliar… (+7 more)
 
 ### Community 12 - "TestSinCalificar"
 Cohesion: 0.11
@@ -313,21 +310,21 @@ Nodes (14): _borrar(), _crear(), Grupos de PPF armados dentro de la cotización.
 Cohesion: 0.13
 Nodes (10): color_hex_valido(), color_texto_legible(), Normaliza un color a #RRGGBB, o None si no lo es. El valor viaja desde un…, Negro o blanco, el que contraste con el fondo. Es el valor por defecto cuando…, Crea servicios base si la tabla está vacía., seed_services(), seed_vehicle_types(), Service (+2 more)
 
-### Community 19 - "make_user"
-Cohesion: 0.06
-Nodes (27): login_as(), make_user(), El formulario manda listas paralelas; acá se prueba el parseo., El default acordado con la operación: si nadie elige, es sobre lista., TestFormulario, Idempotencia: una conversación que YA tiene calificación no se toca, así que…, TestRutaBackfill, TestApiDiaCerrado (+19 more)
+### Community 19 - "login_as"
+Cohesion: 0.07
+Nodes (16): login_as(), El formulario manda listas paralelas; acá se prueba el parseo., El default acordado con la operación: si nadie elige, es sobre lista., TestFormulario, TestApiDiaCerrado, El backend no debe rechazarlas: son un SQL válido, y la tabla las muestra bien.…, Preguntarle a la data da acceso a toda la plata de una forma que ningún tablero…, Un admin pasa el allowlist global, así que llega hasta la ruta y es MI candado… (+8 more)
 
 ### Community 20 - "api_public_web_lead"
-Cohesion: 0.31
-Nodes (9): api_public_web_lead(), _build_web_lead_opening_text(), notify_admin_new_web_lead(), Debe calzar EXACTO con el texto de la plantilla aprobada en Twilio/Meta (único…, Manda el primer WhatsApp a un lead del sitio web. WhatsApp exige que el primer…, Avisa por WhatsApp al admin cada vez que un visitante del sitio deja sus datos…, Crea (o retoma) la conversación de un lead y le manda el saludo de apertura.…, registrar_lead_entrante() (+1 more)
+Cohesion: 0.25
+Nodes (11): api_public_web_lead(), _build_web_lead_opening_text(), Message, notify_admin_new_web_lead(), Debe calzar EXACTO con el texto de la plantilla aprobada en Twilio/Meta (único…, Manda el primer WhatsApp a un lead del sitio web. WhatsApp exige que el primer…, Avisa por WhatsApp al admin cada vez que un visitante del sitio deja sus datos…, Crea (o retoma) la conversación de un lead y le manda el saludo de apertura.… (+3 more)
 
 ### Community 21 - "_correr_turno"
 Cohesion: 0.06
 Nodes (27): cita(), conversacion(), _correr_turno(), _kinds(), fixture, Los avisos al admin no dependen de que el mensaje al cliente salga bien. Cuando…, El caso visto en producción: la cita se movió, el envío al cliente falló y…, Si el primero no salió, encimarle los siguientes solo empeora el hilo. (+19 more)
 
 ### Community 22 - "whatsapp_webhook"
-Cohesion: 0.20
-Nodes (9): _guardar_media_entrante(), MessageMedia, notify_admin_conversation_error(), Descarga un adjunto de Twilio y lo guarda. Devuelve el nombre del archivo. Se…, Descarga una nota de voz de WhatsApp y la transcribe con Whisper (OpenAI). None…, Avisa al admin por WhatsApp cuando Mariana no pudo responderle al cliente tras…, Archivo (normalmente una foto) que llegó adjunto a un mensaje. Se guarda una…, _transcribe_twilio_audio() (+1 more)
+Cohesion: 0.17
+Nodes (11): _guardar_media_entrante(), MessageMedia, _motivo_infraestructura(), notify_admin_conversation_error(), Descarga un adjunto de Twilio y lo guarda. Devuelve el nombre del archivo. Se…, Descarga una nota de voz de WhatsApp y la transcribe con Whisper (OpenAI). None…, Avisa al admin por WhatsApp cuando Mariana no pudo responderle al cliente tras…, Si una excepción del bot es en realidad falta de saldo/credencial, lo dice en… (+3 more)
 
 ### Community 23 - "_borrar"
 Cohesion: 0.14
@@ -349,17 +346,17 @@ Nodes (9): _cotizacion(), Crea una cotización con token y devuelve (code, token
 Cohesion: 0.22
 Nodes (4): El modelo y la tabla real tienen que coincidir. Sin esto el 500 vuelve., Corre en cada arranque: repetirla no puede perder datos ni fallar., El efecto secundario más peligroso de la migración: reconstruir la tabla exige…, TestEsquema
 
-### Community 28 - "_parse_date"
-Cohesion: 0.06
-Nodes (36): dashboard_gerencial(), Expense, expense_categories_delete(), expense_categories_list(), expense_categories_toggle(), expenses_edit(), expenses_export(), expenses_list() (+28 more)
+### Community 28 - "expenses_new"
+Cohesion: 0.07
+Nodes (29): Expense, expense_categories_delete(), expense_categories_list(), expense_categories_new(), expense_categories_toggle(), ExpenseCategory, expenses_edit(), expenses_export() (+21 more)
 
 ### Community 29 - "_cita"
 Cohesion: 0.06
 Nodes (29): catalogo(), _cita(), fixture, Servicios tercerizados: polarizado, PPF y wrap. Los hace un instalador externo…, La gran mayoría de citas no se reparten: no pueden verse afectadas., Aplicar el % al total de la cita le regalaría al instalador un pedazo del…, Un PPF a medida no tiene fila en ServicePrice: sin esto la cita valdría 0 y el…, Si se descuenta, el instalador no puede llevarse el 65% de una plata que nunca… (+21 more)
 
 ### Community 30 - "route"
-Cohesion: 0.08
-Nodes (27): api_client_by_name(), api_client_by_plate(), api_public_stats_appointments_count(), expense_categories_rename(), index(), installer_toggle(), payment_methods_toggle(), payroll_pay() (+19 more)
+Cohesion: 0.07
+Nodes (31): api_client_by_name(), api_client_by_plate(), api_public_stats_appointments_count(), expense_categories_rename(), installer_toggle(), payment_methods_toggle(), payroll_pay(), quality_errors_delete() (+23 more)
 
 ### Community 31 - "test_marcas_ppf.py"
 Cohesion: 0.22
@@ -369,9 +366,9 @@ Nodes (6): _login_admin(), _quitar_precio(), Las marcas de PPF son datos, no una
 Cohesion: 0.20
 Nodes (6): Es OTRA película, no una parte del carro. Ningún grupo lo trae: aunque Full Car…, Además del precio por grupo, cada pieza tiene el suyo. Son dos precios…, Otro" se nombra al usarla: no tiene precio de lista., Es lo que le permite sugerir el precio de un grupo armado., TestElFotocromaticoNuncaVaIncluido, TestPreciosPorParteSuelta
 
-### Community 33 - "analytics_dashboard"
-Cohesion: 0.09
-Nodes (23): analytics_dashboard(), _analytics_data(), analytics_detalle(), _can_see_notifications(), _kpis_clientes(), _kpis_rentabilidad(), _meses_del_periodo(), notification_mark_read() (+15 more)
+### Community 33 - "_servicios_facturables"
+Cohesion: 0.20
+Nodes (10): _analytics_data(), _kpis_clientes(), _kpis_rentabilidad(), _meses_del_periodo(), Duración del periodo en meses, con decimales. Nunca menos de un mes para no…, Solo lo que factura: las citas de diagnóstico quedan fuera., Métricas del periodo sobre las citas agendadas, que es como opera el negocio:…, Ingresos contra gastos. Es la única cifra que dice si el negocio gana plata; el… (+2 more)
 
 ### Community 34 - "_plan"
 Cohesion: 0.10
@@ -379,23 +376,23 @@ Nodes (21): _placa(), _plan(), Planes de mantenimiento de cerámico: precio, sal
 
 ### Community 35 - "test_saldos.py"
 Cohesion: 0.06
-Nodes (23): _motivo_infraestructura(), Si una excepción del bot es en realidad falta de saldo/credencial, lo dice en…, Exception, A_bad_request(), _correr_job(), fixture, Vigilancia del saldo de Twilio y del crédito de Anthropic. Si cualquiera de los…, El aviso genérico 'Mariana no pudo responderle' se ve igual trátese de un bug o… (+15 more)
+Nodes (21): Exception, A_bad_request(), _correr_job(), fixture, Vigilancia del saldo de Twilio y del crédito de Anthropic. Si cualquiera de los…, El aviso genérico 'Mariana no pudo responderle' se ve igual trátese de un bug o…, Railway solo publica el gasto como acumulado del periodo. El costo por día sale…, Sin esto, el reinicio del acumulado se vería como un día de gasto negativo — y… (+13 more)
 
 ### Community 36 - "_candidatas_del_job"
 Cohesion: 0.19
 Nodes (8): _candidatas_del_job(), _conv(), A quién persigue la reactivación de leads, y con qué fecha razona el modelo.…, El filtro REAL del job, no una copia. Antes esto reescribía la consulta a mano…, No con la del servidor, que en Railway corre en UTC., Sin esta instrucción el modelo toma fechas del historial como si fueran de hoy…, TestAQuienSePersigue, TestFechaEnElPrompt
 
-### Community 38 - "datetime"
-Cohesion: 0.06
-Nodes (26): datetime, Lo que va dentro del cajón de una cita en la agenda. El recorte por alto lo…, TestLineasDelEvento, _mensajes(), _primer_dia(), Filtro de fechas de la bandeja de WhatsApp. Filtra por el día del PRIMER…, 02:00 UTC del 1 de septiembre son las 9 de la noche del 31 en Bogotá. Tomando…, Contraprueba: si no, el test de arriba pasaría con cualquier resta. (+18 more)
+### Community 38 - "test_filtro_fechas_whatsapp.py"
+Cohesion: 0.13
+Nodes (16): admin(), conv(), _mensajes(), _primer_dia(), fixture, Filtro de fechas de la bandeja de WhatsApp. Filtra por el día del PRIMER…, 02:00 UTC del 1 de septiembre son las 9 de la noche del 31 en Bogotá. Tomando…, Contraprueba: si no, el test de arriba pasaría con cualquier resta. (+8 more)
 
-### Community 39 - "Appointment Form (Shared Partial)"
+### Community 39 - "puede_cotizar"
 Cohesion: 0.06
-Nodes (42): agrupar_servicios(), _catalogo_para_cotizar(), _catalogo_ppf(), categoria_de_servicio(), delete_service(), garantia_texto(), _nuevo_codigo_cotizacion(), _partes_ppf() (+34 more)
+Nodes (38): agrupar_servicios(), api_preguntar(), _catalogo_para_cotizar(), _catalogo_ppf(), categoria_de_servicio(), delete_service(), garantia_texto(), _nuevo_codigo_cotizacion() (+30 more)
 
-### Community 40 - "appointment_money"
-Cohesion: 0.17
-Nodes (13): api_public_mb_price(), apply_adjustments(), appointment_already_closed(), appointment_money(), calculate_estimated_amount_for_appointment(), calculate_real_price(), close_appointment(), Calcula el precio base real usando ServicePrice. Estrategia: - Suma los precios… (+5 more)
+### Community 40 - "make_user"
+Cohesion: 0.09
+Nodes (11): make_user(), Un precio con duración 0 hace que la cita no ocupe tiempo en el calendario, y…, Es la razón de que exista el endpoint aparte: /update exige un ServicePrice que…, TestEdicionDeCelda, TestInTrial, Los saldos son información de la cuenta, no de la operación diaria., TestPaginaEstado, El desglose que se ve al agendar sale del servidor, con la misma fórmula que… (+3 more)
 
 ### Community 41 - "test_servicios_ui.py"
 Cohesion: 0.12
@@ -406,12 +403,12 @@ Cohesion: 0.19
 Nodes (11): _agendar(), _cuantas(), _datos(), El tercer valor es la cita que ESA llamada creó. En la repetición no creó…, El detalle que se registra tiene que identificar la cita real, para que el log…, El arreglo no puede tragarse el caso legítimo: el vehículo ya tiene una cita a…, Sin esta pista Mariana escalaba a un humano para mover una cita que ella misma…, Contraprueba: sin esto los demás tests pasarían aunque nunca se hubiera creado… (+3 more)
 
 ### Community 43 - "_conv"
-Cohesion: 0.05
-Nodes (32): _cita(), _columna(), _conv(), _limpio(), _msg(), fixture, Tablero de seguimiento: leads y clientes pendientes de contactar. Existe porque…, Cadencia del negocio: lavada premium cada 3-4 semanas. (+24 more)
+Cohesion: 0.06
+Nodes (31): _cita(), _columna(), _conv(), _limpio(), _msg(), fixture, Tablero de seguimiento: leads y clientes pendientes de contactar. Existe porque…, Cadencia del negocio: lavada premium cada 3-4 semanas. (+23 more)
 
-### Community 44 - "User"
-Cohesion: 0.21
-Nodes (8): Message, True si el empleado aún está en período de prueba (primer mes desde hire_date)., Un mensaje individual, entrante o saliente, de una conversación., seed_demo_data(), seed_superadmin(), User, users_edit(), users_new()
+### Community 44 - "Conversation"
+Cohesion: 0.05
+Nodes (26): Conversation, payroll_entry_update(), payroll_vale_new(), PayrollEntry, quality_errors_new(), QualityError, QualityErrorEmployee, True si el empleado aún está en período de prueba (primer mes desde hire_date). (+18 more)
 
 ### Community 45 - "TestLaPantallaDePrecios"
 Cohesion: 0.15
@@ -421,13 +418,13 @@ Nodes (5): Es el punto de la migración: el texto de "qué contiene" era decorat
 Cohesion: 0.27
 Nodes (4): El costo se calcula del uso REAL que reporta la API, no de una estimación. Lo…, `input_tokens` es SOLO el remanente no cacheado. Contarlo solo a él subestima…, No todas las respuestas traen los campos de caché., TestCosto
 
-### Community 48 - "precio"
-Cohesion: 0.09
-Nodes (15): marca_sin_precios(), precio(), Precios del catálogo, leídos de la base en vez de escritos en los tests. Los…, Lo que vale ese grupo en esa marca, según el catálogo de ahora., Una marca activa que no tiene precio en ningún grupo, para probar que no entra…, None y no 0: un cero se leería como gratis., El PPF va en matriz: una fila por cobertura, una columna por marca. Con 3…, La cotización se manda sin ver el carro: "Full Front" solo no le dice nada al… (+7 more)
+### Community 48 - "._login_admin"
+Cohesion: 0.14
+Nodes (12): precio(), Lo que vale ese grupo en esa marca, según el catálogo de ahora., El PPF va en matriz: una fila por cobertura, una columna por marca. Con 3…, La cotización se manda sin ver el carro: "Full Front" solo no le dice nada al…, El navegador manda solo el nombre; el precio lo congela el servidor. Si viajara…, Standard no tiene precios cargados: ni entra a la cotización. Antes habría…, Sin este aviso, la columna más barata parece la mejor oferta cuando en realidad…, Un 10% sobre bases distintas da montos distintos: no se puede calcular una sola… (+4 more)
 
 ### Community 49 - "api_public_mb_book"
-Cohesion: 0.20
-Nodes (13): api_public_mb_availability(), api_public_mb_available_days(), api_public_mb_book(), bogota_today(), get_available_days(), _job_client_reminder(), Corre diariamente a las 7 PM (Bogotá). Notifica a clientes con cita mañana., El día de HOY en Colombia. Va en vez de `date.today()`, que en el servidor da… (+5 more)
+Cohesion: 0.17
+Nodes (15): api_dia_cerrado(), api_public_mb_availability(), api_public_mb_available_days(), api_public_mb_book(), bogota_today(), get_available_days(), motivo_dia_cerrado(), Por qué está cerrado ese día, en texto para el cliente. None si se atiende. (+7 more)
 
 ### Community 50 - "TestDefinicionDeIngresos"
 Cohesion: 0.25
@@ -442,44 +439,44 @@ Cohesion: 0.20
 Nodes (4): El monto de una cita NO está en la base: se calcula en Python con…, El caso exacto que fallaba en producción., Montarla no puede haber abierto un hueco: la conexión sigue siendo de solo…, TestTablaDeIngresos
 
 ### Community 54 - "conftest.py"
-Cohesion: 0.47
-Nodes (5): _clean_db(), client(), fixture, Cada test arranca con las tablas de nómina/usuarios vacías, y corre dentro de…, _session_setup()
+Cohesion: 0.20
+Nodes (7): _clean_db(), client(), fixture, Cada test arranca con las tablas de nómina/usuarios vacías, y corre dentro de…, _session_setup(), Lo que va dentro del cajón de una cita en la agenda. El recorte por alto lo…, TestLineasDelEvento
 
 ### Community 55 - "cuando"
 Cohesion: 0.10
 Nodes (15): cuando(), parametrize, A un lead callado se le escribe dos veces. No más. 1) Al día siguiente a las…, Eran cuatro. Si alguien agrega una tercera sin querer, el lead vuelve a recibir…, La otra mitad de la regla: no basta con que no haya tercera etapa, el lead…, El job corre cada media hora. Con el tope en las 18:00 en punto, un objetivo…, Escriba a la hora que escriba, el mensaje sale entre las 9 y las 17:30. Es lo…, El caso normal, y el que justifica toda la regla: dentro de la ventana de 24h… (+7 more)
 
-### Community 56 - "expense_categories_new"
-Cohesion: 0.40
-Nodes (4): expense_categories_new(), ExpenseCategory, Crea categorías base de gastos si la tabla está vacía., seed_expense_categories()
+### Community 56 - "datetime"
+Cohesion: 0.14
+Nodes (17): datetime, _conv(), _corre(), Cuando queda una fecha en la mesa, esa fecha manda sobre la cadencia. Tres…, El bug que trajo la cadencia de dos toques. Los dos momentos se calculan desde…, Si la pausa no se ve, quien mira el panel cree que el lead se quedó sin…, Ya se retomó: seguir mostrándolo sería un recordatorio que miente., Un lead callado, con los mensajes en las fechas que se le pidan (UTC). (+9 more)
 
 ### Community 57 - "TestLineaDelPrompt"
 Cohesion: 0.21
 Nodes (6): parametrize, El nombre de perfil de WhatsApp casi nunca es un nombre. Mariana saludaba con…, Y además se lo prohíbe explícitamente: sin esa frase el modelo tiende a…, TestLineaDelPrompt, TestNombresQueSeDescartan, TestNombresQueSeUsan
 
-### Community 58 - "TestNoQuedaNadaCalculandoEnUtc"
-Cohesion: 0.40
-Nodes (3): Guardas de regresión. El error es invisible 19 horas al día, así que no se…, `created_at.strftime(...)` en una plantilla pinta la hora UTC tal cual: cinco…, TestNoQuedaNadaCalculandoEnUtc
-
-### Community 59 - "date"
+### Community 58 - "test_zona_horaria.py"
 Cohesion: 0.13
-Nodes (21): api_dia_cerrado(), _domingo_de_pascua(), es_festivo(), festivos_colombia(), _format_festivos_for_prompt(), _kpis_diagnosticos(), motivo_dia_cerrado(), Festivos que caen dentro de la ventana de agendamiento. El bloque de… (+13 more)
+Nodes (9): fixture, Todo lo que sea "hoy" o "qué día fue esto" se calcula en hora de Bogotá. El…, Si la fecha impresa y la del vencimiento salieran de calendarios distintos, el…, Guardas de regresión. El error es invisible 19 horas al día, así que no se…, `created_at.strftime(...)` en una plantilla pinta la hora UTC tal cual: cinco…, La que ve el cliente en el PDF y la que decide hasta cuándo vale., Hecha a las 9 de la noche del 31, el documento decía 1 de septiembre: la fecha…, TestLaFechaDeUnaCotizacion (+1 more)
 
-### Community 60 - "bogota_now"
+### Community 59 - "festivos_colombia"
+Cohesion: 0.20
+Nodes (10): _domingo_de_pascua(), es_festivo(), festivos_colombia(), _format_festivos_for_prompt(), Festivos que caen dentro de la ventana de agendamiento. El bloque de…, Nombre del festivo si esa fecha lo es, o None., Algoritmo de Meeus/Jones/Butcher (calendario gregoriano)., Ley Emiliani: si ya es lunes se queda; si no, se corre al lunes siguiente. (+2 more)
+
+### Community 60 - "date"
 Cohesion: 0.10
-Nodes (18): bogota_now(), _filtro_dia_bogota(), _job_ceramic_3weeks(), _job_ceramic_followup(), _job_reengagement_followup(), notify_admin_gestion_cliente(), plans_list(), Le avisa a Diana que hay un cliente que ella tiene que contactar. Estos… (+10 more)
+Nodes (28): analytics_dashboard(), analytics_detalle(), bogota_now(), dashboard_gerencial(), _filtro_dia_bogota(), _job_client_reminder(), _kpis_diagnosticos(), _liquidacion_instaladores() (+20 more)
 
 ### Community 61 - "TestTiempoAdicional"
 Cohesion: 0.36
 Nodes (3): Un trabajo a medida casi nunca dura lo que dice el catálogo: forrar una consola…, La regla del más largo + 50% existe porque dos servicios normales se hacen en…, TestTiempoAdicional
 
-### Community 62 - "get_available_slots"
-Cohesion: 0.18
-Nodes (13): _appointment_capacity_profile(), _day_business_end(), _diagnostic_availability(), _diagnostic_service(), es_dia_habil(), get_available_slots(), _job_post_service_followup(), Servicio con el que se agendan los diagnósticos. Se busca por nombre… (+5 more)
+### Community 62 - "book_diagnostic_from_bot"
+Cohesion: 0.13
+Nodes (19): _appointment_capacity_profile(), book_diagnostic_from_bot(), _day_business_end(), _diagnostic_availability(), _diagnostic_service(), es_dia_habil(), _find_active_appointment_by_plate(), get_available_slots() (+11 more)
 
 ### Community 63 - "new_appointment"
-Cohesion: 0.17
-Nodes (18): Appointment, AppointmentOperator, calculate_real_duration_minutes(), edit_appointment(), _guardar_tercerizacion(), _int_o_cero(), _minutos_extra_tercerizacion(), new_appointment() (+10 more)
+Cohesion: 0.12
+Nodes (26): Appointment, AppointmentOperator, calculate_real_duration_minutes(), edit_appointment(), _guardar_tercerizacion(), _int_o_cero(), _leer_formulario_de_cotizacion(), _minutos_extra_tercerizacion() (+18 more)
 
 ### Community 64 - "_tpl_reactivacion_para"
 Cohesion: 0.50
@@ -490,12 +487,12 @@ Cohesion: 0.24
 Nodes (5): parametrize, Preguntarle a los datos en lenguaje natural. Acá el modelo escribe SQL que se…, La validación se podría burlar; la conexión no. Este es el candado real., TestSoloLectura, TestValidacionDelSQL
 
 ### Community 67 - "TestAgendaDeDiagnosticos"
-Cohesion: 0.18
+Cohesion: 0.16
 Nodes (5): fixture, Dos agendas con la misma pantalla: la que factura y la de diagnósticos., Si el cliente aprovechó y agendó también un servicio, ya factura., Todos los cajones dirían lo mismo; el renglón rinde más con las notas., TestAgendaDeDiagnosticos
 
 ### Community 68 - "get_claude_reply"
-Cohesion: 0.05
-Nodes (48): _build_message_history(), _call_claude(), _clasificar_conversacion_historica(), _cliente_pidio_esperar(), _compute_priority(), _diagnostico_anthropic(), _diagnostico_de(), _fecha_hoy_para_prompt() (+40 more)
+Cohesion: 0.07
+Nodes (35): _build_message_history(), _call_claude(), _cliente_pidio_esperar(), _diagnostico_de(), _fecha_hoy_para_prompt(), _format_availability_for_prompt(), _format_planes_for_prompt(), _format_prices_for_prompt() (+27 more)
 
 ### Community 69 - "PpfPackage"
 Cohesion: 0.22
@@ -509,13 +506,13 @@ Nodes (10): _pagina(), parametrize, Lo que existe en el menú de escritorio tien
 Cohesion: 0.17
 Nodes (13): ok' | 'warn' | 'bad' según los umbrales del negocio. Devuelve cadena vacía si…, semaforo(), Analytics Dashboard, Detail Drill-down Modal (click chart bar/point), Revenue Chart with Selectable Granularity (day/week/month/quarter/year), Sticky KPI Strip, Money Formatting Macro (data-v attribute), Traffic-light Status Indicator (ok/warn/bad) (+5 more)
 
-### Community 72 - "PayrollEntry"
-Cohesion: 0.31
-Nodes (4): PayrollEntry, Liquidación de un operario en una quincena., Regresión del bug crítico: deduction_quality es informativo (ya reflejado en…, TestRecalculate
+### Community 72 - "_can_see_notifications"
+Cohesion: 0.17
+Nodes (12): _can_see_notifications(), notification_mark_read(), notifications_list(), notifications_mark_all_read(), promo_image(), promotions_delete(), promotions_toggle(), Sirve la imagen de una promoción. Es pública a propósito: Twilio la descarga… (+4 more)
 
-### Community 73 - "quality_errors_new"
-Cohesion: 0.22
-Nodes (6): quality_errors_new(), QualityError, QualityErrorEmployee, Error de calidad registrado por el admin., Asignación de un error a uno o varios operarios (con monto dividido)., Precios de descuento por error de calidad: Leve $5.000 / Grave $10.000
+### Community 73 - "_clasificar_conversacion_historica"
+Cohesion: 0.20
+Nodes (10): _clasificar_conversacion_historica(), _compute_priority(), _match_valor_cerrado(), _parse_meta(), Backfill: clasifica una conversación existente (estado/servicios/carro/marca/…, Lee un marcador [META: clave=valor; ...] campo por campo. Antes era una sola…, Compara contra una lista cerrada (estado/marca/servicio) ignorando mayúsculas y…, La prioridad nunca sale de una sola señal: combina el estado real de la… (+2 more)
 
 ### Community 74 - "TestLasCincoMarcas"
 Cohesion: 0.18
@@ -559,15 +556,15 @@ Nodes (10): AppMigration, marcar_migracion(), migracion_ya_aplicada(), PpfPart, 
 
 ### Community 86 - "_borrar"
 Cohesion: 0.12
-Nodes (14): _borrar(), _cotizacion(), 500000 sobre una cotización de 200000: sin tope, el PDF que se le entrega al…, El punto entero del diseño., Sin teléfono, sin placa, sin vehículo, sin descuento y sin notas., Crea una cotización directa en BD y devuelve su código., Editar una cotización ya emitida conservando su código., Es el identificador que el cliente ya tiene; cambiarlo lo dejaría buscando una… (+6 more)
+Nodes (13): _borrar(), _cotizacion(), 500000 sobre una cotización de 200000: sin tope, el PDF que se le entrega al…, El punto entero del diseño., Sin teléfono, sin placa, sin vehículo, sin descuento y sin notas., Crea una cotización directa en BD y devuelve su código., Editar una cotización ya emitida conservando su código., Es el identificador que el cliente ya tiene; cambiarlo lo dejaría buscando una… (+5 more)
 
-### Community 87 - "api_notifications"
+### Community 87 - "whatsapp.html"
 Cohesion: 0.10
-Nodes (21): api_notifications(), dia_bogota(), _dia_bogota_iso(), _estados_entrega(), _filtro_hace_cuanto(), _filtro_hora_bogota(), _filtro_sin_tildes(), El día en Bogotá, en ISO, para el filtro de fechas de la bandeja. Va en ISO y… (+13 more)
+Nodes (21): dia_bogota(), _dia_bogota_iso(), _estados_entrega(), _filtro_hace_cuanto(), _filtro_hora_bogota(), _filtro_sin_tildes(), El día en Bogotá, en ISO, para el filtro de fechas de la bandeja. Va en ISO y…, Orden cronológico, más reciente primero — el orden por defecto de cualquier… (+13 more)
 
-### Community 88 - "book_diagnostic_from_bot"
-Cohesion: 0.18
-Nodes (14): book_diagnostic_from_bot(), _find_active_appointment_by_plate(), _leer_formulario_de_cotizacion(), normalize_plate(), plan_sell(), Crea la cita de diagnóstico que Mariana cerró con el cliente. Nunca confía en…, Cita futura vigente de un vehículo. La placa es la identidad real: el nombre…, Mueve una cita existente a otra fecha/hora. Se ubica por placa y se revalida el… (+6 more)
+### Community 88 - "TestLosAyudantes"
+Cohesion: 0.20
+Nodes (5): 02:00 UTC del 1 de septiembre son las 9 de la noche del 31 acá., Contraprueba: si no, el de arriba pasaría restando un día siempre., Colombia no tiene horario de verano: son cinco horas fijas., Amarra las dos funciones: si `bogota_today` volviera a ser `date.today()`, en…, TestLosAyudantes
 
 ### Community 90 - "TestVentasSinCita"
 Cohesion: 0.40
@@ -577,9 +574,9 @@ Nodes (3): El parqueadero se vende sin cita. `_transacciones_citas()` solo recor
 Cohesion: 0.22
 Nodes (8): _borrar(), Lo que el cliente arma desde el link se guarda como versión aparte. La…, Un total que llegue del cliente es un número que cualquiera puede cambiar antes…, Los ids llegan del navegador: podrían apuntar a otra cotización., Tantear casillas no puede dejar una versión por clic., Si el cliente vuelve al otro día, eso es una versión nueva, no una corrección…, Si el cliente deja marcado el capó junto a Full Car, no se puede cobrar dos…, TestVersionDelCliente
 
-### Community 93 - "._login_admin"
-Cohesion: 0.13
-Nodes (8): En el PDF los precios de lo absorbido SÍ se ven, en gris, pero no suman. Sirven…, Se rendiriza sin reventar con filas absorbidas de las dos zonas., Con dos coberturas totales, cada fila tiene que nombrar la suya., Borrar una cotización pide la MISMA palabra clave que borrar una cita. Una sola…, Si fueran dos palabras distintas, rotar una dejaría la otra vieja., Sin el cascade quedarían filas huérfanas apuntando a una cotización que ya no…, TestEliminar, TestPreciosAbsorbidosEnElPdf
+### Community 93 - "TestEliminar"
+Cohesion: 0.18
+Nodes (4): Borrar una cotización pide la MISMA palabra clave que borrar una cita. Una sola…, Si fueran dos palabras distintas, rotar una dejaría la otra vieja., Sin el cascade quedarían filas huérfanas apuntando a una cotización que ya no…, TestEliminar
 
 ### Community 94 - "test_parqueadero.py"
 Cohesion: 0.50
@@ -598,8 +595,8 @@ Cohesion: 0.05
 Nodes (24): absorbidas_en(), _construir_pdf_cotizacion(), _cop(), _ppf_no_cubre_en(), ppf_totales_de(), Quote, QuotePpfItem, Solo los servicios. El PPF no entra aquí porque no tiene UN precio: tiene uno… (+16 more)
 
 ### Community 99 - "Base Layout Template"
-Cohesion: 0.09
-Nodes (24): calendar_diagnosticos(), calendar_view(), logout(), notifications_list(), parking_delete(), parking_list(), payment_methods_list(), quality_errors_list() (+16 more)
+Cohesion: 0.11
+Nodes (20): calendar_diagnosticos(), logout(), parking_delete(), parking_list(), payment_methods_list(), quality_errors_list(), La misma agenda, pero solo con los diagnósticos. Van aparte porque se leen…, Listado de ingresos (ventas de servicios) con filtros básicos. (+12 more)
 
 ### Community 100 - "TestEntraSinLogin"
 Cohesion: 0.25
@@ -614,28 +611,28 @@ Cohesion: 0.18
 Nodes (10): _borrar(), _crear(), El ajuste porcentual es interno: sube los precios, pero no se ve. Quien cotiza…, Es la razón de meterlo en el precio y no en una línea aparte: si el cliente…, El orden importa: primero sube el precio de lista, después se descuenta. Al…, Contraprueba: si no, el test de arriba pasaría por cualquier motivo., Una cotización con cifras como $2.587.431 se ve calculada con calculadora., TestConvieneConElDescuento (+2 more)
 
 ### Community 103 - "test_festivos.py"
-Cohesion: 0.13
-Nodes (13): festivo_en_la_ventana(), _proximo(), proximo_domingo(), proximo_habil(), fixture, NOXA no atiende domingos ni festivos colombianos. Los festivos no se pueden…, Marca como festivo un día hábil próximo, inyectándolo en el caché. El…, La BD semilla no trae servicio de diagnóstico, así que se crea uno. Sin esto… (+5 more)
+Cohesion: 0.20
+Nodes (9): festivo_en_la_ventana(), _proximo(), proximo_domingo(), proximo_habil(), NOXA no atiende domingos ni festivos colombianos. Los festivos no se pueden…, Marca como festivo un día hábil próximo, inyectándolo en el caché. El…, El bloqueo vive en get_available_slots(), no en cada llamador., Primera fecha FUTURA que cumple `pred`. Los tests que pasan por la ventana de… (+1 more)
 
 ### Community 104 - "_preguntar_a_los_datos"
-Cohesion: 0.12
-Nodes (16): api_preguntar(), _costo_de_la_llamada(), _ejecutar_consulta_lectura(), _esquema_para_preguntas(), _montar_tabla_ingresos(), _preguntar_a_los_datos(), preguntar_view(), puede_preguntar_a_los_datos() (+8 more)
+Cohesion: 0.08
+Nodes (29): _comparacion_serverless(), _costo_de_la_llamada(), _costo_railway(), _diagnostico_anthropic(), _ejecutar_consulta_lectura(), _esquema_para_preguntas(), estado_servicios(), _fecha_iso() (+21 more)
 
 ### Community 105 - "_generate_and_send_reply"
 Cohesion: 0.17
-Nodes (12): _generate_and_send_reply(), _looks_like_welcome_menu(), notify_admin_bot_booking(), notify_admin_bot_reschedule(), notify_admin_escalation(), _parse_agendar_marker(), ¿Este mensaje es el modelo reescribiendo el menú de bienvenida? No se compara…, nombre=X; celular=Y; ..." -> dict. Tolerante con el orden y los espacios. (+4 more)
+Nodes (12): _generate_and_send_reply(), is_first_client_turn(), _looks_like_welcome_menu(), notify_admin_bot_reschedule(), notify_admin_escalation(), _parse_agendar_marker(), True si Mariana todavía no le ha respondido nada a este cliente. Se mira si ya…, ¿Este mensaje es el modelo reescribiendo el menú de bienvenida? No se compara… (+4 more)
 
 ### Community 106 - "TestCodigo"
 Cohesion: 0.29
 Nodes (3): Un "001" le dice al cliente cuántas cotizaciones lleva el negocio, y dos…, Se dicta por teléfono y se lee de un papel: O/0 y I/1/L no pueden estar o el…, TestCodigo
 
 ### Community 107 - "puede_ver_finanzas"
-Cohesion: 0.08
-Nodes (23): api_plan_price(), AppointmentOutsourcing, _citas_sin_reclasificar(), es_marketing(), _format_planes_for_prompt(), _liquidacion_instaladores(), liquidacion_instaladores_view(), plan_toggle() (+15 more)
+Cohesion: 0.09
+Nodes (22): api_plan_price(), api_public_mb_price(), AppointmentOutsourcing, calculate_real_price(), _citas_sin_reclasificar(), es_marketing(), plan_toggle(), precio_sugerido_plan() (+14 more)
 
 ### Community 109 - "_status_callback_url"
-Cohesion: 0.29
-Nodes (6): _public_base_url(), Valida la firma de Twilio contra la URL EXACTA que nosotros le dimos como…, URL absoluta: Twilio la descarga desde internet, no sirve una ruta local., Dominio público de la app, para que Twilio sepa a dónde devolver los callbacks…, _status_callback_url(), _validate_twilio_signature()
+Cohesion: 0.33
+Nodes (6): _public_base_url(), Valida la firma de Twilio contra la URL EXACTA que nosotros le dimos como…, Dominio público de la app, para que Twilio sepa a dónde devolver los callbacks…, _status_callback_url(), _validate_twilio_signature(), whatsapp_status_webhook()
 
 ### Community 110 - "TestCaduca"
 Cohesion: 0.25
@@ -650,28 +647,28 @@ Cohesion: 0.32
 Nodes (4): El PDF personalizado salía VACÍO, en $0. El handler del formulario armaba los…, Creándolos con el DOM no hay nada que escapar, que es de donde vino el error., Sin el id en el marcador, el POST no puede decir cuál se marcó., TestElBotonDePdfMandaLaSeleccion
 
 ### Community 113 - "limit"
-Cohesion: 0.15
-Nodes (13): api_client_names(), api_client_plates(), _guardar_version_cliente(), quote_public(), quote_public_pdf(), quote_public_seleccion(), quotes_list(), La cotización interactiva que ve el cliente. Sin login. El cliente marca y… (+5 more)
+Cohesion: 0.13
+Nodes (15): api_client_names(), api_client_plates(), api_notifications(), _guardar_version_cliente(), quote_public(), quote_public_pdf(), quote_public_seleccion(), quotes_list() (+7 more)
 
 ### Community 114 - "test_colores_agenda.py"
 Cohesion: 0.17
 Nodes (7): admin(), fixture, Color del cajón de la cita, configurable por servicio. Antes vivía en un dict…, Al desplegar, la agenda tiene que verse igual que antes. Si el sembrado no…, servicio(), TestAgenda, TestValoresEfectivos
 
 ### Community 115 - "TestLaLogicaDelRango"
-Cohesion: 0.22
-Nodes (7): admin(), conv(), fixture, parametrize, La comparación vive en JavaScript, pero la regla se puede fijar acá: es…, Una conversación vacía; cada test le pone los mensajes que necesita., TestLaLogicaDelRango
+Cohesion: 0.43
+Nodes (3): parametrize, La comparación vive en JavaScript, pero la regla se puede fijar acá: es…, TestLaLogicaDelRango
 
-### Community 116 - "estado_servicios"
-Cohesion: 0.16
-Nodes (14): _comparacion_serverless(), _costo_railway(), estado_servicios(), _fecha_iso(), _job_check_saldos(), Saldo y salud de los servicios de los que depende Mariana, en vivo. Se consulta…, Devuelve (saldo, moneda, error). `saldo=None` significa que no se pudo leer., Consulta el gasto de la cuenta de Railway. Devuelve (datos, error). El dinero… (+6 more)
+### Community 116 - "notify_admin_gestion_cliente"
+Cohesion: 0.25
+Nodes (8): _job_ceramic_3weeks(), _job_ceramic_followup(), _job_reengagement_followup(), notify_admin_gestion_cliente(), Le avisa a Diana que hay un cliente que ella tiene que contactar. Estos…, Corre diariamente a las 10 AM (Bogotá). A los 3 meses del cerámico le avisa a…, Corre diariamente a las 10 AM (Bogotá). A las 3 semanas del cerámico le avisa a…, Corre diariamente a las 11 AM (Bogotá). Detecta clientes cuya última cita…
 
 ### Community 117 - "service_prices.html"
-Cohesion: 0.15
-Nodes (10): Crea o actualiza el precio de una celda de la matriz. Hace falta aparte de…, run_migrate_prices(), seed_new_services(), service_prices_cell(), service_prices_new(), service_prices_toggle(), service_prices_update(), ServicePrice (+2 more)
+Cohesion: 0.29
+Nodes (5): service_prices_new(), service_prices_toggle(), service_prices_update(), vehicle_types_new(), vehicle_types_toggle()
 
 ### Community 118 - "push_notification"
-Cohesion: 0.24
-Nodes (9): Notification, push_notification(), _quien(), Saca una conversación de la bandeja, con el motivo escrito. La nota se exige…, Alertas internas del panel — la campanita. Existe porque avisarle al admin por…, Registra una alerta en la campanita. Nunca lanza: una notificación que falla no…, whatsapp_archive(), whatsapp_send_manual() (+1 more)
+Cohesion: 0.20
+Nodes (11): Notification, notify_admin_bot_booking(), push_notification(), _quien(), Avisa al admin cuando Mariana deja un diagnóstico agendado sola., Saca una conversación de la bandeja, con el motivo escrito. La nota se exige…, Alertas internas del panel — la campanita. Existe porque avisarle al admin por…, Registra una alerta en la campanita. Nunca lanza: una notificación que falla no… (+3 more)
 
 ### Community 120 - "TestElTokenEsUnSecreto"
 Cohesion: 0.29
@@ -689,17 +686,17 @@ Nodes (5): parametrize, La regla que hace que un servicio nuevo nazca legible si
 Cohesion: 0.50
 Nodes (4): ensure_whatsapp_canal_schema(), _liberar_phone_de_conversaciones(), Agrega canal/external_id y hace que `phone` deje de ser obligatorio. Lo primero…, Reconstruye whatsapp_conversations para que `phone` acepte NULL. Mismos dos…
 
-### Community 125 - "api_events"
-Cohesion: 0.22
-Nodes (9): abreviar_servicio(), abreviar_servicios(), api_events(), es_cita_de_diagnostico(), _nombre_servicio_diagnostico(), Un nombre de servicio que quepa en el cajón de una cita., Una cita es de diagnóstico solo si NO trae nada más. Si el cliente aprovechó y…, Varios servicios en una línea: los dos primeros y cuántos faltan. (+1 more)
+### Community 125 - "appointment_money"
+Cohesion: 0.05
+Nodes (46): abreviar_servicio(), abreviar_servicios(), api_estimate_price(), api_events(), apply_adjustments(), appointment_json(), appointment_money(), calculate_estimated_amount_for_appointment() (+38 more)
 
 ### Community 126 - "apply_agreement_discount_split"
 Cohesion: 0.25
 Nodes (8): Agreement, agreements_create_alias(), agreements_quick_create(), apply_agreement_discount(), apply_agreement_discount_split(), Aplica el descuento del convenio solo a los servicios elegibles. Devuelve…, Alias para compatibilidad con el frontend. Delega en /api/agreements/quick-…, seed_agreements()
 
-### Community 127 - "payroll_detail.html"
-Cohesion: 0.28
-Nodes (6): payroll_entry_update(), payroll_vale_new(), Vale de adelanto de un operario., Vale, Bono 'Quincena perfecta' (sin errores de calidad), Política de período de prueba: 30 días, -$100.000 salario, sin bonos
+### Community 127 - "ServicePrice"
+Cohesion: 0.33
+Nodes (5): Crea o actualiza el precio de una celda de la matriz. Hace falta aparte de…, run_migrate_prices(), seed_new_services(), service_prices_cell(), ServicePrice
 
 ### Community 128 - "_job_whatsapp_followup"
 Cohesion: 0.29
@@ -709,9 +706,9 @@ Nodes (8): _candidatas_de_seguimiento(), _dentro_de_la_franja(), _job_whatsapp_f
 Cohesion: 0.25
 Nodes (8): _clean_phone_or_default(), _historial_ceramico(), _normalize_whatsapp_number(), Devuelve el celular normalizado solo si parece un teléfono de verdad.…, {telefono: (fecha_ultima_visita, servicios, monto)} de citas completadas., {telefono: fecha del último cerámico o de su último mantenimiento}. Se mira el…, Normaliza un número al formato E.164 que usa Twilio/WhatsApp (+57 por defecto,…, _ultima_visita_por_telefono()
 
-### Community 130 - "Conversation"
-Cohesion: 0.25
-Nodes (4): Conversation, Una conversación con un cliente, por WhatsApp o por Instagram. La identidad es…, A dónde se le contesta: el teléfono en WhatsApp, el IGSID en Instagram., Cómo se identifica en el panel y en los avisos al admin. En Instagram el IGSID…
+### Community 130 - "marca_sin_precios"
+Cohesion: 0.33
+Nodes (4): marca_sin_precios(), Precios del catálogo, leídos de la base en vez de escritos en los tests. Los…, Una marca activa que no tiene precio en ningún grupo, para probar que no entra…, None y no 0: un cero se leería como gratis.
 
 ### Community 131 - "_kpis_embudo"
 Cohesion: 0.29
@@ -721,57 +718,45 @@ Nodes (8): _kpis_embudo(), _kpis_operacion(), _rango(), _rango_utc(), Límites p
 Cohesion: 0.39
 Nodes (3): Mariana revalida contra la agenda antes de crear la cita. Antes de esto,…, Contraprueba: si tampoco agendara en día hábil, los dos de arriba pasarían por…, TestBloqueoAlAgendarDesdeElBot
 
-### Community 133 - "Appointments List (DataTable)"
-Cohesion: 0.29
-Nodes (7): appointments_list(), Lista simple en tabla de las próximas citas., Appointments List (DataTable), Per-column Filter Row (text/select/date-range), Excel/CSV Export Buttons, Work Status Timer Controls (Iniciar/Pausar/Terminar), Expenses DataTable with Server-side Query Filters
+### Community 133 - "close_appointment"
+Cohesion: 0.10
+Nodes (17): appointment_already_closed(), appointments_list(), close_appointment(), delete_appointment(), liberar_plan_de_cita(), Parking, parking_new(), Al cancelar o desmarcar una cita el cupo vuelve al cliente. Se topea contra lo… (+9 more)
 
 ### Community 134 - "payroll_new"
 Cohesion: 0.29
 Nodes (5): payroll_delete(), payroll_detail(), payroll_list(), payroll_new(), PayrollPeriod
 
-### Community 135 - "_reparto_tercerizacion"
+### Community 135 - "TestPreciosAbsorbidosEnElPdf"
 Cohesion: 0.33
-Nodes (7): _precio_de_lista(), Cuánto de esta cita le corresponde al instalador, línea por línea. El reparto…, Reparte cada línea entre instalador y Noxa, prorrateando los ajustes. Vive…, El mismo reparto, pero sobre lo que hay en pantalla y sin guardar nada., _repartir(), _reparto_tercerizacion(), _simular_tercerizacion()
+Nodes (4): En el PDF los precios de lo absorbido SÍ se ven, en gris, pero no suman. Sirven…, Se rendiriza sin reventar con filas absorbidas de las dos zonas., Con dos coberturas totales, cada fila tiene que nombrar la suya., TestPreciosAbsorbidosEnElPdf
 
-### Community 136 - "TestRegresionProduccion"
-Cohesion: 0.29
-Nodes (4): Dos fallas vistas en vivo el 2026-08-18 al correr el backfill contra…, Otro servicio' y 'PPF o wrap' existían en el SERVICE_TAGS de antes de ampliar…, Antes del fix, el try/except solo cubría la llamada a Claude — un ValueError…, TestRegresionProduccion
-
-### Community 138 - "TestPromptExigeDosColumnas"
-Cohesion: 0.29
-Nodes (3): Con tres columnas la gráfica salía con TODAS las barras en cero: el frontend…, El backend no debe rechazarlas: son un SQL válido, y la tabla las muestra bien.…, TestPromptExigeDosColumnas
+### Community 136 - "TestElPromptSabeCuandoMarcarla"
+Cohesion: 0.33
+Nodes (3): El caso de producción: lo dijo ella, el cliente no pidió nada., El marcador se parsea con una expresión regular exacta: si el prompt deja de…, TestElPromptSabeCuandoMarcarla
 
 ### Community 139 - "Agreements (Convenios) Management Page"
 Cohesion: 0.33
 Nodes (6): agreements_list(), agreements_new(), agreements_toggle(), Agreements (Convenios) Management Page, Agreements Table with Activate/Deactivate Toggle, New Agreement Inline Form
 
-### Community 140 - "api_estimate_price"
-Cohesion: 0.33
-Nodes (6): api_estimate_price(), appointment_json(), es_operario(), puede_ver_precios(), Calcula el precio estimado según: - servicios seleccionados - tipo de vehículo…, El operario agenda y trabaja citas, pero no ve cuánto valen los servicios.
+### Community 140 - "service_prices_list"
+Cohesion: 0.67
+Nodes (3): index(), La lista de precios como matriz: una fila por servicio, una columna por tipo de…, service_prices_list()
 
 ### Community 141 - "login"
 Cohesion: 0.33
 Nodes (5): change_password(), _is_safe_redirect_target(), login(), Evita "open redirect": el 'next' debe ser una ruta propia (/algo), nunca una…, Login Page
 
-### Community 142 - "delete_appointment"
-Cohesion: 0.33
-Nodes (5): delete_appointment(), liberar_plan_de_cita(), Al cancelar o desmarcar una cita el cupo vuelve al cliente. Se topea contra lo…, Devuelve el cupo cuando la cita se cancela o se borra., Borrar una cita es irreversible y se pierde el historial del cliente, así que…
-
 ### Community 143 - "promotions_list"
-Cohesion: 0.33
-Nodes (6): _parse_fecha(), Promotion, promotions_list(), Guarda la imagen de apoyo y devuelve el nombre con el que quedó. El nombre…, Promociones que el equipo monta a mano y Mariana usa para cerrar. El texto va…, _save_promo_image()
+Cohesion: 0.25
+Nodes (7): _parse_fecha(), Promotion, promotions_list(), Guarda la imagen de apoyo y devuelve el nombre con el que quedó. El nombre…, Promociones que el equipo monta a mano y Mariana usa para cerrar. El texto va…, URL absoluta: Twilio la descarga desde internet, no sirve una ruta local., _save_promo_image()
 
 ### Community 144 - "payment_methods_new"
 Cohesion: 0.33
 Nodes (4): payment_methods_new(), PaymentMethod, seed_payment_methods(), Sección 6: Medios de pago (efectivo/transferencia/datáfono, anticipo 10%, Bre-B/Daviplata/Nequi)
 
-### Community 145 - "Calendar View (FullCalendar)"
-Cohesion: 0.33
-Nodes (6): Appointment Detail Modal Shell (#appointmentModal), Calendar View (FullCalendar), Event Click → Fetch Appointment JSON → Populate Modal, Admin Keyword Delete Confirmation, Adaptive Event Box Line Truncation, FullCalendar timeGrid Day/Week View
-
 ### Community 146 - "test_agendar_repetido.py"
-Cohesion: 0.40
-Nodes (5): conv(), placa(), fixture, Repetir [AGENDAR:] con los mismos datos no es un error: la cita ya está. Caso…, Placa única por test: el guardia busca por placa, así que reusarla entre tests…
+Cohesion: 0.25
+Nodes (8): conv(), placa(), fixture, Repetir [AGENDAR:] con los mismos datos no es un error: la cita ya está. Caso…, Placa única por test: el guardia busca por placa, así que reusarla entre tests…, fixture, La BD semilla no trae servicio de diagnóstico, así que se crea uno. Sin esto…, servicio_diagnostico()
 
 ### Community 148 - "excluido_de_convenio"
 Cohesion: 0.40
@@ -831,14 +816,14 @@ _Questions this graph is uniquely positioned to answer:_
 
 - **What is the exact relationship between `Uso de promociones por Mariana: solo ante duda/objeción de precio, nunca en el saludo` and `Manejo de objeción de precio: ancla de valor por costo diario, invitación a ver carro aplicado, prohibido ofrecer descuento`?**
   _Edge tagged AMBIGUOUS (relation: conceptually_related_to) - confidence is low._
-- **Why does `make_user()` connect `make_user` to `test_lista_precios.py`, `make_admin`, `test_abonos_ajustes.py`, `test_archivar_conversaciones.py`, `TestRegresionProduccion`, `TestPromptExigeDosColumnas`, `test_backfill_calificacion.py`, `test_editar_conserva.py`, `_borrar`, `_borrar`, `_claude_responde`, `.test_sin_porcentaje_valido_cae_al_del_catalogo`, `_cita`, `test_marcas_ppf.py`, `._login_admin`, `test_saldos.py`, `datetime`, `test_servicios_ui.py`, `_conv`, `User`, `TestLaPantallaDePrecios`, `precio`, `conftest.py`, `sesion`, `sesion`, `TestTiempoAdicional`, `test_preguntar_datos.py`, `TestPanelManual`, `TestAgendaDeDiagnosticos`, `test_nav_movil.py`, `._preguntar`, `TestFullCarAbsorbeLoExterior`, `_borrar`, `TestSeCreaSolo`, `._login_admin`, `test_parqueadero.py`, `test_cotizaciones.py`, `._login`, `test_cotizacion_publica.py`, `test_ajuste_precios.py`, `test_festivos.py`, `test_colores_agenda.py`, `TestLaLogicaDelRango`?**
-  _High betweenness centrality (0.315) - this node is a cross-community bridge._
-- **Why does `login_as()` connect `make_user` to `test_lista_precios.py`, `make_admin`, `test_abonos_ajustes.py`, `test_archivar_conversaciones.py`, `TestRegresionProduccion`, `TestPromptExigeDosColumnas`, `test_backfill_calificacion.py`, `_claude_responde`, `.test_sin_porcentaje_valido_cae_al_del_catalogo`, `_cita`, `test_saldos.py`, `datetime`, `test_servicios_ui.py`, `_conv`, `conftest.py`, `TestTiempoAdicional`, `test_preguntar_datos.py`, `TestPanelManual`, `TestAgendaDeDiagnosticos`, `._preguntar`, `test_parqueadero.py`, `test_festivos.py`, `test_colores_agenda.py`, `TestLaLogicaDelRango`?**
-  _High betweenness centrality (0.081) - this node is a cross-community bridge._
-- **Why does `User` connect `User` to `make_user`, `login`, `app.py`?**
-  _High betweenness centrality (0.030) - this node is a cross-community bridge._
-- **Are the 21 inferred relationships involving `date` (e.g. with `_abono()` and `.test_el_abono_no_mueve_ingresos_ni_descuentos()`) actually correct?**
-  _`date` has 21 INFERRED edges - model-reasoned connections that need verification._
+- **Why does `make_user()` connect `make_user` to `test_lista_precios.py`, `make_admin`, `test_abonos_ajustes.py`, `test_archivar_conversaciones.py`, `test_backfill_calificacion.py`, `.admin`, `test_editar_conserva.py`, `_borrar`, `login_as`, `_borrar`, `_claude_responde`, `.test_sin_porcentaje_valido_cae_al_del_catalogo`, `_cita`, `test_marcas_ppf.py`, `._login_admin`, `test_saldos.py`, `test_filtro_fechas_whatsapp.py`, `test_servicios_ui.py`, `_conv`, `Conversation`, `TestLaPantallaDePrecios`, `._login_admin`, `conftest.py`, `datetime`, `test_zona_horaria.py`, `sesion`, `sesion`, `TestTiempoAdicional`, `test_preguntar_datos.py`, `TestPanelManual`, `TestAgendaDeDiagnosticos`, `test_nav_movil.py`, `._preguntar`, `TestFullCarAbsorbeLoExterior`, `_borrar`, `TestSeCreaSolo`, `TestEliminar`, `test_parqueadero.py`, `test_cotizaciones.py`, `._login`, `test_cotizacion_publica.py`, `test_ajuste_precios.py`, `test_festivos.py`, `test_colores_agenda.py`?**
+  _High betweenness centrality (0.338) - this node is a cross-community bridge._
+- **Why does `login_as()` connect `login_as` to `test_lista_precios.py`, `make_admin`, `test_abonos_ajustes.py`, `test_archivar_conversaciones.py`, `test_backfill_calificacion.py`, `.admin`, `_claude_responde`, `.test_sin_porcentaje_valido_cae_al_del_catalogo`, `_cita`, `test_saldos.py`, `test_filtro_fechas_whatsapp.py`, `make_user`, `test_servicios_ui.py`, `_conv`, `conftest.py`, `datetime`, `TestTiempoAdicional`, `test_preguntar_datos.py`, `TestPanelManual`, `TestAgendaDeDiagnosticos`, `._preguntar`, `test_parqueadero.py`, `test_festivos.py`, `test_colores_agenda.py`?**
+  _High betweenness centrality (0.094) - this node is a cross-community bridge._
+- **Why does `User` connect `Conversation` to `make_user`, `login`, `app.py`?**
+  _High betweenness centrality (0.032) - this node is a cross-community bridge._
+- **Are the 25 inferred relationships involving `date` (e.g. with `_abono()` and `.test_el_abono_no_mueve_ingresos_ni_descuentos()`) actually correct?**
+  _`date` has 25 INFERRED edges - model-reasoned connections that need verification._
 - **What connects `graphify`, `Noxa Detail: monorepo, two subprojects, two deploys`, `1.1 Dónde vive` to the rest of the system?**
   _71 weakly-connected nodes found - possible documentation gaps or missing edges._
 - **Should `_S3Falso` be split into smaller, more focused modules?**

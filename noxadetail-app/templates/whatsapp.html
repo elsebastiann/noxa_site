@@ -93,6 +93,11 @@
   .wa-badge-paused { color:#ff5252; font-size:0.64rem; font-weight:700; white-space:nowrap; }
   .wa-pill-row { display:flex; gap:6px; margin-top:5px; flex-wrap:wrap; }
   .wa-status-pill { display:inline-block; font-size:0.62rem; font-weight:600; padding:1px 7px; border-radius:10px; background:#2a3942; color:#8696a0; white-space:nowrap; }
+  /* Verde y no gris: es lo único de la fila que dice "acá hay un compromiso",
+     y tiene que ganarle de lejos a los pills de estado. */
+  .wa-retomar { display:inline-block; font-size:0.62rem; font-weight:700; padding:1px 7px;
+                border-radius:10px; background:rgba(0,168,132,.18); color:#7fd6b8;
+                border:1px solid rgba(0,168,132,.45); white-space:nowrap; }
   .wa-status-pill.st-iniciado      { background:rgba(134,150,160,0.20); color:#a7b1b8; }
   .wa-status-pill.st-proceso       { background:rgba(180,140,100,0.22); color:#d8ae82; }
   .wa-status-pill.st-esperando     { background:rgba(64,190,180,0.20);  color:#4fd6c8; }
@@ -330,6 +335,14 @@
           {% if conv.archivada %}<span class="wa-archived-chip"><i class="bi bi-archive"></i> Archivada</span>{% elif conv.bot_active %}<span class="wa-badge-active">● Activo</span>{% else %}<span class="wa-badge-paused">⏸ Con un asesor</span>{% endif %}
         </div>
         <div class="wa-pill-row">
+          {# Una fecha prometida —por el cliente o por Mariana— apaga la cadencia
+             hasta ese día. Si no se ve, quien mira el panel cree que el lead se
+             quedó sin seguimiento y le escribe encima, rompiendo el acuerdo. #}
+          {% if conv.seguimiento_en_pausa %}
+          <span class="wa-retomar" title="Quedaron en hablar ese día: hasta entonces no le llega seguimiento automático">
+            <i class="bi bi-calendar-check"></i> Retomar {{ conv.seguimiento_pausado_hasta.strftime('%d/%m') }}
+          </span>
+          {% endif %}
           {{ priority_pill(conv.priority) }}
           <span class="wa-status-pill {{ status_pill_class(conv.status) }}">{{ conv.status }}</span>
           {{ calificacion_pill(conv.calificacion) }}
@@ -352,6 +365,13 @@
         <div>
           <p class="wa-header-name">{{ conversation.profile_name or conversation.phone }}</p>
           <p class="wa-header-phone">{{ conversation.phone }}{% if conversation.carro %} · {{ conversation.carro }}{% endif %}</p>
+          {% if conversation.seguimiento_en_pausa %}
+          <p class="wa-header-phone" style="color:#7fd6b8">
+            <i class="bi bi-calendar-check"></i>
+            Quedaron en retomar el {{ conversation.seguimiento_pausado_hasta.strftime('%d/%m/%Y') }} —
+            hasta entonces no le llega seguimiento automático.
+          </p>
+          {% endif %}
           <div class="wa-pill-row">
             {{ priority_pill(conversation.priority) }}
             <span class="wa-status-pill {{ status_pill_class(conversation.status) }}">{{ conversation.status }}</span>

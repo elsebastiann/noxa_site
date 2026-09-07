@@ -9763,15 +9763,20 @@ Ejemplo: [REAGENDAR: placa=ABC123; fecha=2026-08-07; hora=15:00]
 
 **Si te aparece que el vehículo YA tiene una cita**: no es un error ni un problema. Dile al cliente con naturalidad qué cita tiene y pregúntale si quiere conservarla o moverla. Si dice que la mueva, la mueves tú con [REAGENDAR: ...] — nunca le digas que tienes que pasarlo con el equipo para eso.
 
-**CUANDO EL CLIENTE PIDE QUE LE ESCRIBAS DESPUÉS** — esto es obligatorio y es de lo más importante que haces.
-Si el cliente dice que ahora no puede, que está de viaje, que lo llames el otro mes, o si TÚ le propones escribirle después y él acepta, agrega un mensaje SEPARADO que diga EXACTAMENTE:
+**CUANDO QUEDA UNA FECHA FUTURA EN LA MESA** — esto es obligatorio y es de lo más importante que haces.
+Aplica en los tres casos, y basta con UNO:
+1. El cliente pide que le escribas después: ahora no puede, está de viaje, que lo llames el otro mes.
+2. El cliente dice cuándo va a estar listo, aunque no te pida nada: "me entregan el carro en 3 semanas", "vuelvo de viaje el 20", "cuando pase la temporada". Eso es una fecha, y hay que tomarla.
+3. **TÚ te comprometes a escribirle en una fecha.** Si escribiste "la próxima semana te escribo" o "te contacto el lunes", ya diste tu palabra — no importa si él contestó o no. Sin el marcador, el sistema le escribe mañana y te contradice a ti misma delante del cliente.
+En cualquiera de los tres, agrega un mensaje SEPARADO que diga EXACTAMENTE:
 [ESPERAR: <AAAA-MM-DD>]
 Ejemplo: si hoy es lunes 25/08 y quedan en hablar la próxima semana → [ESPERAR: 2026-09-01]
 
 - La fecha la calculas tú con la FECHA Y HORA ACTUAL que recibes en cada turno. "La próxima semana" es el lunes siguiente; "en 15 días", "el otro mes", "después de vacaciones" — conviértelo a una fecha concreta. Si el cliente es vago ("más adelante"), asume 15 días.
 - Hasta esa fecha NO se le manda ningún seguimiento automático. **Sin este marcador, el sistema le escribe al día siguiente** — o sea, le prometes esperar y al otro día lo contradices. Es la peor forma de perder un lead que estaba dispuesto.
 - Emítelo en el MISMO turno en que quedan en eso, no después.
-- No aplica si el cliente ya agendó (ahí no hay seguimiento) ni si simplemente no ha respondido: es solo para un acuerdo explícito de volver a hablar más adelante.
+- No aplica si el cliente ya agendó (ahí no hay seguimiento) ni si simplemente se quedó callado sin decir nada: para el silencio ya está la cadencia normal. Esto es para cuando hay una fecha concreta sobre la mesa, la haya puesto él o tú.
+- Ante la duda, emítelo. Escribirle un poco más tarde de lo necesario no rompe nada; escribirle mañana después de haberle prometido la otra semana, sí.
 
 **Confirmación**: apenas quede agendado, mándale el resumen corto de la sección CIERRE (nombre, vehículo, que es el diagnóstico, día, hora, que es en NOXA Prado Veraniego, que toma 15-20 minutos, y que por favor te avise con tiempo si necesita reagendar).
 
@@ -12845,6 +12850,14 @@ def _job_whatsapp_followup():
             if not entrante:
                 continue  # nunca escribió: no hay silencio que perseguir
 
+            # El último que mandamos NOSOTROS, para no pisarnos con él.
+            ultimo_nuestro = (
+                Message.query
+                .filter_by(conversation_id=conv.id, direction="out")
+                .order_by(Message.created_at.desc())
+                .first()
+            )
+
             stage = _FOLLOWUP_STAGES[conv.followup_count]
             escrito_en = hora_bogota_naive(entrante.created_at)
             momento = momento_de_seguimiento(escrito_en, conv.followup_count)
@@ -12854,6 +12867,17 @@ def _job_whatsapp_followup():
                 # Se le da la semana completa aunque le tocara el primer toque.
                 momento = max(momento, _dentro_de_la_franja(
                     escrito_en + timedelta(days=SEGUNDO_TOQUE_DIAS)))
+
+            # La semana se cuenta desde el mensaje del cliente, pero también
+            # tiene que haber una semana entre NUESTROS dos mensajes. Cuando el
+            # seguimiento arranca tarde —una pausa por fecha prometida, un lead
+            # que llevaba semanas callado— los dos momentos ya quedaron en el
+            # pasado, y sin este piso el job mandaba los dos toques en ticks
+            # seguidos: dos mensajes con media hora de diferencia.
+            if conv.followup_count > 0 and ultimo_nuestro:
+                momento = max(momento, _dentro_de_la_franja(
+                    hora_bogota_naive(ultimo_nuestro.created_at)
+                    + timedelta(days=SEGUNDO_TOQUE_DIAS)))
 
             if ahora < momento:
                 continue  # todavía no le toca
