@@ -111,21 +111,56 @@ class TestUmbralSeEstiraConEspera:
     horario de atención y el envío real por Twilio (mismo criterio ya usado
     para _candidatas_de_seguimiento, ver test_seguimiento.py)."""
 
-    def test_estira_el_umbral_a_una_semana_si_pidio_esperar(self):
-        with A.app.app_context():
-            c = _conv("+573002200007")
-            _msg(c, "in", "tal vez después")
-            threshold, _stage = A._FOLLOWUP_STAGES[0]
-            if A._cliente_pidio_esperar(c):
-                threshold = max(threshold, dt.timedelta(days=7))
-            assert threshold == dt.timedelta(days=7)
+    def test_el_primer_toque_se_va_a_una_semana_si_pidio_esperar(self):
+        """El primer toque normal sale al día siguiente. A quien pidió tiempo se
+        le da la semana completa: escribirle mañana contradice a la cara lo que
+        acaba de pedir."""
+        escrito = dt.datetime(2026, 9, 1, 15, 0)
+        normal = A.momento_de_seguimiento(escrito, 0)
+        con_espera = A._dentro_de_la_franja(escrito + dt.timedelta(days=7))
 
-    def test_no_toca_el_umbral_si_no_pidio_esperar(self):
+        assert normal.date() == dt.date(2026, 9, 2)
+        assert max(normal, con_espera) == con_espera
+        assert con_espera.date() == dt.date(2026, 9, 8)
+
+    def _corre_el_job(self, tel, texto_del_cliente):
+        """El job real, con el reloj fijo. Nada relativo a "ahora": si dependiera
+        de la hora a la que corren los tests, fuera de la franja 9-17:30 el job
+        se sale al primer if y el test pasaría sin probar nada."""
+        # El cliente escribió el martes 1 de septiembre a las 10 AM de Bogotá
+        # (15:00 UTC, que es como se guarda), y le contestamos enseguida.
         with A.app.app_context():
-            c = _conv("+573002200008")
-            _msg(c, "in", "hola, cuánto cuesta el cerámico")
-            threshold, _stage = A._FOLLOWUP_STAGES[0]
-            original = threshold
-            if A._cliente_pidio_esperar(c):
-                threshold = max(threshold, dt.timedelta(days=7))
-            assert threshold == original
+            c = _conv(tel)
+            # La respuesta va un minuto después y no en el mismo instante: el
+            # job mira cuál fue el ÚLTIMO mensaje para saber si el cliente ya
+            # contestó, y con dos timestamps idénticos ese orden queda al azar.
+            for minuto, (direccion, cuerpo) in enumerate(
+                    (("in", texto_del_cliente), ("out", "listo"))):
+                A.db.session.add(A.Message(conversation_id=c.id, direction=direccion,
+                                           body=cuerpo,
+                                           created_at=dt.datetime(2026, 9, 1, 15, minuto)))
+            A.db.session.commit()
+
+            enviados = []
+            with patch.object(A, "send_whatsapp",
+                              side_effect=lambda *a, **k: enviados.append(a) or (True, "SM1")), \
+                 patch.object(A, "generate_followup_message", return_value="hola"), \
+                 patch.object(A, "es_dia_habil", return_value=True), \
+                 patch.object(A, "bogota_now",
+                              return_value=dt.datetime(2026, 9, 2, 12, 30)):
+                A._job_whatsapp_followup()
+            return enviados
+
+    def test_el_job_aplaza_de_verdad_al_que_pidio_esperar(self):
+        """Contra el job real y no contra una copia de su lógica: la versión
+        anterior de este test rehacía la cuenta a mano, así que habría seguido
+        en verde aunque el job dejara de aplazar."""
+        assert not self._corre_el_job("+573002200007", "tal vez después"), \
+            "le escribió al día siguiente a alguien que pidió esperar"
+
+    def test_al_que_solo_se_quedo_callado_si_le_escribe(self):
+        """Contraprueba: mismo montaje, misma hora, solo cambia lo que dijo el
+        cliente. Sin esto, el test de arriba pasaría aunque el job no mandara
+        nada nunca."""
+        assert self._corre_el_job("+573002200008", "hola, cuánto cuesta el cerámico"), \
+            "no le escribió al día siguiente a un lead que se quedó callado"

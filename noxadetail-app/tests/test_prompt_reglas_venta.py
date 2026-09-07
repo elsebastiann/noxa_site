@@ -15,7 +15,7 @@ PROMPT = A.NOXA_SYSTEM_PROMPT
 
 
 class TestAlternativaEconomica:
-    def test_el_ancla_de_valor_ofrece_una_puerta_mas_barata(self):
+    def test_el_seguimiento_ofrece_una_puerta_mas_barata(self):
         assert "Puerta de entrada más económica" in PROMPT
         assert "corrección de pintura" in PROMPT.lower()
 
@@ -25,7 +25,10 @@ class TestAlternativaEconomica:
         siguiente = PROMPT.index("# TRATO Y TONO")
         bloque = PROMPT[seguimiento:siguiente]
         assert "Puerta de entrada más económica" in bloque
-        assert "ancla_de_valor" in bloque
+        # Va en el PRIMER toque: es el único que escribe Mariana con el
+        # contexto de la conversación. El segundo sale como plantilla fija y no
+        # puede adaptarse a que el precio haya sido la objeción.
+        assert "primer_toque" in bloque
 
     def test_se_presenta_como_otro_servicio_y_no_como_descuento(self):
         """Presentarlo como rebaja entrena al cliente a esperar descuentos y
@@ -61,10 +64,14 @@ class TestIntensidadDelAnticipo:
 
 
 class TestNoSeRompioLoQueYaEstaba:
-    def test_siguen_las_cuatro_etapas_de_seguimiento(self):
-        for etapa in ("reactivacion_suave", "ancla_de_valor",
-                      "check_in_breve", "ultima_oportunidad"):
-            assert etapa in PROMPT, f"se perdió la etapa {etapa}"
+    def test_estan_las_dos_etapas_de_seguimiento(self):
+        """Eran cuatro (24h, +2d, +5d, +14d) y pasaron a dos: al día siguiente
+        y a la semana. Si el prompt nombrara etapas que el código ya no manda,
+        Mariana escribiría el mensaje de una etapa que no existe."""
+        for etapa in A._FOLLOWUP_STAGES:
+            assert f"**{etapa}**" in PROMPT, f"el prompt no explica la etapa {etapa}"
+        for vieja in ("ancla_de_valor", "check_in_breve", "ultima_oportunidad"):
+            assert f"**{vieja}**" not in PROMPT, f"quedó viva la etapa vieja {vieja}"
 
     def test_sigue_la_regla_de_no_dar_descuentos(self):
         assert "nunca descuento" in PROMPT
@@ -73,7 +80,11 @@ class TestNoSeRompioLoQueYaEstaba:
         for dato in ("Bre-B", "Daviplata", "Nequi"):
             assert dato in PROMPT
 
-    def test_el_check_in_breve_sigue_sin_precio(self):
-        """A los 5-7 días el objetivo es reabrir, no cotizar."""
-        i = PROMPT.index("**check_in_breve**")
-        assert "Aquí no va oferta ni precio" in PROMPT[i:i + 500]
+    def test_el_cierre_de_la_semana_no_reabre_la_venta(self):
+        """El segundo toque cierra el ciclo; no es otra oportunidad de vender.
+        Y de todos modos sale como plantilla, así que prometer algo distinto
+        acá sería describir un mensaje que Mariana no escribe."""
+        i = PROMPT.index("**cierre_semana**")
+        bloque = PROMPT[i:i + 600]
+        assert "es el último intento automático" in bloque
+        assert "Sin presión y sin reproche" in bloque

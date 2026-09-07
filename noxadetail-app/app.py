@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta, date
+from datetime import datetime, timedelta, date, time as hora_del_dia
 from flask import Flask, render_template, request, redirect, url_for, jsonify, flash, Response, session, g
 from werkzeug.security import generate_password_hash, check_password_hash
 from functools import wraps
@@ -206,9 +206,12 @@ DIAGNOSTIC_SERVICE_NAME = os.environ.get("DIAGNOSTIC_SERVICE_NAME", "Diagnóstic
 TPL_WEB_LEAD        = os.environ.get("TWILIO_WEB_LEAD_TEMPLATE_SID", "")
 TPL_RECORDATORIO    = os.environ.get("TWILIO_TPL_RECORDATORIO_CITA", "")
 TPL_AVISO_ADMIN     = os.environ.get("TWILIO_TPL_AVISO_ADMIN", "")
-# Una por etapa de reactivación: el ángulo del mensaje cambia en cada intento
-# (SOP de NOXA) y una plantilla no puede llevar texto variable arbitrario, así
-# que cada etapa necesita la suya. El orden calza con _FOLLOWUP_STAGES.
+# Plantillas de reactivación aprobadas en Meta. Con la cadencia de dos toques
+# solo se usan dos: `ultima_oportunidad` para el segundo —que va siempre fuera
+# de la ventana de 24h— y `reactivacion_suave` como plan B del primero, para los
+# casos en que la franja de atención lo empuja fuera de la ventana. Las demás
+# quedan declaradas porque siguen aprobadas en Twilio y volver a una cadencia
+# más larga es cambiar de opinión, no volver a tramitar con Meta.
 TPL_REACTIVACION = {
     "reactivacion_suave":  os.environ.get("TWILIO_TPL_REACTIVACION_1", ""),
     "check_in_breve":      os.environ.get("TWILIO_TPL_REACTIVACION_3", ""),
@@ -9515,17 +9518,15 @@ Después del saludo la conversación se abre por una de estas puertas, ya sea po
 - **Responde un número que no existe, o algo que no encaja**: no le repitas el menú ni lo corrijas. Pregúntale con naturalidad qué necesita para su carro y sigue desde ahí.
 
 # SEGUIMIENTO A LEADS EN SILENCIO
-Cuando recibas la instrucción "[Sistema: el cliente quedó en silencio, genera un mensaje de seguimiento — etapa: <etapa>]", el valor de `<etapa>` te dice qué ángulo usar. Son cuatro intentos, cada vez más espaciados, y el ÁNGULO CAMBIA EN CADA UNO — nunca repitas el gancho de la vez anterior. Un mensaje que ya se ignoró se vuelve a ignorar: repetirlo no suma, resta, porque cada intento fallido baja la probabilidad de que responda al siguiente.
-- **reactivacion_suave** (al día siguiente): retomar con tono suave, sin presión, referenciando algo concreto de lo que ya hablaron (su carro, el servicio que le interesaba, la duda que tenía), y ofreciendo el diagnóstico gratuito como puerta de entrada. Dos variantes según el caso: si el cliente había quedado en confirmarte algo ("esta semana te aviso", "el martes te cuento"), recuérdaselo con naturalidad y propón dos días concretos; si te había dicho que tenía una situación puntual que le impedía venir (estaba fuera de Bogotá, el carro estaba en el taller), menciónala — que se note que la recuerdas — y pregúntale si ya se resolvió.
-- **ancla_de_valor** (2-3 días después): ángulo distinto al anterior, obligatorio. Si ya se habló de precio y le pareció alto, tienes DOS ángulos y eliges uno solo:
+Cuando recibas la instrucción "[Sistema: el cliente quedó en silencio, genera un mensaje de seguimiento — etapa: <etapa>]", el valor de `<etapa>` te dice qué ángulo usar. Son SOLO DOS intentos, y el ángulo cambia entre uno y otro — nunca repitas el gancho del anterior. Un mensaje que ya se ignoró se vuelve a ignorar: repetirlo no suma, resta.
+- **primer_toque** (al día siguiente): retomar con tono suave, sin presión, referenciando algo concreto de lo que ya hablaron (su carro, el servicio que le interesaba, la duda que tenía), y ofreciendo el diagnóstico gratuito como puerta de entrada. Dos variantes según el caso: si el cliente había quedado en confirmarte algo ("esta semana te aviso", "el martes te cuento"), recuérdaselo con naturalidad y propón dos días concretos; si te había dicho que tenía una situación puntual que le impedía venir (estaba fuera de Bogotá, el carro estaba en el taller), menciónala — que se note que la recuerdas — y pregúntale si ya se resolvió.
+  Este es el único mensaje que escribes tú con el contexto completo de la conversación: el segundo sale como plantilla fija. Si el precio fue lo que lo frenó, tienes DOS ángulos y eliges uno solo:
   1. **Perspectiva de valor** (nunca descuento): baja el precio a costo por año o por día (ej. un cerámico de 3 años en $1.099.000 son unos $366.000 al año, menos de $1.000 al día por tener la pintura protegida), o invítalo a pasar a ver en persona un carro que ya lo tiene aplicado.
   2. **Puerta de entrada más económica**: ofrécele una corrección de pintura sola, sin sellado. Es lo que resuelve el problema visible que lo trajo —los rayones— por una fracción de lo que cuesta el cerámico, y deja la puerta abierta a protegerlo después. Esto NO es un descuento ni una rebaja del cerámico: es otro servicio, más pequeño, y así hay que presentarlo. Nunca digas ni insinúes que le vas a bajar el precio a lo que ya cotizaste.
   El precio de la corrección lo tomas del bloque de PRECIOS VIGENTES, como cualquier otro. Si ahí no aparece, ofrécela sin cifra y pásalo al diagnóstico gratuito para cotizarla — inventar un valor es peor que no darlo.
-  Si nunca se habló de precio, el ángulo es el diagnóstico gratuito como forma de bajar la barrera: 15-20 minutos, sin compromiso, y sale sabiendo exactamente qué necesita y qué no.
-- **check_in_breve** (5-7 días después): mensaje corto, liviano, de muy baja presión, con una pregunta abierta. A esta altura la urgencia ya bajó — el objetivo es reabrir la conversación, no cerrar la venta. Aquí no va oferta ni precio.
-- **ultima_oportunidad** (14 días después, es el último intento automático): cierra el ciclo con elegancia. Dile con honestidad que no lo vas a seguir llenando de mensajes y que ahí vas a estar cuando quiera retomar el tema de su carro. Sin presión y sin reproche — la urgencia la genera el cierre del ciclo, no un ultimátum. Después de este mensaje no se vuelve a insistir automáticamente.
+- **cierre_semana** (a la semana, y es el último intento automático): cierra el ciclo con elegancia. Dile con honestidad que no lo vas a seguir llenando de mensajes y que ahí vas a estar cuando quiera retomar el tema de su carro. Sin presión y sin reproche — la urgencia la genera el cierre del ciclo, no un ultimátum. Después de este mensaje no se vuelve a insistir automáticamente.
 
-Por qué se espacian así y por qué son solo cuatro: escribir muy seguido se lee como desesperación y baja la tasa de respuesta en vez de subirla, y además insistir de más desgasta el número de WhatsApp de NOXA y expone a bloqueos y reportes de spam. Calidad del mensaje sobre frecuencia, siempre.
+Por qué son solo dos y no más: escribir muy seguido se lee como desesperación y baja la tasa de respuesta en vez de subirla, y además insistir de más desgasta el número de WhatsApp de NOXA y expone a bloqueos y reportes de spam. Calidad del mensaje sobre frecuencia, siempre.
 
 En todos los casos:
 - Usa su nombre si lo tienes, y menciona su carro concreto.
@@ -10697,7 +10698,10 @@ def get_claude_reply(conversation: "Conversation", media_url: str | None = None,
 
 def generate_followup_message(conversation: "Conversation", stage: str) -> str:
     """Genera un mensaje de seguimiento personalizado para un lead que quedó en silencio.
-    stage: "recuperar_intencion" (24h) | "reabrir_conversacion" (72h) | "cierre_elegante" (7 días)."""
+
+    stage: "primer_toque" (al día siguiente) | "cierre_semana" (a la semana). En la
+    práctica esto solo se usa para el primero: el segundo va siempre fuera de la ventana
+    de 24h y sale como plantilla, sin pasar por acá."""
     messages = _build_message_history(conversation)
     if _cliente_pidio_esperar(conversation):
         # No se quedó en silencio, pidió esperar — insistir con el mismo "¿seguimos?"
@@ -12631,17 +12635,70 @@ def _job_post_service_followup():
 
 
 # ── Job 4: Seguimiento del bot de WhatsApp a leads en silencio ────────────────
-_FOLLOWUP_STAGES = [
-    (timedelta(hours=24), "reactivacion_suave"),
-    (timedelta(days=2), "ancla_de_valor"),
-    (timedelta(days=5), "check_in_breve"),
-    (timedelta(days=14), "ultima_oportunidad"),
-]
+# ── Cadencia de seguimiento: dos toques y ya ────────────────────────────────
+# Regla vigente, y manda sobre cualquier cadencia anterior: a un lead que se
+# queda callado se le escribe DOS veces, no todos los días.
+#
+#   1) Al día siguiente a las 12:30. Salvo que a esa hora su último mensaje ya
+#      pasara de 24 horas; ahí sale a las 23 horas de haber escrito él.
+#   2) A la semana de ese mismo mensaje suyo. Y ya.
+#
+# Antes eran cuatro toques (24h, +2d, +5d, +14d). Insistir cuatro veces desgasta
+# el número y no convierte más.
+_FOLLOWUP_STAGES = ["primer_toque", "cierre_semana"]
 
-# El primer intento sale solo entre 9am y 12pm: es la franja de mayor apertura en
-# WhatsApp, antes de que el día laboral se llene. Las etapas siguientes van en
-# cualquier momento del horario de atención.
-_FIRST_FOLLOWUP_LAST_HOUR = 12
+# El objetivo del primer toque, cuando el cliente escribió lo bastante tarde
+# como para que al otro día al mediodía todavía no se cumplan 24 horas.
+FOLLOWUP_HORA_PRIMERO = hora_del_dia(12, 30)
+# Y si no alcanza: 23 horas después de que escribió. La hora exacta importa
+# porque a las 24 se cierra la ventana de WhatsApp — la única franja donde se
+# puede escribir texto libre. Una hora de margen para que el job alcance a
+# despacharlo.
+FOLLOWUP_MARGEN = timedelta(hours=23)
+SEGUNDO_TOQUE_DIAS = 7
+
+# La franja en que se puede escribir, y manda sobre el cálculo de arriba: si las
+# 23 horas caen de madrugada, el mensaje espera a las 9. El costo de esperar es
+# real y conocido —si esperar lo saca de la ventana de 24h, sale como plantilla
+# en vez de texto libre— y se paga a propósito: escribirle a un cliente a las 2
+# de la mañana cuesta más que perder la personalización.
+FOLLOWUP_DESDE = hora_del_dia(9, 0)
+# 17:30 y no 18:00 porque el job corre cada media hora: un objetivo a las 18:00
+# en punto no lo alcanzaría ningún tick dentro de la franja.
+FOLLOWUP_HASTA = hora_del_dia(17, 30)
+
+
+def _dentro_de_la_franja(momento: datetime) -> datetime:
+    """El mismo momento, corrido a la franja de atención de ESE día."""
+    if momento.time() < FOLLOWUP_DESDE:
+        objetivo = FOLLOWUP_DESDE
+    elif momento.time() > FOLLOWUP_HASTA:
+        objetivo = FOLLOWUP_HASTA
+    else:
+        return momento.replace(second=0, microsecond=0)
+    return momento.replace(hour=objetivo.hour, minute=objetivo.minute,
+                           second=0, microsecond=0)
+
+
+def momento_de_seguimiento(escrito_en: datetime, toque: int) -> datetime | None:
+    """Cuándo le toca el seguimiento número `toque` (0 = el primero) a un lead
+    que escribió por última vez en `escrito_en`. Todo en hora de Bogotá.
+
+    Función aparte y sin base de datos a propósito: es la regla del negocio
+    entera, y así se puede probar hora por hora sin montar una conversación.
+    """
+    if toque >= len(_FOLLOWUP_STAGES):
+        return None
+    if toque == 0:
+        al_dia_siguiente = datetime.combine(escrito_en.date() + timedelta(days=1),
+                                            FOLLOWUP_HORA_PRIMERO)
+        # Si para entonces ya se pasó de 24 horas, la ventana manda y se adelanta.
+        objetivo = (al_dia_siguiente
+                    if al_dia_siguiente - escrito_en <= timedelta(hours=24)
+                    else escrito_en + FOLLOWUP_MARGEN)
+    else:
+        objetivo = escrito_en + timedelta(days=SEGUNDO_TOQUE_DIAS)
+    return _dentro_de_la_franja(objetivo)
 
 
 _PRECIO_RE = re.compile(r"\$\s?\d{1,3}(?:\.\d{3})+")
@@ -12667,11 +12724,15 @@ def _tpl_reactivacion_para(stage: str, conversation: "Conversation") -> tuple[st
     cliente y el texto define qué queda escrito en el panel y en el historial
     que ve Mariana; si se eligieran por separado podrían terminar contando
     historias distintas."""
-    if stage == "ancla_de_valor":
-        if _ya_se_cotizo(conversation):
-            return TPL_REACTIVACION_2_COTIZADO, "ancla_de_valor_cotizado"
-        return TPL_REACTIVACION_2_SIN_COTIZAR, "ancla_de_valor_sin_cotizar"
-    return TPL_REACTIVACION.get(stage, ""), stage
+    if stage == "cierre_semana":
+        # El segundo toque es el último, y el texto aprobado que lo dice —"este
+        # es el último por ahora"— es justamente el de última oportunidad.
+        return TPL_REACTIVACION["ultima_oportunidad"], "ultima_oportunidad"
+    # El primer toque casi siempre sale como texto libre: la cadencia está
+    # diseñada para que caiga dentro de la ventana de 24h. Esta plantilla es el
+    # plan B de los casos en que la franja de atención lo empuja fuera (ver
+    # FOLLOWUP_DESDE), no el camino normal.
+    return TPL_REACTIVACION["reactivacion_suave"], "reactivacion_suave"
 
 
 def _ventana_24h_abierta(conversation: "Conversation") -> bool:
@@ -12754,17 +12815,15 @@ def _job_whatsapp_followup():
     ese horario aplica solo para RETOMAR leads fríos, no para responder mensajes nuevos
     (eso siempre pasa de inmediato en el webhook, a cualquier hora).
 
-    Cadencia (según el SOP de NOXA), con el espacio creciendo en cada intento y el ángulo
-    del mensaje cambiando: día siguiente (solo 9am-12pm) → reactivación suave, +2 días →
-    ancla de valor, +5 días → check-in breve, +14 días → última oportunidad. Los umbrales
-    se miden desde el último mensaje, así que son incrementales, no acumulados. Después del
-    cuarto intento el lead pasa a "seguimiento futuro" — no se le vuelve a escribir solo
-    hasta que él responda, porque insistir más desgasta el número de WhatsApp y expone a
-    bloqueos por spam. Se resetea a 0 en cuanto el cliente vuelve a escribir (ver
-    whatsapp_webhook)."""
-    now_bogota = datetime.now(_BOGOTA)
-    if not es_dia_habil(now_bogota.date()) or not (9 <= now_bogota.hour < 18):
-        return  # domingo, festivo o fuera de horario
+    Cadencia: dos toques y ya (ver `momento_de_seguimiento`). Los dos se miden desde el
+    último mensaje DEL CLIENTE, no desde el nuestro: es su silencio el que se está
+    contando, y además es su mensaje el que abre la ventana de 24h. Después del segundo
+    el lead pasa a "seguimiento futuro" — no se le vuelve a escribir hasta que él
+    responda, porque insistir más desgasta el número de WhatsApp y expone a bloqueos por
+    spam. Se resetea a 0 en cuanto el cliente vuelve a escribir (ver whatsapp_webhook)."""
+    ahora = bogota_now()
+    if not (FOLLOWUP_DESDE <= ahora.time() <= FOLLOWUP_HASTA):
+        return  # fuera de la franja en que se le escribe a un lead frío
     with app.app_context():
         candidatas = _candidatas_de_seguimiento()
         for conv in candidatas:
@@ -12777,19 +12836,35 @@ def _job_whatsapp_followup():
             if not last_msg or last_msg.direction != "out":
                 continue  # el cliente ya respondió, o no hay historial
 
-            last_bogota = last_msg.created_at.replace(tzinfo=pytz.utc).astimezone(_BOGOTA)
-            threshold, stage = _FOLLOWUP_STAGES[conv.followup_count]
+            entrante = (
+                Message.query
+                .filter_by(conversation_id=conv.id, direction="in")
+                .order_by(Message.created_at.desc())
+                .first()
+            )
+            if not entrante:
+                continue  # nunca escribió: no hay silencio que perseguir
+
+            stage = _FOLLOWUP_STAGES[conv.followup_count]
+            escrito_en = hora_bogota_naive(entrante.created_at)
+            momento = momento_de_seguimiento(escrito_en, conv.followup_count)
             if _cliente_pidio_esperar(conv):
-                # Pidió esperar, no se quedó callado: no tiene sentido insistir con
-                # la cadencia corta pensada para silencio. Se le da una semana antes
-                # de volver a intentar, sea cual sea la etapa que le tocaría.
-                threshold = max(threshold, timedelta(days=7))
+                # Pidió esperar, no se quedó callado: la cadencia corta está
+                # pensada para el silencio y acá contradiría un acuerdo explícito.
+                # Se le da la semana completa aunque le tocara el primer toque.
+                momento = max(momento, _dentro_de_la_franja(
+                    escrito_en + timedelta(days=SEGUNDO_TOQUE_DIAS)))
 
-            if (now_bogota - last_bogota) < threshold:
-                continue  # todavía no toca esta etapa
+            if ahora < momento:
+                continue  # todavía no le toca
 
-            if conv.followup_count == 0 and now_bogota.hour >= _FIRST_FOLLOWUP_LAST_HOUR:
-                continue  # el primer intento espera a la franja de la mañana siguiente
+            # El primer toque NO espera a día hábil: si cae domingo o festivo y
+            # se corre al lunes, ya se pasó de las 24 horas y se pierde el texto
+            # libre, que es justo lo que la cadencia protege. El segundo sí
+            # espera: sale como plantilla igual, así que aplazarlo no cuesta nada
+            # y evita escribirle a alguien un domingo.
+            if conv.followup_count > 0 and not es_dia_habil(ahora.date()):
+                continue
 
             # Dentro de la ventana de 24h se puede escribir libre, así que lo
             # redacta Claude y sale personalizado. Pasada la ventana solo entra
@@ -12820,7 +12895,7 @@ def _job_whatsapp_followup():
             if ok:
                 db.session.add(Message(conversation_id=conv.id, direction="out", body=reply))
                 conv.followup_count += 1
-                if stage == "ultima_oportunidad":
+                if stage == "cierre_semana":
                     conv.status = "Esperando"
                 db.session.commit()
 

@@ -1,12 +1,13 @@
 """Elección de plantilla en la reactivación de leads fríos.
 
 Todo lo que sale fuera de la ventana de 24h de WhatsApp necesita una plantilla
-aprobada por Meta, o se rechaza con 63016 y se pierde en silencio. El SOP de
-NOXA pide además que el ángulo cambie en cada intento, y que el segundo intento
-se bifurque: reencuadre de valor a quien ya recibió una cotización, diagnóstico
-gratuito a quien nunca preguntó precio. Hablarle del costo a alguien que nunca
-lo preguntó suena a excusa inventada, así que esa bifurcación es la que se
-prueba acá.
+aprobada por Meta, o se rechaza con 63016 y se pierde en silencio. Con la cadencia de dos toques solo se usan dos plantillas, y cada una por una
+razón distinta: el SEGUNDO toque va siempre fuera de la ventana, así que su
+plantilla es el camino normal; la del primero es un plan B que solo entra
+cuando la franja de atención (9am-6pm) lo empuja fuera de las 24 horas.
+
+`_ya_se_cotizo` sigue probándose acá aunque ya no elija plantilla: la usa el
+prompt de Mariana para decidir el ángulo del primer toque.
 """
 import itertools
 
@@ -60,31 +61,37 @@ class TestYaSeCotizo:
 
 
 class TestPlantillaPorEtapa:
-    def test_segundo_intento_se_bifurca_segun_si_hubo_cotizacion(self, client, monkeypatch):
-        monkeypatch.setattr(A, "TPL_REACTIVACION_2_COTIZADO", "HXcotizado")
-        monkeypatch.setattr(A, "TPL_REACTIVACION_2_SIN_COTIZAR", "HXsincotizar")
-
-        cotizado = _conversacion([("out", "El cerámico 7H+ queda en $1.099.000.")])
-        sin_cotizar = _conversacion([("out", "¿Qué vehículo tienes?")])
-
-        assert A._tpl_reactivacion_para("ancla_de_valor", cotizado)[0] == "HXcotizado"
-        assert A._tpl_reactivacion_para("ancla_de_valor", sin_cotizar)[0] == "HXsincotizar"
-
-    def test_las_demas_etapas_no_dependen_de_la_cotizacion(self, client, monkeypatch):
-        monkeypatch.setitem(A.TPL_REACTIVACION, "reactivacion_suave", "HXsuave")
-        monkeypatch.setitem(A.TPL_REACTIVACION, "check_in_breve", "HXcheckin")
+    def test_el_cierre_de_la_semana_usa_la_de_ultima_oportunidad(self, client, monkeypatch):
+        """Es el texto aprobado que dice "este es el último por ahora", que es
+        exactamente lo que este mensaje es."""
         monkeypatch.setitem(A.TPL_REACTIVACION, "ultima_oportunidad", "HXultima")
-
         conv = _conversacion([("out", "El cerámico queda en $1.099.000.")])
 
-        assert A._tpl_reactivacion_para("reactivacion_suave", conv)[0] == "HXsuave"
-        assert A._tpl_reactivacion_para("check_in_breve", conv)[0] == "HXcheckin"
-        assert A._tpl_reactivacion_para("ultima_oportunidad", conv)[0] == "HXultima"
+        sid, clave = A._tpl_reactivacion_para("cierre_semana", conv)
+        assert sid == "HXultima"
+        assert clave == "ultima_oportunidad"
 
-    def test_etapa_desconocida_devuelve_vacio(self, client):
-        """Sin SID el envío cae a texto libre en vez de reventar."""
+    def test_el_primer_toque_tiene_plan_b(self, client, monkeypatch):
+        """Casi siempre sale como texto libre, pero cuando la franja de
+        atención lo empuja fuera de las 24h tiene que haber una plantilla: sin
+        SID el mensaje se rechaza con 63016 y el lead no recibe nada."""
+        monkeypatch.setitem(A.TPL_REACTIVACION, "reactivacion_suave", "HXsuave")
+        conv = _conversacion([("out", "¿Qué vehículo tienes?")])
+
+        assert A._tpl_reactivacion_para("primer_toque", conv)[0] == "HXsuave"
+
+    def test_ninguna_etapa_se_queda_sin_plantilla(self, client, monkeypatch):
+        """Cada etapa que el job pueda mandar tiene que resolver a un SID y a un
+        texto. Una etapa sin plantilla no falla: manda vacío y el cliente no
+        recibe nada."""
+        monkeypatch.setitem(A.TPL_REACTIVACION, "reactivacion_suave", "HXsuave")
+        monkeypatch.setitem(A.TPL_REACTIVACION, "ultima_oportunidad", "HXultima")
         conv = _conversacion([("out", "hola")])
-        assert A._tpl_reactivacion_para("etapa_que_no_existe", conv)[0] == ""
+
+        for etapa in A._FOLLOWUP_STAGES:
+            sid, clave = A._tpl_reactivacion_para(etapa, conv)
+            assert sid, f"{etapa} se quedó sin SID"
+            assert A._TEXTO_REACTIVACION.get(clave), f"{etapa} se quedó sin texto"
 
 
 class TestTextoQueQuedaEnElPanel:
@@ -96,21 +103,11 @@ class TestTextoQueQuedaEnElPanel:
     contradecir lo que ya dijo.
     """
 
-    def test_cada_plantilla_tiene_su_texto(self, client):
+    def test_cada_etapa_tiene_su_texto(self, client):
         conv = _conversacion([("out", "hola")])
-        for stage in ("reactivacion_suave", "check_in_breve", "ultima_oportunidad"):
+        for stage in A._FOLLOWUP_STAGES:
             _, clave = A._tpl_reactivacion_para(stage, conv)
             assert clave in A._TEXTO_REACTIVACION, f"falta el texto de {stage}"
-
-    def test_las_dos_variantes_del_segundo_intento_tienen_texto(self, client, monkeypatch):
-        monkeypatch.setattr(A, "TPL_REACTIVACION_2_COTIZADO", "HXa")
-        monkeypatch.setattr(A, "TPL_REACTIVACION_2_SIN_COTIZAR", "HXb")
-        cotizado = _conversacion([("out", "queda en $1.099.000")])
-        sin_cotizar = _conversacion([("out", "¿qué carro tienes?")])
-
-        for conv in (cotizado, sin_cotizar):
-            _, clave = A._tpl_reactivacion_para("ancla_de_valor", conv)
-            assert A._TEXTO_REACTIVACION.get(clave), f"sin texto para {clave}"
 
     def test_el_texto_lleva_el_nombre_del_cliente(self, client):
         for clave, plantilla in A._TEXTO_REACTIVACION.items():
