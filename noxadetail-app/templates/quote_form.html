@@ -150,6 +150,10 @@
            cursor:pointer; padding:3px 5px; border-radius:5px; }
   .parte:hover { background:rgba(255,255,255,.05); }
   .parte input { accent-color:var(--accent,#c8a04a); width:14px; height:14px; }
+  .parte-otro { width:100%; margin:6px 0 2px; background:rgba(0,0,0,.3);
+                border:1px solid var(--accent,#c8a04a); color:#eee;
+                border-radius:6px; padding:5px 9px; font-size:.83rem; }
+  .parte-otro::placeholder { color:#7a7a7a; }
   .parte-zona { font-size:.63rem; letter-spacing:.08em; text-transform:uppercase;
                 color:#7a7a7a; grid-column:1/-1; margin-top:6px; }
   .precios-libre { display:grid; grid-template-columns:repeat(auto-fill,minmax(140px,1fr)); gap:6px; }
@@ -709,7 +713,8 @@ function pintarLineas() {
     <div class="ppf-linea">
       <span class="c">${g.nombre}
         <span style="color:#8a8a8a; font-size:.74rem; display:block">
-          ${g.partes.join(" · ") || "sin partes"}</span></span>
+          ${g.partes.map(x => ((g.otros || {})[x] || "").trim() || x).join(" · ")
+            || "sin partes"}</span></span>
     </div>`).join("");
 
   document.getElementById("lineasPpf").innerHTML = delCatalogo + armados;
@@ -717,7 +722,11 @@ function pintarLineas() {
     ppfPuestas.splice(Number(b.dataset.i), 1); pintarTodo();
   });
 
-  const hay = lineas.length || ppfPuestas.length;
+  // Los grupos armados a mano cuentan igual que lo demás: una cotización puede
+  // ser solo eso —"forrar el tanque de la moto"— y el botón se quedaba apagado
+  // aunque el resumen de la derecha ya mostrara la línea.
+  const hay = lineas.length || ppfPuestas.length
+              || libres.some(g => g.nombre && Object.values(g.precios).some(v => v));
   document.getElementById("vacio").style.display = hay ? "none" : "block";
   document.getElementById("btnGuardar").disabled = !hay;
 }
@@ -827,6 +836,14 @@ function pintarLibres() {
       partes += `<label class="parte"><input type="checkbox" data-libre="${i}"
                    data-parte="${esc(p.nombre)}" ${puesta ? "checked" : ""}>
                    ${p.nombre}${p.comodin ? " (¿cuál?)" : ""}</label>`;
+      // Marcar "otro (¿cuál?)" sin poder decir cuál deja la pieza sin nombre en
+      // el documento: el cliente lee "Otro" y no sabe qué le van a forrar.
+      if (p.comodin && puesta) {
+        partes += `<input type="text" class="parte-otro" maxlength="80"
+                     data-otro="${i}" data-parte="${esc(p.nombre)}"
+                     value="${esc((g.otros || {})[p.nombre] || "")}"
+                     placeholder="¿Cuál? Ej. tanque, guardabarros trasero">`;
+      }
     }
     // El adicional solo si el grupo tiene farolas o stops: es donde existe la
     // película.
@@ -850,7 +867,9 @@ function pintarLibres() {
         <button type="button" class="quitar" data-libre-del="${i}" title="Quitar">&times;</button>
       </div>
       <div class="partes-grid">${partes}</div>
-      ${g.partes.map(x => `<input type="hidden" name="libre_partes_${i}" value="${esc(x)}">`).join("")}
+      ${g.partes.map(x => `<input type="hidden" name="libre_partes_${i}"
+          data-generico="${esc(x)}"
+          value="${esc(((g.otros || {})[x] || "").trim() || x)}">`).join("")}
       <div class="precios-libre">${precios}</div>
       ${g.sugerido ? `<div class="sugerido">Precio sugerido con la suma de las partes
         sueltas. Ajústalo si el grupo vale otra cosa.</div>` : ""}
@@ -864,19 +883,35 @@ function pintarLibres() {
     sugerirPrecios(g);
     pintarLibres(); pintarTotales();
   });
+  // Los tres campos de un grupo libre repintan también el RESUMEN, no solo los
+  // totales: ahí es donde se ve la línea y donde se decide si el botón de
+  // guardar se habilita. Sin esto, un grupo armado a mano quedaba completo en
+  // pantalla y el botón seguía apagado.
+  //
+  // Y se actualiza el campo oculto a mano en vez de repintar la caja entera:
+  // repintarla le movería el cursor a quien está escribiendo.
+  document.querySelectorAll("[data-otro]").forEach(inp => inp.oninput = () => {
+    const g = libres[inp.dataset.otro];
+    g.otros = g.otros || {};
+    g.otros[inp.dataset.parte] = inp.value;
+    const oculto = [...document.querySelectorAll(`[name="libre_partes_${inp.dataset.otro}"]`)]
+      .find(x => x.dataset.generico === inp.dataset.parte);
+    if (oculto) oculto.value = inp.value.trim() || inp.dataset.parte;
+    pintarLineas(); pintarTotales();
+  });
   document.querySelectorAll("[data-ln]").forEach(inp => inp.oninput = () => {
-    libres[inp.dataset.ln].nombre = inp.value; pintarTotales();
+    libres[inp.dataset.ln].nombre = inp.value; pintarLineas(); pintarTotales();
   });
   document.querySelectorAll("[data-lp]").forEach(inp => inp.oninput = () => {
     const g = libres[inp.dataset.lp];
     g.precios[inp.dataset.marca] = Number(inp.value) || 0;
     g.manual = g.manual || {};
     g.manual[inp.dataset.marca] = true;   // desde acá manda lo escrito
-    pintarTotales();
+    pintarLineas(); pintarTotales();
   });
   document.querySelectorAll("[data-lf]").forEach(inp => inp.oninput = () => {
     libres[inp.dataset.lf].foto[inp.dataset.marca] = Number(inp.value) || 0;
-    pintarTotales();
+    pintarLineas(); pintarTotales();
   });
   document.querySelectorAll("[data-libre-del]").forEach(b => b.onclick = () => {
     libres.splice(Number(b.dataset.libreDel), 1); pintarLibres(); pintarTotales();

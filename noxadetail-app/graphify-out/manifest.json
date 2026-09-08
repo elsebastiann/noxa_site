@@ -390,8 +390,8 @@
     "semantic_hash": ""
   },
   "templates/quote_form.html": {
-    "mtime": 1788810588.5937135,
-    "ast_hash": "56b1014d2498617ce1f17ea5b2305f5b",
+    "mtime": 1788882172.3305762,
+    "ast_hash": "3eef6d5eaaa03caece6f1f9caa2bdb4e",
     "semantic_hash": ""
   },
   "templates/quotes_list.html": {
