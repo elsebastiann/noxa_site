@@ -14211,7 +14211,13 @@ def _construir_pdf_cotizacion(cot: "Quote", version=None) -> bytes:
         # Con PPF no hay UN total: hay uno por marca. Solo se imprime este
         # bloque si aporta algo que la fila "TOTAL PPF" no diga ya —o sea,
         # cuando además hay servicios o hay descuento.
-        if items or cot._descuento_sobre(subtotal):
+        #
+        # El descuento se mira por sí mismo y NO sobre `subtotal`, que es el de
+        # los servicios: en una cotización de solo PPF ese subtotal es cero, así
+        # que el bloque entero se saltaba y el PDF salía con los precios de lista
+        # mientras el link del mismo cliente mostraba el descuento aplicado. Dos
+        # documentos de la misma cotización con totales distintos.
+        if items or (cot.discount_type and cot.discount_value):
             bloque = []
             if dos_partes:
                 # Se repiten los dos subtotales antes de sumarlos: es lo que
