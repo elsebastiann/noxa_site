@@ -66,6 +66,45 @@ class TestElEsquemaDiceLosValores:
         assert "status" in linea and "valores:" in linea
 
 
+class TestElEsquemaDiceEnQueZonaVaCadaFecha:
+    """Agrupar por `date(created_at)` cuenta días en UTC. Entre las 7 de la
+    noche y la medianoche eso ya es el día siguiente, así que los leads de la
+    noche se cuentan en el día equivocado: la consulta corre sin error y da un
+    número creíble pero corrido, que es peor que fallar.
+
+    Se vio comparando la gráfica de "conversaciones por día" contra la bandeja:
+    la gráfica decía 8 y la bandeja mostraba 5.
+    """
+
+    def test_las_fechas_automaticas_se_marcan_como_utc(self, conversacion):
+        linea = next(l for l in _esquema().splitlines()
+                     if l.startswith("whatsapp_conversations("))
+        assert "created_at DATETIME [UTC:" in linea
+        assert "-5 hours" in linea
+
+    def test_la_hora_de_una_cita_se_marca_como_local(self, conversacion):
+        """La escribe una persona al agendar, no el servidor. Restarle cinco
+        horas la movería a la madrugada."""
+        linea = next(l for l in _esquema().splitlines() if l.startswith("appointments("))
+        assert "start_datetime DATETIME [hora de Bogotá" in linea
+        assert "end_datetime DATETIME [hora de Bogotá" in linea
+
+    def test_ninguna_columna_de_cita_queda_marcada_como_utc(self, conversacion):
+        """Aplicarle -5 horas a una hora que ya es local es el mismo error al
+        revés, y no lo detectaría nadie."""
+        for col in A._DATETIME_HORA_LOCAL:
+            assert A._nota_de_zona({"name": col, "type": "DATETIME"}) \
+                   == " [hora de Bogotá, úsala tal cual]"
+
+    def test_una_columna_de_fecha_sin_hora_no_se_toca(self, conversacion):
+        """`expense_date` es un día, no un instante: no hay zona que convertir."""
+        assert A._nota_de_zona({"name": "expense_date", "type": "DATE"}) == ""
+
+    def test_el_prompt_explica_la_regla(self):
+        assert "-5 hours" in A.PROMPT_CONSULTAS
+        assert "sin horario de verano" in A.PROMPT_CONSULTAS
+
+
 class TestNoSeLeMandanDatosPersonales:
     """El esquema viaja entero en cada pregunta. Listar los valores de una
     columna de nombres o teléfonos sería mandarle la base de clientes al modelo

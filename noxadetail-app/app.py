@@ -6772,6 +6772,29 @@ _COLUMNAS_SIN_MUESTRA = re.compile(
 # Con más valores distintos que esto ya no es una lista cerrada, es un dato.
 _MAX_VALORES_MUESTRA = 12
 
+# Las ÚNICAS fechas-hora que se guardan en hora de Bogotá: las escribe una
+# persona al agendar, no el servidor. Todas las demás (`created_at`, `paid_at`,
+# `work_started_at`...) salen de `datetime.utcnow()` y van en UTC.
+_DATETIME_HORA_LOCAL = {"start_datetime", "end_datetime"}
+
+
+def _nota_de_zona(columna: dict) -> str:
+    """Marca en el esquema si una fecha-hora está en UTC o en hora de Bogotá.
+
+    Sin esto el modelo agrupa por `date(created_at)`, que es el día en UTC:
+    entre las 7 de la noche y la medianoche eso ya es el día siguiente, así que
+    los leads de la noche se cuentan en el día equivocado. La consulta corre sin
+    error y da un número creíble pero corrido — que es peor que fallar.
+
+    Va pegado a la columna y no como regla suelta del prompt: acá no se puede
+    olvidar de aplicarlo a una columna en particular.
+    """
+    if "DATETIME" not in str(columna["type"]).upper():
+        return ""
+    if columna["name"] in _DATETIME_HORA_LOCAL:
+        return " [hora de Bogotá, úsala tal cual]"
+    return " [UTC: para agrupar o filtrar por día usa date(col,'-5 hours')]"
+
 
 def _valores_posibles(insp, tabla: str, columna: dict) -> str:
     """"in|out" para una columna que solo toma unos pocos valores, o "".
@@ -6818,7 +6841,8 @@ def _esquema_para_preguntas() -> str:
         if tabla in TABLAS_VETADAS or tabla.startswith("sqlite_"):
             continue
         cols = ", ".join(
-            f"{c['name']} {c['type']}{_valores_posibles(insp, tabla, c)}"
+            f"{c['name']} {c['type']}"
+            f"{_nota_de_zona(c)}{_valores_posibles(insp, tabla, c)}"
             for c in insp.get_columns(tabla))
         lineas.append(f"{tabla}({cols})")
     # No es una tabla real: se materializa en cada consulta desde la lógica de
@@ -7001,6 +7025,11 @@ DEFINICIONES DEL NEGOCIO — úsalas, no inventes las tuyas:
   'scheduled', 'completed', 'cancelled'.
 - Las fechas son texto ISO. Hoy es {hoy}. "Este mes" = del día 1 de este mes a
   hoy. Sé explícito con los rangos.
+- **Zona horaria.** El negocio es en Bogotá (UTC-5, sin horario de verano) pero
+  las fechas-hora automáticas se guardan en UTC. El esquema marca cada una: si
+  dice [UTC], agrupa y filtra con `date(columna,'-5 hours')`, nunca con
+  `date(columna)` a secas — un lead que escribió a las 8 de la noche caería en
+  el día siguiente. Si dice [hora de Bogotá], úsala tal cual.
 - Los valores están en pesos colombianos, sin decimales.
 
 REGLAS DEL SQL:
