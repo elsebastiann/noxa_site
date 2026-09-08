@@ -6760,6 +6760,51 @@ TABLAS_VETADAS = {"users", "notifications", "railway_cost_snapshots"}
 CONSULTA_MAX_FILAS = 500
 CONSULTA_TIMEOUT_SEG = 10
 
+# Columnas de las que NUNCA se listan valores en el esquema, aunque sean pocos.
+# El esquema entero viaja en el prompt, así que listar valores de estas sería
+# mandarle datos personales al modelo en cada pregunta — y un negocio pequeño
+# puede tener tan pocos clientes que el filtro por cantidad no las frene.
+_COLUMNAS_SIN_MUESTRA = re.compile(
+    r"name|nombre|phone|telefono|body|mensaje|email|correo|token|password|"
+    r"direccion|address|nota|notes|descripcion|description|plate|placa|url|sid",
+    re.IGNORECASE,
+)
+# Con más valores distintos que esto ya no es una lista cerrada, es un dato.
+_MAX_VALORES_MUESTRA = 12
+
+
+def _valores_posibles(insp, tabla: str, columna: dict) -> str:
+    """"in|out" para una columna que solo toma unos pocos valores, o "".
+
+    El modelo necesita saber QUÉ dice una columna, no solo cómo se llama:
+    escribió `direction = 'inbound'` contra una columna que guarda 'in', y la
+    consulta devolvió cero filas sin ningún error — el peor resultado posible,
+    porque un cero se lee como "no pasó nada" y no como "pregunté mal".
+
+    Se leen de la base y no de una lista escrita a mano, por lo mismo que el
+    esquema: a mano se desactualiza en silencio.
+    """
+    tipo = str(columna["type"]).upper()
+    if not any(t in tipo for t in ("CHAR", "TEXT", "CLOB")):
+        return ""
+    if _COLUMNAS_SIN_MUESTRA.search(columna["name"]):
+        return ""
+    try:
+        # El LIMIT deja que SQLite se detenga apenas junta unos pocos distintos,
+        # así que no cuesta nada en una tabla grande de texto libre.
+        filas = db.session.execute(text(
+            f'SELECT DISTINCT "{columna["name"]}" FROM "{tabla}" '
+            f'WHERE "{columna["name"]}" IS NOT NULL LIMIT {_MAX_VALORES_MUESTRA + 1}'
+        )).fetchall()
+    except Exception:
+        return ""
+    valores = sorted(str(f[0]) for f in filas)
+    if not valores or len(valores) > _MAX_VALORES_MUESTRA:
+        return ""
+    if any(len(v) > 30 for v in valores):
+        return ""      # texto libre corto, no una lista de opciones
+    return " valores: " + "|".join(valores)
+
 
 def _esquema_para_preguntas() -> str:
     """Las tablas y columnas que el modelo puede usar, en texto.
@@ -6772,7 +6817,9 @@ def _esquema_para_preguntas() -> str:
     for tabla in sorted(insp.get_table_names()):
         if tabla in TABLAS_VETADAS or tabla.startswith("sqlite_"):
             continue
-        cols = ", ".join(f"{c['name']} {c['type']}" for c in insp.get_columns(tabla))
+        cols = ", ".join(
+            f"{c['name']} {c['type']}{_valores_posibles(insp, tabla, c)}"
+            for c in insp.get_columns(tabla))
         lineas.append(f"{tabla}({cols})")
     # No es una tabla real: se materializa en cada consulta desde la lógica de
     # negocio. Va en el esquema porque es la fuente correcta para toda pregunta

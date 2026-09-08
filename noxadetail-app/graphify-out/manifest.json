@@ -1,7 +1,7 @@
 {
   "app.py": {
-    "mtime": 1788819954.2643564,
-    "ast_hash": "0381b8c17248495c23da35319bf4004b",
+    "mtime": 1788879227.1604002,
+    "ast_hash": "d77646f083773d436d4ca49a235ab0a3",
     "semantic_hash": ""
   },
   "migrate_prices.py": {
@@ -370,8 +370,8 @@
     "semantic_hash": ""
   },
   "templates/preguntar.html": {
-    "mtime": 1787952340.74291,
-    "ast_hash": "81eb60de607c7732031f43a3cbae85e1",
+    "mtime": 1788879270.3756258,
+    "ast_hash": "78f84b258c9978e0a65d7845c25a54c1",
     "semantic_hash": ""
   },
   "tests/test_agendar_repetido.py": {
@@ -502,6 +502,11 @@
   "tests/test_aviso_referencia.py": {
     "mtime": 1788810633.4035017,
     "ast_hash": "0c07122c0fdfcec9f29f3ae9d26a1589",
+    "semantic_hash": ""
+  },
+  "tests/test_esquema_preguntas.py": {
+    "mtime": 1788879294.7482355,
+    "ast_hash": "8035f05b8ec9da0edebd4c8651333cf6",
     "semantic_hash": ""
   }
 }

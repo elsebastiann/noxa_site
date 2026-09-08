@@ -67,6 +67,11 @@
     font-size:.78rem; color:var(--text); white-space:pre-wrap;
   }
   .pg-aviso { color:#e6c060; font-size:.78rem; margin-top:10px; }
+  /* Cero filas se ve igual que "no hay datos", y casi siempre es lo otro: un
+     literal que el modelo adivinó mal. Sin este aviso no hay forma de saberlo. */
+  .pg-vacio { font-size:.82rem; color:#d8c48a; background:rgba(200,160,74,.09);
+              border:1px solid rgba(200,160,74,.26); border-radius:8px;
+              padding:10px 12px; margin:10px 0 0; line-height:1.5; }
   .pg-costo { color:var(--text3); font-size:.74rem; font-variant-numeric:tabular-nums; }
   .pg-costo b { color:var(--text2); font-weight:600; }
   .pg-acum {
@@ -234,6 +239,12 @@
         ${d.explicacion ? `<p class="pg-explica">${d.explicacion}</p>` : ""}
         <div id="pgCuerpo"></div>
         ${d.truncado ? `<p class="pg-aviso">Se muestran las primeras ${filas.length} filas.</p>` : ""}
+        ${filas.length === 0 ? `<p class="pg-vacio">
+            <strong>La consulta no devolvió nada.</strong> Puede ser que de verdad no haya
+            datos para ese periodo, o que la consulta esté filtrando por un valor que no
+            existe — mira el SQL de abajo y revisa los valores entre comillas. Si alguno
+            no corresponde, díselo en la pregunta: "usa direction = 'in'".
+          </p>` : ""}
         <div class="pg-pie">
           <button type="button" class="btn btn-sm btn-outline-secondary" id="pgCsv">
             <i class="bi bi-download"></i> Descargar CSV
