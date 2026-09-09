@@ -1,0 +1,151 @@
+{% extends "base.html" %}
+{% block extra_head %}
+<style>
+  .sp-panel { background:var(--bg2,#1b1b1b); border:1px solid rgba(255,255,255,.09);
+              border-radius:12px; padding:18px; margin-bottom:18px; }
+  .sp-tit { font-size:.68rem; letter-spacing:.09em; text-transform:uppercase;
+            color:var(--accent,#c8a04a); font-weight:700; margin-bottom:12px; }
+  .sp-marcas { font-size:.8rem; color:#7fd6b8; margin-top:8px; min-height:1.2em; }
+  .cob { display:flex; gap:10px; align-items:flex-start; padding:9px 11px; cursor:pointer;
+         border:1px solid rgba(255,255,255,.10); border-radius:9px; background:rgba(255,255,255,.03); }
+  .cob:hover { border-color:var(--accent,#c8a04a); }
+  .cob input { margin-top:3px; flex-shrink:0; }
+  .cob .n { font-size:.88rem; color:#e9e9e9; font-weight:600; }
+  .cob .q { font-size:.75rem; color:#8a8a8a; line-height:1.35; margin-top:2px; }
+  .cob-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(300px,1fr)); gap:8px; }
+  .otro-fila { display:grid; grid-template-columns:1fr 2fr 32px; gap:8px; margin-bottom:8px; }
+  .otro-fila input { background:rgba(0,0,0,.28); border:1px solid rgba(255,255,255,.12);
+                     color:#eee; border-radius:7px; padding:7px 10px; font-size:.86rem; }
+  .otro-fila .quitar { background:none; border:none; color:#e07a7a; cursor:pointer; font-size:1.1rem; }
+</style>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+// Las marcas dependen del instalador y se muestran al elegirlo: quien arma la
+// solicitud tiene que ver con qué se le va a preguntar ANTES de mandarla, no
+// descubrirlo cuando vuelva la respuesta.
+const MARCAS = {
+  {%- for i in instaladores %}
+  "{{ i.id }}": {{ i.ppf_marcas | tojson }}{{ "," if not loop.last }}
+  {%- endfor %}
+};
+
+function pintarMarcas() {
+  const id = document.getElementById("instalador").value;
+  const m = MARCAS[id] || [];
+  document.getElementById("marcasInst").textContent =
+    m.length ? "Se le pedirá precio para: " + m.join(", ") : "";
+}
+
+let nOtros = 0;
+function agregarOtro() {
+  const fila = document.createElement("div");
+  fila.className = "otro-fila";
+  fila.innerHTML = `
+    <input type="text" name="otro_nombre" maxlength="120" placeholder="Nombre (ej. Tanque)">
+    <input type="text" name="otro_detalle" maxlength="300" placeholder="Qué incluye, para que no quede a interpretación">
+    <button type="button" class="quitar" title="Quitar">&times;</button>`;
+  fila.querySelector(".quitar").onclick = () => fila.remove();
+  document.getElementById("otros").appendChild(fila);
+  fila.querySelector("input").focus();
+  nOtros++;
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+  document.getElementById("instalador").onchange = pintarMarcas;
+  document.getElementById("btnOtro").onclick = agregarOtro;
+  pintarMarcas();
+});
+</script>
+{% endblock %}
+
+{% block content %}
+<div class="container mt-4 mb-5" style="max-width:900px">
+  <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+    <h2 class="mb-0">Pedir precios a un instalador</h2>
+    <a href="{{ url_for('price_requests_list') }}" class="btn btn-outline-secondary btn-sm">
+      Ver solicitudes
+    </a>
+  </div>
+
+  <form method="POST" enctype="multipart/form-data" id="formSolicitud">
+    <div class="sp-panel">
+      <div class="sp-tit">A quién</div>
+      <select name="installer_id" id="instalador" class="form-select" required>
+        {% for i in instaladores %}
+        <option value="{{ i.id }}">{{ i.name }}</option>
+        {% endfor %}
+      </select>
+      <div class="sp-marcas" id="marcasInst"></div>
+      {% if not instaladores %}
+      <p class="text-muted small mb-0 mt-2">
+        No hay instaladores activos. Créalos en
+        <a href="{{ url_for('installers_view') }}">Tercerizados</a> primero.
+      </p>
+      {% endif %}
+    </div>
+
+    <div class="sp-panel">
+      <div class="sp-tit">Qué vehículo</div>
+      <div class="row g-2">
+        <div class="col-12 col-md-4">
+          <label class="form-label small text-muted mb-1">Marca *</label>
+          <input type="text" name="marca" class="form-control" required placeholder="Mazda">
+        </div>
+        <div class="col-12 col-md-5">
+          <label class="form-label small text-muted mb-1">Modelo *</label>
+          <input type="text" name="modelo" class="form-control" required placeholder="3 Grand Touring">
+        </div>
+        <div class="col-12 col-md-3">
+          <label class="form-label small text-muted mb-1">Año</label>
+          <input type="number" name="anio" class="form-control" min="1950" max="2100" placeholder="2021">
+        </div>
+        <div class="col-12">
+          <label class="form-label small text-muted mb-1">Foto del vehículo</label>
+          <input type="file" name="foto" class="form-control" accept="image/*">
+          <div class="form-text">
+            El instalador la ve al abrir el link. Una foto evita la mitad de las preguntas.
+          </div>
+        </div>
+        <div class="col-12">
+          <label class="form-label small text-muted mb-1">Notas para el instalador (opcional)</label>
+          <textarea name="notas" class="form-control" rows="2"
+                    placeholder="Ej. el bómper ya tiene un rayón profundo del lado derecho"></textarea>
+        </div>
+      </div>
+    </div>
+
+    <div class="sp-panel">
+      <div class="sp-tit">Qué cotizar</div>
+      <div class="cob-grid">
+        {% for g in grupos %}
+        <label class="cob">
+          <input type="checkbox" name="cobertura" value="{{ g.name }}">
+          <span>
+            <span class="n">{{ g.name }}</span>
+            <span class="q">
+              {% if g.parts %}{{ g.parts | map(attribute='name') | join(', ') }}
+              {% else %}{{ g.contains or '—' }}{% endif %}
+            </span>
+          </span>
+        </label>
+        {% endfor %}
+      </div>
+
+      <div class="sp-tit mt-4">Algo que no está en la lista</div>
+      <div id="otros"></div>
+      <button type="button" id="btnOtro" class="btn btn-outline-warning btn-sm">
+        + Otro
+      </button>
+    </div>
+
+    <div class="d-flex gap-2 align-items-center flex-wrap">
+      <button type="submit" class="btn btn-warning fw-bold" {% if not instaladores %}disabled{% endif %}>
+        Crear solicitud y generar link
+      </button>
+      <span class="text-muted small">El link vive {{ dias }} días y no pide contraseña.</span>
+    </div>
+  </form>
+</div>
+{% endblock %}

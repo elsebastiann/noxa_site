@@ -1,7 +1,7 @@
 {
   "app.py": {
-    "mtime": 1788883198.8300307,
-    "ast_hash": "aa7e799f9c89cf7169b894b3d74a3931",
+    "mtime": 1788964135.9443965,
+    "ast_hash": "19d03ee1df357c4b4e69e43da0fa67b5",
     "semantic_hash": ""
   },
   "migrate_prices.py": {
@@ -75,8 +75,8 @@
     "semantic_hash": ""
   },
   "templates/base.html": {
-    "mtime": 1788455830.7702365,
-    "ast_hash": "2e00208b66e555752d21e3b6fef07a9e",
+    "mtime": 1788963818.7694626,
+    "ast_hash": "0799faa9cdbc402618ec7da38651a57b",
     "semantic_hash": ""
   },
   "templates/calendar.html": {
@@ -285,8 +285,8 @@
     "semantic_hash": ""
   },
   "templates/installers.html": {
-    "mtime": 1787532346.2556655,
-    "ast_hash": "96417a9d50eec2fae776b7f3e98a69ba",
+    "mtime": 1788963913.8232455,
+    "ast_hash": "6fa7c44b6166ed7d3895c2d2d8b9f726",
     "semantic_hash": ""
   },
   "templates/liquidacion_instaladores.html": {
@@ -512,6 +512,41 @@
   "tests/test_descuento_en_pdf.py": {
     "mtime": 1788883232.2935674,
     "ast_hash": "2f55b18f08ca1bead8996ad47b848e3f",
+    "semantic_hash": ""
+  },
+  "tests/test_solicitud_precios.py": {
+    "mtime": 1788964135.9911609,
+    "ast_hash": "e2976817b131e79e398a16681dcc8b3d",
+    "semantic_hash": ""
+  },
+  "templates/price_request_cerrada.html": {
+    "mtime": 1788963708.0131361,
+    "ast_hash": "8fecee94288939db5519f3bf2799d616",
+    "semantic_hash": ""
+  },
+  "templates/price_request_detail.html": {
+    "mtime": 1788963755.614653,
+    "ast_hash": "f92224fa89de79ddc6bfaa7af21f28b7",
+    "semantic_hash": ""
+  },
+  "templates/price_request_form.html": {
+    "mtime": 1788963634.9361906,
+    "ast_hash": "f5ac89dd9504100427197385d416babc",
+    "semantic_hash": ""
+  },
+  "templates/price_request_gracias.html": {
+    "mtime": 1788963708.0027764,
+    "ast_hash": "823bcc1f560244ce630175ea6006194b",
+    "semantic_hash": ""
+  },
+  "templates/price_request_public.html": {
+    "mtime": 1788963661.7912138,
+    "ast_hash": "06750f424f67f96cb31e05cd80e6bade",
+    "semantic_hash": ""
+  },
+  "templates/price_requests.html": {
+    "mtime": 1788963723.9483814,
+    "ast_hash": "471e0e4c8525fd9a8443ae9e28b921f0",
     "semantic_hash": ""
   }
 }

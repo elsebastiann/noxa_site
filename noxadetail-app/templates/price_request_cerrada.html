@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Link no disponible — NOXA Detail</title>
+<style>
+  body { margin:0; background:#f4f2ee; color:#1a1a1a; display:flex; min-height:100vh;
+         align-items:center; justify-content:center; padding:24px;
+         font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; }
+  .caja { background:#fff; border-radius:14px; padding:36px 30px; max-width:440px;
+          text-align:center; border-top:3px solid #c8a04a; }
+  .marca { font-size:1.3rem; font-weight:800; letter-spacing:.06em; margin-bottom:22px; }
+  .marca small { display:block; font-size:.56rem; letter-spacing:.34em; color:#6b6b6b;
+                 font-weight:600; margin-top:2px; }
+  h1 { font-size:1.22rem; margin:0 0 10px; }
+  p { color:#6b6b6b; font-size:.92rem; line-height:1.55; margin:0; }
+  a { color:#a6812f; font-weight:700; text-decoration:none; }
+</style>
+</head>
+<body>
+  <div class="caja">
+    <div class="marca">NØXA<small>CAR CARE</small></div>
+    {% if motivo == 'vencida' %}
+    <h1>Este link ya venció</h1>
+    <p>
+      La solicitud de precios del {{ s.vehiculo }} cerró el
+      {{ s.expires_on.strftime('%d/%m/%Y') }}. Escríbenos
+      {% if whatsapp %}<a href="https://wa.me/{{ whatsapp|replace('+','') }}">por WhatsApp</a>{% endif %}
+      y te mandamos uno nuevo.
+    </p>
+    {% else %}
+    <h1>No encontramos este link</h1>
+    <p>
+      Puede estar mal copiado. Revisa que hayas pegado la dirección completa, o
+      escríbenos{% if whatsapp %} <a href="https://wa.me/{{ whatsapp|replace('+','') }}">por WhatsApp</a>{% endif %}.
+    </p>
+    {% endif %}
+  </div>
+</body>
+</html>

@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Precios para {{ s.vehiculo }} — NOXA Detail</title>
+<style>
+  :root { --tinta:#1a1a1a; --suave:#6b6b6b; --dorado:#c8a04a; --borde:#e6e2d8; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:#f4f2ee; color:var(--tinta);
+         font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; }
+  .hoja { max-width:760px; margin:0 auto; background:#fff; min-height:100vh; }
+  .cab { padding:26px 24px 20px; border-bottom:3px solid var(--dorado); }
+  .marca { font-size:1.5rem; font-weight:800; letter-spacing:.06em; }
+  .marca small { display:block; font-size:.6rem; letter-spacing:.34em; color:var(--suave);
+                 font-weight:600; margin-top:2px; }
+  .cuerpo { padding:22px 24px 40px; }
+  .kicker { font-size:.68rem; letter-spacing:.11em; text-transform:uppercase;
+            color:var(--dorado); font-weight:800; margin:0 0 6px; }
+  h1 { font-size:1.4rem; margin:0 0 4px; }
+  .sub { color:var(--suave); font-size:.9rem; margin:0; }
+  .aviso { background:#fbf7ec; border:1px solid #e8dcbb; border-radius:9px;
+           padding:12px 14px; font-size:.88rem; line-height:1.5; margin:18px 0; }
+  .foto { width:100%; border-radius:11px; margin:16px 0; display:block; border:1px solid var(--borde); }
+  .notas { background:#f7f7f5; border-left:3px solid var(--dorado); padding:11px 14px;
+           font-size:.88rem; line-height:1.5; margin:16px 0; }
+  .item { border:1px solid var(--borde); border-radius:11px; padding:15px 16px; margin-bottom:14px; }
+  .item h3 { margin:0 0 3px; font-size:1.02rem; }
+  .item .que { color:var(--suave); font-size:.82rem; line-height:1.45; margin:0 0 12px; }
+  .precios { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:10px; }
+  .precio label { display:block; font-size:.72rem; letter-spacing:.06em; text-transform:uppercase;
+                  color:var(--suave); font-weight:700; margin-bottom:4px; }
+  .precio input { width:100%; padding:10px 12px; font-size:1rem; border:1px solid var(--borde);
+                  border-radius:8px; background:#fff; color:var(--tinta); }
+  .precio input:focus { border-color:var(--dorado); outline:none; }
+  .coment { width:100%; margin-top:10px; padding:9px 12px; font-size:.86rem;
+            border:1px solid var(--borde); border-radius:8px; font-family:inherit; }
+  .enviar { position:sticky; bottom:0; background:#fff; border-top:1px solid var(--borde);
+            padding:14px 24px; }
+  .btn { display:block; width:100%; padding:15px; border:none; border-radius:10px;
+         background:var(--dorado); color:#1a1a1a; font-size:1rem; font-weight:800; cursor:pointer; }
+  .btn:hover { filter:brightness(1.06); }
+  .pie { color:var(--suave); font-size:.78rem; line-height:1.5; padding:0 24px 26px; }
+</style>
+</head>
+<body>
+<div class="hoja">
+  <div class="cab">
+    <div class="marca">NØXA<small>CAR CARE</small></div>
+  </div>
+
+  <form method="POST">
+  <div class="cuerpo">
+    <p class="kicker">Solicitud de precios · {{ s.code }}</p>
+    <h1>{{ s.vehiculo }}</h1>
+    <p class="sub">Para {{ s.installer.name }}</p>
+
+    {% if s.respondida %}
+    <div class="aviso">
+      Ya nos mandaste estos precios el {{ s.responded_at | hora_bogota('%d/%m a las %I:%M %p') }}.
+      Puedes corregir lo que quieras y volver a enviarlos.
+    </div>
+    {% else %}
+    <div class="aviso">
+      Escribe cuánto cobras por cada parte, en cada marca de película. Si alguna no
+      la trabajas o no aplica en este carro, déjala en blanco.
+    </div>
+    {% endif %}
+
+    {% if s.foto %}
+    <img class="foto" src="{{ url_for('price_request_image', filename=s.foto) }}"
+         alt="{{ s.vehiculo }}">
+    {% endif %}
+
+    {% if s.notas %}
+    <div class="notas">{{ s.notas }}</div>
+    {% endif %}
+
+    {% for it in s.items %}
+    <div class="item">
+      <h3>{{ it.cobertura }}</h3>
+      {% if it.detalle %}<p class="que">{{ it.detalle }}</p>{% endif %}
+      <div class="precios">
+        {% for marca in s.marcas %}
+        <div class="precio">
+          <label for="p{{ it.id }}{{ loop.index }}">{{ marca }}</label>
+          {# inputmode numeric: en el celular abre el teclado de números, que es
+             donde esto se va a llenar la mayoría de las veces. #}
+          <input type="number" min="0" step="1000" inputmode="numeric"
+                 id="p{{ it.id }}{{ loop.index }}"
+                 name="precio::{{ it.id }}::{{ marca }}"
+                 value="{{ it.precios.get(marca, '') }}" placeholder="$">
+        </div>
+        {% endfor %}
+      </div>
+      <input type="text" class="coment" name="comentario::{{ it.id }}" maxlength="300"
+             value="{{ it.comentario or '' }}"
+             placeholder="¿Algo que aclarar de esta parte? (opcional)">
+    </div>
+    {% endfor %}
+  </div>
+
+  <div class="enviar">
+    <button type="submit" class="btn">Enviar precios</button>
+  </div>
+  </form>
+
+  <p class="pie">
+    Este link vence el {{ s.expires_on.strftime('%d/%m/%Y') }}. Hasta entonces puedes
+    volver a abrirlo y corregir lo que enviaste.
+  </p>
+</div>
+</body>
+</html>

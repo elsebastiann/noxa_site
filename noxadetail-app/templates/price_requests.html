@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% block extra_head %}
+<style>
+  .sol { display:flex; justify-content:space-between; align-items:flex-start; gap:14px;
+         background:var(--bg2,#1b1b1b); border:1px solid rgba(255,255,255,.09);
+         border-radius:11px; padding:14px 16px; margin-bottom:10px;
+         text-decoration:none; }
+  .sol:hover { border-color:var(--accent,#c8a04a); }
+  .sol-cod { font-size:.74rem; color:var(--accent,#c8a04a); font-weight:700; letter-spacing:.04em; }
+  .sol-veh { font-size:1rem; color:#e9e9e9; font-weight:600; margin-top:2px; }
+  .sol-meta { font-size:.78rem; color:#8a8a8a; margin-top:3px; }
+  .chip { font-size:.7rem; padding:3px 10px; border-radius:999px; font-weight:700; white-space:nowrap; }
+  .chip.ok   { background:rgba(80,170,110,.18); color:#7fd4a0; border:1px solid rgba(80,170,110,.4); }
+  .chip.espera { background:rgba(200,160,74,.16); color:#d8c48a; border:1px solid rgba(200,160,74,.4); }
+  .chip.no   { background:#0b0d10; color:#8f97a0; border:1px solid #3b4a54; }
+</style>
+{% endblock %}
+{% block content %}
+<div class="container mt-4 mb-5" style="max-width:900px">
+  <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+    <h2 class="mb-0">Precios de instaladores</h2>
+    <a href="{{ url_for('price_request_new') }}" class="btn btn-warning btn-sm fw-bold">
+      Pedir precios
+    </a>
+  </div>
+  <p class="text-muted small" style="max-width:640px">
+    Lo que se le pide a un instalador antes de cotizarle a un cliente. Cada solicitud
+    abre un link sin contraseña que él llena desde el celular.
+  </p>
+
+  {% for s in solicitudes %}
+  <a class="sol" href="{{ url_for('price_request_detail', code=s.code) }}">
+    <div>
+      <div class="sol-cod">{{ s.code }}</div>
+      <div class="sol-veh">{{ s.vehiculo }}</div>
+      <div class="sol-meta">
+        {{ s.installer.name }} · {{ s.items|length }} parte{{ '' if s.items|length == 1 else 's' }}
+        · {{ s.created_at | hora_bogota('%d/%m/%Y') }}
+      </div>
+    </div>
+    {% if s.respondida %}
+      <span class="chip ok">Respondida</span>
+    {% elif s.vigente %}
+      <span class="chip espera">Esperando</span>
+    {% else %}
+      <span class="chip no">Vencida</span>
+    {% endif %}
+  </a>
+  {% else %}
+  <div class="text-muted" style="padding:34px 0; text-align:center">
+    Todavía no has pedido precios a nadie.
+  </div>
+  {% endfor %}
+</div>
+{% endblock %}

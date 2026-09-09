@@ -2203,6 +2203,50 @@ def ensure_quote_ajuste_schema():
             app.logger.error(f"[Migración] quotes.ajuste_pct: {exc}")
 
 
+def ensure_installer_brands_schema():
+    with app.app_context():
+        db.session.rollback()
+        try:
+            db.session.execute(text("SELECT ppf_brands_json FROM installers LIMIT 1"))
+            return
+        except Exception:
+            db.session.rollback()
+        try:
+            db.session.execute(text("ALTER TABLE installers ADD COLUMN ppf_brands_json TEXT"))
+            db.session.commit()
+        except Exception as exc:
+            db.session.rollback()
+            app.logger.error(f"[Migración] installers.ppf_brands_json: {exc}")
+
+
+def seed_marcas_por_instalador():
+    """Deja puestas las marcas con las que trabaja cada instalador hoy.
+
+    Corre una sola vez: son datos del negocio, y repetirlo pisaría lo que
+    alguien haya ajustado después desde la pantalla de Tercerizados. Solo toca a
+    los que no tengan marcas definidas, así que tampoco le cambia nada a un
+    instalador nuevo que ya las traiga.
+    """
+    with app.app_context():
+        if migracion_ya_aplicada("marcas_por_instalador_2026_09"):
+            return
+        conocidas = {"camilo": ["Standard", "Avery", "Stark"],
+                     "kevin":  ["Spectra", "Avery", "Xpel"]}
+        tocados = 0
+        for inst in Installer.query.all():
+            if inst.ppf_brands_json:
+                continue
+            marcas = conocidas.get((inst.name or "").strip().lower().split()[0]
+                                   if inst.name else "")
+            if marcas:
+                inst.ppf_brands_json = json.dumps(marcas)
+                tocados += 1
+        db.session.commit()
+        marcar_migracion("marcas_por_instalador_2026_09")
+        if tocados:
+            app.logger.info(f"[Seed] Marcas de PPF puestas a {tocados} instalador(es).")
+
+
 def ensure_quote_precios_fijos_schema():
     with app.app_context():
         db.session.rollback()
@@ -2725,10 +2769,133 @@ class Installer(db.Model):
     default_share = db.Column(db.Integer, nullable=False, default=65)
     is_active  = db.Column(db.Boolean, nullable=False, default=True)
     notes      = db.Column(db.Text, nullable=True)
+    # Con qué marcas de PPF trabaja ESTE instalador. Cada uno maneja las suyas:
+    # uno cotiza Standard/Avery/Stark y otro Spectra/Avery/Xpel. Va en la tabla
+    # y no en un `if` por nombre porque el día que entre un tercero, o que uno
+    # cambie de proveedor, eso se arregla desde la pantalla y no tocando código
+    # —y un `if nombre == "Camilo"` se rompe además con un cambio de nombre—.
+    ppf_brands_json = db.Column(db.Text, nullable=True)
     created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+
+    @property
+    def ppf_marcas(self) -> list:
+        """Las suyas, o todas las activas si nadie se las ha definido."""
+        try:
+            marcas = json.loads(self.ppf_brands_json or "[]")
+        except Exception:
+            marcas = []
+        return marcas or [m for m, _g in ppf_marcas_activas()]
 
     def __repr__(self):
         return f"<Installer {self.name} {self.default_share}%>"
+
+# ── Solicitudes de precio a los instaladores ─────────────────────────────────
+# El flujo va antes de la cotización, no después: para cotizarle un PPF a un
+# cliente hay que saber primero qué cobra el instalador por ESE carro. Hoy eso
+# se pide por WhatsApp y la respuesta vuelve como texto suelto que alguien
+# transcribe a mano.
+SOLICITUD_VALID_DAYS = 5
+
+
+class PriceRequest(db.Model):
+    """Lo que se le pide a un instalador: cotíceme estas partes de este carro.
+
+    Guarda el vehículo, qué se le preguntó y con qué marcas, y abre un link sin
+    login para que responda. Las marcas quedan CONGELADAS al crearla, igual que
+    en las cotizaciones: si mañana el instalador cambia de proveedor, lo que ya
+    cotizó no puede reescribirse solo.
+    """
+    __tablename__ = "price_requests"
+    id = db.Column(db.Integer, primary_key=True)
+
+    code         = db.Column(db.String(20), nullable=False, unique=True)
+    public_token = db.Column(db.String(64), nullable=False, unique=True, index=True)
+
+    installer_id = db.Column(db.Integer, db.ForeignKey("installers.id"), nullable=False)
+    installer    = db.relationship("Installer")
+
+    marca   = db.Column(db.String(80), nullable=False)
+    modelo  = db.Column(db.String(80), nullable=False)
+    anio    = db.Column(db.Integer, nullable=True)
+    # Nombre del archivo, no la imagen: vive junto a la base, en el volumen.
+    foto    = db.Column(db.String(120), nullable=True)
+    notas   = db.Column(db.Text, nullable=True)
+
+    brands_json = db.Column(db.Text, nullable=False, default="[]")
+
+    created_at   = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    created_by   = db.Column(db.String(80), nullable=True)
+    expires_on   = db.Column(db.Date, nullable=False)
+    # Cuándo la respondió. Nulo = todavía no ha contestado.
+    responded_at = db.Column(db.DateTime, nullable=True)
+
+    items = db.relationship("PriceRequestItem", backref="solicitud",
+                            cascade="all, delete-orphan",
+                            order_by="PriceRequestItem.orden")
+
+    @property
+    def marcas(self) -> list:
+        try:
+            return json.loads(self.brands_json or "[]")
+        except Exception:
+            return []
+
+    @property
+    def vigente(self) -> bool:
+        return bool(self.expires_on and self.expires_on >= bogota_today())
+
+    @property
+    def respondida(self) -> bool:
+        return self.responded_at is not None
+
+    @property
+    def vehiculo(self) -> str:
+        partes = [self.marca, self.modelo, str(self.anio) if self.anio else ""]
+        return " ".join(p for p in partes if p)
+
+    @property
+    def link_publico(self) -> str:
+        base = (os.environ.get("PUBLIC_BASE_URL") or "https://app.noxadetail.com").rstrip("/")
+        return f"{base}/p/{self.public_token}"
+
+    def __repr__(self):
+        return f"<PriceRequest {self.code} {self.vehiculo}>"
+
+
+class PriceRequestItem(db.Model):
+    """Una parte o grupo sobre el que se pide precio, y lo que el instalador
+    respondió por cada marca.
+
+    La pregunta y la respuesta van en la MISMA fila a propósito: separarlas
+    obligaría a cruzarlas por nombre, y el nombre de un grupo puede cambiar en
+    el catálogo mientras la solicitud sigue abierta.
+    """
+    __tablename__ = "price_request_items"
+    id = db.Column(db.Integer, primary_key=True)
+    request_id = db.Column(db.Integer, db.ForeignKey("price_requests.id"), nullable=False)
+
+    cobertura = db.Column(db.String(120), nullable=False)
+    # Qué incluye. Para los del catálogo se copia; para uno escrito a mano es lo
+    # que se le explicó al instalador.
+    detalle   = db.Column(db.Text, nullable=True)
+    es_personalizado = db.Column(db.Boolean, nullable=False, default=False)
+    orden     = db.Column(db.Integer, nullable=False, default=0)
+
+    # {"Avery": 850000, ...} — lo escribe el instalador desde el link.
+    prices_json = db.Column(db.Text, nullable=True)
+    # Lo que quiera aclarar de esa línea: "sin el bómper va 100 menos".
+    comentario  = db.Column(db.Text, nullable=True)
+
+    @property
+    def precios(self) -> dict:
+        try:
+            return json.loads(self.prices_json or "{}")
+        except Exception:
+            return {}
+
+    def __repr__(self):
+        return f"<PriceRequestItem {self.cobertura} {self.precios}>"
+
 
 
 # Quién puso el material. Define el reparto por defecto y, sobre todo, permite
@@ -5516,7 +5683,31 @@ def installers_view():
     return render_template(
         "installers.html",
         installers=Installer.query.order_by(Installer.is_active.desc(), Installer.name).all(),
+        marcas_ppf=[m for m, _g in ppf_marcas_activas()],
     )
+
+
+@app.route("/installers/<int:installer_id>/brands", methods=["POST"])
+def installer_brands(installer_id):
+    """Con qué marcas de PPF trabaja este instalador.
+
+    De acá sale con qué se le pregunta al pedirle precios. Sin marcas
+    definidas se le preguntan todas las activas, que es un default ruidoso pero
+    no equivocado: contesta las que maneje y deja el resto en blanco.
+    """
+    if not getattr(g, "current_user", None) or g.current_user.role != "admin":
+        flash("Acceso restringido.", "danger")
+        return redirect(url_for("calendar_view"))
+    inst = Installer.query.get_or_404(installer_id)
+    validas = {m for m, _g in ppf_marcas_activas()}
+    elegidas = [m for m in request.form.getlist("marca") if m in validas]
+    # Lista vacía a NULL y no a "[]": las dos cosas significan "no tiene marcas
+    # propias", y guardar una lista vacía haría que no se le pregunte por
+    # ninguna, que no es lo que quiere decir desmarcarlas todas.
+    inst.ppf_brands_json = json.dumps(elegidas) if elegidas else None
+    db.session.commit()
+    flash(f"Marcas de {inst.name} actualizadas.", "success")
+    return redirect(url_for("installers_view"))
 
 
 @app.route("/instaladores/<int:installer_id>/toggle", methods=["POST"])
@@ -8685,6 +8876,8 @@ ensure_quote_ppf_brands_schema()
 ensure_quote_updated_schema()
 ensure_quote_ajuste_schema()
 ensure_quote_precios_fijos_schema()
+ensure_installer_brands_schema()
+seed_marcas_por_instalador()
 ensure_quote_public_token_schema()
 ensure_quote_item_warranty_schema()
 ensure_ppf_zona_schema()
@@ -8809,6 +9002,11 @@ PUBLIC_ENDPOINTS  = {
     "api_public_mb_price", "api_public_mb_available_days",
     "api_public_stats_appointments_count", "api_public_web_lead",
     "quote_public", "quote_public_pdf", "quote_public_seleccion",
+    # El link del instalador y la foto que muestra. Sin login a propósito:
+    # pedirle una cuenta a un proveedor externo por una lista de precios
+    # garantiza que no la llene. El token es largo y aleatorio, la página no
+    # expone nada más que ese carro, y vence a los pocos días.
+    "price_request_public", "price_request_image",
 }
 CHANGE_PWD_ENDPOINTS = {"change_password", "logout", "static"}
 
@@ -13888,6 +14086,205 @@ def quote_pdf(code):
         # para revisar que quedó bien antes de enviarlo.
         "Content-Disposition": f'inline; filename="Cotizacion-{cot.code}.pdf"',
     })
+
+
+# ── Solicitudes de precio a los instaladores ─────────────────────────────────
+# La foto del vehículo va JUNTO A LA BASE y no dentro de static/, por lo mismo
+# que las de promociones: en Railway el sistema de archivos del contenedor se
+# borra en cada despliegue.
+VEHICULO_UPLOAD_DIR = os.path.join(os.path.dirname(os.path.abspath(db_path)) or ".",
+                                   "vehiculo_uploads")
+VEHICULO_ALLOWED_EXT = {".jpg", ".jpeg", ".png", ".webp", ".heic"}
+VEHICULO_MAX_BYTES = 8 * 1024 * 1024
+
+
+def _guardar_foto_vehiculo(file_storage) -> str | None:
+    """Guarda la foto y devuelve el nombre con el que quedó, o None.
+
+    Nombre aleatorio: lo sirve una ruta pública —el instalador la abre sin
+    login— así que no puede ser adivinable, y dos fotos que se llamen igual no
+    se pueden pisar.
+    """
+    if not file_storage or not file_storage.filename:
+        return None
+    ext = os.path.splitext(file_storage.filename)[1].lower()
+    if ext not in VEHICULO_ALLOWED_EXT:
+        return None
+    os.makedirs(VEHICULO_UPLOAD_DIR, exist_ok=True)
+    nombre = f"{uuid.uuid4().hex[:12]}{ext}"
+    file_storage.save(os.path.join(VEHICULO_UPLOAD_DIR, nombre))
+    return nombre
+
+
+@app.route("/pr/img/<path:filename>")
+def price_request_image(filename):
+    """La foto del vehículo. Pública a propósito: la ve el instalador desde el
+    link sin login. El nombre es aleatorio."""
+    from flask import send_from_directory
+    return send_from_directory(VEHICULO_UPLOAD_DIR, filename)
+
+
+def _nuevo_codigo_solicitud() -> str:
+    """Mismo alfabeto sin letras confundibles que los códigos de cotización, con
+    otro prefijo: se dictan por teléfono igual, y ver "SP-" o "NX-" dice de una
+    si se está hablando de una solicitud o de una cotización."""
+    for _ in range(20):
+        codigo = "SP-" + "".join(secrets.choice(_ALFABETO_CODIGO) for _ in range(QUOTE_CODE_LEN))
+        if not PriceRequest.query.filter_by(code=codigo).first():
+            return codigo
+    raise RuntimeError("no se pudo generar un código de solicitud único")
+
+
+@app.route("/price-requests")
+def price_requests_list():
+    if not puede_cotizar():
+        flash("Acceso restringido.", "danger")
+        return redirect(url_for("calendar_view"))
+    return render_template(
+        "price_requests.html",
+        solicitudes=PriceRequest.query.order_by(PriceRequest.created_at.desc()).all(),
+    )
+
+
+@app.route("/price-requests/new", methods=["GET", "POST"])
+def price_request_new():
+    if not puede_cotizar():
+        flash("Acceso restringido.", "danger")
+        return redirect(url_for("calendar_view"))
+
+    instaladores = Installer.query.filter_by(is_active=True).order_by(Installer.name).all()
+
+    if request.method == "POST":
+        inst = Installer.query.get(_int_o_cero(request.form.get("installer_id")))
+        marca = (request.form.get("marca") or "").strip()[:80]
+        modelo = (request.form.get("modelo") or "").strip()[:80]
+        if not inst or not marca or not modelo:
+            flash("Elige el instalador y escribe al menos marca y modelo.", "danger")
+            return redirect(url_for("price_request_new"))
+
+        sol = PriceRequest(
+            code=_nuevo_codigo_solicitud(),
+            public_token=secrets.token_urlsafe(24),
+            installer_id=inst.id,
+            marca=marca, modelo=modelo,
+            anio=_int_o_cero(request.form.get("anio")) or None,
+            notas=(request.form.get("notas") or "").strip() or None,
+            foto=_guardar_foto_vehiculo(request.files.get("foto")),
+            # Congeladas: si el instalador cambia de proveedor mañana, lo que ya
+            # se le preguntó no puede reescribirse solo.
+            brands_json=json.dumps(inst.ppf_marcas),
+            created_by=getattr(getattr(g, "current_user", None), "username", None),
+            expires_on=bogota_today() + timedelta(days=SOLICITUD_VALID_DAYS),
+        )
+
+        orden = 0
+        for nombre in request.form.getlist("cobertura"):
+            nombre = (nombre or "").strip()
+            if not nombre:
+                continue
+            paquete = PpfPackage.query.filter_by(name=nombre, is_active=True).first()
+            if not paquete:
+                continue
+            orden += 1
+            sol.items.append(PriceRequestItem(
+                cobertura=paquete.name, orden=orden,
+                # Se COPIA lo que incluye, no se referencia: la solicitud queda
+                # abierta cinco días y el catálogo puede cambiar mientras tanto.
+                detalle=paquete.contains or ", ".join(x.name for x in paquete.parts)))
+
+        # Los escritos a mano: lo que no está en el catálogo todavía.
+        for i, nombre in enumerate(request.form.getlist("otro_nombre")):
+            nombre = (nombre or "").strip()[:120]
+            if not nombre:
+                continue
+            orden += 1
+            detalles = request.form.getlist("otro_detalle")
+            sol.items.append(PriceRequestItem(
+                cobertura=nombre, orden=orden, es_personalizado=True,
+                detalle=(detalles[i] if i < len(detalles) else "").strip() or None))
+
+        if not sol.items:
+            flash("Elige al menos una cobertura para pedirle el precio.", "danger")
+            return redirect(url_for("price_request_new"))
+
+        db.session.add(sol)
+        db.session.commit()
+        flash(f"Solicitud {sol.code} creada. Mándale el link a {inst.name}.", "success")
+        return redirect(url_for("price_request_detail", code=sol.code))
+
+    return render_template("price_request_form.html",
+                           instaladores=instaladores,
+                           grupos=PpfPackage.query.filter_by(is_active=True)
+                                            .order_by(PpfPackage.orden, PpfPackage.name).all(),
+                           dias=SOLICITUD_VALID_DAYS)
+
+
+@app.route("/price-requests/<code>")
+def price_request_detail(code):
+    if not puede_cotizar():
+        flash("Acceso restringido.", "danger")
+        return redirect(url_for("calendar_view"))
+    sol = PriceRequest.query.filter_by(code=code).first()
+    if not sol:
+        flash("No existe esa solicitud.", "danger")
+        return redirect(url_for("price_requests_list"))
+    return render_template("price_request_detail.html", s=sol)
+
+
+@app.route("/price-requests/<code>/delete", methods=["POST"])
+def price_request_delete(code):
+    """Misma palabra clave que para borrar citas y cotizaciones: una sola que
+    rotar, y se valida en el servidor porque el prompt del navegador se salta
+    con cualquier herramienta."""
+    if not puede_cotizar():
+        flash("Acceso restringido.", "danger")
+        return redirect(url_for("calendar_view"))
+    sol = PriceRequest.query.filter_by(code=code).first()
+    if not sol:
+        flash("No existe esa solicitud.", "danger")
+        return redirect(url_for("price_requests_list"))
+    if (request.form.get("clave") or "").strip() != DELETE_KEYWORD:
+        flash("Palabra clave incorrecta. La solicitud no se eliminó.", "danger")
+        return redirect(url_for("price_request_detail", code=code))
+    db.session.delete(sol)
+    db.session.commit()
+    flash(f"Solicitud {code} eliminada.", "success")
+    return redirect(url_for("price_requests_list"))
+
+
+@app.route("/p/<token>", methods=["GET", "POST"])
+@limiter.limit("40 per minute")
+def price_request_public(token):
+    """Lo que abre el instalador. Sin login y con vencimiento.
+
+    Sin login porque pedirle una cuenta a un proveedor externo por una lista de
+    precios garantiza que no la llene. El token es largo y aleatorio, la página
+    no expone nada más que ese carro, y vence a los pocos días.
+    """
+    sol = PriceRequest.query.filter_by(public_token=token).first()
+    if not sol:
+        return render_template("price_request_cerrada.html", motivo="no_existe",
+                               whatsapp=WHATSAPP_PUBLICO), 404
+    if not sol.vigente:
+        return render_template("price_request_cerrada.html", motivo="vencida", s=sol,
+                               whatsapp=WHATSAPP_PUBLICO), 410
+
+    if request.method == "POST":
+        for it in sol.items:
+            precios = {}
+            for marca in sol.marcas:
+                crudo = (request.form.get(f"precio::{it.id}::{marca}") or "").strip()
+                if crudo:
+                    precios[marca] = max(0, _int_o_cero(crudo))
+            it.prices_json = json.dumps(precios) if precios else None
+            it.comentario = (request.form.get(f"comentario::{it.id}") or "").strip() or None
+        # Se puede volver a entrar y corregir mientras el link viva: la fecha
+        # queda con la del último envío, que es la que importa.
+        sol.responded_at = datetime.utcnow()
+        db.session.commit()
+        return render_template("price_request_gracias.html", s=sol)
+
+    return render_template("price_request_public.html", s=sol)
 
 
 def _construir_pdf_cotizacion(cot: "Quote", version=None) -> bytes:
