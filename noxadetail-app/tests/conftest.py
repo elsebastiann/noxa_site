@@ -32,6 +32,12 @@ db = app_module.db
 @pytest.fixture(scope="session", autouse=True)
 def _session_setup():
     flask_app.config["TESTING"] = True
+    # El limitador cuenta por IP y en pruebas TODAS las peticiones vienen de la
+    # misma, así que los tests se gastan entre ellos el cupo de 40/min de las
+    # rutas públicas: pasan solos y fallan juntos, y el que revienta es
+    # cualquiera, no el que agotó el cupo. Es infraestructura de producción, no
+    # comportamiento a probar.
+    app_module.limiter.enabled = False
     yield
 
 

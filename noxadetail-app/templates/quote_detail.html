@@ -53,6 +53,18 @@
   .ver-fecha { color:#8a8a8a; font-size:.78rem; margin-left:6px; }
   .ver-det { font-size:.8rem; color:#a8a8a8; margin-top:3px; line-height:1.45; }
   .ver-total { font-weight:700; white-space:nowrap; }
+  .lect-caja { margin-top:26px; padding:15px 16px; border-radius:11px; }
+  .lect-si { background:rgba(80,170,110,.09); border:1px solid rgba(80,170,110,.32); }
+  .lect-no { background:rgba(134,150,160,.08); border:1px solid rgba(134,150,160,.28); }
+  .lect-tit { font-size:.68rem; letter-spacing:.09em; text-transform:uppercase;
+              font-weight:700; margin-bottom:10px; color:#9aa5ab; }
+  .lect-si .lect-tit { color:#7fd4a0; }
+  .lect-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:12px; }
+  .lect-grid .k { display:block; font-size:.72rem; color:#8a8a8a; }
+  .lect-grid .v { display:block; font-size:1.05rem; color:#e9e9e9; font-weight:700; margin-top:2px; }
+  .lect-frio { font-size:.88rem; color:#c3ccd2; line-height:1.5; }
+  .lect-fuerte { font-size:.85rem; color:#7fd4a0; margin-top:11px; line-height:1.45; }
+  .lect-nota { font-size:.75rem; color:#7a848a; margin-top:11px; line-height:1.45; }
   .link-caja { margin-top:26px; padding:15px 16px; border-radius:11px;
                background:rgba(200,160,74,.08); border:1px solid rgba(200,160,74,.3); }
   .link-tit { font-size:.68rem; letter-spacing:.09em; text-transform:uppercase;
@@ -322,6 +334,44 @@ function pedirClave(form) {
     {% endif %}
 
     {% if c.link_publico %}
+    {# La pregunta que antes no se podía responder: ¿la miró siquiera? Sin
+       esto, una cotización sin respuesta y una que el cliente nunca abrió se
+       ven igual, y son dos problemas distintos. #}
+    {% set l = c.lecturas %}
+    <div class="lect-caja {{ 'lect-si' if l.abierta else 'lect-no' }}">
+      <div class="lect-tit">Qué hizo el cliente con el link</div>
+      {% if not l.abierta %}
+      <div class="lect-frio">
+        <strong>Todavía no la ha abierto.</strong>
+        {% if c.created_at %}Se creó {{ c.created_at | hace_cuanto }}.{% endif %}
+        Si ya se la mandaste, el mensaje no llegó o no lo vio — es otro problema
+        que un precio que no convence.
+      </div>
+      {% else %}
+      <div class="lect-grid">
+        <div><span class="k">Abierta</span>
+             <span class="v">{{ l.veces }} {{ 'vez' if l.veces == 1 else 'veces' }}</span></div>
+        <div><span class="k">Primera vez</span>
+             <span class="v">{{ l.primera | hora_bogota('%d/%m %I:%M %p') }}</span></div>
+        <div><span class="k">Última vez</span>
+             <span class="v">{{ l.ultima | hace_cuanto }}</span></div>
+        <div><span class="k">Descargó el PDF</span>
+             <span class="v">{{ l.pdfs }} {{ 'vez' if l.pdfs == 1 else 'veces' }}</span></div>
+      </div>
+      {% if l.versiones %}
+      <div class="lect-fuerte">
+        Armó su propia versión {{ l.versiones }} {{ 'vez' if l.versiones == 1 else 'veces' }} —
+        no solo la miró, se sentó a jugar con las opciones.
+      </div>
+      {% endif %}
+      {% endif %}
+      <div class="lect-nota">
+        No se cuentan las vistas previas de WhatsApp ni de otros robots, solo
+        aperturas de una persona. No distingue si la abrió el cliente o alguien
+        a quien le reenviaron el link.
+      </div>
+    </div>
+
     <div class="link-caja">
       <div class="link-tit">Link para el cliente</div>
       <div class="link-fila">

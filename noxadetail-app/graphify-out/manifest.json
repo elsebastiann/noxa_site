@@ -1,7 +1,7 @@
 {
   "app.py": {
-    "mtime": 1788969435.007949,
-    "ast_hash": "f770b26463bb8f941dd7f9be2f247e88",
+    "mtime": 1788976868.0620017,
+    "ast_hash": "90f3620b8468cc282d1adc3e90d74afb",
     "semantic_hash": ""
   },
   "migrate_prices.py": {
@@ -15,8 +15,8 @@
     "semantic_hash": ""
   },
   "tests/conftest.py": {
-    "mtime": 1786228381.388628,
-    "ast_hash": "cc574da48d3a6e1eb0db0ecc73f954ec",
+    "mtime": 1788983945.9598846,
+    "ast_hash": "a74c3cfde7d1a05cb8cecf8054dc4069",
     "semantic_hash": ""
   },
   "tests/test_abonos_ajustes.py": {
@@ -385,8 +385,8 @@
     "semantic_hash": ""
   },
   "templates/quote_detail.html": {
-    "mtime": 1788810520.5597339,
-    "ast_hash": "3fe70be3dd1b67c41ef986d55c18c160",
+    "mtime": 1788984163.9757373,
+    "ast_hash": "a04e3a5e1acbe0af8a2ba4a3138f2f50",
     "semantic_hash": ""
   },
   "templates/quote_form.html": {
@@ -395,8 +395,8 @@
     "semantic_hash": ""
   },
   "templates/quotes_list.html": {
-    "mtime": 1788637519.451628,
-    "ast_hash": "5041d2e616388c7bbedbeb3a6cf43f09",
+    "mtime": 1788976952.0892053,
+    "ast_hash": "a241c31c8d1a3d3d884b05fd8dc435df",
     "semantic_hash": ""
   },
   "templates/ppf_prices.html": {
@@ -547,6 +547,11 @@
   "templates/price_requests.html": {
     "mtime": 1788963723.9483814,
     "ast_hash": "471e0e4c8525fd9a8443ae9e28b921f0",
+    "semantic_hash": ""
+  },
+  "tests/test_lecturas_cotizacion.py": {
+    "mtime": 1788977034.977436,
+    "ast_hash": "82433bd2ff470fdcc9e397dea2628d2e",
     "semantic_hash": ""
   }
 }

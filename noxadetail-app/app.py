@@ -1005,6 +1005,30 @@ class Quote(db.Model):
         "QuoteVersion", backref="quote", lazy=True,
         cascade="all, delete-orphan", order_by="QuoteVersion.numero",
     )
+    views = db.relationship(
+        "QuoteView", backref="quote", lazy=True, cascade="all, delete-orphan",
+    )
+
+    @property
+    def lecturas(self) -> dict:
+        """Si el cliente miró esto, cuándo y cuántas veces.
+
+        Una cotización sin respuesta y una que nunca se abrió se ven igual desde
+        afuera, y son dos problemas distintos: la primera es de precio o de
+        producto, la segunda es de que el mensaje no llegó.
+        """
+        vistas = sorted(self.views, key=lambda v: v.viewed_at)
+        del_link = [v for v in vistas if v.kind == "link"]
+        return {
+            "abierta": bool(vistas),
+            "veces": len(del_link),
+            "primera": vistas[0].viewed_at if vistas else None,
+            "ultima": vistas[-1].viewed_at if vistas else None,
+            "pdfs": len([v for v in vistas if v.kind == "pdf"]),
+            # Armar una versión propia es la señal más fuerte que hay: no solo
+            # la miró, se sentó a jugar con las opciones.
+            "versiones": len(self.versiones or []),
+        }
 
     @property
     def subtotal(self) -> int:
@@ -1235,6 +1259,34 @@ class QuotePpfItem(db.Model):
 
     def __repr__(self):
         return f"<QuotePpfItem {self.coverage} {self.precios}>"
+
+
+class QuoteView(db.Model):
+    """Cada vez que alguien abre el link de una cotización, o baja su PDF.
+
+    Existe para responder algo que antes no se podía saber: si el cliente
+    siquiera miró lo que se le mandó. Sin esto, una cotización sin respuesta y
+    una que el cliente nunca abrió se ven exactamente igual, y son dos problemas
+    distintos —una es de precio o de producto, la otra es de que el mensaje no
+    llegó—.
+
+    NO se guarda la IP ni nada que identifique a la persona. Para lo que sirve
+    la métrica —¿la abrió?, ¿cuántas veces?, ¿cuándo?— la marca de tiempo basta,
+    y guardar la IP de un cliente es un dato personal que después hay que
+    cuidar. El costo es que dos aperturas no se pueden atribuir a la misma
+    persona; a cambio no hay nada sensible que proteger.
+    """
+    __tablename__ = "quote_views"
+    id = db.Column(db.Integer, primary_key=True)
+    quote_id = db.Column(db.Integer, db.ForeignKey("quotes.id"), nullable=False, index=True)
+
+    viewed_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    # "link" al abrir la página; "pdf" al descargarla desde ahí. Bajar el PDF es
+    # una señal más fuerte que abrir: se guarda para mostrárselo a alguien.
+    kind = db.Column(db.String(10), nullable=False, default="link")
+
+    def __repr__(self):
+        return f"<QuoteView {self.quote_id} {self.kind} {self.viewed_at}>"
 
 
 class QuoteVersion(db.Model):
@@ -13900,6 +13952,36 @@ def _backfill_public_tokens():
 _backfill_public_tokens()
 
 
+# Los robots que arman la vista previa de un link. Sin filtrarlos, TODA
+# cotización aparecería como "abierta" en el segundo en que se pega en WhatsApp
+# —el bot entra antes que el cliente—, y la métrica diría exactamente lo
+# contrario de lo que pasó.
+_ROBOTS_DE_PREVIEW = re.compile(
+    r"whatsapp|facebookexternalhit|facebot|twitterbot|slackbot|telegrambot|"
+    r"discordbot|linkedinbot|skypeuripreview|bingpreview|googlebot|applebot|"
+    r"bot\b|crawler|spider|preview|curl|wget|python-requests|headless",
+    re.IGNORECASE,
+)
+
+
+def _registrar_vista(cot: "Quote", kind: str = "link") -> None:
+    """Anota que alguien abrió esto, si ese alguien parece una persona.
+
+    Nunca lanza: es telemetría, y una cotización tiene que abrirse aunque el
+    registro falle. Que se caiga la métrica es un problema nuestro; que no
+    cargue el documento es un problema del cliente.
+    """
+    try:
+        agente = request.headers.get("User-Agent") or ""
+        if not agente or _ROBOTS_DE_PREVIEW.search(agente):
+            return
+        db.session.add(QuoteView(quote_id=cot.id, kind=kind))
+        db.session.commit()
+    except Exception as exc:
+        db.session.rollback()
+        app.logger.warning(f"[Cotizaciones] No se pudo registrar la vista: {exc}")
+
+
 @app.route("/c/<token>")
 @limiter.limit("40 per minute")
 def quote_public(token):
@@ -13920,6 +14002,7 @@ def quote_public(token):
     if not cot.vigente:
         return render_template("quote_public_cerrada.html", motivo="vencida", c=cot,
                                whatsapp=WHATSAPP_PUBLICO), 410
+    _registrar_vista(cot)
     return render_template("quote_public.html", c=cot, whatsapp=WHATSAPP_PUBLICO,
                            ppf_totales_zona=PPF_COBERTURAS_TOTALES)
 
@@ -14005,6 +14088,8 @@ def quote_public_pdf(token):
         return render_template("quote_public_cerrada.html",
                                motivo="vencida" if cot else "no_existe",
                                c=cot, whatsapp=WHATSAPP_PUBLICO), 410 if cot else 404
+
+    _registrar_vista(cot, "pdf")
 
     version = None
     if request.method == "POST":
