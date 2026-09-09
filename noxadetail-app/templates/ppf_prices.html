@@ -129,7 +129,7 @@ document.querySelectorAll(".tab-p").forEach(t => t.onclick = () => {
             {% set precio = pt.precios.get(nombre) %}
             <td class="text-end">
               <input type="number" name="parte::{{ pt.name }}||{{ nombre }}"
-                     min="0" step="1000"
+                     min="0" step="1"
                      class="{% if precio is none %}vacio{% endif %}"
                      value="{{ precio if precio is not none else '' }}"
                      placeholder="no se vende suelta"
@@ -172,7 +172,7 @@ document.querySelectorAll(".tab-p").forEach(t => t.onclick = () => {
           {% set precio = g.precios.get(nombre) %}
           <td class="text-end">
             <input type="number" name="precio::{{ g.name }}||{{ nombre }}"
-                   min="0" step="1000"
+                   min="0" step="1"
                    class="{% if precio is none %}vacio{% endif %}"
                    value="{{ precio if precio is not none else '' }}"
                    placeholder="no aplica"
@@ -189,7 +189,7 @@ document.querySelectorAll(".tab-p").forEach(t => t.onclick = () => {
           {% set extra = g.precios_fotocromatico.get(nombre) %}
           <td class="text-end">
             <input type="number" name="foto::{{ g.name }}||{{ nombre }}"
-                   min="0" step="1000"
+                   min="0" step="1"
                    class="{% if extra is none %}vacio{% endif %}"
                    value="{{ extra if extra is not none else '' }}"
                    placeholder="no aplica"

@@ -14308,6 +14308,34 @@ def price_request_new():
                            base=base)
 
 
+@app.route("/api/price-requests/respondidas")
+def api_price_requests_respondidas():
+    """Las solicitudes ya contestadas, para traerlas a una cotización.
+
+    Solo las respondidas: una sin contestar no tiene nada que traer. Van todas
+    y no solo las del carro que se esté cotizando —el filtro por nombre lo hace
+    la pantalla— porque el mismo precio sirve para un carro parecido y quien
+    cotiza sabe cuándo aplica mejor que una comparación de textos.
+    """
+    if not puede_cotizar():
+        return jsonify({"error": "no autorizado"}), 403
+    salida = []
+    for s in (PriceRequest.query
+              .filter(PriceRequest.responded_at.isnot(None))
+              .order_by(PriceRequest.responded_at.desc()).limit(200)):
+        items = [{"cobertura": it.cobertura, "detalle": it.detalle or "",
+                  "personalizado": bool(it.es_personalizado), "precios": it.precios}
+                 for it in s.items if it.precios]
+        if not items:
+            continue          # contestó sin poner un solo precio
+        salida.append({
+            "code": s.code, "vehiculo": s.vehiculo, "instalador": s.installer.name,
+            "marcas": s.marcas, "items": items,
+            "cuando": _dia_bogota_iso(s.responded_at),
+        })
+    return jsonify({"solicitudes": salida})
+
+
 @app.route("/price-requests/<code>")
 def price_request_detail(code):
     if not puede_cotizar():

@@ -461,3 +461,99 @@ class TestEditarUnInstalador:
         with A.app.app_context():
             i = A.Installer.query.get(instalador)
             assert i.default_share == antes and i.name != "Cambiado"
+
+
+class TestTraerLosPreciosAUnaCotizacion:
+    """El precio que puso el instalador ES el del cliente final, así que entra
+    tal cual en la cotización: nada de margen calculado encima, que sería
+    inventarle plata a una cifra ya acordada con él."""
+
+    def _responder(self, client, code, precios):
+        with A.app.app_context():
+            sol = _sol(code)
+            token = sol.public_token
+            datos = {}
+            for it in sol.items:
+                for marca, v in precios.items():
+                    datos[f"precio::{it.id}::{marca}"] = str(v)
+        client.post(f"/p/{token}", data=datos)
+
+    def test_solo_lista_las_respondidas(self, sesion, instalador):
+        """Una sin contestar no tiene nada que traer."""
+        sin = _crear(sesion, instalador)
+        con = _crear(sesion, instalador)
+        self._responder(sesion, con, {"Standard": 3200000})
+        codes = [s["code"] for s in sesion.get("/api/price-requests/respondidas").get_json()["solicitudes"]]
+        assert con in codes and sin not in codes
+
+    def test_una_respondida_sin_un_solo_precio_tampoco(self, sesion, instalador):
+        """Abrió el link y le dio enviar sin llenar nada: quedó marcada como
+        respondida pero no aporta ninguna cifra."""
+        code = _crear(sesion, instalador)
+        with A.app.app_context():
+            token = _sol(code).public_token
+        sesion.post(f"/p/{token}", data={})
+        with A.app.app_context():
+            assert _sol(code).respondida is True
+        codes = [s["code"] for s in sesion.get("/api/price-requests/respondidas").get_json()["solicitudes"]]
+        assert code not in codes
+
+    def test_trae_el_precio_tal_cual(self, sesion, instalador):
+        code = _crear(sesion, instalador)
+        self._responder(sesion, code, {"Standard": 3200000, "Avery": 512500})
+        datos = sesion.get("/api/price-requests/respondidas").get_json()["solicitudes"]
+        item = next(s for s in datos if s["code"] == code)["items"][0]
+        assert item["precios"] == {"Standard": 3200000, "Avery": 512500}
+
+    def test_dice_de_qué_carro_y_de_quién(self, sesion, instalador):
+        """Es lo que se filtra en pantalla para encontrar la solicitud."""
+        code = _crear(sesion, instalador)
+        self._responder(sesion, code, {"Standard": 1000000})
+        s = next(x for x in sesion.get("/api/price-requests/respondidas").get_json()["solicitudes"]
+                 if x["code"] == code)
+        assert s["vehiculo"] == "Mazda 3 Grand Touring 2021"
+        assert s["instalador"]
+        assert s["marcas"] == ["Standard", "Avery", "Stark"]
+
+    def test_un_operario_no_ve_los_precios_del_instalador(self, client, sesion, instalador):
+        """Son el costo del negocio: mismo criterio que el resto de precios."""
+        code = _crear(sesion, instalador)
+        self._responder(sesion, code, {"Standard": 1000000})
+        with A.app.app_context():
+            uid = make_user(f"trop{next(_u)}", role="operario").id
+        with client.session_transaction() as sess:
+            sess["user_id"] = uid
+        # Lo frena la guarda global de endpoints antes de llegar al chequeo de
+        # la vista, así que le llega una redirección y no un 403. Se comprueba
+        # lo que importa —que no reciba los precios— y no por qué vía.
+        r = client.get("/api/price-requests/respondidas")
+        assert r.status_code != 200
+        assert b"1000000" not in r.data
+
+
+class TestUnPrecioQueNoEsMultiploDeMil:
+    """`step` en un input numérico no solo mueve las flechas: TAMBIÉN valida.
+    Con step=1000, un precio como 512.500 —de los que da un instalador— hacía
+    que el navegador se negara a enviar el formulario sin mostrar ningún error,
+    y quien guardaba no tenía forma de saber por qué no pasaba nada."""
+
+    import pathlib
+    RAIZ = pathlib.Path(__file__).resolve().parent.parent
+
+    @pytest.mark.parametrize("plantilla", [
+        "quote_form.html", "price_request_public.html", "ppf_prices.html",
+    ])
+    def test_los_campos_de_precio_no_exigen_multiplos(self, plantilla):
+        html = (self.RAIZ / "templates" / plantilla).read_text(encoding="utf-8")
+        assert 'step="1000"' not in html
+
+    def test_el_servidor_acepta_la_cifra(self, sesion, instalador):
+        """Contraprueba de que el problema era solo del navegador: el backend
+        siempre supo guardarla."""
+        code = _crear(sesion, instalador)
+        with A.app.app_context():
+            sol = _sol(code)
+            token, item_id = sol.public_token, sol.items[0].id
+        sesion.post(f"/p/{token}", data={f"precio::{item_id}::Avery": "512500"})
+        with A.app.app_context():
+            assert _sol(code).items[0].precios["Avery"] == 512500

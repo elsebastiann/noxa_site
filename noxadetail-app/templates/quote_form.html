@@ -118,6 +118,23 @@
   .pide-tipo { color:#d8c48a; background:rgba(200,160,74,.09);
                border:1px solid rgba(200,160,74,.26); border-radius:8px;
                padding:12px 14px; font-size:.87rem; text-align:center; }
+  .traer-caja { background:rgba(90,150,210,.08); border:1px solid rgba(90,150,210,.28);
+                border-radius:10px; padding:12px 14px; margin-bottom:14px; }
+  .traer-btn { background:none; border:1px solid rgba(90,150,210,.5); color:#8fb8e0;
+               border-radius:8px; padding:7px 13px; font-size:.85rem; font-weight:700;
+               cursor:pointer; }
+  .traer-btn:hover { background:rgba(90,150,210,.14); }
+  .traer-filtro { width:100%; margin:11px 0 9px; background:rgba(0,0,0,.3);
+                  border:1px solid rgba(255,255,255,.14); color:#eee;
+                  border-radius:7px; padding:7px 11px; font-size:.86rem; }
+  .traer-lista { max-height:260px; overflow-y:auto; }
+  .traer-item { width:100%; text-align:left; background:rgba(255,255,255,.04);
+                border:1px solid rgba(255,255,255,.10); border-radius:8px;
+                padding:9px 11px; margin-bottom:6px; cursor:pointer; }
+  .traer-item:hover { border-color:#8fb8e0; background:rgba(90,150,210,.12); }
+  .traer-item .v { font-size:.88rem; color:#e9e9e9; font-weight:600; }
+  .traer-item .m { font-size:.75rem; color:#8a8a8a; margin-top:2px; }
+  .traer-vacio { color:#8a8a8a; font-size:.83rem; padding:12px 2px; }
   .marcas-cot { background:rgba(200,160,74,.07); border:1px solid rgba(200,160,74,.26);
                 border-radius:10px; padding:12px 14px; margin-bottom:16px; }
   .mc-tit { font-size:.66rem; letter-spacing:.09em; text-transform:uppercase;
@@ -260,6 +277,20 @@
         </div>
 
         <div id="panePpf" hidden>
+          {# Traer lo que ya cotizó un instalador. El precio que él puso ES el
+             del cliente final, así que entra tal cual: sin margen calculado
+             encima, que sería inventarle plata a una cifra ya acordada. #}
+          <div class="traer-caja">
+            <button type="button" id="btnTraer" class="traer-btn">
+              Traer precios de un instalador
+            </button>
+            <div id="traerPanel" hidden>
+              <input type="search" id="traerFiltro" class="traer-filtro"
+                     placeholder="Filtra por carro, instalador o código">
+              <div id="traerLista" class="traer-lista"></div>
+            </div>
+          </div>
+
           {# Las marcas de ESTA cotización. Pueden no ser las del sistema: se
              puede cotizar con dos, o con una garantía negociada distinta de la
              de lista. Lo que se elija acá queda congelado en el documento. #}
@@ -509,7 +540,7 @@ function pintarCatalogo() {
     // el catálogo de casillas que nadie va a usar.
     const linea = lineas.find(l => l.serviceId === s.id);
     const precio = linea
-      ? `<input type="number" min="0" step="1000" class="svc-precio${
+      ? `<input type="number" min="0" step="1" class="svc-precio${
            linea.precio !== conAjuste(s.precio) ? " puesto" : ""}"
            value="${linea.precio}" data-precio="${s.id}">`
       : `<span class="p">${fmt(conAjuste(s.precio))}</span>`;
@@ -585,7 +616,7 @@ function pintarMatrizPpf() {
             const ex = (ppfExacto[it.cobertura] || {})[m];
             const hay = ex !== undefined && ex !== null && ex !== "";
             return `<td class="val">
-              <input type="number" min="0" step="1000"
+              <input type="number" min="0" step="1"
                      class="exacto${esExacto(it.cobertura, m) ? " puesto" : ""}"
                      ${hay ? `name="ppf_precio::${esc(it.cobertura)}||${esc(m)}"` : ""}
                      value="${hay ? ex : (p ? conAjuste(p) : "")}"
@@ -851,10 +882,10 @@ function pintarLibres() {
     const precios = marcasElegidas().map(([m]) => `
       <div>
         <label>${m}</label>
-        <input type="number" min="0" step="1000" name="libre_precio_${i}::${m}"
+        <input type="number" min="0" step="1" name="libre_precio_${i}::${m}"
                value="${g.precios[m] ?? ""}" data-lp="${i}" data-marca="${m}"
                placeholder="no aplica">
-        ${admiteFoto ? `<input type="number" min="0" step="1000"
+        ${admiteFoto ? `<input type="number" min="0" step="1"
                name="libre_foto_${i}::${m}" value="${g.foto[m] ?? ""}"
                data-lf="${i}" data-marca="${m}" placeholder="+ fotocrom." 
                style="margin-top:4px">` : ""}
@@ -981,6 +1012,92 @@ document.getElementById("btnLibre").onclick = () => {
   const ins = $lineas.querySelectorAll('input[data-c="desc"]');
   if (ins.length) ins[ins.length - 1].focus();
 };
+
+/* ---------------- traer precios de un instalador ---------------- */
+// El precio que puso el instalador ES el del cliente final, así que entra tal
+// cual como precio exacto. Nada de margen calculado encima: sería inventarle
+// plata a una cifra ya acordada con él.
+let solicitudes = null;
+
+async function cargarSolicitudes() {
+  if (solicitudes) return solicitudes;
+  try {
+    const r = await fetch("/api/price-requests/respondidas");
+    solicitudes = (await r.json()).solicitudes || [];
+  } catch (e) { solicitudes = []; }
+  return solicitudes;
+}
+
+function pintarSolicitudes() {
+  const q = (document.getElementById("traerFiltro").value || "").trim().toLowerCase();
+  const hay = (solicitudes || []).filter(s =>
+    !q || `${s.vehiculo} ${s.instalador} ${s.code}`.toLowerCase().includes(q));
+  document.getElementById("traerLista").innerHTML = hay.length
+    ? hay.map((s, i) => `
+        <button type="button" class="traer-item" data-i="${solicitudes.indexOf(s)}">
+          <div class="v">${esc(s.vehiculo)}</div>
+          <div class="m">${esc(s.instalador)} · ${s.items.length} parte${
+            s.items.length === 1 ? "" : "s"} · ${esc(s.marcas.join(", "))} · ${s.code}</div>
+        </button>`).join("")
+    : `<div class="traer-vacio">${(solicitudes || []).length
+        ? "Ninguna coincide con eso."
+        : "Todavía no hay solicitudes respondidas."}</div>`;
+  document.querySelectorAll(".traer-item").forEach(b =>
+    b.onclick = () => traerSolicitud(solicitudes[Number(b.dataset.i)]));
+}
+
+function traerSolicitud(s) {
+  // Las marcas que él cotizó tienen que quedar marcadas, o sus precios no
+  // tendrían columna donde mostrarse.
+  document.querySelectorAll('input[name="ppf_marca"]').forEach(cb => {
+    if (s.marcas.includes(cb.value)) cb.checked = true;
+  });
+
+  let traidos = 0;
+  for (const it of s.items) {
+    const delCatalogo = PPF.find(x => x.cobertura === it.cobertura);
+    if (delCatalogo && !it.personalizado) {
+      if (!ppfPuestas.includes(it.cobertura)) ppfPuestas.push(it.cobertura);
+      ppfExacto[it.cobertura] = {...(ppfExacto[it.cobertura] || {}), ...it.precios};
+    } else {
+      // Lo que él cotizó y no está en el catálogo entra como grupo armado a
+      // mano, que es lo que ya sabe manejar precios propios por marca.
+      const ya = libres.find(g => g.nombre === it.cobertura);
+      const g = ya || {nombre: it.cobertura, partes: [], precios: {}, foto: {},
+                       manual: {}, otros: {}};
+      g.precios = {...g.precios, ...it.precios};
+      // Marcadas como escritas a mano: si no, la sugerencia por suma de partes
+      // las recalcularía y perdería el precio que dio el instalador.
+      for (const m of Object.keys(it.precios)) g.manual[m] = true;
+      if (!ya) libres.push(g);
+    }
+    traidos++;
+  }
+
+  document.getElementById("traerPanel").hidden = true;
+  pintarTodo();
+  const aviso = document.getElementById("avisoCliente");
+  if (aviso) {
+    aviso.hidden = false;
+    aviso.textContent = `Traídos ${traidos} precio${traidos === 1 ? "" : "s"} de ` +
+                        `${s.instalador} (${s.code}). Revísalos antes de guardar.`;
+  }
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+  const btn = document.getElementById("btnTraer");
+  if (!btn) return;
+  btn.onclick = async () => {
+    const panel = document.getElementById("traerPanel");
+    panel.hidden = !panel.hidden;
+    if (!panel.hidden) {
+      await cargarSolicitudes();
+      pintarSolicitudes();
+      document.getElementById("traerFiltro").focus();
+    }
+  };
+  document.getElementById("traerFiltro").oninput = pintarSolicitudes;
+});
 
 /* ---------------- autocompletar cliente conocido ---------------- */
 // Igual que en las citas: si la placa, el teléfono o el nombre ya están en el

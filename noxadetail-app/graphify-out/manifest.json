@@ -1,7 +1,7 @@
 {
   "app.py": {
-    "mtime": 1788965675.8983212,
-    "ast_hash": "8b962247629e601be93499c147df23b8",
+    "mtime": 1788967715.0073507,
+    "ast_hash": "394496405825addc5625deaaf1d54574",
     "semantic_hash": ""
   },
   "migrate_prices.py": {
@@ -390,8 +390,8 @@
     "semantic_hash": ""
   },
   "templates/quote_form.html": {
-    "mtime": 1788882172.3305762,
-    "ast_hash": "3eef6d5eaaa03caece6f1f9caa2bdb4e",
+    "mtime": 1788967933.2259233,
+    "ast_hash": "7111a1e4364434168e3e6a6a5b563b85",
     "semantic_hash": ""
   },
   "templates/quotes_list.html": {
@@ -400,8 +400,8 @@
     "semantic_hash": ""
   },
   "templates/ppf_prices.html": {
-    "mtime": 1788486561.327698,
-    "ast_hash": "a963f1752c78ab6e7044dcfb2dab6d86",
+    "mtime": 1788967933.2267182,
+    "ast_hash": "70c9a70154c96ec058f8f454c79a10a8",
     "semantic_hash": ""
   },
   "static/img/logotipo-pdf.png": {
@@ -515,13 +515,13 @@
     "semantic_hash": ""
   },
   "tests/test_solicitud_precios.py": {
-    "mtime": 1788965797.499301,
-    "ast_hash": "206d45134619e16ada3d2fbe7422f966",
+    "mtime": 1788968172.9245453,
+    "ast_hash": "581fc87ed12b2d32038ea378579d8953",
     "semantic_hash": ""
   },
   "templates/price_request_cerrada.html": {
-    "mtime": 1788963708.0131361,
-    "ast_hash": "8fecee94288939db5519f3bf2799d616",
+    "mtime": 1788967160.5535483,
+    "ast_hash": "ff4767ef862907b3e861c6f9a225c5e9",
     "semantic_hash": ""
   },
   "templates/price_request_detail.html": {
@@ -535,13 +535,13 @@
     "semantic_hash": ""
   },
   "templates/price_request_gracias.html": {
-    "mtime": 1788963708.0027764,
-    "ast_hash": "823bcc1f560244ce630175ea6006194b",
+    "mtime": 1788967160.553332,
+    "ast_hash": "c77b248c6981a88ef46bade8a20c8211",
     "semantic_hash": ""
   },
   "templates/price_request_public.html": {
-    "mtime": 1788965153.182623,
-    "ast_hash": "0fb6f55938a8b6a32959156622a271c8",
+    "mtime": 1788967933.2262983,
+    "ast_hash": "81f5bc944634c80e3ad9efdf2d18c59f",
     "semantic_hash": ""
   },
   "templates/price_requests.html": {
