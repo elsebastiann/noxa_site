@@ -377,3 +377,87 @@ class TestLaVistaPreviaDelLink:
     def test_si_la_miniatura_falla_no_tumba_la_carga(self):
         """El link tiene que funcionar aunque la vista previa quede fea."""
         assert A._generar_miniatura("no_existe_este_archivo.jpg") is False
+
+
+class TestEditarUnInstalador:
+    """Todo en un solo formulario y un solo Guardar. Con un botón por grupo de
+    campos, corregir un teléfono y una marca serían dos guardados, y el segundo
+    tendría que acordarse de no pisar lo del primero."""
+
+    @pytest.fixture
+    def admin(self, client):
+        with A.app.app_context():
+            uid = make_user(f"ei{next(_u)}", role="admin").id
+        with client.session_transaction() as sess:
+            sess["user_id"] = uid
+        return client
+
+    def test_guarda_todo_de_una(self, admin, instalador):
+        admin.post(f"/installers/{instalador}/edit", data={
+            "name": "Camilo León", "phone": "3208288193", "default_share": "70",
+            "notes": "Solo PPF", "marca": ["Avery", "Xpel"]})
+        with A.app.app_context():
+            i = A.Installer.query.get(instalador)
+            assert (i.name, i.phone, i.default_share, i.notes) == \
+                   ("Camilo León", "3208288193", 70, "Solo PPF")
+            assert i.ppf_marcas == ["Avery", "Xpel"]
+
+    def test_renombrarlo_dejandole_el_mismo_nombre_no_choca_consigo_mismo(self, admin, instalador):
+        with A.app.app_context():
+            nombre = A.Installer.query.get(instalador).name
+        admin.post(f"/installers/{instalador}/edit",
+                   data={"name": nombre, "default_share": "80"})
+        with A.app.app_context():
+            assert A.Installer.query.get(instalador).default_share == 80
+
+    def test_no_deja_dos_con_el_mismo_nombre(self, admin, instalador):
+        with A.app.app_context():
+            otro = A.Installer(name=f"Otro {next(_n)}")
+            A.db.session.add(otro)
+            A.db.session.commit()
+            oid, nombre_otro = otro.id, otro.name
+        try:
+            admin.post(f"/installers/{instalador}/edit", data={"name": nombre_otro})
+            with A.app.app_context():
+                assert A.Installer.query.get(instalador).name != nombre_otro
+        finally:
+            with A.app.app_context():
+                fila = A.Installer.query.get(oid)
+                if fila:
+                    A.db.session.delete(fila)
+                    A.db.session.commit()
+
+    def test_un_nombre_vacio_no_lo_borra(self, admin, instalador):
+        """Sin nombre, la liquidación histórica se queda sin a quién apuntar."""
+        with A.app.app_context():
+            antes = A.Installer.query.get(instalador).name
+        admin.post(f"/installers/{instalador}/edit", data={"name": "   "})
+        with A.app.app_context():
+            assert A.Installer.query.get(instalador).name == antes
+
+    def test_desmarcar_todas_las_marcas_vuelve_al_default(self, admin, instalador):
+        """Desmarcarlas todas significa "no tiene marcas propias", no "no le
+        preguntes por ninguna" — que dejaría solicitudes sin una sola columna."""
+        admin.post(f"/installers/{instalador}/edit", data={"name": "Camilo", "marca": []})
+        with A.app.app_context():
+            i = A.Installer.query.get(instalador)
+            assert i.ppf_brands_json is None
+            assert i.ppf_marcas == [m for m, _g in A.ppf_marcas_activas()]
+
+    def test_una_marca_inventada_no_entra(self, admin, instalador):
+        admin.post(f"/installers/{instalador}/edit",
+                   data={"name": "Camilo", "marca": ["Avery", "MarcaFalsa"]})
+        with A.app.app_context():
+            assert A.Installer.query.get(instalador).ppf_marcas == ["Avery"]
+
+    def test_solo_un_admin_edita(self, client, instalador):
+        with A.app.app_context():
+            uid = make_user(f"eiop{next(_u)}", role="operario").id
+            antes = A.Installer.query.get(instalador).default_share
+        with client.session_transaction() as sess:
+            sess["user_id"] = uid
+        client.post(f"/installers/{instalador}/edit",
+                    data={"name": "Cambiado", "default_share": "99"})
+        with A.app.app_context():
+            i = A.Installer.query.get(instalador)
+            assert i.default_share == antes and i.name != "Cambiado"

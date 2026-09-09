@@ -5704,26 +5704,51 @@ def installers_view():
     )
 
 
-@app.route("/installers/<int:installer_id>/brands", methods=["POST"])
-def installer_brands(installer_id):
-    """Con qué marcas de PPF trabaja este instalador.
+@app.route("/installers/<int:installer_id>/edit", methods=["POST"])
+def installer_edit(installer_id):
+    """Editar un instalador: nombre, teléfono, reparto, notas y sus marcas.
 
-    De acá sale con qué se le pregunta al pedirle precios. Sin marcas
-    definidas se le preguntan todas las activas, que es un default ruidoso pero
-    no equivocado: contesta las que maneje y deja el resto en blanco.
+    Todo en un solo formulario y un solo Guardar. Con un botón por grupo de
+    campos, corregir un teléfono y una marca serían dos guardados, y el segundo
+    tendría que acordarse de no pisar lo del primero.
     """
     if not getattr(g, "current_user", None) or g.current_user.role != "admin":
         flash("Acceso restringido.", "danger")
         return redirect(url_for("calendar_view"))
     inst = Installer.query.get_or_404(installer_id)
+
+    nombre = (request.form.get("name") or "").strip()
+    if not nombre:
+        flash("El nombre no puede quedar vacío.", "danger")
+        return redirect(url_for("installers_view"))
+    # Único sin contarse a sí mismo: si no, renombrar a un instalador dejándole
+    # el mismo nombre chocaría consigo mismo.
+    choca = Installer.query.filter(db.func.lower(Installer.name) == nombre.lower(),
+                                   Installer.id != inst.id).first()
+    if choca:
+        flash(f"Ya existe un instalador llamado {nombre}.", "danger")
+        return redirect(url_for("installers_view"))
+
+    try:
+        share = int(request.form.get("default_share") or inst.default_share)
+    except ValueError:
+        share = inst.default_share
+
+    inst.name = nombre[:120]
+    inst.phone = (request.form.get("phone") or "").strip() or None
+    inst.default_share = share if 0 < share <= 100 else inst.default_share
+    inst.notes = (request.form.get("notes") or "").strip() or None
+
+    # De acá sale con qué marcas se le pregunta al pedirle precios. Lista vacía
+    # a NULL y no a "[]": las dos cosas significan "no tiene marcas propias", y
+    # guardar una vacía haría que no se le pregunte por ninguna, que no es lo
+    # que quiere decir desmarcarlas todas.
     validas = {m for m, _g in ppf_marcas_activas()}
     elegidas = [m for m in request.form.getlist("marca") if m in validas]
-    # Lista vacía a NULL y no a "[]": las dos cosas significan "no tiene marcas
-    # propias", y guardar una lista vacía haría que no se le pregunte por
-    # ninguna, que no es lo que quiere decir desmarcarlas todas.
     inst.ppf_brands_json = json.dumps(elegidas) if elegidas else None
+
     db.session.commit()
-    flash(f"Marcas de {inst.name} actualizadas.", "success")
+    flash(f"{inst.name} actualizado.", "success")
     return redirect(url_for("installers_view"))
 
 

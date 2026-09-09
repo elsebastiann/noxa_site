@@ -58,27 +58,45 @@
       </thead>
       <tbody>
         {% for ins in installers %}
+          {# Toda la fila es editable con UN solo Guardar. El formulario vive
+             fuera de la tabla y los campos se le enganchan con `form=`: un
+             <form> no puede envolver varios <td>, y partirlo en uno por celda
+             obligaría a guardar dos veces para corregir un teléfono y una marca. #}
           <tr {% if not ins.is_active %}class="ins-off"{% endif %}>
             <td>
-              {{ ins.name }}
+              <form method="POST" id="ed{{ ins.id }}"
+                    action="{{ url_for('installer_edit', installer_id=ins.id) }}"></form>
+              <input type="text" form="ed{{ ins.id }}" name="name" value="{{ ins.name }}"
+                     class="form-control form-control-sm" required style="min-width:150px">
               {% if not ins.is_active %}<span class="ins-pill">inactivo</span>{% endif %}
             </td>
-            <td>{{ ins.phone or '—' }}</td>
-            <td>{{ ins.default_share }}%</td>
-            <td style="color:var(--text2);">{{ ins.notes or '—' }}</td>
+            <td>
+              <input type="text" form="ed{{ ins.id }}" name="phone" value="{{ ins.phone or '' }}"
+                     class="form-control form-control-sm" style="min-width:130px">
+            </td>
+            <td>
+              <input type="number" form="ed{{ ins.id }}" name="default_share" min="1" max="100"
+                     value="{{ ins.default_share }}" class="form-control form-control-sm"
+                     style="width:76px">
+            </td>
+            <td>
+              <input type="text" form="ed{{ ins.id }}" name="notes" value="{{ ins.notes or '' }}"
+                     class="form-control form-control-sm" style="min-width:170px"
+                     placeholder="Ej: solo hace PPF">
+            </td>
             <td>
               {# De acá sale con qué marcas se le pide precio a cada uno: cada
                  instalador trabaja las suyas. #}
-              <form method="POST" action="{{ url_for('installer_brands', installer_id=ins.id) }}"
-                    style="margin:0; display:flex; gap:9px; flex-wrap:wrap; align-items:center;">
+              <div style="display:flex; gap:9px; flex-wrap:wrap; align-items:center;">
                 {% for m in marcas_ppf %}
                 <label style="font-size:.78rem; color:var(--text2); white-space:nowrap;">
-                  <input type="checkbox" name="marca" value="{{ m }}"
+                  <input type="checkbox" form="ed{{ ins.id }}" name="marca" value="{{ m }}"
                          {% if m in ins.ppf_marcas %}checked{% endif %}> {{ m }}
                 </label>
                 {% endfor %}
-                <button type="submit" class="btn btn-sm btn-outline-secondary">Guardar</button>
-              </form>
+                <button type="submit" form="ed{{ ins.id }}"
+                        class="btn btn-sm btn-outline-secondary">Guardar</button>
+              </div>
               {% if not ins.ppf_brands_json %}
               <div style="font-size:.72rem; color:var(--text3); margin-top:3px;">
                 Sin definir: se le preguntan todas.

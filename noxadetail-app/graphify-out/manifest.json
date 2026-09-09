@@ -1,7 +1,7 @@
 {
   "app.py": {
-    "mtime": 1788965143.3026335,
-    "ast_hash": "8e60601cbc939295ee6cc0e27134f339",
+    "mtime": 1788965675.8983212,
+    "ast_hash": "8b962247629e601be93499c147df23b8",
     "semantic_hash": ""
   },
   "migrate_prices.py": {
@@ -285,8 +285,8 @@
     "semantic_hash": ""
   },
   "templates/installers.html": {
-    "mtime": 1788963913.8232455,
-    "ast_hash": "6fa7c44b6166ed7d3895c2d2d8b9f726",
+    "mtime": 1788965692.8149493,
+    "ast_hash": "462253139b29b20674da13f5d5dc33eb",
     "semantic_hash": ""
   },
   "templates/liquidacion_instaladores.html": {
@@ -515,8 +515,8 @@
     "semantic_hash": ""
   },
   "tests/test_solicitud_precios.py": {
-    "mtime": 1788965386.5529783,
-    "ast_hash": "28e0ca1cbaf03f4738f70f7ae34620cb",
+    "mtime": 1788965797.499301,
+    "ast_hash": "206d45134619e16ada3d2fbe7422f966",
     "semantic_hash": ""
   },
   "templates/price_request_cerrada.html": {
