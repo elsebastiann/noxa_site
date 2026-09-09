@@ -1,7 +1,7 @@
 {
   "app.py": {
-    "mtime": 1788964135.9443965,
-    "ast_hash": "19d03ee1df357c4b4e69e43da0fa67b5",
+    "mtime": 1788965143.3026335,
+    "ast_hash": "8e60601cbc939295ee6cc0e27134f339",
     "semantic_hash": ""
   },
   "migrate_prices.py": {
@@ -50,8 +50,8 @@
     "semantic_hash": ""
   },
   "requirements.txt": {
-    "mtime": 1788356251.0493886,
-    "ast_hash": "eebda3cd797df54bcf39e972fdeed66e",
+    "mtime": 1788965143.2987087,
+    "ast_hash": "59234d608bb4e8dc9a1f96df6f5429dd",
     "semantic_hash": ""
   },
   "templates/agreements.html": {
@@ -515,8 +515,8 @@
     "semantic_hash": ""
   },
   "tests/test_solicitud_precios.py": {
-    "mtime": 1788964135.9911609,
-    "ast_hash": "e2976817b131e79e398a16681dcc8b3d",
+    "mtime": 1788965386.5529783,
+    "ast_hash": "28e0ca1cbaf03f4738f70f7ae34620cb",
     "semantic_hash": ""
   },
   "templates/price_request_cerrada.html": {
@@ -525,13 +525,13 @@
     "semantic_hash": ""
   },
   "templates/price_request_detail.html": {
-    "mtime": 1788963755.614653,
-    "ast_hash": "f92224fa89de79ddc6bfaa7af21f28b7",
+    "mtime": 1788965097.9831524,
+    "ast_hash": "9df7cea301cd933a3e33aed1f0b53998",
     "semantic_hash": ""
   },
   "templates/price_request_form.html": {
-    "mtime": 1788963634.9361906,
-    "ast_hash": "f5ac89dd9504100427197385d416babc",
+    "mtime": 1788965084.528914,
+    "ast_hash": "be8421184be5dfa0ad0d117c6584f000",
     "semantic_hash": ""
   },
   "templates/price_request_gracias.html": {
@@ -540,8 +540,8 @@
     "semantic_hash": ""
   },
   "templates/price_request_public.html": {
-    "mtime": 1788963661.7912138,
-    "ast_hash": "06750f424f67f96cb31e05cd80e6bade",
+    "mtime": 1788965153.182623,
+    "ast_hash": "0fb6f55938a8b6a32959156622a271c8",
     "semantic_hash": ""
   },
   "templates/price_requests.html": {

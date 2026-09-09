@@ -66,6 +66,11 @@ function pedirClave(form) {
       &larr; Solicitudes
     </a>
     <div class="d-flex gap-2">
+      {# Abre el formulario diligenciado, no crea la copia de una: crear genera
+         el link que se manda, y no hay pantalla para editarla después. #}
+      <a href="{{ url_for('price_request_new', desde=s.code) }}"
+         class="btn btn-outline-light btn-sm"
+         title="Abre una solicitud nueva con estos mismos datos para ajustarla">Replicar</a>
       <a href="{{ url_for('price_request_new') }}" class="btn btn-outline-warning btn-sm">Nueva</a>
       <form method="POST" action="{{ url_for('price_request_delete', code=s.code) }}" class="m-0"
             onsubmit="return pedirClave(this)">

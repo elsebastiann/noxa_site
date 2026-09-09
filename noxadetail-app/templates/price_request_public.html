@@ -4,6 +4,21 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Precios para {{ s.vehiculo }} — NOXA Detail</title>
+{# Vista previa al compartir el link por WhatsApp: sin esto llega solo el título
+   y la URL pelada. La foto del carro dice de un vistazo de qué solicitud se
+   trata cuando hay varias en el mismo chat.
+   Ojo: WhatsApp cachea la vista previa por URL, así que un link ya compartido
+   antes de esto sigue mostrándose sin imagen. #}
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="NOXA Detail">
+<meta property="og:url" content="{{ s.link_publico }}">
+<meta property="og:title" content="Precios para {{ s.vehiculo }}">
+<meta property="og:description" content="{{ s.items|length }} parte{{ '' if s.items|length == 1 else 's' }} por cotizar · {{ s.marcas|join(', ') }} · vence el {{ s.expires_on.strftime('%d/%m') }}">
+{% if s.foto_compartir %}
+<meta property="og:image" content="{{ s.foto_compartir }}">
+<meta property="og:image:alt" content="{{ s.vehiculo }}">
+<meta name="twitter:card" content="summary_large_image">
+{% endif %}
 <style>
   :root { --tinta:#1a1a1a; --suave:#6b6b6b; --dorado:#c8a04a; --borde:#e6e2d8; }
   * { box-sizing:border-box; }

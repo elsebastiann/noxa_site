@@ -253,3 +253,127 @@ class TestQuienPuede:
             "cobertura": [_grupo()]})
         with A.app.app_context():
             assert A.PriceRequest.query.count() == antes
+
+
+class TestReplicarUnaSolicitud:
+    """Muchas solicitudes se parecen: el mismo carro para el otro instalador, o
+    el mismo paquete de partes para otro vehículo.
+
+    Se abre el formulario DILIGENCIADO en vez de crear la copia de una: crear
+    una solicitud genera el link que se le manda al instalador, y no hay
+    pantalla para editarla después — una copia hecha de golpe habría que
+    borrarla y rehacerla para cambiarle una sola cosa.
+    """
+
+    def test_el_formulario_llega_con_los_datos_puestos(self, sesion, instalador):
+        code = _crear(sesion, instalador, notas="Ojo con el rayón")
+        html = sesion.get(f"/price-requests/new?desde={code}").data.decode()
+        assert 'value="Mazda"' in html
+        assert 'value="3 Grand Touring"' in html
+        assert "Ojo con el rayón" in html
+        assert "checked" in html          # la cobertura del original
+
+    def test_tambien_los_escritos_a_mano(self, sesion, instalador):
+        """Son los que más cuesta rehacer: hay que volver a escribir nombre y
+        descripción."""
+        code = _crear(sesion, instalador, cobertura=[],
+                      otro_nombre=["Tanque"], otro_detalle=["Solo la cara superior"])
+        html = sesion.get(f"/price-requests/new?desde={code}").data.decode()
+        assert 'name="otro_nombre"' in html and 'value="Tanque"' in html
+        assert "Solo la cara superior" in html
+
+    def test_la_copia_nace_con_codigo_y_link_propios(self, sesion, instalador):
+        code = _crear(sesion, instalador)
+        copia = _crear(sesion, instalador)
+        with A.app.app_context():
+            a, b = _sol(code), _sol(copia)
+            assert a.code != b.code
+            assert a.public_token != b.public_token
+
+    def test_no_hereda_las_respuestas(self, client, sesion, instalador):
+        """Es otra solicitud: arrastrar los precios de la anterior los daría por
+        buenos para un carro que el instalador todavía no ha mirado."""
+        code = _crear(sesion, instalador)
+        with A.app.app_context():
+            sol = _sol(code)
+            token, item_id = sol.public_token, sol.items[0].id
+        client.post(f"/p/{token}", data={f"precio::{item_id}::Standard": "1000000"})
+        html = sesion.get(f"/price-requests/new?desde={code}").data.decode()
+        assert "1000000" not in html
+        copia = _crear(sesion, instalador)
+        with A.app.app_context():
+            c = _sol(copia)
+            assert c.respondida is False
+            assert all(not i.precios for i in c.items)
+
+    def test_un_codigo_que_no_existe_abre_el_formulario_vacio(self, sesion):
+        """Sin reventar: es una URL que alguien puede editar a mano."""
+        r = sesion.get("/price-requests/new?desde=SP-NOEXISTE")
+        assert r.status_code == 200
+        assert 'value="Mazda"' not in r.data.decode()
+
+
+class TestLaVistaPreviaDelLink:
+    """Al mandar el link por WhatsApp llegaba solo el título y la URL pelada.
+    Con la foto del carro se sabe de un vistazo de qué solicitud se trata cuando
+    hay varias en el mismo chat."""
+
+    def test_sin_foto_no_declara_imagen(self, client, sesion, instalador):
+        code = _crear(sesion, instalador)
+        with A.app.app_context():
+            token = _sol(code).public_token
+            assert _sol(code).foto_compartir is None
+        with client.session_transaction() as sess:
+            sess.clear()
+        assert 'og:image' not in client.get(f"/p/{token}").data.decode()
+
+    def test_la_url_de_la_imagen_es_absoluta(self, sesion, instalador):
+        """La lee el robot de WhatsApp, no el navegador: una ruta relativa no la
+        puede resolver y la vista previa sale sin foto."""
+        code = _crear(sesion, instalador)
+        with A.app.app_context():
+            sol = _sol(code)
+            sol.foto = "prueba.jpg"
+            A.db.session.commit()
+            assert sol.foto_compartir.startswith("http")
+            assert sol.foto_compartir.endswith("/pr/img/prueba.jpg")
+
+    def test_prefiere_la_miniatura_cuando_existe(self, sesion, instalador):
+        """WhatsApp descarta las imágenes pesadas sin decir nada, y una foto de
+        celular pesa varios megas."""
+        import os
+        code = _crear(sesion, instalador)
+        with A.app.app_context():
+            sol = _sol(code)
+            sol.foto = "conmini.jpg"
+            A.db.session.commit()
+            os.makedirs(A.VEHICULO_UPLOAD_DIR, exist_ok=True)
+            mini = os.path.join(A.VEHICULO_UPLOAD_DIR, A._nombre_miniatura("conmini.jpg"))
+            open(mini, "wb").write(b"x")
+            try:
+                assert sol.foto_compartir.endswith("conmini_og.jpg")
+            finally:
+                os.remove(mini)
+
+    def test_una_foto_pesada_queda_liviana(self):
+        """El número es lo que importa: varios megas no sirven de vista previa."""
+        import os
+        from PIL import Image
+        os.makedirs(A.VEHICULO_UPLOAD_DIR, exist_ok=True)
+        nombre = "prueba_grande.jpg"
+        ruta = os.path.join(A.VEHICULO_UPLOAD_DIR, nombre)
+        Image.new("RGB", (4032, 3024), (90, 100, 120)).save(ruta, "JPEG", quality=95)
+        try:
+            assert A._generar_miniatura(nombre) is True
+            mini = os.path.join(A.VEHICULO_UPLOAD_DIR, A._nombre_miniatura(nombre))
+            assert os.path.getsize(mini) < 300 * 1024
+            with Image.open(mini) as img:
+                assert max(img.size) <= 1200
+        finally:
+            for f in (ruta, os.path.join(A.VEHICULO_UPLOAD_DIR, A._nombre_miniatura(nombre))):
+                if os.path.exists(f):
+                    os.remove(f)
+
+    def test_si_la_miniatura_falla_no_tumba_la_carga(self):
+        """El link tiene que funcionar aunque la vista previa quede fea."""
+        assert A._generar_miniatura("no_existe_este_archivo.jpg") is False

@@ -2797,6 +2797,11 @@ class Installer(db.Model):
 SOLICITUD_VALID_DAYS = 5
 
 
+def _base_publica() -> str:
+    """De dónde cuelgan los links que salen de la app hacia afuera."""
+    return (os.environ.get("PUBLIC_BASE_URL") or "https://app.noxadetail.com").rstrip("/")
+
+
 class PriceRequest(db.Model):
     """Lo que se le pide a un instalador: cotíceme estas partes de este carro.
 
@@ -2855,8 +2860,20 @@ class PriceRequest(db.Model):
 
     @property
     def link_publico(self) -> str:
-        base = (os.environ.get("PUBLIC_BASE_URL") or "https://app.noxadetail.com").rstrip("/")
-        return f"{base}/p/{self.public_token}"
+        return f"{_base_publica()}/p/{self.public_token}"
+
+    @property
+    def foto_compartir(self) -> "str | None":
+        """URL ABSOLUTA de la imagen para la vista previa del link.
+
+        Absoluta porque quien la lee es el robot de WhatsApp, no el navegador:
+        una ruta relativa no la puede resolver. Prefiere la miniatura y cae a la
+        original si no se pudo generar."""
+        if not self.foto:
+            return None
+        mini = _nombre_miniatura(self.foto)
+        archivo = mini if os.path.exists(os.path.join(VEHICULO_UPLOAD_DIR, mini)) else self.foto
+        return f"{_base_publica()}/pr/img/{archivo}"
 
     def __repr__(self):
         return f"<PriceRequest {self.code} {self.vehiculo}>"
@@ -14113,7 +14130,40 @@ def _guardar_foto_vehiculo(file_storage) -> str | None:
     os.makedirs(VEHICULO_UPLOAD_DIR, exist_ok=True)
     nombre = f"{uuid.uuid4().hex[:12]}{ext}"
     file_storage.save(os.path.join(VEHICULO_UPLOAD_DIR, nombre))
+    _generar_miniatura(nombre)
     return nombre
+
+
+def _nombre_miniatura(foto: str) -> str:
+    return os.path.splitext(foto)[0] + "_og.jpg"
+
+
+def _generar_miniatura(foto: str) -> bool:
+    """Versión liviana de la foto, para la vista previa de WhatsApp.
+
+    WhatsApp descarga la imagen para armar el thumbnail del link y descarta las
+    pesadas sin decir nada — y una foto de celular pesa varios megas, así que
+    sin esto la vista previa saldría casi siempre sin imagen. 1200px de ancho y
+    JPEG al 80 la dejan en decenas de kilobytes.
+
+    Si algo falla se sigue sin miniatura: el link tiene que funcionar aunque la
+    vista previa quede fea, así que esto nunca puede tumbar la carga de la foto.
+    """
+    try:
+        from PIL import Image
+        ruta = os.path.join(VEHICULO_UPLOAD_DIR, foto)
+        with Image.open(ruta) as img:
+            # EXIF: una foto de celular viene rotada por metadatos y sin esto el
+            # thumbnail sale acostado aunque en la app se vea derecha.
+            from PIL import ImageOps
+            img = ImageOps.exif_transpose(img).convert("RGB")
+            img.thumbnail((1200, 1200))
+            img.save(os.path.join(VEHICULO_UPLOAD_DIR, _nombre_miniatura(foto)),
+                     "JPEG", quality=80, optimize=True)
+        return True
+    except Exception as exc:
+        app.logger.warning(f"[Solicitudes] No se pudo generar la miniatura de {foto}: {exc}")
+        return False
 
 
 @app.route("/pr/img/<path:filename>")
@@ -14154,6 +14204,15 @@ def price_request_new():
 
     instaladores = Installer.query.filter_by(is_active=True).order_by(Installer.name).all()
 
+    # Replicar una anterior: se abre el formulario DILIGENCIADO en vez de crear
+    # la copia de una. Crear una solicitud genera el link que se le manda al
+    # instalador, y no hay pantalla para editarla después: una copia hecha de
+    # golpe habría que borrarla y rehacerla para cambiarle una sola cosa, que es
+    # justo lo que se quería evitar.
+    base = None
+    if request.args.get("desde"):
+        base = PriceRequest.query.filter_by(code=request.args["desde"]).first()
+
     if request.method == "POST":
         inst = Installer.query.get(_int_o_cero(request.form.get("installer_id")))
         marca = (request.form.get("marca") or "").strip()[:80]
@@ -14169,7 +14228,11 @@ def price_request_new():
             marca=marca, modelo=modelo,
             anio=_int_o_cero(request.form.get("anio")) or None,
             notas=(request.form.get("notas") or "").strip() or None,
-            foto=_guardar_foto_vehiculo(request.files.get("foto")),
+            # El navegador no deja prellenar un campo de archivo, así que al
+            # replicar se ofrece reusar la misma foto por nombre. Las dos filas
+            # apuntan al mismo archivo y nadie lo borra: no quedan colgados.
+            foto=(_guardar_foto_vehiculo(request.files.get("foto"))
+                  or ((request.form.get("reusar_foto") or "").strip() or None)),
             # Congeladas: si el instalador cambia de proveedor mañana, lo que ya
             # se le preguntó no puede reescribirse solo.
             brands_json=json.dumps(inst.ppf_marcas),
@@ -14216,7 +14279,8 @@ def price_request_new():
                            instaladores=instaladores,
                            grupos=PpfPackage.query.filter_by(is_active=True)
                                             .order_by(PpfPackage.orden, PpfPackage.name).all(),
-                           dias=SOLICITUD_VALID_DAYS)
+                           dias=SOLICITUD_VALID_DAYS,
+                           base=base)
 
 
 @app.route("/price-requests/<code>")

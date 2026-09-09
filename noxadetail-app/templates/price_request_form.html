@@ -63,18 +63,28 @@ document.addEventListener("DOMContentLoaded", () => {
 {% block content %}
 <div class="container mt-4 mb-5" style="max-width:900px">
   <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
-    <h2 class="mb-0">Pedir precios a un instalador</h2>
+    <h2 class="mb-0">{{ "Replicar solicitud" if base else "Pedir precios a un instalador" }}</h2>
     <a href="{{ url_for('price_requests_list') }}" class="btn btn-outline-secondary btn-sm">
       Ver solicitudes
     </a>
   </div>
+
+  {% if base %}
+  <div class="sp-panel" style="border-color:rgba(0,168,132,.3); background:rgba(0,168,132,.06)">
+    <div style="font-size:.87rem; color:#bfe6d5">
+      Copiado de <strong>{{ base.code }}</strong> ({{ base.vehiculo }}). Cambia lo que
+      necesites y créala: sale con código y link nuevos, y la original no se toca.
+    </div>
+  </div>
+  {% endif %}
 
   <form method="POST" enctype="multipart/form-data" id="formSolicitud">
     <div class="sp-panel">
       <div class="sp-tit">A quién</div>
       <select name="installer_id" id="instalador" class="form-select" required>
         {% for i in instaladores %}
-        <option value="{{ i.id }}">{{ i.name }}</option>
+        <option value="{{ i.id }}"
+                {% if base and base.installer_id == i.id %}selected{% endif %}>{{ i.name }}</option>
         {% endfor %}
       </select>
       <div class="sp-marcas" id="marcasInst"></div>
@@ -91,15 +101,18 @@ document.addEventListener("DOMContentLoaded", () => {
       <div class="row g-2">
         <div class="col-12 col-md-4">
           <label class="form-label small text-muted mb-1">Marca *</label>
-          <input type="text" name="marca" class="form-control" required placeholder="Mazda">
+          <input type="text" name="marca" class="form-control" required placeholder="Mazda"
+                 value="{{ base.marca if base else '' }}">
         </div>
         <div class="col-12 col-md-5">
           <label class="form-label small text-muted mb-1">Modelo *</label>
-          <input type="text" name="modelo" class="form-control" required placeholder="3 Grand Touring">
+          <input type="text" name="modelo" class="form-control" required placeholder="3 Grand Touring"
+                 value="{{ base.modelo if base else '' }}">
         </div>
         <div class="col-12 col-md-3">
           <label class="form-label small text-muted mb-1">Año</label>
-          <input type="number" name="anio" class="form-control" min="1950" max="2100" placeholder="2021">
+          <input type="number" name="anio" class="form-control" min="1950" max="2100" placeholder="2021"
+                 value="{{ base.anio if base and base.anio else '' }}">
         </div>
         <div class="col-12">
           <label class="form-label small text-muted mb-1">Foto del vehículo</label>
@@ -107,11 +120,22 @@ document.addEventListener("DOMContentLoaded", () => {
           <div class="form-text">
             El instalador la ve al abrir el link. Una foto evita la mitad de las preguntas.
           </div>
+          {% if base and base.foto %}
+          {# El navegador no deja prellenar un campo de archivo, así que la de la
+             solicitud original se reusa por nombre. Subir una nueva la pisa. #}
+          <label class="d-flex gap-2 align-items-center mt-2"
+                 style="font-size:.84rem; color:#bfe6d5; cursor:pointer">
+            <input type="checkbox" name="reusar_foto" value="{{ base.foto }}" checked>
+            Usar la misma foto de {{ base.code }}
+            <img src="{{ url_for('price_request_image', filename=base.foto) }}"
+                 alt="" style="height:38px; border-radius:6px; border:1px solid rgba(255,255,255,.15)">
+          </label>
+          {% endif %}
         </div>
         <div class="col-12">
           <label class="form-label small text-muted mb-1">Notas para el instalador (opcional)</label>
           <textarea name="notas" class="form-control" rows="2"
-                    placeholder="Ej. el bómper ya tiene un rayón profundo del lado derecho"></textarea>
+                    placeholder="Ej. el bómper ya tiene un rayón profundo del lado derecho">{{ base.notas if base and base.notas else '' }}</textarea>
         </div>
       </div>
     </div>
@@ -121,7 +145,8 @@ document.addEventListener("DOMContentLoaded", () => {
       <div class="cob-grid">
         {% for g in grupos %}
         <label class="cob">
-          <input type="checkbox" name="cobertura" value="{{ g.name }}">
+          <input type="checkbox" name="cobertura" value="{{ g.name }}"
+                 {% if base and g.name in base.items | map(attribute='cobertura') | list %}checked{% endif %}>
           <span>
             <span class="n">{{ g.name }}</span>
             <span class="q">
@@ -134,7 +159,16 @@ document.addEventListener("DOMContentLoaded", () => {
       </div>
 
       <div class="sp-tit mt-4">Algo que no está en la lista</div>
-      <div id="otros"></div>
+      <div id="otros">
+        {% for it in (base.items if base else []) if it.es_personalizado %}
+        <div class="otro-fila">
+          <input type="text" name="otro_nombre" maxlength="120" value="{{ it.cobertura }}">
+          <input type="text" name="otro_detalle" maxlength="300" value="{{ it.detalle or '' }}">
+          <button type="button" class="quitar" title="Quitar"
+                  onclick="this.parentElement.remove()">&times;</button>
+        </div>
+        {% endfor %}
+      </div>
       <button type="button" id="btnOtro" class="btn btn-outline-warning btn-sm">
         + Otro
       </button>
@@ -142,7 +176,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     <div class="d-flex gap-2 align-items-center flex-wrap">
       <button type="submit" class="btn btn-warning fw-bold" {% if not instaladores %}disabled{% endif %}>
-        Crear solicitud y generar link
+        {{ "Crear la copia y generar link" if base else "Crear solicitud y generar link" }}
       </button>
       <span class="text-muted small">El link vive {{ dias }} días y no pide contraseña.</span>
     </div>
