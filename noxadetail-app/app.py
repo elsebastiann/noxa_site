@@ -14000,6 +14000,16 @@ def _registrar_vista(cot: "Quote", kind: str = "link") -> None:
     cargue el documento es un problema del cliente.
     """
     try:
+        # Quien tiene sesión abierta en la app es del equipo, no el cliente.
+        # Abrir el link desde el botón "Abrir" del detalle, o entrar a revisar
+        # que quedó bien, contaba como una lectura del cliente — y esa es
+        # justamente la métrica que se estaría inventando.
+        #
+        # Se mira la SESIÓN y no `g.current_user`: en una ruta pública
+        # `require_login` sale antes de llenarlo, así que ahí siempre está
+        # vacío. La cookie de sesión sí viaja igual.
+        if session.get("user_id"):
+            return
         agente = request.headers.get("User-Agent") or ""
         if not agente or _ROBOTS_DE_PREVIEW.search(agente):
             return
@@ -14054,7 +14064,44 @@ def quote_public_seleccion(token):
     if not cot or not cot.vigente:
         return jsonify(ok=False), 404 if not cot else 410
 
+    # Con sesión abierta es alguien del equipo revisando el link, no el cliente.
+    # Guardar eso como "versión que armó el cliente" ensucia la señal más fuerte
+    # que hay: se responde ok para que la página siga andando, pero no se
+    # registra nada. Se mira la sesión y no `g.current_user`, que en una ruta
+    # pública nunca se llena.
+    if session.get("user_id"):
+        return jsonify(ok=True, interno=True)
+
     return jsonify(**_guardar_version_cliente(cot, request.get_json(silent=True) or {}))
+
+
+def _limpiar_seleccion(cot: "Quote", datos: dict) -> tuple:
+    """Deja solo lo que de verdad pertenece a esta cotización.
+
+    Los ids llegan del navegador y podrían apuntar a las líneas de otra.
+    """
+    ids = [i for i in datos.get("items", []) if isinstance(i, int)]
+    cobs = [c for c in datos.get("ppf", []) if isinstance(c, str)][:40]
+    marca = datos.get("marca")
+    if marca not in dict(cot.ppf_marcas):
+        marca = None
+    return ([i.id for i in cot.items if i.id in set(ids)],
+            [c.coverage for c in cot.ppf_items if c.coverage in set(cobs)],
+            marca)
+
+
+def _version_en_memoria(cot: "Quote", datos: dict) -> "QuoteVersion":
+    """Una versión que sirve para imprimir pero no se guarda.
+
+    Para cuando quien está en el link es del equipo: el PDF tiene que salir con
+    lo que tenga marcado, pero eso no es "lo que armó el cliente" y no puede
+    ensuciar esa señal.
+    """
+    ids, cobs, marca = _limpiar_seleccion(cot, datos)
+    return QuoteVersion(quote_id=cot.id, numero=1,
+                        item_ids=json.dumps(ids), ppf_coverages=json.dumps(cobs),
+                        ppf_brand=marca, total=cot.total_de_seleccion(ids, cobs, marca),
+                        created_at=datetime.utcnow(), updated_at=datetime.utcnow())
 
 
 def _guardar_version_cliente(cot: "Quote", datos: dict) -> dict:
@@ -14064,16 +14111,7 @@ def _guardar_version_cliente(cot: "Quote", datos: dict) -> dict:
     tienen que dejar exactamente la misma versión, o el PDF diría una cosa y lo
     guardado otra.
     """
-    ids = [i for i in datos.get("items", []) if isinstance(i, int)]
-    cobs = [c for c in datos.get("ppf", []) if isinstance(c, str)][:40]
-    marca = datos.get("marca")
-    if marca not in dict(cot.ppf_marcas):
-        marca = None
-
-    # Solo lo que de verdad pertenece a esta cotización: los ids llegan del
-    # navegador y podrían apuntar a las líneas de otra.
-    ids = [i.id for i in cot.items if i.id in set(ids)]
-    cobs = [c.coverage for c in cot.ppf_items if c.coverage in set(cobs)]
+    ids, cobs, marca = _limpiar_seleccion(cot, datos)
 
     ahora = datetime.utcnow()
     ultima = cot.versiones[-1] if cot.versiones else None
@@ -14126,7 +14164,13 @@ def quote_public_pdf(token):
             "ppf": request.form.getlist("ppf"),
             "marca": request.form.get("marca") or None,
         }
-        version = QuoteVersion.query.get(_guardar_version_cliente(cot, datos)["id"])
+        if session.get("user_id"):
+            # Alguien del equipo revisando el link: el PDF sale con la selección
+            # que tenga en pantalla, pero NO queda como "versión que armó el
+            # cliente". La versión se arma en memoria y no se guarda.
+            version = _version_en_memoria(cot, datos)
+        else:
+            version = QuoteVersion.query.get(_guardar_version_cliente(cot, datos)["id"])
 
     nombre = f"Cotizacion-{cot.code}"
     if version:

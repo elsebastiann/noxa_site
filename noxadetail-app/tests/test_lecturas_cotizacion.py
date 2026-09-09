@@ -167,3 +167,49 @@ class TestSeVeEnLaPantalla:
         """Es lo que se quiere ver de un vistazo: cuáles ni siquiera se
         miraron."""
         assert "sin abrir" in sesion.get("/quotes").data.decode()
+
+
+class TestLoQueHaceElEquipoNoCuentaComoCliente:
+    """Abrir el link desde el botón "Abrir" del detalle, o entrar a revisar que
+    quedó bien, contaba como una lectura del cliente. Esa es justamente la
+    métrica que se estaría inventando.
+
+    Se mira la SESIÓN y no `g.current_user`: en una ruta pública
+    `require_login` sale antes de llenarlo, así que ahí siempre está vacío. Se
+    intentó primero con `g` y no filtraba nada en producción — en los tests sí,
+    porque conftest deja un contexto de aplicación abierto y `g` se comparte
+    entre las peticiones del mismo test.
+    """
+
+    def test_abrir_el_link_con_sesion_no_suma_una_lectura(self, sesion, cotizacion):
+        sesion.get(f"/c/{cotizacion['token']}", headers={"User-Agent": NAVEGADOR})
+        assert _lecturas(cotizacion["code"])["veces"] == 0
+
+    def test_y_sin_sesion_si(self, client, sesion, cotizacion):
+        """Contraprueba: si no, el filtro podría estar descartándolo todo."""
+        _abrir(client, cotizacion["token"])
+        assert _lecturas(cotizacion["code"])["veces"] == 1
+
+    def test_deschulear_algo_con_sesion_no_crea_una_version(self, sesion, cotizacion):
+        """La versión es "lo que armó el cliente": si la arma alguien del equipo
+        probando, ensucia la señal más fuerte que hay."""
+        r = sesion.post(f"/c/{cotizacion['token']}/seleccion",
+                        json={"items": [], "ppf": [], "marca": None})
+        assert r.status_code == 200
+        assert _lecturas(cotizacion["code"])["versiones"] == 0
+
+    def test_y_el_cliente_si_la_crea(self, client, sesion, cotizacion):
+        with client.session_transaction() as sess:
+            sess.clear()
+        client.post(f"/c/{cotizacion['token']}/seleccion",
+                    json={"items": [], "ppf": [], "marca": None})
+        assert _lecturas(cotizacion["code"])["versiones"] == 1
+
+    def test_bajar_el_pdf_con_sesion_no_deja_version_guardada(self, sesion, cotizacion):
+        """El PDF sí sale con lo que tenga marcado —para eso lo bajó— pero la
+        versión se arma en memoria y no se guarda."""
+        r = sesion.post(f"/c/{cotizacion['token']}/pdf",
+                        data={"items": [], "ppf": [], "marca": ""})
+        assert r.status_code == 200
+        assert r.data[:4] == b"%PDF"
+        assert _lecturas(cotizacion["code"])["versiones"] == 0
