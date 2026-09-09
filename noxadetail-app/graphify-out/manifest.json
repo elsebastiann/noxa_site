@@ -1,7 +1,7 @@
 {
   "app.py": {
-    "mtime": 1788989468.8184817,
-    "ast_hash": "927b5084aba00e416e1ea9da5b9af6e9",
+    "mtime": 1788993504.0145378,
+    "ast_hash": "0e78617243aa3f07342c5a6bde9bda5d",
     "semantic_hash": ""
   },
   "migrate_prices.py": {
@@ -25,8 +25,8 @@
     "semantic_hash": ""
   },
   "tests/test_agenda_cajon.py": {
-    "mtime": 1788969445.3997426,
-    "ast_hash": "760c4809064afc606d6ee3c4c199e56b",
+    "mtime": 1788993412.348217,
+    "ast_hash": "fbfdc675e9731a416647d65188fcd902",
     "semantic_hash": ""
   },
   "tests/test_payroll.py": {
@@ -385,8 +385,8 @@
     "semantic_hash": ""
   },
   "templates/quote_detail.html": {
-    "mtime": 1788984163.9757373,
-    "ast_hash": "a04e3a5e1acbe0af8a2ba4a3138f2f50",
+    "mtime": 1788993558.8040376,
+    "ast_hash": "9468f46c6384e40f499723392dc33a3a",
     "semantic_hash": ""
   },
   "templates/quote_form.html": {
@@ -395,8 +395,8 @@
     "semantic_hash": ""
   },
   "templates/quotes_list.html": {
-    "mtime": 1788976952.0892053,
-    "ast_hash": "a241c31c8d1a3d3d884b05fd8dc435df",
+    "mtime": 1788993504.059748,
+    "ast_hash": "a926c9d373eface6496d3876eb8304c7",
     "semantic_hash": ""
   },
   "templates/ppf_prices.html": {

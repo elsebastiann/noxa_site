@@ -111,9 +111,12 @@ function pedirClave(form) {
   <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
     <a href="{{ url_for('quotes_list') }}" class="btn btn-outline-secondary btn-sm">&larr; Cotizaciones</a>
     <div class="d-flex gap-2">
-      <a href="{{ url_for('quote_edit', code=c.code) }}" class="btn btn-outline-light btn-sm">Editar</a>
+      {# El PDF va fuera del if: marketing puede bajarlo, es la cotización tal
+         como la ve el cliente. Lo que no puede es cambiarla. #}
       <a href="{{ url_for('quote_pdf', code=c.code) }}" target="_blank"
          class="btn btn-warning btn-sm fw-bold">Descargar PDF</a>
+      {% if puede_editar_cotizaciones() %}
+      <a href="{{ url_for('quote_edit', code=c.code) }}" class="btn btn-outline-light btn-sm">Editar</a>
       {# Duplicar y no "Nueva desde esta": queda una cotización aparte, con su
          propio código, y la original no se toca. #}
       <form method="POST" action="{{ url_for('quote_duplicate', code=c.code) }}" class="m-0">
@@ -128,6 +131,7 @@ function pedirClave(form) {
         <input type="hidden" name="clave">
         <button type="submit" class="btn btn-outline-danger btn-sm">Eliminar</button>
       </form>
+      {% endif %}
     </div>
   </div>
 

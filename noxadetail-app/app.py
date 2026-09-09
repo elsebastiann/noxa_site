@@ -9144,6 +9144,11 @@ MARKETING_ENDPOINTS = {
     # que sin él la pantalla abre vacía. No entran las de crear, editar ni
     # borrar citas — mirar la agenda no es operarla.
     "calendar_view", "calendar_diagnosticos", "api_events",
+    # Las cotizaciones, también de solo lectura: la agencia necesita ver qué se
+    # le cotizó a cada cliente para hacerle seguimiento a la conversación.
+    # Quedan fuera crear, editar, duplicar y borrar, y también los precios de
+    # PPF y las solicitudes a instaladores, que son el costo del negocio.
+    "quotes_list", "quote_detail", "quote_pdf",
     "notifications_list", "api_notifications",
     "notification_mark_read", "notifications_mark_all_read",
     "change_password", "logout",
@@ -13403,9 +13408,31 @@ def _nuevo_codigo_cotizacion() -> str:
 
 @app.template_global()
 def puede_cotizar() -> bool:
-    """Cotizar es mostrar precios, así que aplica el mismo criterio: el
-    operario agenda y trabaja citas, pero no ve cuánto valen los servicios."""
-    return puede_ver_precios()
+    """Quién entra a las cotizaciones.
+
+    El operario no: agenda y trabaja citas, pero no ve cuánto valen los
+    servicios. Marketing sí, a pedido del negocio — la agencia necesita ver qué
+    se le cotizó a cada cliente para hacerle seguimiento a la conversación.
+
+    Ya NO es un alias de `puede_ver_precios`: esa decide si se muestran cifras
+    dentro de una pantalla, y esta si se entra. Marketing entra a cotizaciones
+    (donde el precio ES el contenido) y sigue sin ver la plata de cada cita en
+    la agenda. Lo que de verdad limita a marketing es MARKETING_ENDPOINTS: acá
+    solo tiene las de LEER, no las de crear, editar ni borrar.
+    """
+    return not es_operario()
+
+
+@app.template_global()
+def puede_editar_cotizaciones() -> bool:
+    """Quién puede CREAR o cambiar una cotización, no solo verla.
+
+    Marketing entra a leerlas y ahí se queda: la ruta ya lo frena, pero sin
+    esto la pantalla le muestra botones de "Nueva", "Editar" y "Eliminar" que lo
+    devuelven al inbox sin explicación. Un botón que no hace nada es peor que un
+    botón que no está.
+    """
+    return puede_cotizar() and not es_marketing()
 
 
 def _cop(valor) -> str:

@@ -246,3 +246,60 @@ class TestDondeAterrizaCadaRol:
         r = client.post("/login", data={"username": "admin_land",
                                         "password": "clave-larga-1234"})
         assert r.status_code == 302 and "calendar" in r.headers["Location"]
+
+
+class TestMarketingYLasCotizaciones:
+    """Se le abrió a pedido del negocio: la agencia necesita ver qué se le
+    cotizó a cada cliente para hacerle seguimiento a la conversación.
+
+    Solo LEER. Lo que de verdad la limita es la lista blanca de endpoints, no
+    `puede_cotizar()` — esa dejó de ser un alias de `puede_ver_precios` porque
+    son dos preguntas distintas: si se entra a una pantalla, y si dentro de ella
+    se muestran cifras.
+    """
+
+    @pytest.fixture
+    def agencia(self, client):
+        login_as(client, make_user("agencia_cot", role="marketing"))
+        return client
+
+    def test_entra_al_listado_y_al_detalle(self, agencia):
+        # La cotización se inserta directo: crearla por la ruta necesitaría un
+        # segundo cliente logueado como admin, y el usuario se desprende de la
+        # sesión al salir del contexto.
+        import secrets
+        with app_module.app.app_context():
+            c = app_module.Quote(
+                code=app_module._nuevo_codigo_cotizacion(),
+                public_token=secrets.token_urlsafe(24),
+                customer_name="Laura Ortiz",
+                created_at=app_module.datetime.utcnow(),
+                valid_until=app_module.bogota_today())
+            db.session.add(c)
+            db.session.commit()
+            code = c.code
+        try:
+            assert agencia.get("/quotes").status_code == 200
+            assert agencia.get(f"/quotes/{code}").status_code == 200
+        finally:
+            with app_module.app.app_context():
+                c = app_module.Quote.query.filter_by(code=code).first()
+                if c:
+                    db.session.delete(c)
+                    db.session.commit()
+
+    @pytest.mark.parametrize("ruta", [
+        "/quotes/new",
+        "/ppf-prices",
+        "/price-requests",
+    ])
+    def test_pero_no_puede_crear_ni_ver_los_costos(self, agencia, ruta):
+        """Los precios de PPF y lo que cobra un instalador son el costo del
+        negocio, no la conversación con el cliente."""
+        r = agencia.get(ruta)
+        assert r.status_code == 302, f"{ruta} quedó abierta para marketing"
+
+    def test_un_operario_sigue_sin_entrar(self, client):
+        """La regla que no cambió: el operario no ve cuánto valen las cosas."""
+        login_as(client, make_user("operario_cot", role="operario"))
+        assert client.get("/quotes").status_code == 302
