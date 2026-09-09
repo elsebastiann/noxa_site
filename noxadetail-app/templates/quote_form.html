@@ -128,6 +128,7 @@
                   border:1px solid rgba(255,255,255,.14); color:#eee;
                   border-radius:7px; padding:7px 11px; font-size:.86rem; }
   .traer-lista { max-height:260px; overflow-y:auto; }
+  .traer-nota { font-size:.78rem; color:#7f92a5; margin-left:9px; }
   .traer-item { width:100%; text-align:left; background:rgba(255,255,255,.04);
                 border:1px solid rgba(255,255,255,.10); border-radius:8px;
                 padding:9px 11px; margin-bottom:6px; cursor:pointer; }
@@ -266,6 +267,23 @@
         </div>
 
         <div id="armador">
+        {# Traer lo que ya cotizó un instalador. El precio que él puso ES el del
+           cliente final, así que entra tal cual: sin margen calculado encima,
+           que sería inventarle plata a una cifra ya acordada.
+           Va sobre las pestañas y no dentro de la de PPF: es por donde se
+           arranca, y ahí adentro no se encontraba. #}
+        <div class="traer-caja">
+          <button type="button" id="btnTraer" class="traer-btn">
+            Traer precios de un instalador
+          </button>
+          <span class="traer-nota">Lo que ya te cotizaron para este carro.</span>
+          <div id="traerPanel" hidden>
+            <input type="search" id="traerFiltro" class="traer-filtro"
+                   placeholder="Filtra por carro, instalador o código">
+            <div id="traerLista" class="traer-lista"></div>
+          </div>
+        </div>
+
         <div class="tabs">
           <button type="button" class="tab on" data-pane="paneSvc">Servicios</button>
           <button type="button" class="tab" data-pane="panePpf">PPF</button>
@@ -277,19 +295,6 @@
         </div>
 
         <div id="panePpf" hidden>
-          {# Traer lo que ya cotizó un instalador. El precio que él puso ES el
-             del cliente final, así que entra tal cual: sin margen calculado
-             encima, que sería inventarle plata a una cifra ya acordada. #}
-          <div class="traer-caja">
-            <button type="button" id="btnTraer" class="traer-btn">
-              Traer precios de un instalador
-            </button>
-            <div id="traerPanel" hidden>
-              <input type="search" id="traerFiltro" class="traer-filtro"
-                     placeholder="Filtra por carro, instalador o código">
-              <div id="traerLista" class="traer-lista"></div>
-            </div>
-          </div>
 
           {# Las marcas de ESTA cotización. Pueden no ser las del sistema: se
              puede cotizar con dos, o con una garantía negociada distinta de la

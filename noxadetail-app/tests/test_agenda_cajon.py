@@ -199,7 +199,50 @@ class TestAgendaDeDiagnosticos:
         assert evento["extendedProps"]["lineas"]["saldo"] == "", \
             "un '$0' no informa y le quita el renglón a las notas"
 
-    def test_marketing_no_entra_a_la_agenda(self, client, escenario):
+    def test_marketing_si_entra_a_la_agenda(self, client, escenario):
+        """Se le abrió a pedido del negocio: la agencia necesita ver qué hay
+        agendado para planear contenido y campañas."""
         login_as(client, make_user("agencia", role="marketing"))
-        r = client.get("/calendar/diagnosticos")
+        assert client.get("/calendar/diagnosticos").status_code == 200
+        assert client.get("/calendar").status_code == 200
+
+    def test_pero_no_ve_la_plata_de_cada_cita(self, client, escenario):
+        """"Marketing ve conversión y comportamiento de clientes, no la caja."
+        Antes no se notaba porque no llegaba a ninguna pantalla con precios; con
+        la agenda sí llega, y cada cita mostraría lo que factura."""
+        login_as(client, make_user("agencia2", role="marketing"))
+        eventos = client.get("/api/events?modo=citas").get_json()
+        assert eventos, "sin eventos el test no probaría nada"
+        assert all(e["extendedProps"]["lineas"]["saldo"] == "" for e in eventos)
+
+    def test_y_no_puede_operar_la_agenda(self, client, escenario):
+        """Mirar no es operar: crear, editar o borrar citas siguen fuera."""
+        login_as(client, make_user("agencia3", role="marketing"))
+        for ruta in ("/appointments/new", "/appointments"):
+            r = client.get(ruta)
+            assert r.status_code == 302, f"{ruta} quedó abierta para marketing"
+
+
+class TestDondeAterrizaCadaRol:
+    """Al abrirle la agenda a marketing dejó de existir el rebote que lo mandaba
+    al inbox, así que la pantalla de aterrizaje pasó a ser explícita."""
+
+    def test_marketing_sigue_cayendo_en_mensajes(self, client):
+        with app_module.app.app_context():
+            u = make_user("agencia_land", role="marketing")
+            u.set_password("clave-larga-1234")
+            u.must_change_password = False
+            db.session.commit()
+        r = client.post("/login", data={"username": "agencia_land",
+                                        "password": "clave-larga-1234"})
         assert r.status_code == 302 and "/whatsapp" in r.headers["Location"]
+
+    def test_los_demas_siguen_cayendo_en_la_agenda(self, client):
+        with app_module.app.app_context():
+            u = make_user("admin_land", role="admin")
+            u.set_password("clave-larga-1234")
+            u.must_change_password = False
+            db.session.commit()
+        r = client.post("/login", data={"username": "admin_land",
+                                        "password": "clave-larga-1234"})
+        assert r.status_code == 302 and "calendar" in r.headers["Location"]

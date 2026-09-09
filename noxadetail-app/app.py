@@ -9075,6 +9075,10 @@ MARKETING_ENDPOINTS = {
     "whatsapp_inbox", "whatsapp_conversation", "whatsapp_messages_json",
     "whatsapp_toggle_bot", "whatsapp_send_manual", "whatsapp_media",
     "analytics_dashboard", "analytics_detalle",
+    # Las dos agendas, de solo lectura: `api_events` es lo que las pinta, así
+    # que sin él la pantalla abre vacía. No entran las de crear, editar ni
+    # borrar citas — mirar la agenda no es operarla.
+    "calendar_view", "calendar_diagnosticos", "api_events",
     "notifications_list", "api_notifications",
     "notification_mark_read", "notifications_mark_all_read",
     "change_password", "logout",
@@ -9099,8 +9103,15 @@ def puede_ver_finanzas() -> bool:
 
 @app.template_global()
 def puede_ver_precios() -> bool:
-    """El operario agenda y trabaja citas, pero no ve cuánto valen los servicios."""
-    return not es_operario()
+    """Quién ve cuánto vale un servicio.
+
+    El operario agenda y trabaja citas, pero no ve precios. Marketing tampoco:
+    ve conversión y comportamiento de clientes, no la caja —la misma regla que
+    `puede_ver_finanzas`—. Antes solo excluía al operario, cosa que no se notaba
+    porque marketing no llegaba a ninguna pantalla con precios; al darle la
+    agenda sí llegaría, y cada cita mostraría lo que factura.
+    """
+    return not es_operario() and not es_marketing()
 
 
 @app.before_request
@@ -9207,7 +9218,13 @@ def login():
                 return redirect(url_for("change_password"))
             next_url = request.form.get("next") or ""
             if not _is_safe_redirect_target(next_url):
-                next_url = url_for("calendar_view")
+                # Cada rol cae en su pantalla principal. La agencia atiende
+                # conversaciones; la agenda la mira, pero no es donde trabaja.
+                # Antes caía en el inbox porque la guarda la rebotaba de la
+                # agenda: al abrírsela, ese rebote dejó de existir y se habría
+                # quedado aterrizando en la pantalla equivocada.
+                next_url = url_for("whatsapp_inbox" if user.role == "marketing"
+                                   else "calendar_view")
             return redirect(next_url)
         error = "Usuario o contraseña incorrectos."
 

@@ -589,9 +589,10 @@
     </button>
     <div class="collapse navbar-collapse justify-content-end" id="navbarContent">
       <div class="d-flex flex-column flex-lg-row align-items-lg-center gap-1 py-2 py-lg-0">
-        {% if not current_user or current_user.role not in ('operario', 'marketing') %}
+        {% if not current_user or current_user.role != 'operario' %}
         {# Dos agendas con la misma pantalla: las citas que facturan y los
-           diagnósticos, que se leen distinto. #}
+           diagnósticos, que se leen distinto. Marketing también las ve, de
+           solo lectura y sin los valores. #}
         <div class="dropdown">
           <button class="nav-link-custom border-0 bg-transparent dropdown-toggle"
                   type="button" data-bs-toggle="dropdown" aria-expanded="false">Agenda</button>
