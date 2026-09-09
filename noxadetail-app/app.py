@@ -1084,13 +1084,26 @@ class Quote(db.Model):
 
     @property
     def ppf_marcas(self) -> list:
-        """[(marca, garantía), ...] como estaban al emitir la cotización."""
+        """[(marca, garantía), ...] como estaban al emitir la cotización.
+
+        Se filtran las que no tienen precio en NINGUNA línea: una columna entera
+        en $0, con "no incluida" en cada fila, no le dice nada al cliente y
+        parece un error del documento. Es la misma regla que ya se aplicaba al
+        crear la cotización; acá cubre además a las que quedaron guardadas antes
+        de que desmarcar una marca al editar sirviera de algo.
+        """
+        marcas = ppf_marcas_activas()
         if self.ppf_brands:
             try:
-                return [(m, g) for m, g in json.loads(self.ppf_brands)]
+                marcas = [(m, g) for m, g in json.loads(self.ppf_brands)]
             except Exception:
                 pass
-        return ppf_marcas_activas()
+        if not self.ppf_items:
+            return marcas
+        con_precio = set()
+        for it in self.ppf_items:
+            con_precio.update(m for m, p in it.precios.items() if p)
+        return [(m, g) for m, g in marcas if m in con_precio] or marcas
 
     @property
     def ppf_absorbida_por(self) -> dict:
@@ -13783,11 +13796,16 @@ def _leer_formulario_de_cotizacion(cot: "Quote") -> str | None:
     cot.valid_until    = desde + timedelta(days=max(1, dias))
     cot.items     = lineas
     cot.ppf_items = ppf_lineas
-    if ppf_lineas and not cot.ppf_brands:
+    if ppf_lineas:
         # Las marcas quedan congeladas con la garantía que se cotizó, que puede
         # no ser la de lista: una negociación puede dar más años, y el papel
         # tiene que decir lo que se prometió, no lo que diga el catálogo un mes
         # después.
+        #
+        # Se recalcula en CADA guardado y no solo al crear. Antes solo se hacía
+        # la primera vez, así que desmarcar una marca al editar no la quitaba de
+        # ninguna parte: el link del cliente la seguía mostrando, en $0 y con
+        # "no incluida" en cada fila.
         con_precio = set()
         for linea in ppf_lineas:
             con_precio.update(m for m, p in json.loads(linea.prices_json).items() if p)
@@ -13798,7 +13816,12 @@ def _leer_formulario_de_cotizacion(cot: "Quote") -> str | None:
             # marca sin precios ocuparía una columna entera de "no aplica" y
             # dispararía el aviso de "no cubre" en cada fila — ruido puro.
             elegidas = [(m, g) for m, g in ppf_marcas_activas() if m in con_precio]
-        cot.ppf_brands = json.dumps([[m, g] for m, g in (elegidas or ppf_marcas_activas())])
+        if elegidas:
+            cot.ppf_brands = json.dumps([[m, g] for m, g in elegidas])
+        elif not cot.ppf_brands:
+            # Nada quedó con precio: se deja el catálogo antes que una
+            # cotización sin una sola columna. Si ya tenía marcas, se respetan.
+            cot.ppf_brands = json.dumps([[m, g] for m, g in ppf_marcas_activas()])
     return None
 
 
@@ -13898,6 +13921,11 @@ def quote_edit(code):
         catalogo=_catalogo_para_cotizar(),
         catalogo_ppf=_catalogo_ppf(),
         marcas_ppf=ppf_marcas_activas(),
+        # Las que ESTA cotización tiene, con su garantía. Sin esto el armador
+        # pintaba las casillas contra el catálogo, así que al editar aparecían
+        # marcadas marcas que la cotización no tiene y con la garantía de lista
+        # en vez de la que se negoció.
+        marcas_cot=dict(cot.ppf_marcas) if cot.ppf_brands else None,
         partes_ppf=_partes_ppf(),
         ppf_totales_zona=PPF_COBERTURAS_TOTALES,
         dias_por_defecto=dias,

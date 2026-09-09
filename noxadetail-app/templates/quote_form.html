@@ -302,14 +302,20 @@
           <div class="marcas-cot">
             <div class="mc-tit">Marcas a cotizar y su garantía</div>
             <div class="mc-grid">
+              {# Al EDITAR mandan las marcas de la cotización, no las del catálogo:
+                 si no, abrir una cotización de dos marcas mostraba las cinco
+                 marcadas, y con la garantía de lista en vez de la negociada. #}
               {% for marca, garantia in marcas_ppf %}
-              <label class="mc-item {% if garantia %}on{% endif %}" data-marca="{{ marca }}">
+              {% set en_cot = marcas_cot is not none and marca in marcas_cot %}
+              {% set puesta = en_cot if marcas_cot is not none else (garantia is not none) %}
+              {% set anios = marcas_cot[marca] if en_cot else garantia %}
+              <label class="mc-item {% if puesta %}on{% endif %}" data-marca="{{ marca }}">
                 <input type="checkbox" name="ppf_marca" value="{{ marca }}"
-                       {% if garantia %}checked{% endif %}>
+                       {% if puesta %}checked{% endif %}>
                 <span class="mc-nom">{{ marca }}</span>
                 <span class="mc-gar">
                   <input type="number" name="ppf_garantia::{{ marca }}" min="0" max="99"
-                         value="{{ garantia if garantia is not none else '' }}"
+                         value="{{ anios if anios is not none else '' }}"
                          placeholder="—"> años
                 </span>
               </label>
