@@ -22,22 +22,6 @@
 
 {% block extra_scripts %}
 <script>
-// Las marcas dependen del instalador y se muestran al elegirlo: quien arma la
-// solicitud tiene que ver con qué se le va a preguntar ANTES de mandarla, no
-// descubrirlo cuando vuelva la respuesta.
-const MARCAS = {
-  {%- for i in instaladores %}
-  "{{ i.id }}": {{ i.ppf_marcas | tojson }}{{ "," if not loop.last }}
-  {%- endfor %}
-};
-
-function pintarMarcas() {
-  const id = document.getElementById("instalador").value;
-  const m = MARCAS[id] || [];
-  document.getElementById("marcasInst").textContent =
-    m.length ? "Se le pedirá precio para: " + m.join(", ") : "";
-}
-
 let nOtros = 0;
 function agregarOtro() {
   const fila = document.createElement("div");
@@ -53,9 +37,7 @@ function agregarOtro() {
 }
 
 document.addEventListener("DOMContentLoaded", () => {
-  document.getElementById("instalador").onchange = pintarMarcas;
   document.getElementById("btnOtro").onclick = agregarOtro;
-  pintarMarcas();
 });
 </script>
 {% endblock %}
@@ -84,10 +66,15 @@ document.addEventListener("DOMContentLoaded", () => {
       <select name="installer_id" id="instalador" class="form-select" required>
         {% for i in instaladores %}
         <option value="{{ i.id }}"
-                {% if base and base.installer_id == i.id %}selected{% endif %}>{{ i.name }}</option>
+                {% if base and base.installer_id == i.id %}selected{% endif %}>
+          {{ i.name }} — {{ i.ppf_marcas | join(', ') }}
+        </option>
         {% endfor %}
       </select>
-      <div class="sp-marcas" id="marcasInst"></div>
+      <div class="sp-marcas">
+        Se le pedirá precio con las marcas que trabaja. Se cambian en
+        <a href="{{ url_for('installers_view') }}" style="color:#7fd6b8">Tercerizados</a>.
+      </div>
       {% if not instaladores %}
       <p class="text-muted small mb-0 mt-2">
         No hay instaladores activos. Créalos en
