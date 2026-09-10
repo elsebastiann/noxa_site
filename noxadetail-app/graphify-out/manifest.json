@@ -1,7 +1,7 @@
 {
   "app.py": {
-    "mtime": 1788993504.0145378,
-    "ast_hash": "0e78617243aa3f07342c5a6bde9bda5d",
+    "mtime": 1789056904.2210896,
+    "ast_hash": "774b419d5bdfb469e4bbfb126eb219f7",
     "semantic_hash": ""
   },
   "migrate_prices.py": {
@@ -200,8 +200,8 @@
     "semantic_hash": ""
   },
   "templates/whatsapp_outbox.html": {
-    "mtime": 1786228381.3856328,
-    "ast_hash": "6a2a7d24407faabecb2aca114442d143",
+    "mtime": 1789056794.316098,
+    "ast_hash": "924dc9e19049ec6402c6bfd772091f02",
     "semantic_hash": ""
   },
   "static/img/logotipo.png": {
@@ -557,6 +557,11 @@
   "tests/test_marcas_sin_precio.py": {
     "mtime": 1788987544.375187,
     "ast_hash": "3c39e48af06cb69294e6559b697905f1",
+    "semantic_hash": ""
+  },
+  "tests/test_avisos_admin_plantilla.py": {
+    "mtime": 1789056859.505701,
+    "ast_hash": "5a4bdb1ee5c7379810d6fc8f6e67f2e7",
     "semantic_hash": ""
   }
 }

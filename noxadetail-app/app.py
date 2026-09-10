@@ -206,6 +206,10 @@ DIAGNOSTIC_SERVICE_NAME = os.environ.get("DIAGNOSTIC_SERVICE_NAME", "Diagnóstic
 TPL_WEB_LEAD        = os.environ.get("TWILIO_WEB_LEAD_TEMPLATE_SID", "")
 TPL_RECORDATORIO    = os.environ.get("TWILIO_TPL_RECORDATORIO_CITA", "")
 TPL_AVISO_ADMIN     = os.environ.get("TWILIO_TPL_AVISO_ADMIN", "")
+# El seguimiento post-servicio sale entre 5 y 9 días DESPUÉS de entregar el
+# carro: la ventana de 24h lleva días cerrada, así que como texto libre no
+# llegaba nunca. Es el mensaje que pide la opinión y los referidos.
+TPL_POST_SERVICIO   = os.environ.get("TWILIO_TPL_POST_SERVICIO", "")
 # Plantillas de reactivación aprobadas en Meta. Con la cadencia de dos toques
 # solo se usan dos: `ultima_oportunidad` para el segundo —que va siempre fuera
 # de la ventana de 24h— y `reactivacion_suave` como plan B del primero, para los
@@ -4048,18 +4052,15 @@ def notify_admin_mercedes_benz_booking(appt, tier: str, diagnostic_reason: str, 
         detalle = appt.services
         precio_linea = f"Valor estimado: ${final_price:,.0f}".replace(",", ".")
 
-    msg = (
-        f"🚗 Nueva cita agendada — Convenio Club Mercedes-Benz ({TIER_LABELS.get(tier, tier)})\n\n"
-        f"Cliente: {appt.customer_name}\n"
-        f"Teléfono: {appt.phone}\n"
-        f"Placa: {appt.plate}\n"
-        f"Servicio: {detalle}\n"
-        f"Fecha: {appt.start_datetime.strftime('%d/%m/%Y')} a las {appt.start_datetime.strftime('%H:%M')}\n"
-        f"{precio_linea}\n\n"
-        f"Agendada directamente por el cliente desde el widget del club."
+    avisar_admin_whatsapp(
+        cliente=appt.customer_name,
+        motivo=f"Nueva cita del Club Mercedes-Benz ({TIER_LABELS.get(tier, tier)})",
+        accion=(f"{detalle} · placa {appt.plate} · "
+                f"{appt.start_datetime.strftime('%d/%m a las %H:%M')} · {precio_linea} "
+                f"La agendó el cliente desde el widget del club."),
+        telefono=appt.phone,
+        kind="admin_reserva_mercedes", ref_type="appointment", ref_id=appt.id,
     )
-    send_whatsapp(admin_phone, msg, kind="admin_reserva_mercedes",
-                  ref_type="appointment", ref_id=appt.id)
 
 
 def _day_business_end(day):
@@ -9865,6 +9866,59 @@ def send_whatsapp(
         return False, str(exc)
 
 
+def _var_plantilla(valor, por_defecto: str = "—") -> str:
+    """Deja un valor apto para ir dentro de una variable de plantilla de Meta.
+
+    Meta rechaza el mensaje completo —no la variable— si una variable viene
+    vacía, o si trae saltos de línea, tabulaciones o cuatro espacios seguidos.
+    Los avisos internos se venían armando como texto de varias líneas, así que
+    pasarlos tal cual a una plantilla los haría fallar por una razón distinta a
+    la de hoy y con la misma cara: un mensaje que sale y nunca llega."""
+    texto = " ".join(str(valor or "").split())
+    return (texto or por_defecto)[:900]
+
+
+def avisar_admin_whatsapp(
+    *, cliente: str, motivo: str, accion: str, telefono: str,
+    kind: str, ref_type=None, ref_id=None,
+) -> tuple[bool, str]:
+    """El ÚNICO camino por el que un aviso interno sale al WhatsApp de Diana.
+
+    Todos estos avisos los inicia el negocio, no el cliente, y ninguno cae
+    dentro de la ventana de 24h: esa ventana la abre el destinatario cuando le
+    escribe al WhatsApp de NOXA, y Diana no le escribe al número de su propia
+    empresa. O sea que el texto libre acá no falla "a veces" — falla siempre,
+    con 63016, y el aviso muere sin que nadie se entere. Por eso todos van por
+    la MISMA plantilla aprobada, con los cuatro datos que siempre existen en un
+    aviso interno: de quién es, qué pasó, qué hay que hacer y a qué número.
+
+    `body` (el resumen legible) es lo que queda guardado en la bandeja de
+    salida; lo que WhatsApp entrega lo define la plantilla."""
+    admin_phone = os.environ.get("ADMIN_WHATSAPP", "")
+    if not admin_phone:
+        app.logger.error(f"[WhatsApp] Aviso {kind!r} no enviado: ADMIN_WHATSAPP no configurado.")
+        return False, "ADMIN_WHATSAPP no configurado"
+    if not TPL_AVISO_ADMIN:
+        app.logger.warning(
+            f"[WhatsApp] Aviso {kind!r} sale como texto libre: TWILIO_TPL_AVISO_ADMIN "
+            f"no está configurado. Fuera de la ventana de 24h WhatsApp lo rechaza con 63016."
+        )
+    variables = {
+        "1": _var_plantilla(cliente, "NOXA"),
+        "2": _var_plantilla(motivo),
+        "3": _var_plantilla(accion),
+        "4": _var_plantilla(telefono),
+    }
+    # Calca el texto aprobado en Meta, para que quien lea el panel vea lo mismo
+    # que le llegó a Diana al celular. Si allá se cambia el texto, se cambia acá.
+    resumen = (f"Diana, {variables['1']} ({variables['4']}): "
+               f"{variables['2']}. {variables['3']}")
+    return send_whatsapp(
+        admin_phone, resumen, kind=kind, ref_type=ref_type, ref_id=ref_id,
+        content_sid=TPL_AVISO_ADMIN, content_variables=variables,
+    )
+
+
 NOXA_MAPS_LINK = "https://maps.app.goo.gl/qjiSRV3ypoV3i4aF9"
 
 # Menú de bienvenida. Lo manda el código, no el modelo: es un texto fijo del
@@ -11233,28 +11287,20 @@ def notify_admin_gestion_cliente(
         url=url, ref_type=ref_type, ref_id=ref_id,
     )
 
-    admin_phone = os.environ.get("ADMIN_WHATSAPP", "")
-    if not admin_phone:
-        app.logger.error("[WhatsApp] No se pudo avisar al admin: ADMIN_WHATSAPP no configurado.")
-        return False, "ADMIN_WHATSAPP no configurado"
-
-    resumen = f"Diana, {cliente} ({telefono}): {motivo}. {accion}"
-    return send_whatsapp(
-        admin_phone, resumen, kind=kind, ref_type=ref_type, ref_id=ref_id,
-        content_sid=TPL_AVISO_ADMIN,
-        content_variables={"1": cliente, "2": motivo, "3": accion, "4": telefono},
+    return avisar_admin_whatsapp(
+        cliente=cliente, motivo=motivo, accion=accion, telefono=telefono,
+        kind=kind, ref_type=ref_type, ref_id=ref_id,
     )
 
 
 def notify_admin_conversation_error(conversation: "Conversation", error: Exception) -> None:
     """Avisa al admin por WhatsApp cuando Mariana no pudo responderle al cliente tras
     varios intentos (por cualquier motivo: generación, envío, etc.), con un resumen real
-    de la conversación para que pueda tomarla manualmente con contexto."""
-    admin_phone = os.environ.get("ADMIN_WHATSAPP", "")
-    if not admin_phone:
-        app.logger.error("[WhatsApp] No se pudo avisar al admin: ADMIN_WHATSAPP no configurado.")
-        return
+    de la conversación para que pueda tomarla manualmente con contexto.
 
+    El chequeo de ADMIN_WHATSAPP vive dentro de `avisar_admin_whatsapp` y no
+    acá: cuando estaba acá arriba, una variable sin configurar se llevaba por
+    delante también la campanita, que es el canal que nunca falla."""
     contacto = conversation.profile_name or conversation.phone
     # Un fallo por saldo agotado se ve idéntico a un bug, pero se arregla
     # recargando y afecta a TODAS las conversaciones, no solo a esta. Si es el
@@ -11286,15 +11332,14 @@ def notify_admin_conversation_error(conversation: "Conversation", error: Excepti
         )[:1000]
         resumen = f"escribió, pero no logré generar el resumen automático. Últimos mensajes:\n{transcript}"
 
-    msg = (
-        f"Diana, {contacto} {resumen}\n\n"
-        f"📱 {conversation.phone}\n\n"
-        f"Mariana no pudo responderle después de varios intentos — pausé el bot en esa "
-        f"conversación, respóndele tú manual desde el panel de Mensajes o por WhatsApp."
-        + (f"\n\n{motivo}" if motivo else "")
+    avisar_admin_whatsapp(
+        cliente=contacto,
+        motivo="Mariana no pudo responderle después de varios intentos",
+        accion=(f"{resumen} Pausé el bot en esa conversación: respóndele tú desde el "
+                f"panel de Mensajes." + (f" {motivo}" if motivo else "")),
+        telefono=conversation.phone,
+        kind="admin_bot_atascado", ref_type="conversation", ref_id=conversation.id,
     )
-    send_whatsapp(admin_phone, msg, kind="admin_bot_atascado",
-                  ref_type="conversation", ref_id=conversation.id)
 
 
 _ESCALATE_RE = re.compile(r"^\[ESCALAR:\s*(.*?)\]$", re.IGNORECASE)
@@ -11781,15 +11826,13 @@ def notify_admin_bot_reschedule(conversation: "Conversation", appt: "Appointment
         url=f"/appointment/{appt.id}/edit",
         ref_type="appointment", ref_id=appt.id,
     )
-    admin_phone = os.environ.get("ADMIN_WHATSAPP", "")
-    if not admin_phone:
-        return
-    send_whatsapp(admin_phone,
-                  f"🔄 Mariana movió una cita\n\n"
-                  f"Cliente: {appt.customer_name}\n"
-                  f"Placa: {appt.plate}\n"
-                  f"{detalle}",
-                  kind="admin_cita_movida", ref_type="appointment", ref_id=appt.id)
+    avisar_admin_whatsapp(
+        cliente=appt.customer_name,
+        motivo="Mariana movió una cita",
+        accion=f"{detalle} · {vehiculo} · placa {appt.plate}",
+        telefono=appt.phone,
+        kind="admin_cita_movida", ref_type="appointment", ref_id=appt.id,
+    )
 
 
 def notify_admin_bot_booking(conversation: "Conversation", appt: "Appointment") -> None:
@@ -11805,21 +11848,14 @@ def notify_admin_bot_booking(conversation: "Conversation", appt: "Appointment") 
         ref_type="appointment", ref_id=appt.id,
     )
 
-    admin_phone = os.environ.get("ADMIN_WHATSAPP", "")
-    if not admin_phone:
-        app.logger.error("[WhatsApp] No se pudo avisar al admin: ADMIN_WHATSAPP no configurado.")
-        return
-    msg = (
-        f"📅 Mariana agendó un diagnóstico\n\n"
-        f"Cliente: {appt.customer_name}\n"
-        f"Teléfono: {appt.phone}\n"
-        f"Placa: {appt.plate}\n"
-        f"Vehículo: {appt.vehicle_type.name if appt.vehicle_type else '—'}\n"
-        f"Fecha: {appt.start_datetime.strftime('%d/%m/%Y')} a las {appt.start_datetime.strftime('%H:%M')}\n\n"
-        f"Agendado por el bot durante la conversación de WhatsApp."
+    avisar_admin_whatsapp(
+        cliente=appt.customer_name,
+        motivo="Mariana agendó un diagnóstico",
+        accion=(f"{appt.start_datetime.strftime('%d/%m a las %H:%M')} · {vehiculo} · "
+                f"placa {appt.plate}. Lo agendó el bot durante la conversación."),
+        telefono=appt.phone,
+        kind="admin_cita_bot", ref_type="appointment", ref_id=appt.id,
     )
-    send_whatsapp(admin_phone, msg, kind="admin_cita_bot",
-                  ref_type="appointment", ref_id=appt.id)
 
 
 def notify_admin_escalation(conversation: "Conversation", reason: str) -> None:
@@ -11834,17 +11870,14 @@ def notify_admin_escalation(conversation: "Conversation", reason: str) -> None:
         ref_type="conversation", ref_id=conversation.id,
     )
 
-    admin_phone = os.environ.get("ADMIN_WHATSAPP", "")
-    if not admin_phone:
-        app.logger.error("[WhatsApp] No se pudo avisar al admin: ADMIN_WHATSAPP no configurado.")
-        return
-    msg = (
-        f"Diana, {contacto} necesita atención humana: {reason}\n\n"
-        f"📱 {conversation.phone}\n\n"
-        f"Pausé el bot en esa conversación — respóndele tú desde el panel de Mensajes o por WhatsApp."
+    avisar_admin_whatsapp(
+        cliente=contacto,
+        motivo="necesita atención humana",
+        accion=(f"{reason}. Pausé el bot en esa conversación: respóndele tú desde el "
+                f"panel de Mensajes."),
+        telefono=conversation.phone,
+        kind="admin_escalacion", ref_type="conversation", ref_id=conversation.id,
     )
-    send_whatsapp(admin_phone, msg, kind="admin_escalacion",
-                  ref_type="conversation", ref_id=conversation.id)
 
 
 # ── Lead entrante del sitio web (widget "Mariana" en noxadetail.com) ──────────
@@ -11935,25 +11968,20 @@ def notify_admin_new_web_lead(
         ref_type="conversation", ref_id=conversation.id,
     )
 
-    admin_phone = os.environ.get("ADMIN_WHATSAPP", "")
-    if not admin_phone:
-        app.logger.error("[WhatsApp] No se pudo avisar al admin: ADMIN_WHATSAPP no configurado.")
-        return
     estado_linea = (
-        "✅ Ya le escribí por WhatsApp para seguir la conversación."
+        "Ya le escribí por WhatsApp para seguir la conversación."
         if whatsapp_sent else
-        f"⚠️ No le pude escribir por WhatsApp automáticamente ({send_error or 'error desconocido'}) — escríbele tú manual."
+        f"No le pude escribir automáticamente ({send_error or 'error desconocido'}): escríbele tú."
     )
-    msg = (
-        f"🌐 Nuevo lead desde el sitio web (chat de Mariana)\n\n"
-        f"Nombre: {name}\n"
-        f"WhatsApp: {conversation.phone}\n"
-        + (f"Mensaje en el sitio: {website_message}\n" if website_message else "")
-        + (f"Página: {page_url}\n" if page_url else "")
-        + f"\n{estado_linea}"
+    avisar_admin_whatsapp(
+        cliente=name,
+        motivo="Nuevo lead desde el sitio web (chat de Mariana)",
+        accion=((f"Escribió: {website_message}. " if website_message else "")
+                + (f"Desde {page_url}. " if page_url else "")
+                + estado_linea),
+        telefono=conversation.phone,
+        kind="admin_lead_web", ref_type="conversation", ref_id=conversation.id,
     )
-    send_whatsapp(admin_phone, msg, kind="admin_lead_web",
-                  ref_type="conversation", ref_id=conversation.id)
 
 
 @app.route("/api/public/web-lead", methods=["POST", "OPTIONS"])
@@ -12823,9 +12851,6 @@ def whatsapp_send_manual(conversation_id):
 # ── Job 1: Recordatorio al ADMIN — 30 minutos antes de cada cita ──────────────
 def _job_admin_reminder():
     """Corre cada 5 minutos. Notifica al admin si hay cita en los próximos 30 min."""
-    admin_phone = os.environ.get("ADMIN_WHATSAPP", "")
-    if not admin_phone:
-        return
     with app.app_context():
         # start_datetime se guarda en hora local de Bogotá, así que la ventana
         # tiene que calcularse sobre la misma referencia: contra utcnow() el
@@ -12840,16 +12865,17 @@ def _job_admin_reminder():
             Appointment.notif_reminder_sent == False,
         ).all()
         for appt in pendientes:
-            msg = (
-                f"⏰ *NOXA Detail — Cita en 30 min*\n\n"
-                f"👤 {appt.customer_name or 'Sin nombre'}\n"
-                f"🚗 Placa: {appt.plate or '—'}\n"
-                f"🔧 {appt.services}\n"
-                f"📞 {appt.phone or 'Sin teléfono'}\n"
-                f"🕐 {appt.start_datetime.strftime('%I:%M %p')}"
+            ok, _ = avisar_admin_whatsapp(
+                cliente=appt.customer_name or "Sin nombre",
+                motivo=f"cita a las {appt.start_datetime.strftime('%I:%M %p')} (en 30 minutos)",
+                accion=f"{appt.services} · placa {appt.plate or '—'}",
+                telefono=appt.phone or "sin teléfono",
+                kind="admin_cita_30min", ref_type="appointment", ref_id=appt.id,
             )
-            ok, _ = send_whatsapp(admin_phone, msg, kind="admin_cita_30min",
-                                  ref_type="appointment", ref_id=appt.id)
+            # `ok` solo dice que Twilio aceptó la petición. La cita se marca igual
+            # como avisada: reintentar cada 5 minutos un envío que WhatsApp ya
+            # rechazó no lo arregla, y llenaría la bandeja de salida de copias del
+            # mismo fallo. Si no llegó, queda en /whatsapp/outbox con su código.
             if ok:
                 appt.notif_reminder_sent = True
                 db.session.commit()
@@ -13078,15 +13104,20 @@ def _job_post_service_followup():
                 db.session.commit()
                 continue
 
+            # Calca el texto de la plantilla aprobada ({{1}} = nombre), para que
+            # el panel muestre lo mismo que recibió el cliente. Si se edita acá
+            # hay que editar la plantilla en Twilio, y viceversa.
+            nombre = appt.customer_name or "cliente"
             msg = (
-                f"Hola {appt.customer_name or 'cliente'} 👋 Soy Mariana, de *NOXA Detail*.\n\n"
-                f"Han pasado unos días desde que te entregamos tu vehículo. "
-                f"¿Cómo te ha parecido el resultado?\n\n"
+                f"Hola {nombre} 👋 Soy Mariana, de NOXA Detail. Han pasado unos días "
+                f"desde que te entregamos tu vehículo, ¿cómo te ha parecido el resultado? "
                 f"Si tienes cualquier pregunta, por aquí estoy. Y si conoces a alguien "
                 f"que necesite detailing, con mucho gusto lo atendemos 🚗"
             )
             ok, _ = send_whatsapp(appt.phone, msg, kind="cliente_seguimiento_post_servicio",
-                                  ref_type="appointment", ref_id=appt.id)
+                                  ref_type="appointment", ref_id=appt.id,
+                                  content_sid=TPL_POST_SERVICIO,
+                                  content_variables={"1": _var_plantilla(nombre, "cliente")})
             if ok:
                 appt.notif_post_service_sent = True
                 db.session.commit()
@@ -15406,9 +15437,25 @@ def whatsapp_outbox():
         {"kind": k, "total": total, "fallidos": int(f or 0), "entregados": int(e or 0)}
         for k, total, f, e in filas
     ]
+    # Una plantilla sin SID no rompe nada al arrancar: el envío cae a texto libre
+    # y solo se nota meses después, como una fila con 63016 entre doscientas. Se
+    # dice acá, que es donde alguien ya está buscando por qué no llegó algo.
+    sin_plantilla = [
+        nombre for nombre, sid in (
+            ("TWILIO_TPL_AVISO_ADMIN (avisos internos a Diana)", TPL_AVISO_ADMIN),
+            ("TWILIO_TPL_RECORDATORIO_CITA (recordatorio al cliente)", TPL_RECORDATORIO),
+            ("TWILIO_TPL_POST_SERVICIO (seguimiento a los 7 días)", TPL_POST_SERVICIO),
+            ("TWILIO_WEB_LEAD_TEMPLATE_SID (primer mensaje a un lead del sitio)", TPL_WEB_LEAD),
+            ("TWILIO_TPL_REACTIVACION_1 (primer toque de seguimiento)",
+             TPL_REACTIVACION["reactivacion_suave"]),
+            ("TWILIO_TPL_REACTIVACION_4 (segundo toque, a la semana)",
+             TPL_REACTIVACION["ultima_oportunidad"]),
+        ) if not sid
+    ]
     return render_template(
         "whatsapp_outbox.html",
         mensajes=mensajes, resumen=resumen, solo_fallidos=solo_fallidos,
+        sin_plantilla=sin_plantilla,
     )
 
 
@@ -15430,13 +15477,24 @@ def test_whatsapp():
     from_, from_err = _twilio_from_number()
     from_ = from_ or f"✗ ({from_err})"
 
-    ok, err = send_whatsapp(
-        admin_phone,
-        "✅ *NOXA Detail — Prueba exitosa*\n\nLas notificaciones de WhatsApp están funcionando correctamente.",
-        kind="prueba_admin",
+    # Va por la MISMA plantilla que los avisos reales: una prueba que usa texto
+    # libre pasa siempre que la ventana de 24h esté abierta, así que decía "todo
+    # bien" justo en el escenario en que los avisos de verdad se estaban
+    # perdiendo con 63016. Una prueba que no puede fallar no prueba nada.
+    ok, err = avisar_admin_whatsapp(
+        cliente="NOXA", motivo="prueba de notificaciones",
+        accion="Si te llegó este mensaje, los avisos internos están saliendo bien.",
+        telefono=admin_phone, kind="prueba_admin",
     )
     if ok:
-        flash("✅ Mensaje de prueba enviado. Revisa tu WhatsApp.", "success")
+        flash(
+            "Twilio aceptó el mensaje de prueba"
+            + ("." if TPL_AVISO_ADMIN else
+               " — pero salió como texto libre, porque TWILIO_TPL_AVISO_ADMIN no está"
+               " configurado. Fuera de la ventana de 24h WhatsApp lo rechaza.")
+            + " Si no te llega, míralo en la Bandeja de salida: ahí queda el motivo real.",
+            "success" if TPL_AVISO_ADMIN else "warning",
+        )
     else:
         flash(
             f"❌ Error Twilio: {err} | "
@@ -16122,10 +16180,11 @@ def _job_check_saldos():
                       f"Cuando llegue a cero Mariana deja de enviar WhatsApp.")
             push_notification(kind="saldo_twilio_bajo", level="urgent",
                               title=titulo, body=cuerpo, url="/estado")
-            if admin_phone:
-                send_whatsapp(admin_phone,
-                              f"💳 *NOXA — {titulo}*\n\n{cuerpo}\n\nRecarga en console.twilio.com",
-                              kind="admin_saldo_twilio")
+            avisar_admin_whatsapp(
+                cliente="NOXA", motivo=titulo,
+                accion=f"{cuerpo} Recarga en console.twilio.com",
+                telefono="console.twilio.com", kind="admin_saldo_twilio",
+            )
             app.logger.warning(f"[Saldo] Twilio bajo: {saldo:.2f} {moneda}")
         else:
             app.logger.info(f"[Saldo] Twilio OK: {saldo:.2f} {moneda}")
@@ -16142,9 +16201,11 @@ def _job_check_saldos():
             # El rate limit y los cortes de red se normalizan solos: llenarle el
             # WhatsApp a Diana con eso hace que deje de mirar los avisos que sí
             # importan.
-            if admin_phone and categoria in ("sin_credito", "credencial"):
-                send_whatsapp(admin_phone, f"🤖 *NOXA — {titulo}*\n\n{accion}",
-                              kind="admin_saldo_anthropic")
+            if categoria in ("sin_credito", "credencial"):
+                avisar_admin_whatsapp(
+                    cliente="NOXA", motivo=titulo, accion=accion,
+                    telefono="console.anthropic.com", kind="admin_saldo_anthropic",
+                )
             app.logger.warning(f"[Saldo] Anthropic {categoria}: {detalle[:200]}")
         else:
             app.logger.info("[Saldo] Anthropic OK.")
