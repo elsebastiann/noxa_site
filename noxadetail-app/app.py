@@ -9909,10 +9909,17 @@ def avisar_admin_whatsapp(
         "3": _var_plantilla(accion),
         "4": _var_plantilla(telefono),
     }
-    # Calca el texto aprobado en Meta, para que quien lea el panel vea lo mismo
-    # que le llegó a Diana al celular. Si allá se cambia el texto, se cambia acá.
-    resumen = (f"Diana, {variables['1']} ({variables['4']}): "
-               f"{variables['2']}. {variables['3']}")
+    # Calca el texto aprobado en Meta (plantilla `noxa_aviso_admin`), para que
+    # quien lea el panel vea lo mismo que le llegó a Diana al celular. Si allá se
+    # cambia el texto, se cambia acá.
+    resumen = (
+        f"🔔 NOXA – gestión de cliente.\n"
+        f"Cliente: {variables['1']}.\n"
+        f"Motivo: {variables['2']}.\n"
+        f"Acción sugerida: {variables['3']}.\n"
+        f"Teléfono: {variables['4']}\n"
+        f"En el panel está el detalle completo."
+    )
     return send_whatsapp(
         admin_phone, resumen, kind=kind, ref_type=ref_type, ref_id=ref_id,
         content_sid=TPL_AVISO_ADMIN, content_variables=variables,
