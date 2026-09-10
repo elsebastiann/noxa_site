@@ -1,7 +1,7 @@
 {
   "app.py": {
-    "mtime": 1789058173.3450484,
-    "ast_hash": "2b7ce7ae9675997f3785de77501e7f40",
+    "mtime": 1789063785.3417552,
+    "ast_hash": "6ac0dde7cc104e96d22664d5d60bbb88",
     "semantic_hash": ""
   },
   "migrate_prices.py": {
@@ -25,8 +25,8 @@
     "semantic_hash": ""
   },
   "tests/test_agenda_cajon.py": {
-    "mtime": 1788993412.348217,
-    "ast_hash": "fbfdc675e9731a416647d65188fcd902",
+    "mtime": 1789063618.5910249,
+    "ast_hash": "aac2a6a7434bf650b487fa1be53694a6",
     "semantic_hash": ""
   },
   "tests/test_payroll.py": {
@@ -75,8 +75,8 @@
     "semantic_hash": ""
   },
   "templates/base.html": {
-    "mtime": 1788969259.174875,
-    "ast_hash": "924d0a050457a448baf297f9c9e2c54c",
+    "mtime": 1789063592.324653,
+    "ast_hash": "6d8522d46fa792e9779b4542120d15f6",
     "semantic_hash": ""
   },
   "templates/calendar.html": {

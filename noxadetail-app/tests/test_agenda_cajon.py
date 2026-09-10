@@ -303,3 +303,42 @@ class TestMarketingYLasCotizaciones:
         """La regla que no cambió: el operario no ve cuánto valen las cosas."""
         login_as(client, make_user("operario_cot", role="operario"))
         assert client.get("/quotes").status_code == 302
+
+
+class TestMarketingYElTableroDeSeguimiento:
+    """Se le abrió a pedido del negocio. Encaja con lo que ya hacía: la agencia
+    contesta la bandeja de WhatsApp, y el tablero es la lista de a quién le toca
+    hoy. No muestra plata — sus números son cuántos faltan, no cuánto valen."""
+
+    @pytest.fixture
+    def agencia(self, client):
+        login_as(client, make_user("agencia_seg", role="marketing"))
+        return client
+
+    def test_entra_al_tablero(self, agencia):
+        assert agencia.get("/seguimiento").status_code == 200
+
+    def test_puede_marcar_una_tarjeta(self, agencia):
+        """Un tablero de "a quién contactar hoy" donde no se puede marcar lo ya
+        contactado se llena de tarjetas viejas y se deja de mirar."""
+        r = agencia.post("/seguimiento/gestionar",
+                         json={"tipo": "sin_responder", "telefono": "+573001234567",
+                               "accion": "contactado"})
+        assert r.status_code == 200
+
+    def test_el_menu_le_muestra_el_enlace(self, agencia):
+        """Si la ruta abre pero el menú no lo pinta, la pantalla existe y nadie
+        llega a ella."""
+        cuerpo = agencia.get("/whatsapp").data.decode()
+        assert 'href="/seguimiento"' in cuerpo
+
+    def test_el_operario_sigue_afuera(self, client):
+        login_as(client, make_user("operario_seg", role="operario"))
+        assert client.get("/seguimiento").status_code == 302
+
+    def test_el_menu_no_le_ofrece_lo_que_no_puede_abrir(self, client):
+        """Contraprueba del enlace: si el menú lo pintara siempre, el test de
+        arriba pasaría sin probar nada."""
+        login_as(client, make_user("operario_seg2", role="operario"))
+        cuerpo = client.get("/").data.decode()
+        assert 'href="/seguimiento"' not in cuerpo

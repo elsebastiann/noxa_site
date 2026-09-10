@@ -5643,8 +5643,23 @@ def edit_appointment(appointment_id):
     )
 
 
-def _puede_ver_seguimiento() -> bool:
-    return bool(getattr(g, "current_user", None)) and g.current_user.role in ("admin", "lider")
+@app.template_global()
+def puede_ver_seguimiento() -> bool:
+    """Quién entra al tablero de pipeline.
+
+    Marketing entra: el tablero dice a quién hay que contactar hoy, y contactar
+    es justo lo que ya hace desde la bandeja de mensajes. No muestra plata —
+    los números que salen son cuántos faltan, no cuánto valen.
+
+    Es `template_global` para que el menú pregunte lo MISMO que la ruta. Cuando
+    eran dos listas de roles escritas aparte, agregar un rol en una y olvidarla
+    en la otra daba un enlace que rebota o una pantalla sin cómo llegar."""
+    u = getattr(g, "current_user", None)
+    return bool(u) and u.role in ("admin", "lider", "marketing")
+
+
+# Nombre viejo, para no tocar las llamadas que ya existen.
+_puede_ver_seguimiento = puede_ver_seguimiento
 
 
 @app.route("/seguimiento")
@@ -9146,6 +9161,10 @@ MARKETING_ENDPOINTS = {
     # Quedan fuera crear, editar, duplicar y borrar, y también los precios de
     # PPF y las solicitudes a instaladores, que son el costo del negocio.
     "quotes_list", "quote_detail", "quote_pdf",
+    # El tablero de seguimiento, y poder gestionar sus tarjetas. Va completo a
+    # propósito: un tablero de "a quién contactar hoy" en el que no se puede
+    # marcar lo ya contactado se llena de tarjetas viejas y se deja de mirar.
+    "seguimiento_tablero", "seguimiento_gestionar",
     "notifications_list", "api_notifications",
     "notification_mark_read", "notifications_mark_all_read",
     "change_password", "logout",
