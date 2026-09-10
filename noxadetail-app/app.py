@@ -206,10 +206,6 @@ DIAGNOSTIC_SERVICE_NAME = os.environ.get("DIAGNOSTIC_SERVICE_NAME", "Diagnóstic
 TPL_WEB_LEAD        = os.environ.get("TWILIO_WEB_LEAD_TEMPLATE_SID", "")
 TPL_RECORDATORIO    = os.environ.get("TWILIO_TPL_RECORDATORIO_CITA", "")
 TPL_AVISO_ADMIN     = os.environ.get("TWILIO_TPL_AVISO_ADMIN", "")
-# El seguimiento post-servicio sale entre 5 y 9 días DESPUÉS de entregar el
-# carro: la ventana de 24h lleva días cerrada, así que como texto libre no
-# llegaba nunca. Es el mensaje que pide la opinión y los referidos.
-TPL_POST_SERVICIO   = os.environ.get("TWILIO_TPL_POST_SERVICIO", "")
 # Plantillas de reactivación aprobadas en Meta. Con la cadencia de dos toques
 # solo se usan dos: `ultima_oportunidad` para el segundo —que va siempre fuera
 # de la ventana de 24h— y `reactivacion_suave` como plan B del primero, para los
@@ -13085,10 +13081,17 @@ def _job_reengagement_followup():
 # ── Job 3c: Seguimiento 7 días después del servicio ──────────────────────────
 def _job_post_service_followup():
     """Corre diariamente a las 10:30 AM (Bogotá). A los 7 días de entregar el
-    vehículo pregunta por el resultado y abre la puerta a referidos — es la
-    ventana en la que el cliente ya vivió el resultado y todavía lo tiene
-    presente. Los diagnósticos quedan por fuera: ahí no se entregó ningún
-    trabajo del que preguntar."""
+    vehículo le RECUERDA A DIANA que le escriba: es la ventana en que el cliente
+    ya vivió el resultado y todavía lo tiene presente, y de ahí salen los
+    referidos. Los diagnósticos quedan por fuera: ahí no se entregó ningún
+    trabajo del que preguntar.
+
+    Antes lo mandaba Mariana sola, en texto libre. Dos problemas: uno, el
+    mensaje sale entre 5 y 9 días después del servicio, así que la ventana de
+    24h de WhatsApp llevaba días cerrada y NUNCA llegó ninguno —salía con 63016
+    y el `ok` de Twilio lo hacía ver como enviado—. Y dos, es la misma decisión
+    que ya se tomó para el seguimiento del cerámico: preguntar cómo le fue
+    viniendo de una persona vale mucho más que viniendo de un automático."""
     with app.app_context():
         today = bogota_now().date()
         # Ventana de 7 ± 2 días para no perder clientes si el job falla un día
@@ -13111,23 +13114,20 @@ def _job_post_service_followup():
                 db.session.commit()
                 continue
 
-            # Calca el texto de la plantilla aprobada ({{1}} = nombre), para que
-            # el panel muestre lo mismo que recibió el cliente. Si se edita acá
-            # hay que editar la plantilla en Twilio, y viceversa.
-            nombre = appt.customer_name or "cliente"
-            msg = (
-                f"Hola {nombre} 👋 Soy Mariana, de NOXA Detail. Han pasado unos días "
-                f"desde que te entregamos tu vehículo, ¿cómo te ha parecido el resultado? "
-                f"Si tienes cualquier pregunta, por aquí estoy. Y si conoces a alguien "
-                f"que necesite detailing, con mucho gusto lo atendemos 🚗"
+            notify_admin_gestion_cliente(
+                motivo=f"Pasó una semana de su {appt.services or 'servicio'}",
+                accion="Escríbele tú para saber cómo le fue y pedirle referidos.",
+                cliente=appt.customer_name or "Cliente",
+                telefono=appt.phone,
+                kind="cliente_seguimiento_post_servicio", level="info",
+                url=f"/appointments/{appt.id}/edit",
+                ref_type="appointment", ref_id=appt.id,
             )
-            ok, _ = send_whatsapp(appt.phone, msg, kind="cliente_seguimiento_post_servicio",
-                                  ref_type="appointment", ref_id=appt.id,
-                                  content_sid=TPL_POST_SERVICIO,
-                                  content_variables={"1": _var_plantilla(nombre, "cliente")})
-            if ok:
-                appt.notif_post_service_sent = True
-                db.session.commit()
+            # La campanita ya dejó registro aunque el WhatsApp falle, así que el
+            # aviso se marca como dado igual: reintentarlo mañana le duplicaría
+            # la tarea a Diana sin agregar nada.
+            appt.notif_post_service_sent = True
+            db.session.commit()
 
 
 # ── Job 4: Seguimiento del bot de WhatsApp a leads en silencio ────────────────
@@ -15451,7 +15451,6 @@ def whatsapp_outbox():
         nombre for nombre, sid in (
             ("TWILIO_TPL_AVISO_ADMIN (avisos internos a Diana)", TPL_AVISO_ADMIN),
             ("TWILIO_TPL_RECORDATORIO_CITA (recordatorio al cliente)", TPL_RECORDATORIO),
-            ("TWILIO_TPL_POST_SERVICIO (seguimiento a los 7 días)", TPL_POST_SERVICIO),
             ("TWILIO_WEB_LEAD_TEMPLATE_SID (primer mensaje a un lead del sitio)", TPL_WEB_LEAD),
             ("TWILIO_TPL_REACTIVACION_1 (primer toque de seguimiento)",
              TPL_REACTIVACION["reactivacion_suave"]),
@@ -16185,13 +16184,12 @@ def _job_check_saldos():
             titulo = f"Saldo de Twilio bajo: {saldo:.2f} {moneda}"
             cuerpo = (f"Por debajo del mínimo de {SALDO_TWILIO_MINIMO:.2f} {moneda}. "
                       f"Cuando llegue a cero Mariana deja de enviar WhatsApp.")
+            # Solo campanita, a propósito. Avisar por WhatsApp que se está
+            # acabando el saldo de WhatsApp se contradice solo: cuando de verdad
+            # haga falta, ese mensaje tampoco sale. Y la plantilla de avisos
+            # habla de "gestión de cliente", que acá no aplica.
             push_notification(kind="saldo_twilio_bajo", level="urgent",
                               title=titulo, body=cuerpo, url="/estado")
-            avisar_admin_whatsapp(
-                cliente="NOXA", motivo=titulo,
-                accion=f"{cuerpo} Recarga en console.twilio.com",
-                telefono="console.twilio.com", kind="admin_saldo_twilio",
-            )
             app.logger.warning(f"[Saldo] Twilio bajo: {saldo:.2f} {moneda}")
         else:
             app.logger.info(f"[Saldo] Twilio OK: {saldo:.2f} {moneda}")
@@ -16205,14 +16203,9 @@ def _job_check_saldos():
                 level="urgent" if categoria in ("sin_credito", "credencial") else "info",
                 title=titulo, body=f"{accion}\n\n{detalle[:400]}", url="/estado",
             )
-            # El rate limit y los cortes de red se normalizan solos: llenarle el
-            # WhatsApp a Diana con eso hace que deje de mirar los avisos que sí
-            # importan.
-            if categoria in ("sin_credito", "credencial"):
-                avisar_admin_whatsapp(
-                    cliente="NOXA", motivo=titulo, accion=accion,
-                    telefono="console.anthropic.com", kind="admin_saldo_anthropic",
-                )
+            # También solo campanita: los avisos de infraestructura van al panel,
+            # que es donde se arreglan. El rate limit y los cortes de red además
+            # se normalizan solos, y ni siquiera levantan la campanita en rojo.
             app.logger.warning(f"[Saldo] Anthropic {categoria}: {detalle[:200]}")
         else:
             app.logger.info("[Saldo] Anthropic OK.")

@@ -4,11 +4,12 @@ Si cualquiera de los dos se agota, Mariana se queda muda y el síntoma es
 silencio: nadie se entera hasta que un cliente reclama. Estos tests fijan las
 dos decisiones que hacen que el aviso sirva:
 
-  • El aviso de Twilio sale ANTES de llegar a cero — si se esperara al cero,
-    el propio aviso tampoco podría salir por WhatsApp.
-  • Solo lo que se arregla recargando (crédito/credencial) llega al WhatsApp
-    del admin. Un rate limit se normaliza solo; mandarlo por WhatsApp entrena
-    a Diana a ignorar los avisos que sí importan.
+  • El aviso de Twilio sale ANTES de llegar a cero, mientras todavía queda
+    margen para recargar sin que el bot deje de responder.
+  • Estos avisos van SOLO a la campanita del panel, nunca por WhatsApp.
+    Avisar por WhatsApp que se está acabando el saldo de WhatsApp se
+    contradice solo: el día que de verdad haga falta, ese mensaje tampoco
+    sale. El panel es además donde se arregla.
 """
 from datetime import date, timedelta
 from unittest.mock import patch
@@ -46,17 +47,19 @@ def _correr_job(saldo_twilio, diagnostico, admin="+573001112233"):
 
 
 class TestSaldoTwilio:
-    def test_saldo_bajo_avisa_por_campanita_y_whatsapp(self):
+    def test_saldo_bajo_avisa_por_campanita(self):
         notis, enviados = _correr_job((3.20, "USD", ""), (True, "ok", ""))
 
         kinds = [k for k, _, _ in notis]
         assert "saldo_twilio_bajo" in kinds
         assert [lvl for k, lvl, _ in notis if k == "saldo_twilio_bajo"] == ["urgent"]
-        # El aviso sale mientras TODAVÍA queda saldo: es lo que permite que el
-        # propio WhatsApp de alerta se pueda enviar.
-        assert len(enviados) == 1
-        assert enviados[0][2]["kind"] == "admin_saldo_twilio"
-        assert "3.20" in enviados[0][1]
+        assert enviados == [], "el aviso de saldo de WhatsApp no puede depender de WhatsApp"
+
+    def test_la_campanita_dice_cuanto_queda(self):
+        """Sin la cifra, el aviso obliga a entrar a Twilio para saber si es
+        urgente o si aguanta hasta el lunes."""
+        notis, _ = _correr_job((3.20, "USD", ""), (True, "ok", ""))
+        assert any("3.20" in titulo for _k, _lvl, titulo in notis)
 
     def test_saldo_suficiente_no_molesta(self):
         notis, enviados = _correr_job((120.0, "USD", ""), (True, "ok", ""))
@@ -71,13 +74,12 @@ class TestSaldoTwilio:
 
 
 class TestDiagnosticoAnthropic:
-    def test_sin_credito_avisa_por_whatsapp(self):
+    def test_sin_credito_levanta_la_campanita_en_rojo(self):
         notis, enviados = _correr_job(
             (120.0, "USD", ""), (False, "sin_credito", "credit balance is too low"))
 
         assert [(k, lvl) for k, lvl, _ in notis] == [("anthropic_sin_credito", "urgent")]
-        assert len(enviados) == 1
-        assert enviados[0][2]["kind"] == "admin_saldo_anthropic"
+        assert enviados == []
 
     def test_rate_limit_queda_en_la_campanita_pero_no_en_whatsapp(self):
         notis, enviados = _correr_job(

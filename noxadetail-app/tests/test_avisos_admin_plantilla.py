@@ -256,3 +256,59 @@ class TestLaCampanitaNoDependeDeWhatsApp:
                  patch.object(A, "_summarize_conversation_for_admin", return_value="preguntó por PPF"):
                 A.notify_admin_conversation_error(conv, RuntimeError("se cayó"))
         assert campanita.called
+
+
+class TestElSeguimientoDeLosSieteDiasLoEscribeDiana:
+    """Salía como texto libre 5 a 9 días después del servicio, o sea con la
+    ventana de 24h cerrada hace días: no llegó nunca uno solo. Y aunque
+    llegara, preguntar cómo le fue viniendo de un automático vale menos que
+    viniendo de una persona — es la misma decisión que ya estaba tomada para el
+    seguimiento del cerámico."""
+
+    @pytest.fixture
+    def cita_de_hace_una_semana(self):
+        with A.app.app_context():
+            vt = A.VehicleType.query.filter_by(is_active=True).first()
+            inicio = dt.datetime.combine(
+                A.bogota_today() - dt.timedelta(days=7), dt.time(9, 0))
+            appt = A.Appointment(
+                customer_name="Ricardo Rendon", plate="ABC123", phone="3214780936",
+                services="Cerámico 9H", start_datetime=inicio,
+                end_datetime=inicio + dt.timedelta(hours=2),
+                vehicle_type_id=vt.id, status="completed",
+            )
+            A.db.session.add(appt)
+            A.db.session.commit()
+            appt_id = appt.id
+        yield appt_id
+        with A.app.app_context():
+            appt = A.Appointment.query.get(appt_id)
+            if appt:
+                A.db.session.delete(appt)
+                A.db.session.commit()
+
+    def test_no_se_le_escribe_al_cliente(self, enviados, cita_de_hace_una_semana):
+        with patch.object(A, "push_notification"):
+            A._job_post_service_followup()
+        assert all(e["to"] != "3214780936" for e in enviados), (
+            "el mensaje automático al cliente debía desaparecer"
+        )
+
+    def test_se_le_avisa_a_diana_con_la_plantilla(self, enviados, cita_de_hace_una_semana):
+        with patch.object(A, "push_notification"):
+            A._job_post_service_followup()
+        mios = [e for e in enviados if e["kind"] == "cliente_seguimiento_post_servicio"]
+        assert mios, "Diana se quedó sin el recordatorio"
+        assert mios[0]["content_sid"] == SID
+        v = mios[0]["content_variables"]
+        assert v["1"] == "Ricardo Rendon"
+        assert v["4"] == "3214780936"
+
+    def test_no_se_repite_al_dia_siguiente(self, enviados, cita_de_hace_una_semana):
+        """La ventana es de 7 ± 2 días: sin la marca, la misma cita le saldría
+        cinco veces seguidas."""
+        with patch.object(A, "push_notification"):
+            A._job_post_service_followup()
+            A._job_post_service_followup()
+        assert len([e for e in enviados
+                    if e["kind"] == "cliente_seguimiento_post_servicio"]) == 1
