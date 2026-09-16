@@ -242,7 +242,7 @@ const SERVICES = [
         badge: "Máxima corrección",
         bullets: [
             "Matizado completo o según necesidad para nivelar el barniz",
-            "Polichado de hasta 3 pasos para eliminar manchas y microrayones hasta en un 90%",
+            "Corrección en varios pasos para eliminar manchas y microrayones hasta en un 90%",
             "Realce del color y brillo",
             "Doble shampoo pH neutro",
             "Aspirado profundo",
