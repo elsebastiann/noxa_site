@@ -249,7 +249,12 @@ const SERVICES = [
             "Restauración de partes negras",
             "Sellado hidrofóbico de 2 meses"
         ],
-        prices: { auto: 290000, suv: 340000, camioneta: 390000, moto: 150000 }
+        prices: { auto: 290000, suv: 340000, camioneta: 390000, moto: 150000 },
+        // Acá sí varía mucho más que en los demás servicios: cuántos pasos de
+        // polichado hacen falta depende del estado real de la pintura, así que
+        // el precio de lista es un piso, no el valor final.
+        priceFrom: true,
+        priceNote: "El valor final se confirma en el diagnóstico, según el estado de la pintura."
     }
 ];
 
@@ -541,9 +546,18 @@ function openServiceModal(serviceId){
 
     document.getElementById("modalBullets").innerHTML = service.bullets.map(b => `<li>${b}</li>`).join("");
 
+    const pricePrefix = service.priceFrom ? "Desde " : "";
     document.getElementById("modalPrices").innerHTML = vehicleTypesFor(service).map(t =>
-        `<div><span>${VEHICLE_LABELS[t]}</span><b>${formatCOP(service.prices[t])}</b></div>`
+        `<div><span>${VEHICLE_LABELS[t]}</span><b>${pricePrefix}${formatCOP(service.prices[t])}</b></div>`
     ).join("");
+
+    const noteEl = document.getElementById("modalPriceNote");
+    if(service.priceNote){
+        noteEl.textContent = service.priceNote;
+        noteEl.classList.remove("hidden");
+    } else {
+        noteEl.classList.add("hidden");
+    }
 
     document.getElementById("modalCtaBtn").setAttribute("onclick", `closeModal('serviceModal'); openLeadForm('${service.name.replace(/'/g, "")}')`);
 

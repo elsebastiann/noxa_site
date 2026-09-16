@@ -202,10 +202,12 @@ Los precios son estimados: el valor final se confirma con un diagnóstico gratui
 
 | Vehículo | Precio |
 | --- | --- |
-| Auto | $290.000 |
-| SUV | $340.000 |
-| Camioneta | $390.000 |
-| Moto | $150.000 |
+| Auto | Desde $290.000 |
+| SUV | Desde $340.000 |
+| Camioneta | Desde $390.000 |
+| Moto | Desde $150.000 |
+
+*El valor final se confirma en el diagnóstico, según el estado de la pintura.*
 
 <!--PRERENDER:catalogMarkdown:END-->
 

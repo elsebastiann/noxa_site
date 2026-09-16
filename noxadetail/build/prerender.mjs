@@ -114,9 +114,11 @@ function serviceMarkdown(service, VEHICLE_LABELS) {
     lines.push("");
     lines.push("| Vehículo | Precio |");
     lines.push("| --- | --- |");
+    const pricePrefix = service.priceFrom ? "Desde " : "";
     for (const [key, price] of Object.entries(service.prices)) {
-        lines.push(`| ${VEHICLE_LABELS[key] || key} | ${priceCOP(price)} |`);
+        lines.push(`| ${VEHICLE_LABELS[key] || key} | ${pricePrefix}${priceCOP(price)} |`);
     }
+    if (service.priceNote) lines.push(`\n*${service.priceNote}*`);
     return lines.join("\n");
 }
 
