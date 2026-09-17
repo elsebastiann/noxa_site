@@ -15120,6 +15120,263 @@ def _construir_pdf_cotizacion(cot: "Quote", version=None) -> bytes:
     return buf.getvalue()
 
 
+# ── Recibos de una cita ───────────────────────────────────────────────────────
+# El papel que se le entrega al cliente cuando paga o abona. Solo cuatro cifras
+# a propósito: precio de lista, descuentos, abonos y saldo. Nada de convenio
+# desglosado, ni costo de tercerización, ni ingreso neto — eso es contabilidad
+# del negocio y no tiene por qué viajar en el bolsillo de un cliente.
+_MARCA_AGUA_ALPHA = 0.13
+_marca_agua_cache: dict[float, bytes] = {}
+
+
+def _marca_de_agua_noxa(alpha: float = _MARCA_AGUA_ALPHA) -> bytes | None:
+    """El logo con el canal alfa rebajado, para usarlo como marca de agua.
+
+    reportlab no sabe dibujar una imagen con transparencia variable —
+    `setFillAlpha` afecta rellenos, no imágenes— así que la transparencia se
+    hornea en el PNG con Pillow antes de pasárselo. Se cachea en memoria: es el
+    mismo archivo en todos los recibos y rehacerlo por request es trabajo puro
+    de CPU para un resultado idéntico."""
+    if alpha in _marca_agua_cache:
+        return _marca_agua_cache[alpha]
+    ruta = os.path.join(app.root_path, "static", "img", "logotipo-pdf.png")
+    if not os.path.exists(ruta):
+        return None
+    try:
+        from PIL import Image
+        logo = Image.open(ruta).convert("RGBA")
+        r, g_, b, a = logo.split()
+        logo.putalpha(a.point(lambda v: int(v * alpha)))
+        salida = io.BytesIO()
+        logo.save(salida, format="PNG")
+        _marca_agua_cache[alpha] = salida.getvalue()
+        return _marca_agua_cache[alpha]
+    except Exception as exc:
+        # Un recibo sin marca de agua sigue sirviendo; uno que revienta, no.
+        app.logger.error(f"[Recibo] No se pudo preparar la marca de agua: {exc}")
+        return None
+
+
+def numero_de_recibo(appt: "Appointment") -> str:
+    """El número que lleva impreso el recibo.
+
+    Sale del id de la cita y no de un contador propio, para que sea el MISMO
+    número cada vez que se reimprima. Con un contador, volver a bajar el recibo
+    de una cita daría un papel nuevo con otro número y dos documentos distintos
+    para un solo pago."""
+    return f"REC-{appt.id:05d}"
+
+
+def _construir_pdf_recibo(appt: "Appointment") -> bytes:
+    """El recibo de una cita, con el logo de NOXA como marca de agua arriba.
+
+    Misma tipografía y mismos colores que la cotización: son los dos papeles que
+    el cliente recibe de nosotros y tienen que verse de la misma casa. Y se arma
+    con reportlab por lo mismo que aquella — ver
+    `_construir_pdf_cotizacion`."""
+    from reportlab.lib import colors
+    from reportlab.lib.enums import TA_CENTER, TA_RIGHT
+    from reportlab.lib.pagesizes import letter
+    from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
+    from reportlab.lib.units import mm
+    from reportlab.lib.utils import ImageReader
+    from reportlab.platypus import (
+        Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle,
+    )
+
+    TINTA  = colors.HexColor("#1a1a1a")
+    SUAVE  = colors.HexColor("#6b6b6b")
+    LINEA  = colors.HexColor("#dddddd")
+    ACENTO = colors.HexColor("#c8a04a")
+
+    base = getSampleStyleSheet()
+    est_txt   = ParagraphStyle("n", parent=base["Normal"], fontSize=9.5, textColor=TINTA, leading=13)
+    est_sub   = ParagraphStyle("s", parent=base["Normal"], fontSize=9, textColor=SUAVE)
+    est_der   = ParagraphStyle("r", parent=est_txt, alignment=TA_RIGHT)
+    est_subd  = ParagraphStyle("rs", parent=est_sub, alignment=TA_RIGHT)
+    est_centro = ParagraphStyle("ct", parent=est_sub, alignment=TA_CENTER, fontSize=8)
+
+    plata = appointment_money(appt)
+
+    buf = io.BytesIO()
+    doc = SimpleDocTemplate(
+        buf, pagesize=letter,
+        leftMargin=18 * mm, rightMargin=18 * mm,
+        # El margen de arriba deja la banda donde va la marca de agua: el
+        # contenido arranca debajo del logo, no encima de sus letras.
+        topMargin=45 * mm, bottomMargin=16 * mm,
+        title=f"Recibo {numero_de_recibo(appt)}", author="NOXA Detail",
+    )
+
+    marca = _marca_de_agua_noxa()
+
+    def _fondo(canvas, documento):
+        """El logo difuminado, centrado en la banda de arriba, en cada página."""
+        if not marca:
+            return
+        ancho = 110 * mm
+        alto = ancho * 420 / 1200
+        x = (letter[0] - ancho) / 2
+        y = letter[1] - 14 * mm - alto
+        canvas.drawImage(ImageReader(io.BytesIO(marca)), x, y, ancho, alto,
+                         mask="auto")
+
+    hist = []
+
+    # --- Identificación del documento ----------------------------------------
+    izq = [Paragraph("<b>RECIBO</b>", est_txt),
+           Paragraph(f"<font size=13 color='#c8a04a'><b>{numero_de_recibo(appt)}</b></font>",
+                     est_txt),
+           Paragraph("Prado Veraniego, Bogotá · "
+                     "<font color='#c8a04a'>noxadetail.com</font>", est_sub)]
+    der = [Paragraph("<b>Fecha del servicio</b>", est_der),
+           Paragraph(appt.start_datetime.strftime("%d/%m/%Y a las %I:%M %p"), est_subd),
+           Paragraph(f"Impreso el {bogota_today().strftime('%d/%m/%Y')}", est_subd)]
+    cab = Table([[izq, der]], colWidths=[100 * mm, 75 * mm])
+    cab.setStyle(TableStyle([
+        ("VALIGN", (0, 0), (-1, -1), "TOP"),
+        ("LEFTPADDING", (0, 0), (-1, -1), 0), ("RIGHTPADDING", (0, 0), (-1, -1), 0),
+    ]))
+    hist += [cab, Spacer(1, 3.5 * mm)]
+    hist += [Table([[""]], colWidths=[175 * mm], style=TableStyle([
+        ("LINEBELOW", (0, 0), (-1, -1), 1.2, ACENTO)]))]
+    hist += [Spacer(1, 4 * mm)]
+
+    # --- Cliente y vehículo ---------------------------------------------------
+    datos = [("Cliente", appt.customer_name or "—")]
+    if appt.phone:
+        datos.append(("Teléfono", appt.phone))
+    if appt.plate:
+        datos.append(("Placa", appt.plate))
+    if appt.vehicle_type:
+        datos.append(("Vehículo", appt.vehicle_type.name))
+    datos.append(("Servicio", appt.services or "—"))
+
+    t_datos = Table([[Paragraph(f"<font color='#6b6b6b'>{k}</font>", est_txt),
+                      Paragraph(v, est_txt)] for k, v in datos],
+                    colWidths=[28 * mm, 147 * mm])
+    t_datos.setStyle(TableStyle([
+        ("VALIGN", (0, 0), (-1, -1), "TOP"),
+        ("TOPPADDING", (0, 0), (-1, -1), 1.5),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 1.5),
+        ("LEFTPADDING", (0, 0), (-1, -1), 0),
+    ]))
+    hist += [t_datos, Spacer(1, 6 * mm)]
+
+    # --- Las cifras -----------------------------------------------------------
+    filas = [["Precio de lista", _cop(plata["lista"])]]
+    # El convenio ES un descuento desde el lado del cliente, así que va con los
+    # demás en vez de en una línea aparte que él no tiene por qué interpretar.
+    if plata["convenio"]:
+        etiqueta = appt.agreement.name if appt.agreement else "Convenio"
+        filas.append([f"Descuento · {etiqueta}", "- " + _cop(plata["convenio"])])
+    for aj in plata["ajustes"]:
+        if aj["kind"] != "discount":
+            continue
+        nombre = aj["description"] or "Descuento"
+        if aj["mode"] == "percentage":
+            nombre += f" ({aj['value']}%)"
+        filas.append([nombre, "- " + _cop(aj["amount"])])
+    # Los recargos no estaban en la lista de cifras a mostrar, pero sin ellos las
+    # cuentas del papel no cierran: el cliente sumaría y le faltaría plata.
+    for aj in plata["ajustes"]:
+        if aj["kind"] != "surcharge":
+            continue
+        nombre = aj["description"] or "Recargo"
+        if aj["mode"] == "percentage":
+            nombre += f" ({aj['value']}%)"
+        filas.append([nombre, "+ " + _cop(aj["amount"])])
+
+    for ab in plata["abonos"]:
+        etiqueta = "Abono"
+        if ab["paid_on"]:
+            etiqueta += " del " + date.fromisoformat(ab["paid_on"]).strftime("%d/%m/%Y")
+        if ab["description"]:
+            etiqueta += f" · {ab['description']}"
+        filas.append([etiqueta, "- " + _cop(ab["amount"])])
+
+    cuerpo = [[Paragraph(k, est_txt), Paragraph(v, est_der)] for k, v in filas]
+    t_cifras = Table(cuerpo, colWidths=[125 * mm, 50 * mm])
+    t_cifras.setStyle(TableStyle([
+        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+        ("TOPPADDING", (0, 0), (-1, -1), 4),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+        ("LEFTPADDING", (0, 0), (-1, -1), 0),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 0),
+        ("LINEBELOW", (0, 0), (-1, -2), 0.4, LINEA),
+    ]))
+    hist += [t_cifras, Spacer(1, 1 * mm)]
+
+    # El saldo, destacado: es el único número por el que alguien va a volver a
+    # sacar este papel del bolsillo.
+    saldo = plata["saldo"]
+    if saldo > 0:
+        titulo_saldo, color_saldo = "Saldo pendiente", "#1a1a1a"
+    elif saldo < 0:
+        titulo_saldo, color_saldo = "Saldo a favor del cliente", "#c8a04a"
+    else:
+        titulo_saldo, color_saldo = "Pagado en su totalidad", "#c8a04a"
+    t_saldo = Table([[
+        Paragraph(f"<font size=11><b>{titulo_saldo}</b></font>", est_txt),
+        Paragraph(f"<font size=15 color='{color_saldo}'>"
+                  f"<b>{_cop(abs(saldo))}</b></font>", est_der),
+    ]], colWidths=[125 * mm, 50 * mm])
+    t_saldo.setStyle(TableStyle([
+        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+        ("LINEABOVE", (0, 0), (-1, 0), 1.2, ACENTO),
+        ("TOPPADDING", (0, 0), (-1, -1), 8),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 8),
+        ("LEFTPADDING", (0, 0), (-1, -1), 0),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 0),
+    ]))
+    hist += [t_saldo, Spacer(1, 4 * mm)]
+
+    # Una cita cubierta por un plan vale $0 porque ya se pagó el día que se
+    # vendió el plan. Sin decirlo, el recibo se ve como un documento roto.
+    # Se consulta en vez de usar una relación: el modelo no la tiene declarada y
+    # agregarla acá, solo para una línea del recibo, es tocar el mapeo de la
+    # tabla más usada de la app.
+    plan_cliente = (ClientPlan.query.get(appt.client_plan_id)
+                    if appt.client_plan_id else None)
+    if plan_cliente:
+        nombre_plan = plan_cliente.plan.name if plan_cliente.plan else "plan de mantenimiento"
+        hist += [Paragraph(
+            f"Este servicio está cubierto por el <b>{nombre_plan}</b> de la placa "
+            f"{plan_cliente.plate}, pagado el "
+            f"{plan_cliente.sold_on.strftime('%d/%m/%Y')}. No hay nada que cobrar "
+            f"por esta visita.", est_sub)]
+    hist += [Spacer(1, 6 * mm)]
+
+    hist += [Table([[""]], colWidths=[175 * mm], style=TableStyle([
+        ("LINEBELOW", (0, 0), (-1, -1), 0.6, LINEA)]))]
+    hist += [Spacer(1, 2.5 * mm),
+             Paragraph("NOXA Detail · Calle 128B # 53D-2, Prado Veraniego, Bogotá · "
+                       "noxadetail.com<br/>"
+                       "Gracias por confiarnos tu carro.", est_centro)]
+
+    doc.build(hist, onFirstPage=_fondo, onLaterPages=_fondo)
+    return buf.getvalue()
+
+
+@app.route("/appointments/<int:appointment_id>/recibo")
+def appointment_receipt(appointment_id):
+    """El recibo en PDF de una cita."""
+    if not puede_ver_precios():
+        flash("Acceso restringido.", "danger")
+        return redirect(url_for("calendar_view"))
+    appt = Appointment.query.get(appointment_id)
+    if not appt:
+        flash("No existe esa cita.", "danger")
+        return redirect(url_for("appointments_list"))
+
+    pdf = _construir_pdf_recibo(appt)
+    return Response(pdf, mimetype="application/pdf", headers={
+        # inline, igual que la cotización: se abre, se revisa y desde ahí se
+        # baja o se manda por WhatsApp.
+        "Content-Disposition": f'inline; filename="{numero_de_recibo(appt)}.pdf"',
+    })
+
+
 @app.template_filter("hace_cuanto")
 def _filtro_hace_cuanto(dt):
     """"hace 5 min", "hace 2 h", "ayer"... Para las alertas, donde importa más

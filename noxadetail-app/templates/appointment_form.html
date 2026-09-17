@@ -593,7 +593,23 @@
         <a href="{{ url_for('calendar_view') }}" class="btn btn-outline-secondary">
           Cancelar
         </a>
+        {% if is_edit and puede_ver_precios() %}
+        {# Abre en otra pestaña y no navega: si se fuera de esta página, se
+           perderían los abonos o ajustes que se acaben de escribir sin
+           guardar, que es justo lo que se quiere ver reflejado en el recibo. #}
+        <a href="{{ url_for('appointment_receipt', appointment_id=appointment.id) }}"
+           target="_blank" rel="noopener"
+           class="btn btn-outline-warning ms-auto">
+          Recibo PDF
+        </a>
+        {% endif %}
       </div>
+      {% if is_edit and puede_ver_precios() %}
+      <p class="text-secondary small mt-2 mb-0">
+        El recibo imprime lo que ya está guardado. Si acabas de cambiar abonos o
+        descuentos, guarda primero.
+      </p>
+      {% endif %}
 
     </form>
   </div>

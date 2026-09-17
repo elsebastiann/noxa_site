@@ -1,14 +1,12 @@
-# Dependencias para correr los tests. No van en requirements.txt: no las usa la
-# app en producción y no tiene sentido instalarlas en el contenedor de Railway.
+# Dependencias que solo usan los tests. Van aparte de requirements.txt a
+# propósito: ese archivo es lo que Railway instala en la imagen de producción, y
+# meterle un lector de PDF que nadie usa en runtime engorda el build sin razón.
 #
 #   pip install -r requirements.txt -r requirements-dev.txt
-#   python -m pytest tests/ -q
-#
-# httpx lo usa tests/test_saldos.py. Antes llegaba de rebote como dependencia de
-# `anthropic`, pero desde la versión 1.0 anthropic depende de `httpx2`, así que
-# en un entorno limpio ya no aparece y la suite COMPLETA no arranca: falla al
-# recolectar ese archivo y se lleva por delante todos los demás tests.
 -r requirements.txt
-
 pytest>=8.0
-httpx>=0.27
+# Para poder afirmar sobre el TEXTO de los PDF que genera la app —recibos y
+# cotizaciones— y no solo sobre que empiecen por %PDF-. Sin esto, los tests de
+# contenido se saltan y un recibo podría imprimir cifras que no debe sin que
+# nada falle.
+pypdf>=4.0

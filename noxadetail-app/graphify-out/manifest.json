@@ -1,7 +1,7 @@
 {
   "app.py": {
-    "mtime": 1789063785.3417552,
-    "ast_hash": "6ac0dde7cc104e96d22664d5d60bbb88",
+    "mtime": 1789678899.412528,
+    "ast_hash": "0347aab7cc60bd0a92b00d6258b3b083",
     "semantic_hash": ""
   },
   "migrate_prices.py": {
@@ -65,8 +65,8 @@
     "semantic_hash": ""
   },
   "templates/appointment_form.html": {
-    "mtime": 1787542085.8510392,
-    "ast_hash": "7015dd768c8719f01d032f0db21c81f8",
+    "mtime": 1789678808.5245345,
+    "ast_hash": "eccb894e2db2b390efdd637bab70a584",
     "semantic_hash": ""
   },
   "templates/appointments_list.html": {
@@ -340,8 +340,8 @@
     "semantic_hash": ""
   },
   "requirements-dev.txt": {
-    "mtime": 1787600118.9656196,
-    "ast_hash": "c41d0423082df58b3c5c73b071bf2868",
+    "mtime": 1789678970.0088983,
+    "ast_hash": "9ea6301d2c1b3ae4fca198d489d7afe1",
     "semantic_hash": ""
   },
   "tests/test_prompt_reglas_venta.py": {
@@ -562,6 +562,11 @@
   "tests/test_avisos_admin_plantilla.py": {
     "mtime": 1789058271.394656,
     "ast_hash": "c0e4964070e470119de464178f89240b",
+    "semantic_hash": ""
+  },
+  "tests/test_recibo_cita.py": {
+    "mtime": 1789678939.330525,
+    "ast_hash": "f0b96dab58901b18db40297f5ec74d1d",
     "semantic_hash": ""
   }
 }
