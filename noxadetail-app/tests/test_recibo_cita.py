@@ -203,3 +203,51 @@ class TestElBotonEnLaCita:
         login_as(client, make_user(f"rec_op{next(_u)}", role="operario"))
         cuerpo = client.get(f"/appointment/{cita}/edit").data.decode()
         assert "/recibo" not in cuerpo
+
+
+class TestDesdeDondeSeSaca:
+    """Tres puntos de entrada, y el que más se usa es el del cajón de la agenda:
+    ahí es donde se abre una cita para cobrarla, con el cliente enfrente."""
+
+    def test_desde_el_cajon_de_la_agenda(self, client, cita):
+        """El modal se arma en JS, así que desde acá solo se puede comprobar que
+        la agenda traiga el enlace. Que aparezca dentro del modal, y que la cita
+        finalizada lo siga ofreciendo, se verificó en el navegador.
+
+        Lo que de verdad protege los precios no es este botón sino la ruta, que
+        tiene su propio test, más el JSON del modal: a quien no puede ver
+        precios el backend le manda `money: null`."""
+        login_as(client, make_user(f"rec_adm{next(_u)}", role="admin"))
+        assert "/recibo" in client.get("/calendar").data.decode()
+
+    def test_desde_el_listado_de_citas(self, client, cita):
+        login_as(client, make_user(f"rec_adm{next(_u)}", role="admin"))
+        cuerpo = client.get("/appointments").data.decode()
+        assert f"/appointments/{cita}/recibo" in cuerpo
+
+    def test_en_el_listado_no_lo_ve_quien_no_ve_precios(self, client, cita):
+        """El operario sí entra al listado —lo usa para el control de trabajo—
+        pero ahí las columnas de plata le salen en guion."""
+        login_as(client, make_user(f"rec_op{next(_u)}", role="operario"))
+        assert "/recibo" not in client.get("/appointments").data.decode()
+
+    def test_una_cita_finalizada_tambien_da_recibo(self, client, cita):
+        """Es la que más lo necesita: finalizada quiere decir que ya se cobró.
+        En el modal, "Editar" y "Eliminar" sí se apagan al finalizar, y el
+        recibo quedó fuera de ese bloque justamente por esto."""
+        with A.app.app_context():
+            A.Appointment.query.get(cita).status = "completed"
+            A.db.session.commit()
+        login_as(client, make_user(f"rec_adm{next(_u)}", role="admin"))
+        r = client.get(f"/appointments/{cita}/recibo")
+        assert r.status_code == 200
+        assert r.data[:5] == b"%PDF-"
+
+    def test_y_una_cancelada_con_abonos_tambien(self, client, cita):
+        """Si el cliente abonó y la cita se cayó, el papel que prueba su saldo a
+        favor es exactamente el que hay que poder imprimir."""
+        with A.app.app_context():
+            A.Appointment.query.get(cita).status = "cancelled"
+            A.db.session.commit()
+        login_as(client, make_user(f"rec_adm{next(_u)}", role="admin"))
+        assert client.get(f"/appointments/{cita}/recibo").status_code == 200

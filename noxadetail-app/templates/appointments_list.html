@@ -245,7 +245,15 @@
                 onsubmit="return confirm('¿Eliminar esta cita?');">
             <button class="btn btn-sm btn-outline-danger">Eliminar</button>
           </form>
-        {% else %}
+        {% endif %}
+        {# El recibo NO depende del estado. Justo la cita finalizada es la que
+           más lo necesita: es cuando el cliente paga. Y una cancelada con
+           abonos tiene que poder mostrar el saldo a favor. #}
+        {% if puede_ver_precios() %}
+          <a href="{{ url_for('appointment_receipt', appointment_id=a.id) }}"
+             target="_blank" rel="noopener"
+             class="btn btn-sm btn-outline-warning">Recibo</a>
+        {% elif a.status != "scheduled" %}
           <span class="text-secondary small">—</span>
         {% endif %}
       </td>

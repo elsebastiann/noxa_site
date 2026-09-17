@@ -359,7 +359,19 @@ document.addEventListener('DOMContentLoaded', function() {
           `
     }
 
-
+    ${
+      // Fuera del bloque de arriba a propósito: el recibo no depende del
+      // estado de la cita. La finalizada es justo la que más lo necesita —es
+      // cuando el cliente paga— y una cancelada con abonos tiene que poder
+      // mostrar el saldo a favor.
+      verPrecios
+        ? `<a href="/appointments/${data.id}/recibo"
+              target="_blank" rel="noopener"
+              class="btn btn-outline-warning">
+             Recibo PDF
+           </a>`
+        : ""
+    }
 
   </div>
 

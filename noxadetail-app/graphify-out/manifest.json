@@ -70,8 +70,8 @@
     "semantic_hash": ""
   },
   "templates/appointments_list.html": {
-    "mtime": 1787108546.6972766,
-    "ast_hash": "6235326f91c1dc4d178352326b06155f",
+    "mtime": 1789679589.980206,
+    "ast_hash": "cc6c7db7b1385863af45e16611f24e47",
     "semantic_hash": ""
   },
   "templates/base.html": {
@@ -80,8 +80,8 @@
     "semantic_hash": ""
   },
   "templates/calendar.html": {
-    "mtime": 1787599711.3815856,
-    "ast_hash": "17af197b30eadc00322349692c05508a",
+    "mtime": 1789679596.7790372,
+    "ast_hash": "62ec2f6260a30ab4e9bae2a250b40a62",
     "semantic_hash": ""
   },
   "templates/edit_appointment.html": {
@@ -565,8 +565,8 @@
     "semantic_hash": ""
   },
   "tests/test_recibo_cita.py": {
-    "mtime": 1789678939.330525,
-    "ast_hash": "f0b96dab58901b18db40297f5ec74d1d",
+    "mtime": 1789679634.9786632,
+    "ast_hash": "387579602b13579dd82b13bbde836a76",
     "semantic_hash": ""
   }
 }
