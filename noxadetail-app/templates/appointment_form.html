@@ -115,6 +115,22 @@
         </div>
       </div>
 
+      {# ---- Entrega programada ----
+         Opcional. Es lo que se le prometió al cliente, y de aquí sale la barra
+         de avance que él ve en su link. Vacía, se usa lo que el sistema calcula
+         con la duración de los servicios. #}
+      <div class="mb-3">
+        <label class="form-label">Entrega programada <small class="text-secondary">(opcional)</small></label>
+        <input type="datetime-local"
+               name="entrega_programada"
+               class="form-control bg-dark text-light border-secondary"
+               value="{{ appointment.entrega_programada.strftime('%Y-%m-%dT%H:%M') if is_edit and appointment.entrega_programada else '' }}">
+        <div class="form-text text-secondary">
+          Si la dejas vacía, se calcula con lo que tardan los servicios
+          {%- if is_edit %}: hoy sería el {{ appointment.end_datetime.strftime('%d/%m a las %I:%M %p') }}{% endif %}.
+        </div>
+      </div>
+
       {# ---- Aviso de domingo / festivo ----
          NOXA no atiende domingos ni festivos. A Mariana y al widget público eso
          los bloquea sin apelación; aquí no, porque a veces se abre por excepción

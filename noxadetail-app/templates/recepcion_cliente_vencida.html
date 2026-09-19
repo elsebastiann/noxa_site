@@ -1,0 +1,33 @@
+{% import "_recepcion_publica.html" as pub with context %}
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Registro cerrado — NOXA Detail</title>
+{{ pub.estilos() }}
+</head>
+<body>
+<div class="hoja">
+  {{ pub.membrete() }}
+  <div class="cuerpo">
+    <p class="kicker">Tu carro en NOXA</p>
+    <h1>{{ f.vehiculo }}</h1>
+    <p class="sub">Placa {{ f.plate or '—' }}</p>
+    {# Lo que el cliente ve cuando vuelve al link pasado el plazo. Es el mismo
+       plazo que se le anunció al entregar, así que no hay sorpresa: se le
+       confirma con calidez, sin sonar a puerta cerrada. #}
+    <div class="cierre">
+      <h3>Este registro ya cerró</h3>
+      <p>Las fotos y el detalle del servicio de tu carro estuvieron disponibles durante
+        {{ dias_cliente }} días después de la entrega, hasta el
+        {{ f.link_cliente_vence.strftime('%d/%m/%Y') }}, y ya fueron retirados del sistema.</p>
+      <p>Gracias de nuevo por confiar en NOXA. Cuando tu carro necesite algo, aquí vamos a estar
+        para cuidarlo otra vez.</p>
+    </div>
+  </div>
+  <p class="pie">NOXA Detail · Calle 128B # 53D-2, Prado Veraniego, Bogotá · noxadetail.com</p>
+</div>
+</body>
+</html>

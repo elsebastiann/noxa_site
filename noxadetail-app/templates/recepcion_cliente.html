@@ -21,6 +21,7 @@
     <h1>{{ f.vehiculo }}</h1>
     <p class="sub">Placa {{ f.plate or '—' }}{% if f.customer_name %} · {{ f.customer_name }}{% endif %}</p>
     {{ pub.etapas(f) }}
+    {{ pub.barra(f, repetir_entrega=false) }}
 
     {% if not f.sellada %}
       {# El cliente no ve la recepción a medio llenar: vería novedades que
@@ -31,9 +32,23 @@
       </div>
     {% else %}
       {% if f.entregada %}
-        <div class="aviso cerrado">
-          Tu carro se entregó el {{ f.entregado_at | hora_bogota('%d/%m/%Y a las %I:%M %p') }}.
-          ¡Gracias por confiar en nosotros!
+        {# El cierre del servicio. Dice los dos plazos con claridad —cuánto
+           dura el registro y hasta cuándo se reciben observaciones— pero en el
+           tono de quien quiere que el cliente vuelva. #}
+        <div class="cierre">
+          <h3>¡Tu carro ya está de vuelta contigo!</h3>
+          <p>Lo entregamos el {{ f.entregado_at | hora_bogota('%d/%m/%Y a las %I:%M %p') }}.
+            Fue un gusto cuidarlo, y gracias por confiar en nosotros.</p>
+          <p>Aquí te dejamos el registro completo: cómo lo recibimos, cada paso del trabajo y la
+            entrega. Te invitamos a revisarlo con calma y a guardar las fotos que quieras conservar.</p>
+          <div class="plazo">
+            Este registro estará disponible durante <b>{{ dias_cliente }} días</b>, hasta el
+            <b>{{ f.link_cliente_vence.strftime('%d/%m/%Y') }}</b>. Después de esa fecha lo retiramos
+            del sistema y damos el servicio por cerrado, por lo que ya no nos será posible atender
+            reclamaciones sobre él.
+          </div>
+          <p>Si notas cualquier detalle, por pequeño que sea, escríbenos antes de esa fecha:
+            nada nos importa más que dejarlo perfecto para ti.</p>
         </div>
       {% else %}
         <div class="aviso">
@@ -41,22 +56,17 @@
         </div>
       {% endif %}
 
+      {{ pub.llegada(f, token) }}
+      {{ pub.firma_recepcion(f, token) }}
+      {{ pub.novedades(f, token) }}
+
       <h2>Avance del trabajo <span class="n">{{ f.fotos_de('proceso')|length }} fotos</span></h2>
       {{ pub.proceso(f, token) }}
 
       {% if f.entregada %}
-        <h2>Entrega</h2>
-        <dl class="datos">
-          <dt>Recibió</dt><dd>{{ f.entregado_a }}</dd>
-          <dt>Fecha</dt><dd>{{ f.entregado_at | hora_bogota('%d/%m/%Y %I:%M %p') }}</dd>
-          {% if f.km_salida %}<dt>Kilometraje</dt><dd>{{ '{:,}'.format(f.km_salida).replace(',', '.') }} km</dd>{% endif %}
-          {% if f.notas_entrega %}<dt>Notas</dt><dd>{{ f.notas_entrega }}</dd>{% endif %}
-        </dl>
-        {% if f.fotos_de('entrega') %}{{ pub.fotos(f.fotos_de('entrega'), token) }}{% endif %}
-        <div class="firma"><img src="{{ url_for('recepcion_firma_publica', token=token, cual='entrega') }}" alt="Firma de entrega"></div>
+        {{ pub.entrega(f, token) }}
+        {{ pub.firma_entrega(f, token) }}
       {% endif %}
-
-      {{ pub.recepcion(f, token) }}
     {% endif %}
   </div>
   <p class="pie">NOXA Detail · Calle 128B # 53D-2, Prado Veraniego, Bogotá · noxadetail.com</p>

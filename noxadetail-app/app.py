@@ -2412,6 +2412,15 @@ class Appointment(db.Model):
     # Estado de la cita: scheduled | completed | cancelled
     status = db.Column(db.String(20), nullable=False, default="scheduled")
 
+    # Cuándo se le prometió el carro al cliente. Opcional: sin ella se usa el
+    # fin de la cita, que es lo que el sistema calcula con la duración de los
+    # servicios. Hora de Bogotá, igual que start/end.
+    entrega_programada = db.Column(db.DateTime, nullable=True)
+
+    @property
+    def entrega_estimada(self):
+        return self.entrega_programada or self.end_datetime
+
     # Origen de la cita: None/"internal" (agendada por el equipo) o
     # "mercedes_benz_widget" (autoagendada por un socio del club)
     source = db.Column(db.String(50), nullable=True)
@@ -2993,6 +3002,19 @@ FOTO_ENTREGA = "entrega"
 
 NIVELES_GASOLINA = ["Reserva", "1/4", "1/2", "3/4", "Lleno"]
 
+# Cuánto viven las evidencias después de ENTREGAR el carro. Dos plazos:
+#   - El cliente las ve en su link 30 días. Es el plazo que se le comunica
+#     para revisar y hacer cualquier observación.
+#   - Nosotros las guardamos 90: el cliente no siempre avisa a tiempo, y la
+#     foto del rayón que ya traía sirve justo en esa conversación tardía.
+# Pasados los 90 se borran las fotos (lo que pesa); la ficha con sus datos,
+# novedades y firmas se queda.
+RETENCION_CLIENTE_DIAS = 30
+RETENCION_EVIDENCIA_DIAS = 90
+# El avance nunca llega a 100% antes de entregar: un 100% con el carro todavía
+# en el taller le dice al cliente que ya puede ir por él.
+PROGRESO_TOPE_EN_PROCESO = 95
+
 # Zonas del carro, en el orden en que se recorre al darle la vuelta: así quien
 # recibe no salta de un lado al otro buscando en la lista.
 ZONAS_CARRO = [
@@ -3069,6 +3091,9 @@ class VehicleReception(db.Model):
 
     created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
     created_by = db.Column(db.String(120), nullable=True)
+    # Cuándo se borraron las fotos por vencimiento (ver RETENCION_*). La ficha
+    # queda —datos, novedades y firmas pesan nada— pero sin imágenes.
+    fotos_depuradas_at = db.Column(db.DateTime, nullable=True)
 
     appointment = db.relationship("Appointment")
     novedades = db.relationship("ReceptionDamage", backref="recepcion",
@@ -3099,6 +3124,59 @@ class VehicleReception(db.Model):
     def fotos_generales_recepcion(self) -> list:
         """Las de la recepción que no cuelgan de una novedad puntual."""
         return [f for f in self.fotos if f.etapa == ETAPA_RECEPCION and not f.damage_id]
+
+    # ── Plazos después de la entrega ──
+    @property
+    def link_cliente_vence(self):
+        """Hasta cuándo el cliente ve sus evidencias (fecha en hora Bogotá)."""
+        if not self.entregado_at:
+            return None
+        return hora_bogota_naive(self.entregado_at) + timedelta(days=RETENCION_CLIENTE_DIAS)
+
+    @property
+    def link_cliente_vencido(self) -> bool:
+        vence = self.link_cliente_vence
+        return bool(vence) and bogota_now() > vence
+
+    @property
+    def fotos_se_borran(self):
+        if not self.entregado_at:
+            return None
+        return hora_bogota_naive(self.entregado_at) + timedelta(days=RETENCION_EVIDENCIA_DIAS)
+
+    # ── Avance ──
+    @property
+    def progreso(self) -> dict | None:
+        """Cuánto va el trabajo, contra la fecha de entrega que se le dio.
+
+        Arranca cuando se SELLA la recepción —es cuando el carro de verdad
+        empieza a trabajarse, que puede ser bastante después de la hora de la
+        cita— y termina en la entrega programada, o en el fin de la cita si no
+        se programó ninguna.
+
+        Todas las horas en Bogotá: las de la cita ya lo son y `recibido_at` se
+        guarda en UTC. Mezclarlas corría la barra cinco horas.
+
+        None cuando no hay con qué calcularlo: sin recepción sellada o sin
+        cita. Mejor ninguna barra que una inventada."""
+        if self.entregada:
+            return {"pct": 100, "fin": hora_bogota_naive(self.entregado_at),
+                    "atrasado": False, "entregado": True}
+        if not self.sellada or not self.appointment:
+            return None
+        inicio = hora_bogota_naive(self.recibido_at) if self.recibido_at \
+            else self.appointment.start_datetime
+        fin = self.appointment.entrega_estimada
+        if not inicio or not fin:
+            return None
+        ahora = bogota_now()
+        total = (fin - inicio).total_seconds()
+        if total <= 0 or ahora >= fin:
+            pct = PROGRESO_TOPE_EN_PROCESO
+        else:
+            pct = int(max(0, (ahora - inicio).total_seconds()) / total * 100)
+        return {"pct": min(pct, PROGRESO_TOPE_EN_PROCESO), "fin": fin,
+                "atrasado": ahora >= fin, "entregado": False}
 
     @property
     def link_equipo(self) -> str:
@@ -3889,6 +3967,36 @@ def _liberar_phone_de_conversaciones() -> None:
 
 ensure_whatsapp_schema()
 ensure_whatsapp_canal_schema()
+
+
+def ensure_entrega_y_retencion_schema():
+    """La fecha de entrega prometida en la cita, y la marca de fotos depuradas
+    en la ficha del carro.
+
+    Va después de create_all a propósito: `vehicle_receptions` ya existe en
+    producción desde que salió la ficha, SIN esta columna, y create_all no
+    altera tablas existentes. Sin el ALTER, la app arrancaría y reventaría en
+    la primera consulta a una ficha."""
+    with app.app_context():
+        for tabla, col, ddl in [
+            ("appointments", "entrega_programada", "DATETIME"),
+            ("vehicle_receptions", "fotos_depuradas_at", "DATETIME"),
+        ]:
+            db.session.rollback()
+            try:
+                db.session.execute(text(f"SELECT {col} FROM {tabla} LIMIT 1"))
+                continue
+            except Exception:
+                db.session.rollback()
+            try:
+                db.session.execute(text(f"ALTER TABLE {tabla} ADD COLUMN {col} {ddl}"))
+                db.session.commit()
+            except Exception as exc:
+                db.session.rollback()
+                app.logger.error(f"[Migración] No se pudo agregar {tabla}.{col}: {exc}")
+
+
+ensure_entrega_y_retencion_schema()
 # Va después porque ensure_whatsapp_schema() es quien corre db.create_all(): en
 # una base nueva la tabla nace con la columna, y en una que ya existía toca el ALTER.
 ensure_outsourcing_duration_schema()
@@ -5249,6 +5357,25 @@ def _requiere_confirmar_dia_cerrado() -> str | None:
     return None
 
 
+def _leer_entrega_programada(form, inicio):
+    """La entrega que se le prometió al cliente, o None.
+
+    Una entrega anterior al inicio de la cita es un error de dedo, no una
+    promesa: se descarta con aviso en vez de guardar una barra de avance que
+    arrancaría ya vencida."""
+    crudo = (form.get("entrega_programada") or "").strip()
+    if not crudo:
+        return None
+    try:
+        valor = datetime.strptime(crudo, "%Y-%m-%dT%H:%M")
+    except ValueError:
+        return None
+    if inicio and valor <= inicio:
+        flash("La entrega programada quedó antes del inicio de la cita y no se guardó.", "warning")
+        return None
+    return valor
+
+
 @app.route("/appointments/new", methods=["GET", "POST"])
 def new_appointment():
     services = Service.query.filter_by(is_active=True).order_by(Service.name).all()
@@ -5342,6 +5469,7 @@ def new_appointment():
             services=services_str,
             start_datetime=start_dt,
             end_datetime=end_dt,
+            entrega_programada=_leer_entrega_programada(request.form, start_dt),
             notes=notes,
             vehicle_type_id=int(vehicle_type_id),
             status="scheduled",
@@ -5739,6 +5867,7 @@ def edit_appointment(appointment_id):
         start_time = request.form["start_time"]
         start_dt = datetime.strptime(f"{date} {start_time}", "%Y-%m-%d %H:%M")
         appointment.start_datetime = start_dt
+        appointment.entrega_programada = _leer_entrega_programada(request.form, start_dt)
 
         # Servicios seleccionados
         selected_ids = request.form.getlist("service_ids")
@@ -16167,7 +16296,13 @@ def recepcion_cliente(token):
     ficha, cual = _ficha_por_token(token)
     if not ficha or cual != "cliente":
         return render_template("recepcion_no_existe.html"), 404
-    return render_template("recepcion_cliente.html", f=ficha, token=token)
+    # Pasados los 30 días de la entrega el link se cierra, tal como se le dijo
+    # al cliente en ese mismo link. Se le muestra un cierre amable, no un error.
+    if ficha.link_cliente_vencido:
+        return render_template("recepcion_cliente_vencida.html", f=ficha,
+                               dias_cliente=RETENCION_CLIENTE_DIAS), 410
+    return render_template("recepcion_cliente.html", f=ficha, token=token,
+                           dias_cliente=RETENCION_CLIENTE_DIAS)
 
 
 @app.route("/rf/<token>/<int:foto_id>")
@@ -16180,17 +16315,53 @@ def recepcion_foto_publica(token, foto_id):
     if not ficha:
         return ("", 404)
     foto = ReceptionPhoto.query.filter_by(id=foto_id, reception_id=ficha.id).first()
-    # Antes de sellar, el cliente no ve la recepción a medio llenar.
-    if not foto or (cual == "cliente" and not ficha.sellada):
+    # Antes de sellar, el cliente no ve la recepción a medio llenar; y pasado
+    # su plazo tampoco: una URL de foto guardada no puede saltarse el cierre.
+    if not foto or (cual == "cliente" and (not ficha.sellada or ficha.link_cliente_vencido)):
         return ("", 404)
     return _almacen_entregar(foto.thumb_key if request.args.get("mini") else foto.key)
+
+
+def _depurar_fotos_vencidas() -> int:
+    """Borra las fotos de las fichas entregadas hace más de 90 días.
+
+    Solo las fotos: son lo que pesa en el bucket. La ficha, sus novedades y
+    las dos firmas se quedan, que es lo que sirve si alguien pregunta en un
+    año cómo llegó ese carro. Devuelve cuántas fotos borró."""
+    limite = datetime.utcnow() - timedelta(days=RETENCION_EVIDENCIA_DIAS)
+    fichas = VehicleReception.query.filter(
+        VehicleReception.etapa == ETAPA_ENTREGADO,
+        VehicleReception.entregado_at <= limite,
+        VehicleReception.fotos_depuradas_at.is_(None),
+    ).all()
+    borradas = 0
+    for ficha in fichas:
+        for foto in list(ficha.fotos):
+            _borrar_foto_ficha(foto)
+            borradas += 1
+        ficha.fotos_depuradas_at = datetime.utcnow()
+        # Ficha por ficha: si una falla, las anteriores ya quedaron hechas.
+        db.session.commit()
+    return borradas
+
+
+def _job_depurar_fotos_recepciones():
+    with app.app_context():
+        try:
+            n = _depurar_fotos_vencidas()
+            if n:
+                app.logger.info(f"[Recepción] Depuradas {n} fotos de fichas entregadas "
+                                f"hace más de {RETENCION_EVIDENCIA_DIAS} días.")
+        except Exception as exc:
+            db.session.rollback()
+            app.logger.error(f"[Recepción] Falló la depuración de fotos: {exc}")
 
 
 @app.route("/rf/<token>/firma/<cual>")
 @limiter.limit("120 per minute")
 def recepcion_firma_publica(token, cual):
-    ficha, _que = _ficha_por_token(token)
-    if not ficha:
+    ficha, que = _ficha_por_token(token)
+    if not ficha or (que == "cliente" and ficha.link_cliente_vencido):
         return ("", 404)
     return _responder_firma(ficha, cual)
 
@@ -17364,6 +17535,14 @@ _scheduler.add_job(
     _job_backup_db,
     CronTrigger(hour=3, minute=0, timezone=_BOGOTA),
     id="backup_db",
+    replace_existing=True,
+)
+# Después del backup de las 3: si algo sale mal borrando, el backup de esa
+# noche todavía tiene las filas.
+_scheduler.add_job(
+    _job_depurar_fotos_recepciones,
+    CronTrigger(hour=3, minute=30, timezone=_BOGOTA),
+    id="depurar_fotos_recepciones",
     replace_existing=True,
 )
 # A las 8 AM y no de madrugada: el aviso sirve solo si alguien puede recargar

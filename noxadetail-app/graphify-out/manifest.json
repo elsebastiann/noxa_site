@@ -1,7 +1,7 @@
 {
   "app.py": {
-    "mtime": 1789830761.127311,
-    "ast_hash": "2fd623cefc00194e2ac2f7cc95bcb876",
+    "mtime": 1789834034.4439552,
+    "ast_hash": "ea452b5766c8efb632ebc968ed038c4a",
     "semantic_hash": ""
   },
   "migrate_prices.py": {
@@ -65,8 +65,8 @@
     "semantic_hash": ""
   },
   "templates/appointment_form.html": {
-    "mtime": 1789678808.5245345,
-    "ast_hash": "eccb894e2db2b390efdd637bab70a584",
+    "mtime": 1789833827.3496807,
+    "ast_hash": "f15585062d013188f0c80b1e0e2431a2",
     "semantic_hash": ""
   },
   "templates/appointments_list.html": {
@@ -580,23 +580,23 @@
     "semantic_hash": ""
   },
   "templates/_recepcion_publica.html": {
-    "mtime": 1789830159.9350054,
-    "ast_hash": "a7155407137fe045a6beaebd13950b75",
+    "mtime": 1789834262.5542927,
+    "ast_hash": "8c8b8caf143791c983667a705d9ad5d6",
     "semantic_hash": ""
   },
   "templates/recepcion.html": {
-    "mtime": 1789830754.7862606,
-    "ast_hash": "4050ee56050b43855f871783a8b1f0a2",
+    "mtime": 1789833951.1235318,
+    "ast_hash": "f2c8261d7ed8d366e58c1d59168ec8cb",
     "semantic_hash": ""
   },
   "templates/recepcion_cliente.html": {
-    "mtime": 1789830184.1980631,
-    "ast_hash": "d0dff1d71520de4a23f51151e3854e04",
+    "mtime": 1789834262.5548244,
+    "ast_hash": "d1c05616899384a2991b15f90737ef49",
     "semantic_hash": ""
   },
   "templates/recepcion_equipo.html": {
-    "mtime": 1789830191.4443474,
-    "ast_hash": "04223846956ace39ad913d2a79e5648c",
+    "mtime": 1789833930.8994513,
+    "ast_hash": "3c649462407ba1ad7d281b750f0fa021",
     "semantic_hash": ""
   },
   "templates/recepcion_no_existe.html": {
@@ -607,6 +607,16 @@
   "templates/recepciones.html": {
     "mtime": 1789830126.6262023,
     "ast_hash": "074bf03a06f2e57344645712266030d5",
+    "semantic_hash": ""
+  },
+  "tests/test_recepcion_plazos.py": {
+    "mtime": 1789834109.3372574,
+    "ast_hash": "2a9490225506e2aba326bdfa23b2765d",
+    "semantic_hash": ""
+  },
+  "templates/recepcion_cliente_vencida.html": {
+    "mtime": 1789833923.8768344,
+    "ast_hash": "8826a32273495d76d24dc0926c8e0432",
     "semantic_hash": ""
   }
 }

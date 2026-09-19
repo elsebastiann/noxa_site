@@ -44,6 +44,25 @@
   .vacio { color:var(--suave); font-size:.88rem; }
   .pie { color:var(--suave); font-size:.76rem; line-height:1.5; padding:0 22px 26px; text-align:center; }
 
+  /* Barra de avance: sutil a propósito. Es un dato de tranquilidad, no una
+     cuenta regresiva que presione a nadie. */
+  .avance { margin:14px 0 4px; }
+  .avance-cab { display:flex; justify-content:space-between; align-items:baseline;
+                font-size:.78rem; color:var(--suave); margin-bottom:6px; }
+  .avance-cab b { color:var(--tinta); font-size:.92rem; }
+  .avance-barra { height:6px; background:#efece5; border-radius:99px; overflow:hidden; }
+  .avance-barra div { height:100%; background:var(--dorado); border-radius:99px;
+                      transition:width .6s ease; }
+  .avance-pie { font-size:.76rem; color:var(--suave); margin-top:6px; }
+
+  .cierre { background:#f2f7f1; border:1px solid #cfe3cb; border-radius:11px;
+            padding:16px 16px 14px; margin:16px 0; line-height:1.55; font-size:.9rem; }
+  .cierre h3 { font-size:1.02rem; margin:0 0 6px; }
+  .cierre p { margin:0 0 8px; }
+  .cierre p:last-child { margin-bottom:0; }
+  .cierre .plazo { background:#fff; border:1px solid #cfe3cb; border-radius:8px;
+                   padding:9px 12px; font-size:.85rem; margin:10px 0; }
+
   /* Subida (solo el link del equipo). */
   .botones { display:flex; gap:8px; flex-wrap:wrap; margin-top:8px; }
   .btn { display:inline-flex; align-items:center; justify-content:center; gap:6px; flex:1 1 150px;
@@ -88,9 +107,35 @@
 </div>
 {% endmacro %}
 
-{# La recepción tal como quedó sellada. La leen los dos links. #}
-{% macro recepcion(f, token) %}
-<h2>Cómo llegó el carro</h2>
+{# ── Piezas de la ficha, sueltas para poder ordenarlas ──────────────────
+   Orden en que se leen: recepción, firma de recepción, novedades, avance,
+   entrega y firma de entrega. #}
+
+{# `repetir_entrega=false` en la página del cliente: ahí el mensaje de cierre
+   ya dice la fecha de entrega justo debajo, y repetida se lee como relleno. #}
+{% macro barra(f, repetir_entrega=true) %}
+{% set av = f.progreso %}
+{% if av %}
+<div class="avance">
+  <div class="avance-cab">
+    <span>Avance del trabajo</span><b>{{ av.pct }}%</b>
+  </div>
+  <div class="avance-barra"><div style="width:{{ av.pct }}%"></div></div>
+  <div class="avance-pie">
+    {% if av.entregado %}
+      {% if repetir_entrega %}Entregado el {{ av.fin.strftime('%d/%m/%Y a las %I:%M %p') }}{% endif %}
+    {% elif av.atrasado %}
+      Estamos en los últimos detalles de tu carro.
+    {% else %}
+      Entrega estimada: {{ av.fin.strftime('%d/%m/%Y a las %I:%M %p') }}
+    {% endif %}
+  </div>
+</div>
+{% endif %}
+{% endmacro %}
+
+{% macro llegada(f, token) %}
+<h2>Recepción</h2>
 <dl class="datos">
   <dt>Recibido</dt><dd>{{ f.recibido_at | hora_bogota('%d/%m/%Y %I:%M %p') }}</dd>
   <dt>Kilometraje</dt><dd>{{ '{:,}'.format(f.km_entrada).replace(',', '.') ~ ' km' if f.km_entrada else '—' }}</dd>
@@ -100,7 +145,15 @@
 {% if f.fotos_generales_recepcion %}
   {{ fotos(f.fotos_generales_recepcion, token) }}
 {% endif %}
+{% endmacro %}
 
+{% macro firma_recepcion(f, token) %}
+<h2>Firma de recepción</h2>
+<p class="vacio" style="margin:0 0 8px;">Revisado y firmado por {{ f.firmado_por }}.</p>
+<div class="firma"><img src="{{ url_for('recepcion_firma_publica', token=token, cual='recepcion') }}" alt="Firma de recepción"></div>
+{% endmacro %}
+
+{% macro novedades(f, token) %}
 <h2>Novedades que ya traía <span class="n">{{ f.novedades|length }}</span></h2>
 {% for n in f.novedades %}
   <div class="nov">
@@ -112,8 +165,22 @@
 {% else %}
   <p class="vacio">No se registraron novedades: el carro llegó sin daños visibles.</p>
 {% endfor %}
-<p class="vacio" style="margin-top:10px;">Revisado y firmado por {{ f.firmado_por }}.</p>
-<div class="firma"><img src="{{ url_for('recepcion_firma_publica', token=token, cual='recepcion') }}" alt="Firma"></div>
+{% endmacro %}
+
+{% macro entrega(f, token) %}
+<h2>Entrega</h2>
+<dl class="datos">
+  <dt>Recibió</dt><dd>{{ f.entregado_a }}</dd>
+  <dt>Fecha</dt><dd>{{ f.entregado_at | hora_bogota('%d/%m/%Y %I:%M %p') }}</dd>
+  {% if f.km_salida %}<dt>Kilometraje</dt><dd>{{ '{:,}'.format(f.km_salida).replace(',', '.') }} km</dd>{% endif %}
+  {% if f.notas_entrega %}<dt>Notas</dt><dd>{{ f.notas_entrega }}</dd>{% endif %}
+</dl>
+{% if f.fotos_de('entrega') %}{{ fotos(f.fotos_de('entrega'), token) }}{% endif %}
+{% endmacro %}
+
+{% macro firma_entrega(f, token) %}
+<h2>Firma de entrega</h2>
+<div class="firma"><img src="{{ url_for('recepcion_firma_publica', token=token, cual='entrega') }}" alt="Firma de entrega"></div>
 {% endmacro %}
 
 {# Las fotos del proceso agrupadas por día: así se lee como una bitácora. #}

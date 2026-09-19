@@ -129,6 +129,11 @@
   .rc-link .que b { display:block; }
   .rc-link .que span { font-size:.8rem; color:var(--text2); }
 
+  .rc-avance { margin-bottom:14px; }
+  .rc-avance-cab { display:flex; justify-content:space-between; font-size:.8rem; color:var(--text2); margin-bottom:5px; }
+  .rc-avance-cab b { color:var(--accent); }
+  .rc-avance-barra { height:6px; background:var(--surface2); border-radius:99px; overflow:hidden; }
+  .rc-avance-barra div { height:100%; background:var(--accent); border-radius:99px; }
   .rc-final { position:sticky; bottom:0; background:var(--bg); padding:10px 0; }
   /* Botón grande: se toca con el cliente al lado, en el celular, a veces con
      guantes. El base.html fija el padding de .btn con !important. */
@@ -329,7 +334,14 @@
     <h3 class="mt-3">Fotos generales <span class="n">{{ f.fotos_generales_recepcion|length }}</span></h3>
     {{ grilla(f.fotos_generales_recepcion) }}
 
-    <h3 class="mt-3">Novedades <span class="n">{{ f.novedades|length }}</span></h3>
+    <h3 class="mt-3">Firma de recepción <span class="n">{{ f.firmado_por }}</span></h3>
+    <div class="rc-firma-guardada">
+      <img src="{{ url_for('recepcion_firma', ficha_id=f.id, cual='recepcion') }}" alt="Firma de recepción">
+    </div>
+  </div>
+
+  <div class="rc-sec">
+    <h3>Novedades <span class="n">{{ f.novedades|length }}</span></h3>
     {% for n in f.novedades %}
       <div class="rc-nov">
         <div class="rc-nov-titulo">{{ n.zona }}</div>
@@ -340,15 +352,21 @@
     {% else %}
       <p class="rc-vacio">El carro no traía novedades.</p>
     {% endfor %}
-
-    <h3 class="mt-3">Firma de {{ f.firmado_por }}</h3>
-    <div class="rc-firma-guardada">
-      <img src="{{ url_for('recepcion_firma', ficha_id=f.id, cual='recepcion') }}" alt="Firma de recepción">
-    </div>
   </div>
 
   {# ═══════════════════ Proceso ═══════════════════ #}
   <div class="rc-sec">
+    {% set av = f.progreso %}
+    {% if av and not av.entregado %}
+      <div class="rc-avance">
+        <div class="rc-avance-cab"><span>Avance</span><b>{{ av.pct }}%</b></div>
+        <div class="rc-avance-barra"><div style="width:{{ av.pct }}%"></div></div>
+        <div class="rc-ayuda mt-1">
+          {% if av.atrasado %}Ya pasó la entrega estimada ({{ av.fin.strftime('%d/%m %I:%M %p') }}). El cliente ve "últimos detalles".
+          {% else %}Entrega estimada: {{ av.fin.strftime('%d/%m/%Y %I:%M %p') }}{% if not f.appointment.entrega_programada %} · calculada con la duración de los servicios{% endif %}{% endif %}
+        </div>
+      </div>
+    {% endif %}
     <h3>Proceso <span class="n">{{ f.fotos_de('proceso')|length }} foto{{ '' if f.fotos_de('proceso')|length == 1 else 's' }}</span></h3>
     {% if f.entregada %}
       {{ grilla(f.fotos_de('proceso')) }}
@@ -369,9 +387,19 @@
       </dl>
       <h3>Fotos de entrega</h3>
       {{ grilla(f.fotos_de('entrega')) }}
-      <h3 class="mt-3">Firma de {{ f.entregado_a }}</h3>
+      <h3 class="mt-3">Firma de entrega <span class="n">{{ f.entregado_a }}</span></h3>
       <div class="rc-firma-guardada">
         <img src="{{ url_for('recepcion_firma', ficha_id=f.id, cual='entrega') }}" alt="Firma de entrega">
+      </div>
+      <div class="rc-sello mt-3 mb-0">
+        {% if f.fotos_depuradas_at %}
+          Las fotos de esta ficha se eliminaron el {{ f.fotos_depuradas_at | hora_bogota('%d/%m/%Y') }},
+          cumplido el plazo. Los datos, las novedades y las firmas se conservan.
+        {% else %}
+          El cliente ve su registro hasta el <b>{{ f.link_cliente_vence.strftime('%d/%m/%Y') }}</b>.
+          Las fotos se conservan como evidencia hasta el <b>{{ f.fotos_se_borran.strftime('%d/%m/%Y') }}</b>
+          y después se eliminan solas. Los datos, las novedades y las firmas se quedan.
+        {% endif %}
       </div>
     {% else %}
       <label class="form-label">Fotos al entregar</label>

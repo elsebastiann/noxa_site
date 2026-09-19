@@ -16,6 +16,7 @@
     <h1>{{ f.plate or 'Sin placa' }}</h1>
     <p class="sub">{{ f.vehiculo }}{% if f.services %} · {{ f.services }}{% endif %}</p>
     {{ pub.etapas(f) }}
+    {{ pub.barra(f) }}
 
     {% if f.etapa == 'recepcion' %}
       <div class="aviso">
@@ -59,8 +60,15 @@
 
     {% if f.sellada %}
       {# Antes de tocar el carro, quien lo trabaja tiene que saber qué ya traía:
-         un rayón que no está en esta lista es uno que hicimos nosotros. #}
-      {{ pub.recepcion(f, token) }}
+         un rayón que no está en esta lista es uno que hicimos nosotros. Por eso
+         las novedades van justo después de subir fotos, no al final. #}
+      {{ pub.novedades(f, token) }}
+      {{ pub.llegada(f, token) }}
+      {{ pub.firma_recepcion(f, token) }}
+      {% if f.entregada %}
+        {{ pub.entrega(f, token) }}
+        {{ pub.firma_entrega(f, token) }}
+      {% endif %}
     {% endif %}
   </div>
   <p class="pie">Este link es para el equipo de NOXA. No lo compartas con el cliente:
