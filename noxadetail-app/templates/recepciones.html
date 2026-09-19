@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+
+{% block extra_head %}
+<style>
+  .rl { max-width:900px; margin:18px auto 60px; }
+  .rl-filtros { display:flex; gap:6px; flex-wrap:wrap; margin:12px 0 16px; }
+  .rl-filtros a { padding:6px 12px; border:1px solid var(--border); border-radius:999px;
+                  font-size:.82rem; color:var(--text2); text-decoration:none; }
+  .rl-filtros a.on { border-color:var(--accent); color:var(--accent); }
+  .rl-fila { display:flex; align-items:center; gap:14px; padding:12px 14px;
+             background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+             margin-bottom:8px; text-decoration:none; color:inherit; }
+  .rl-fila:hover { border-color:var(--accent); }
+  .rl-placa { font-weight:800; letter-spacing:.05em; min-width:84px; }
+  .rl-que { flex:1; min-width:0; }
+  .rl-que span { display:block; font-size:.8rem; color:var(--text2);
+                 white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .rl-etapa { font-size:.72rem; font-weight:700; padding:3px 9px; border-radius:999px; white-space:nowrap; }
+  .rl-etapa.recepcion { background:rgba(239,83,80,.14); color:#ef5350; }
+  .rl-etapa.proceso { background:rgba(212,180,108,.14); color:var(--accent); }
+  .rl-etapa.entregado { background:rgba(102,187,106,.14); color:#66bb6a; }
+</style>
+{% endblock %}
+
+{% block content %}
+{% set nombres = {'recepcion': 'Recepción sin terminar', 'proceso': 'En proceso', 'entregado': 'Entregado'} %}
+<div class="rl">
+  <h2 style="margin:0;">Recepciones</h2>
+  <p style="color:var(--text2);font-size:.88rem;margin:6px 0 0;">
+    Una ficha por carro: cómo llegó, qué se le hizo y cómo se entregó. Se abre desde la cita,
+    en el cajón de la agenda.
+  </p>
+
+  <div class="rl-filtros">
+    <a href="{{ url_for('recepciones_lista') }}" class="{{ 'on' if not etapa }}">Todas</a>
+    {% for clave, nombre in nombres.items() %}
+      <a href="{{ url_for('recepciones_lista', etapa=clave) }}" class="{{ 'on' if etapa == clave }}">{{ nombre }}</a>
+    {% endfor %}
+  </div>
+
+  {% for f in fichas %}
+    <a class="rl-fila" href="{{ url_for('recepcion_detalle', ficha_id=f.id) }}">
+      <div class="rl-placa">{{ f.plate or '—' }}</div>
+      <div class="rl-que">
+        {{ f.customer_name or 'Sin nombre' }}
+        <span>{{ f.vehiculo }} · {{ f.created_at | hora_bogota('%d/%m/%Y') }}
+          · {{ f.fotos|length }} foto{{ '' if f.fotos|length == 1 else 's' }}
+          {% if f.novedades %} · {{ f.novedades|length }} novedad{{ '' if f.novedades|length == 1 else 'es' }}{% endif %}</span>
+      </div>
+      <span class="rl-etapa {{ f.etapa }}">{{ nombres[f.etapa] }}</span>
+    </a>
+  {% else %}
+    <p style="color:var(--text3);">Todavía no hay recepciones{% if etapa %} en esta etapa{% endif %}.</p>
+  {% endfor %}
+</div>
+{% endblock %}

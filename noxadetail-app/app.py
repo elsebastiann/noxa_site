@@ -2979,6 +2979,192 @@ class PriceRequestItem(db.Model):
         return f"<PriceRequestItem {self.cobertura} {self.precios}>"
 
 
+# ── Recepción, proceso y entrega de un carro ─────────────────────────────────
+# Una ficha por carro que se va cerrando por etapas. Lo que la hace valer es
+# que la recepción, una vez sellada con la firma del cliente, NO se puede
+# editar — ni por un admin. Es lo que responde "ese rayón ya estaba" el día
+# que un cliente diga lo contrario.
+ETAPA_RECEPCION = "recepcion"
+ETAPA_PROCESO   = "proceso"
+ETAPA_ENTREGADO = "entregado"
+# Etapa de las FOTOS tomadas al entregar. No es un estado de la ficha —esas son
+# las tres de arriba— sino a qué momento pertenece la foto.
+FOTO_ENTREGA = "entrega"
+
+NIVELES_GASOLINA = ["Reserva", "1/4", "1/2", "3/4", "Lleno"]
+
+# Zonas del carro, en el orden en que se recorre al darle la vuelta: así quien
+# recibe no salta de un lado al otro buscando en la lista.
+ZONAS_CARRO = [
+    "Capó", "Bómper delantero", "Farolas", "Parabrisas",
+    "Guardafango delantero izquierdo", "Puerta delantera izquierda",
+    "Puerta trasera izquierda", "Guardafango trasero izquierdo",
+    "Espejo izquierdo", "Rin delantero izquierdo", "Rin trasero izquierdo",
+    "Baúl / compuerta", "Bómper trasero", "Stops", "Vidrio trasero",
+    "Guardafango trasero derecho", "Puerta trasera derecha",
+    "Puerta delantera derecha", "Guardafango delantero derecho",
+    "Espejo derecho", "Rin delantero derecho", "Rin trasero derecho",
+    "Techo", "Estribos", "Interior — tapicería", "Interior — tablero",
+    "Interior — techo", "Otra",
+]
+TIPOS_NOVEDAD = ["Rayón", "Golpe / abolladura", "Picadura", "Grieta o fisura",
+                 "Pintura desgastada", "Pieza suelta o rota", "Mancha", "Otra"]
+
+
+class VehicleReception(db.Model):
+    """La ficha de un carro desde que llega hasta que se entrega.
+
+    Guarda su PROPIA copia de los datos del cliente y del carro, igual que una
+    cotización congela sus precios. Si mañana se corrige el teléfono en la cita
+    o la cita se borra, lo que el cliente firmó al entregar el carro no puede
+    cambiar con ella.
+    """
+    __tablename__ = "vehicle_receptions"
+    id = db.Column(db.Integer, primary_key=True)
+    # SET NULL y no CASCADE: borrar una cita no puede llevarse por delante la
+    # constancia de en qué estado llegó el carro.
+    appointment_id = db.Column(db.Integer,
+                               db.ForeignKey("appointments.id", ondelete="SET NULL"),
+                               nullable=True, index=True)
+    etapa = db.Column(db.String(20), nullable=False, default=ETAPA_RECEPCION)
+
+    # Dos links distintos a propósito: el del equipo SUBE fotos, el del cliente
+    # solo mira. Si fueran uno solo, mandárselo al cliente sería darle permiso
+    # de subirle fotos a su propia ficha.
+    token_equipo  = db.Column(db.String(64), unique=True, nullable=False, index=True)
+    token_cliente = db.Column(db.String(64), unique=True, nullable=False, index=True)
+
+    # ── Cliente y carro (copia congelada) ──
+    customer_name = db.Column(db.String(120), nullable=True)
+    phone         = db.Column(db.String(30), nullable=True)
+    plate         = db.Column(db.String(20), nullable=True)
+    vehicle_type_name = db.Column(db.String(80), nullable=True)
+    marca  = db.Column(db.String(60), nullable=True)
+    modelo = db.Column(db.String(80), nullable=True)
+    anio   = db.Column(db.Integer, nullable=True)
+    color  = db.Column(db.String(40), nullable=True)
+    services = db.Column(db.String(255), nullable=True)
+
+    # ── Estado al llegar ──
+    km_entrada = db.Column(db.Integer, nullable=True)
+    gasolina   = db.Column(db.String(10), nullable=True)
+    # Lo que el cliente deja adentro. Es lo segundo que se reclama después de
+    # un rayón: "tenía unas gafas en la guantera".
+    objetos    = db.Column(db.Text, nullable=True)
+    observaciones = db.Column(db.Text, nullable=True)
+
+    # ── Sello de la recepción ──
+    firma_recepcion  = db.Column(db.LargeBinary, nullable=True)   # PNG
+    firmado_por      = db.Column(db.String(120), nullable=True)
+    recibido_por     = db.Column(db.String(120), nullable=True)
+    recibido_at      = db.Column(db.DateTime, nullable=True)
+
+    # ── Entrega ──
+    km_salida        = db.Column(db.Integer, nullable=True)
+    notas_entrega    = db.Column(db.Text, nullable=True)
+    firma_entrega    = db.Column(db.LargeBinary, nullable=True)   # PNG
+    entregado_a      = db.Column(db.String(120), nullable=True)
+    entregado_por    = db.Column(db.String(120), nullable=True)
+    entregado_at     = db.Column(db.DateTime, nullable=True)
+
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    created_by = db.Column(db.String(120), nullable=True)
+
+    appointment = db.relationship("Appointment")
+    novedades = db.relationship("ReceptionDamage", backref="recepcion",
+                                cascade="all, delete-orphan",
+                                order_by="ReceptionDamage.id")
+    fotos = db.relationship("ReceptionPhoto", backref="recepcion",
+                            cascade="all, delete-orphan",
+                            order_by="ReceptionPhoto.id")
+
+    @property
+    def sellada(self) -> bool:
+        """La recepción ya no se toca. Es LA regla de este módulo."""
+        return self.etapa != ETAPA_RECEPCION
+
+    @property
+    def entregada(self) -> bool:
+        return self.etapa == ETAPA_ENTREGADO
+
+    @property
+    def vehiculo(self) -> str:
+        partes = [self.marca, self.modelo, str(self.anio) if self.anio else None, self.color]
+        return " ".join(p for p in partes if p) or (self.vehicle_type_name or "Vehículo")
+
+    def fotos_de(self, etapa: str) -> list:
+        return [f for f in self.fotos if f.etapa == etapa]
+
+    @property
+    def fotos_generales_recepcion(self) -> list:
+        """Las de la recepción que no cuelgan de una novedad puntual."""
+        return [f for f in self.fotos if f.etapa == ETAPA_RECEPCION and not f.damage_id]
+
+    @property
+    def link_equipo(self) -> str:
+        return f"{_base_publica()}/e/{self.token_equipo}"
+
+    @property
+    def link_cliente(self) -> str:
+        return f"{_base_publica()}/v/{self.token_cliente}"
+
+    @property
+    def whatsapp_cliente(self) -> str | None:
+        """Link de WhatsApp con el mensaje ya escrito para mandarle su ficha.
+
+        Solo si el teléfono se puede usar: con un número mal escrito, wa.me
+        abre un chat vacío con un desconocido, que es peor que no tener botón."""
+        digitos = re.sub(r"\D", "", self.phone or "")
+        if len(digitos) == 10 and digitos.startswith("3"):
+            digitos = "57" + digitos
+        if not (len(digitos) == 12 and digitos.startswith("573")):
+            return None
+        from urllib.parse import quote
+        nombre = (self.customer_name or "").split(" ")[0]
+        texto = (f"Hola{' ' + nombre if nombre else ''}, soy de NOXA Detail. Aquí puedes "
+                 f"ver cómo recibimos tu carro y seguir el avance del trabajo: "
+                 f"{self.link_cliente}")
+        return f"https://wa.me/{digitos}?text={quote(texto)}"
+
+    def __repr__(self):
+        return f"<VehicleReception {self.id} {self.plate} {self.etapa}>"
+
+
+class ReceptionDamage(db.Model):
+    """Una novedad que el carro ya traía al llegar."""
+    __tablename__ = "reception_damages"
+    id = db.Column(db.Integer, primary_key=True)
+    reception_id = db.Column(db.Integer, db.ForeignKey("vehicle_receptions.id"),
+                             nullable=False, index=True)
+    zona = db.Column(db.String(60), nullable=False)
+    tipo = db.Column(db.String(60), nullable=False)
+    descripcion = db.Column(db.Text, nullable=True)
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+
+    fotos = db.relationship("ReceptionPhoto", backref="novedad",
+                            order_by="ReceptionPhoto.id")
+
+
+class ReceptionPhoto(db.Model):
+    """Una foto de la ficha, en cualquiera de las tres etapas.
+
+    `key` y `thumb_key` son rutas dentro del almacén (bucket o disco): la foto
+    en sí nunca va a la base, que es un SQLite en un volumen y no está hecha
+    para cargar megas de imágenes."""
+    __tablename__ = "reception_photos"
+    id = db.Column(db.Integer, primary_key=True)
+    reception_id = db.Column(db.Integer, db.ForeignKey("vehicle_receptions.id"),
+                             nullable=False, index=True)
+    damage_id = db.Column(db.Integer, db.ForeignKey("reception_damages.id"),
+                          nullable=True, index=True)
+    etapa = db.Column(db.String(20), nullable=False)
+    key = db.Column(db.String(255), nullable=False)
+    thumb_key = db.Column(db.String(255), nullable=False)
+    nota = db.Column(db.String(255), nullable=True)
+    subida_por = db.Column(db.String(120), nullable=True)
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+
+
 
 # Quién puso el material. Define el reparto por defecto y, sobre todo, permite
 # comparar después cuál de las dos modalidades deja más plata.
@@ -8153,7 +8339,14 @@ def appointment_json(appointment_id):
 
     ver_precios = puede_ver_precios()
 
+    # Para que el cajón diga "Recibir carro" o "Ver ficha" según si ya existe,
+    # y no abra una segunda ficha para un carro que ya se recibió.
+    ficha = (VehicleReception.query.filter_by(appointment_id=appt.id)
+             .order_by(VehicleReception.id.desc()).first())
+
     return jsonify({
+        "recepcion": ({"id": ficha.id, "etapa": ficha.etapa} if ficha else None),
+        "puede_recibir": puede_recibir_carros(),
         "id": appt.id,
         "customer_name": appt.customer_name,
         "plate": appt.plate,
@@ -9126,6 +9319,11 @@ PUBLIC_ENDPOINTS  = {
     # garantiza que no la llene. El token es largo y aleatorio, la página no
     # expone nada más que ese carro, y vence a los pocos días.
     "price_request_public", "price_request_image",
+    # Los dos links de la ficha de un carro y lo que muestran. El del equipo
+    # sube fotos del proceso; el del cliente solo mira. Tokens largos y
+    # aleatorios, distintos entre sí, y cada ruta revisa CUÁL de los dos llegó.
+    "recepcion_equipo", "recepcion_equipo_fotos", "recepcion_cliente",
+    "recepcion_foto_publica", "recepcion_firma_publica",
 }
 CHANGE_PWD_ENDPOINTS = {"change_password", "logout", "static"}
 
@@ -9142,6 +9340,12 @@ OPERARIO_ENDPOINTS = {
     # El operario agenda citas, así que tiene que poder ver si la placa trae
     # plan. Solo lee cupos y vencimiento — no expone plata ni el catálogo.
     "api_plans_by_plate",
+    # La recepción y la entrega del carro: el operario es quien está en el
+    # taller cuando llega. No expone plata.
+    "recepcion_desde_cita", "recepciones_lista", "recepcion_detalle",
+    "recepcion_guardar", "recepcion_novedad_nueva", "recepcion_novedad_borrar",
+    "recepcion_fotos", "recepcion_foto_borrar", "recepcion_entregar",
+    "recepcion_foto", "recepcion_firma",
     "change_password",
 }
 
@@ -15375,6 +15579,620 @@ def appointment_receipt(appointment_id):
         # baja o se manda por WhatsApp.
         "Content-Disposition": f'inline; filename="{numero_de_recibo(appt)}.pdf"',
     })
+
+
+# ── Recepción de carros: almacén de fotos ────────────────────────────────────
+# Las fotos van al bucket de Railway, el mismo de los backups, bajo su propia
+# carpeta. No van al disco de la base: ese es un volumen chico pensado para un
+# SQLite, y una recepción completa son decenas de fotos.
+#
+# Compartir bucket con los backups es seguro porque la retención de backups
+# lista SOLO la carpeta `agenda/` (ver _backups_existentes): nunca ve esta.
+# Sin bucket configurado —en local y en los tests— cae al disco, junto a la
+# base, igual que las fotos de las solicitudes de precio.
+RECEPCION_PREFIJO = "recepciones"
+RECEPCION_DIR_LOCAL = os.path.join(os.path.dirname(os.path.abspath(db_path)) or ".",
+                                   "recepcion_uploads")
+FOTO_MAX_BYTES = 15 * 1024 * 1024   # lo que se acepta crudo, antes de comprimir
+FOTO_LADO_MAX = 2000                 # suficiente para ver un rayón con zoom
+FOTO_LADO_MINI = 480                 # para las grillas, que cargan decenas
+FOTOS_MAX_POR_FICHA = 400            # tope contra un link del equipo abusado
+FIRMA_MAX_BYTES = 400 * 1024
+
+
+def _almacen_guardar(key: str, data: bytes, content_type: str = "image/jpeg") -> None:
+    s3 = _s3_client()
+    if s3:
+        s3.put_object(Bucket=BACKUP_BUCKET, Key=key, Body=data, ContentType=content_type)
+        return
+    ruta = os.path.join(RECEPCION_DIR_LOCAL, key)
+    os.makedirs(os.path.dirname(ruta), exist_ok=True)
+    with open(ruta, "wb") as fh:
+        fh.write(data)
+
+
+def _almacen_borrar(key: str) -> None:
+    try:
+        s3 = _s3_client()
+        if s3:
+            s3.delete_object(Bucket=BACKUP_BUCKET, Key=key)
+            return
+        ruta = os.path.join(RECEPCION_DIR_LOCAL, key)
+        if os.path.exists(ruta):
+            os.remove(ruta)
+    except Exception as exc:
+        # Una foto huérfana en el bucket cuesta centavos; una ficha que no deja
+        # borrar una foto por un error del almacén es un problema en el taller.
+        app.logger.error(f"[Recepción] No se pudo borrar {key} del almacén: {exc}")
+
+
+def _almacen_entregar(key: str):
+    """La respuesta HTTP que entrega una foto.
+
+    Con bucket: redirige a una URL firmada de pocos minutos. La foto viaja del
+    bucket al navegador sin pasar por la app, que tiene un solo worker y no
+    puede quedarse ocupada mandando megas mientras alguien agenda."""
+    s3 = _s3_client()
+    if s3:
+        try:
+            url = s3.generate_presigned_url(
+                "get_object", Params={"Bucket": BACKUP_BUCKET, "Key": key}, ExpiresIn=600)
+            return redirect(url)
+        except Exception as exc:
+            app.logger.error(f"[Recepción] No se pudo firmar {key}: {exc}")
+            return ("", 404)
+    ruta = os.path.join(RECEPCION_DIR_LOCAL, key)
+    if not os.path.exists(ruta):
+        return ("", 404)
+    with open(ruta, "rb") as fh:
+        return Response(fh.read(), mimetype="image/jpeg",
+                        headers={"Cache-Control": "private, max-age=3600"})
+
+
+def _procesar_foto(file_storage) -> tuple[bytes, bytes] | None:
+    """(foto, miniatura) en JPEG, o None si lo que llegó no es una imagen.
+
+    Se re-codifica SIEMPRE, aunque ya venga en JPEG. Tres razones: normaliza
+    la orientación (una foto de celular viene rotada por metadatos), le quita
+    el EXIF —que en un celular trae la ubicación GPS de donde se tomó, y esto
+    termina en un link que se le manda a un cliente— y garantiza que lo que se
+    guarda es una imagen y no cualquier archivo con extensión .jpg."""
+    if not file_storage:
+        return None
+    data = file_storage.read(FOTO_MAX_BYTES + 1)
+    if not data or len(data) > FOTO_MAX_BYTES:
+        return None
+    try:
+        from PIL import Image, ImageOps
+        with Image.open(io.BytesIO(data)) as crudo:
+            img = ImageOps.exif_transpose(crudo).convert("RGB")
+        grande = img.copy()
+        grande.thumbnail((FOTO_LADO_MAX, FOTO_LADO_MAX))
+        buf_g = io.BytesIO()
+        grande.save(buf_g, "JPEG", quality=82, optimize=True)
+        mini = img.copy()
+        mini.thumbnail((FOTO_LADO_MINI, FOTO_LADO_MINI))
+        buf_m = io.BytesIO()
+        mini.save(buf_m, "JPEG", quality=72, optimize=True)
+        return buf_g.getvalue(), buf_m.getvalue()
+    except Exception:
+        return None
+
+
+def _leer_firma(data_url: str) -> bytes | None:
+    """El PNG de la firma, o None si no hay una firma de verdad.
+
+    "De verdad" quiere decir con trazo. Un lienzo en blanco o un toque con el
+    dedo por error se ven igual de firmados en la base, y una firma que no es
+    firma no protege a nadie."""
+    prefijo = "data:image/png;base64,"
+    if not data_url or not data_url.startswith(prefijo):
+        return None
+    try:
+        crudo = base64.b64decode(data_url[len(prefijo):], validate=True)
+    except Exception:
+        return None
+    if len(crudo) > FIRMA_MAX_BYTES:
+        return None
+    try:
+        from PIL import Image
+        with Image.open(io.BytesIO(crudo)) as img:
+            if img.format != "PNG":
+                return None
+            caja = img.convert("RGBA").getchannel("A").getbbox()
+    except Exception:
+        return None
+    # El lienzo es transparente y se pinta en tinta: lo que tenga alfa es trazo.
+    # Menos de 30 px en ambos sentidos es un punto, no una firma.
+    if not caja or ((caja[2] - caja[0]) < 30 and (caja[3] - caja[1]) < 30):
+        return None
+    return crudo
+
+
+def _guardar_foto_ficha(ficha: "VehicleReception", file_storage, etapa: str,
+                        subida_por: str, damage_id=None, nota=None) -> "ReceptionPhoto | None":
+    procesada = _procesar_foto(file_storage)
+    if not procesada:
+        return None
+    grande, mini = procesada
+    base = f"{RECEPCION_PREFIJO}/{ficha.id}/{uuid.uuid4().hex}"
+    _almacen_guardar(f"{base}.jpg", grande)
+    _almacen_guardar(f"{base}_m.jpg", mini)
+    foto = ReceptionPhoto(
+        reception_id=ficha.id, damage_id=damage_id, etapa=etapa,
+        key=f"{base}.jpg", thumb_key=f"{base}_m.jpg",
+        nota=(nota or "").strip()[:255] or None, subida_por=subida_por,
+    )
+    db.session.add(foto)
+    db.session.commit()
+    return foto
+
+
+def _borrar_foto_ficha(foto: "ReceptionPhoto") -> None:
+    _almacen_borrar(foto.key)
+    _almacen_borrar(foto.thumb_key)
+    db.session.delete(foto)
+
+
+def _entero_o_none(valor):
+    try:
+        limpio = re.sub(r"[^\d]", "", str(valor or ""))
+        return int(limpio) if limpio else None
+    except ValueError:
+        return None
+
+
+# ── Recepción de carros: permisos ────────────────────────────────────────────
+@app.template_global()
+def puede_recibir_carros() -> bool:
+    """Quién recibe y entrega carros: admin, líder y operario — el operario es
+    justamente quien está en el taller cuando llega el carro. Marketing no."""
+    u = getattr(g, "current_user", None)
+    return bool(u) and u.role in ("admin", "lider", "operario")
+
+
+def puede_borrar_evidencias() -> bool:
+    """Las fotos del PROCESO solo las borra un admin o un líder.
+
+    Mientras la recepción es borrador, quien la está llenando puede quitar una
+    foto movida — está armando la ficha. Una vez que el carro está en proceso,
+    cada foto es una evidencia, y que el mismo operario que la subió la pueda
+    desaparecer le quita todo el valor."""
+    u = getattr(g, "current_user", None)
+    return bool(u) and u.role in ("admin", "lider")
+
+
+def _usuario_actual() -> str:
+    u = getattr(g, "current_user", None)
+    return u.username if u else "—"
+
+
+def _ficha_o_404(ficha_id: int) -> "VehicleReception":
+    ficha = VehicleReception.query.get(ficha_id)
+    if not ficha:
+        from werkzeug.exceptions import NotFound
+        raise NotFound()
+    return ficha
+
+
+def _ficha_por_token(token: str) -> tuple["VehicleReception | None", str | None]:
+    """(ficha, qué link es): "equipo" o "cliente"."""
+    if not token or len(token) < 20:
+        return None, None
+    ficha = VehicleReception.query.filter_by(token_equipo=token).first()
+    if ficha:
+        return ficha, "equipo"
+    ficha = VehicleReception.query.filter_by(token_cliente=token).first()
+    if ficha:
+        return ficha, "cliente"
+    return None, None
+
+
+def _subida_demasiado_grande() -> bool:
+    """Se mira ANTES de tocar `request.files`: Werkzeug guarda en disco todo el
+    cuerpo al parsearlo, así que revisarlo después ya no protege nada. El link
+    del equipo es público y sin esto cualquiera podría llenar el disco."""
+    largo = request.content_length
+    return largo is None or largo > FOTO_MAX_BYTES + 64 * 1024
+
+
+# ── Recepción de carros: rutas de la app ─────────────────────────────────────
+@app.route("/appointments/<int:appointment_id>/recepcion")
+def recepcion_desde_cita(appointment_id):
+    """Abre la ficha de esta cita, o la crea con lo que la cita ya sabe.
+
+    Todo lo que la cita tiene se trae: quien recibe el carro no debería volver a
+    escribir el nombre, el teléfono ni la placa con el cliente esperando."""
+    if not puede_recibir_carros():
+        flash("Acceso restringido.", "danger")
+        return redirect(url_for("calendar_view"))
+    appt = Appointment.query.get(appointment_id)
+    if not appt:
+        flash("No existe esa cita.", "danger")
+        return redirect(url_for("calendar_view"))
+
+    ficha = (VehicleReception.query.filter_by(appointment_id=appt.id)
+             .order_by(VehicleReception.id.desc()).first())
+    if not ficha:
+        ficha = VehicleReception(
+            appointment_id=appt.id,
+            token_equipo=secrets.token_urlsafe(24),
+            token_cliente=secrets.token_urlsafe(24),
+            customer_name=appt.customer_name, phone=appt.phone,
+            plate=(appt.plate or "").upper() or None,
+            vehicle_type_name=appt.vehicle_type.name if appt.vehicle_type else None,
+            services=appt.services, created_by=_usuario_actual(),
+        )
+        # Si el carro ya vino antes, marca, modelo y color no cambiaron: se
+        # traen de su última ficha para no volver a preguntarlos.
+        if ficha.plate:
+            previa = (VehicleReception.query.filter_by(plate=ficha.plate)
+                      .order_by(VehicleReception.id.desc()).first())
+            if previa:
+                ficha.marca, ficha.modelo = previa.marca, previa.modelo
+                ficha.anio, ficha.color = previa.anio, previa.color
+        db.session.add(ficha)
+        db.session.commit()
+    return redirect(url_for("recepcion_detalle", ficha_id=ficha.id))
+
+
+@app.route("/recepciones")
+def recepciones_lista():
+    if not puede_recibir_carros():
+        flash("Acceso restringido.", "danger")
+        return redirect(url_for("calendar_view"))
+    etapa = request.args.get("etapa", "")
+    q = VehicleReception.query
+    if etapa in (ETAPA_RECEPCION, ETAPA_PROCESO, ETAPA_ENTREGADO):
+        q = q.filter_by(etapa=etapa)
+    fichas = q.order_by(VehicleReception.id.desc()).limit(200).all()
+    return render_template("recepciones.html", fichas=fichas, etapa=etapa)
+
+
+@app.route("/recepciones/<int:ficha_id>")
+def recepcion_detalle(ficha_id):
+    if not puede_recibir_carros():
+        flash("Acceso restringido.", "danger")
+        return redirect(url_for("calendar_view"))
+    ficha = _ficha_o_404(ficha_id)
+    return render_template(
+        "recepcion.html", f=ficha,
+        zonas=ZONAS_CARRO, tipos=TIPOS_NOVEDAD, gasolinas=NIVELES_GASOLINA,
+        puede_borrar=puede_borrar_evidencias(),
+    )
+
+
+def _rechazar_si_sellada(ficha, destino_json=False):
+    """La guarda de TODO lo que modifica la recepción. Devuelve una respuesta
+    si hay que rechazar, o None si se puede seguir."""
+    if not ficha.sellada:
+        return None
+    msg = "La recepción ya está sellada y no se puede modificar."
+    if destino_json:
+        return jsonify({"ok": False, "error": msg}), 409
+    flash(msg, "warning")
+    return redirect(url_for("recepcion_detalle", ficha_id=ficha.id))
+
+
+def _aplicar_datos_recepcion(ficha, form) -> None:
+    def txt(campo, largo):
+        v = (form.get(campo) or "").strip()
+        return v[:largo] or None
+    ficha.customer_name = txt("customer_name", 120)
+    ficha.phone = txt("phone", 30)
+    ficha.plate = (txt("plate", 20) or "").upper() or None
+    ficha.marca = txt("marca", 60)
+    ficha.modelo = txt("modelo", 80)
+    anio = _entero_o_none(form.get("anio"))
+    ficha.anio = anio if anio and 1950 <= anio <= bogota_today().year + 1 else None
+    ficha.color = txt("color", 40)
+    ficha.km_entrada = _entero_o_none(form.get("km_entrada"))
+    gas = form.get("gasolina") or None
+    ficha.gasolina = gas if gas in NIVELES_GASOLINA else None
+    ficha.objetos = txt("objetos", 2000)
+    ficha.observaciones = txt("observaciones", 2000)
+
+
+@app.route("/recepciones/<int:ficha_id>/datos", methods=["POST"])
+def recepcion_guardar(ficha_id):
+    """Guarda el borrador y, si se pidió, sella la recepción.
+
+    Sellar pasa por aquí y no por una ruta aparte para que lo que esté escrito
+    en el formulario al darle "Terminar" quede guardado con la firma. Con dos
+    rutas, un campo recién escrito se perdía justo en el paso que no se puede
+    deshacer."""
+    if not puede_recibir_carros():
+        flash("Acceso restringido.", "danger")
+        return redirect(url_for("calendar_view"))
+    ficha = _ficha_o_404(ficha_id)
+    rechazo = _rechazar_si_sellada(
+        ficha, destino_json=request.headers.get("X-Requested-With") == "fetch")
+    if rechazo:
+        return rechazo
+
+    _aplicar_datos_recepcion(ficha, request.form)
+
+    if request.form.get("accion") != "sellar":
+        db.session.commit()
+        # El guardado automático de la página: responde sin recargar, para no
+        # interrumpir a quien está escribiendo.
+        if request.headers.get("X-Requested-With") == "fetch":
+            return jsonify({"ok": True})
+        flash("Borrador guardado.", "success")
+        return redirect(url_for("recepcion_detalle", ficha_id=ficha.id))
+
+    firma = _leer_firma(request.form.get("firma") or "")
+    firmante = (request.form.get("firmado_por") or "").strip()[:120]
+    faltan = []
+    if not ficha.plate:
+        faltan.append("la placa")
+    if not firma:
+        faltan.append("la firma del cliente")
+    if not firmante:
+        faltan.append("el nombre de quien firma")
+    if faltan:
+        # Lo escrito se guarda igual: que falte la firma no puede costar
+        # volver a llenar todo el formulario.
+        db.session.commit()
+        flash("Para terminar la recepción falta " + " y ".join(faltan) + ".", "warning")
+        return redirect(url_for("recepcion_detalle", ficha_id=ficha.id) + "#firma")
+
+    ficha.firma_recepcion = firma
+    ficha.firmado_por = firmante
+    ficha.recibido_por = _usuario_actual()
+    ficha.recibido_at = datetime.utcnow()
+    ficha.etapa = ETAPA_PROCESO
+    db.session.commit()
+    flash("Recepción terminada. Ya no se puede modificar.", "success")
+    return redirect(url_for("recepcion_detalle", ficha_id=ficha.id))
+
+
+@app.route("/recepciones/<int:ficha_id>/novedades", methods=["POST"])
+def recepcion_novedad_nueva(ficha_id):
+    if not puede_recibir_carros():
+        flash("Acceso restringido.", "danger")
+        return redirect(url_for("calendar_view"))
+    ficha = _ficha_o_404(ficha_id)
+    rechazo = _rechazar_si_sellada(ficha)
+    if rechazo:
+        return rechazo
+    zona = request.form.get("zona") or ""
+    tipo = request.form.get("tipo") or ""
+    if zona not in ZONAS_CARRO or tipo not in TIPOS_NOVEDAD:
+        flash("Elige la zona y el tipo de novedad.", "warning")
+        return redirect(url_for("recepcion_detalle", ficha_id=ficha.id) + "#novedades")
+    nov = ReceptionDamage(reception_id=ficha.id, zona=zona, tipo=tipo,
+                          descripcion=(request.form.get("descripcion") or "").strip()[:1000] or None)
+    db.session.add(nov)
+    db.session.commit()
+    malas = 0
+    for archivo in request.files.getlist("fotos"):
+        if archivo and archivo.filename:
+            if not _guardar_foto_ficha(ficha, archivo, ETAPA_RECEPCION,
+                                       _usuario_actual(), damage_id=nov.id):
+                malas += 1
+    if malas:
+        flash(f"{malas} archivo{'s' if malas != 1 else ''} no era una foto válida y no se "
+              f"guardó.", "warning")
+    return redirect(url_for("recepcion_detalle", ficha_id=ficha.id) + f"#nov{nov.id}")
+
+
+@app.route("/recepciones/<int:ficha_id>/novedades/<int:nov_id>/borrar", methods=["POST"])
+def recepcion_novedad_borrar(ficha_id, nov_id):
+    if not puede_recibir_carros():
+        flash("Acceso restringido.", "danger")
+        return redirect(url_for("calendar_view"))
+    ficha = _ficha_o_404(ficha_id)
+    rechazo = _rechazar_si_sellada(ficha)
+    if rechazo:
+        return rechazo
+    nov = ReceptionDamage.query.filter_by(id=nov_id, reception_id=ficha.id).first()
+    if nov:
+        # Las fotos cuelgan de la ficha, no de la novedad, así que hay que
+        # llevárselas a mano: si no, quedarían sueltas apuntando a nada.
+        for foto in list(nov.fotos):
+            _borrar_foto_ficha(foto)
+        db.session.delete(nov)
+        db.session.commit()
+    return redirect(url_for("recepcion_detalle", ficha_id=ficha.id) + "#novedades")
+
+
+def _etapa_abierta_para_fotos(ficha, etapa: str) -> bool:
+    """¿Se le pueden AGREGAR fotos a esta etapa ahora?
+
+    La de recepción solo mientras es borrador. Proceso y entrega mientras el
+    carro no se haya entregado. Entregado, la ficha queda cerrada entera."""
+    if etapa == ETAPA_RECEPCION:
+        return not ficha.sellada
+    if etapa in (ETAPA_PROCESO, FOTO_ENTREGA):
+        return ficha.etapa == ETAPA_PROCESO
+    return False
+
+
+@app.route("/recepciones/<int:ficha_id>/fotos", methods=["POST"])
+def recepcion_fotos(ficha_id):
+    """Sube UNA foto. El navegador las manda de a una, en fila: en el taller se
+    sube con datos móviles, y veinte fotos en paralelo se ahogan entre ellas y
+    fallan todas a la vez."""
+    if not puede_recibir_carros():
+        return jsonify({"ok": False, "error": "Acceso restringido"}), 403
+    if _subida_demasiado_grande():
+        return jsonify({"ok": False, "error": "La foto pesa demasiado."}), 413
+    ficha = _ficha_o_404(ficha_id)
+    etapa = request.form.get("etapa") or ETAPA_RECEPCION
+    if not _etapa_abierta_para_fotos(ficha, etapa):
+        return jsonify({"ok": False, "error": "Esta etapa ya está cerrada."}), 409
+    if len(ficha.fotos) >= FOTOS_MAX_POR_FICHA:
+        return jsonify({"ok": False, "error": "La ficha llegó al máximo de fotos."}), 409
+    damage_id = _entero_o_none(request.form.get("damage_id"))
+    if damage_id and (etapa != ETAPA_RECEPCION or not ReceptionDamage.query.filter_by(
+            id=damage_id, reception_id=ficha.id).first()):
+        return jsonify({"ok": False, "error": "Novedad inválida."}), 400
+    foto = _guardar_foto_ficha(ficha, request.files.get("foto"), etapa,
+                               _usuario_actual(), damage_id=damage_id,
+                               nota=request.form.get("nota"))
+    if not foto:
+        return jsonify({"ok": False, "error": "El archivo no es una foto válida."}), 400
+    return jsonify({"ok": True, "id": foto.id,
+                    "mini": url_for("recepcion_foto", foto_id=foto.id, mini=1),
+                    "url": url_for("recepcion_foto", foto_id=foto.id)})
+
+
+@app.route("/recepciones/fotos/<int:foto_id>/borrar", methods=["POST"])
+def recepcion_foto_borrar(foto_id):
+    if not puede_recibir_carros():
+        flash("Acceso restringido.", "danger")
+        return redirect(url_for("calendar_view"))
+    foto = ReceptionPhoto.query.get(foto_id)
+    if not foto:
+        return redirect(url_for("recepciones_lista"))
+    ficha = foto.recepcion
+    if not _etapa_abierta_para_fotos(ficha, foto.etapa):
+        flash("Esa foto pertenece a una etapa cerrada y ya no se puede borrar.", "warning")
+    elif foto.etapa != ETAPA_RECEPCION and not puede_borrar_evidencias():
+        flash("Las fotos del proceso solo las puede borrar un administrador.", "warning")
+    else:
+        _borrar_foto_ficha(foto)
+        db.session.commit()
+    return redirect(url_for("recepcion_detalle", ficha_id=ficha.id))
+
+
+@app.route("/recepciones/<int:ficha_id>/entregar", methods=["POST"])
+def recepcion_entregar(ficha_id):
+    if not puede_recibir_carros():
+        flash("Acceso restringido.", "danger")
+        return redirect(url_for("calendar_view"))
+    ficha = _ficha_o_404(ficha_id)
+    if ficha.etapa != ETAPA_PROCESO:
+        flash("Solo se puede entregar un carro con la recepción terminada y "
+              "que no se haya entregado ya.", "warning")
+        return redirect(url_for("recepcion_detalle", ficha_id=ficha.id))
+
+    # Todo lo escrito se guarda ANTES de revisar la firma: si falta, la
+    # pantalla vuelve con los campos llenos en vez de obligar a reescribirlos.
+    ficha.km_salida = _entero_o_none(request.form.get("km_salida"))
+    ficha.notas_entrega = (request.form.get("notas_entrega") or "").strip()[:2000] or None
+    recibe = (request.form.get("entregado_a") or "").strip()[:120]
+    ficha.entregado_a = recibe or None
+    firma = _leer_firma(request.form.get("firma") or "")
+    if not firma or not recibe:
+        db.session.commit()
+        flash("Para entregar el carro falta "
+              + (" y ".join(x for x in [
+                  "la firma de quien recibe" if not firma else "",
+                  "su nombre" if not recibe else ""] if x)) + ".", "warning")
+        return redirect(url_for("recepcion_detalle", ficha_id=ficha.id) + "#entrega")
+
+    ficha.firma_entrega = firma
+    ficha.entregado_a = recibe
+    ficha.entregado_por = _usuario_actual()
+    ficha.entregado_at = datetime.utcnow()
+    ficha.etapa = ETAPA_ENTREGADO
+    db.session.commit()
+    flash("Carro entregado. La ficha quedó cerrada.", "success")
+    return redirect(url_for("recepcion_detalle", ficha_id=ficha.id))
+
+
+@app.route("/recepciones/fotos/<int:foto_id>")
+def recepcion_foto(foto_id):
+    if not puede_recibir_carros():
+        return ("", 403)
+    foto = ReceptionPhoto.query.get(foto_id)
+    if not foto:
+        return ("", 404)
+    return _almacen_entregar(foto.thumb_key if request.args.get("mini") else foto.key)
+
+
+@app.route("/recepciones/<int:ficha_id>/firma/<cual>")
+def recepcion_firma(ficha_id, cual):
+    if not puede_recibir_carros():
+        return ("", 403)
+    ficha = _ficha_o_404(ficha_id)
+    return _responder_firma(ficha, cual)
+
+
+def _responder_firma(ficha, cual):
+    png = ficha.firma_recepcion if cual == "recepcion" else (
+        ficha.firma_entrega if cual == "entrega" else None)
+    if not png:
+        return ("", 404)
+    return Response(png, mimetype="image/png",
+                    headers={"Cache-Control": "private, max-age=86400"})
+
+
+# ── Recepción de carros: links públicos ──────────────────────────────────────
+@app.route("/e/<token>")
+@limiter.limit("60 per minute")
+def recepcion_equipo(token):
+    """El link del equipo: sube fotos del proceso sin iniciar sesión.
+
+    Es lo que se abre en el celular del operario mientras trabaja. Pedir login
+    ahí garantiza que las fotos no se suban."""
+    ficha, cual = _ficha_por_token(token)
+    if not ficha or cual != "equipo":
+        return render_template("recepcion_no_existe.html"), 404
+    return render_template("recepcion_equipo.html", f=ficha, token=token)
+
+
+@app.route("/e/<token>/fotos", methods=["POST"])
+@limiter.limit("120 per minute")
+def recepcion_equipo_fotos(token):
+    ficha, cual = _ficha_por_token(token)
+    if not ficha or cual != "equipo":
+        return jsonify({"ok": False, "error": "Link inválido."}), 404
+    if _subida_demasiado_grande():
+        return jsonify({"ok": False, "error": "La foto pesa demasiado."}), 413
+    # El link solo sube al PROCESO, y solo mientras el carro no se haya
+    # entregado. Nunca a la recepción: esa ya está sellada y firmada.
+    if ficha.etapa != ETAPA_PROCESO:
+        msg = ("Este carro ya se entregó; la ficha está cerrada."
+               if ficha.entregada else "La recepción todavía no está terminada.")
+        return jsonify({"ok": False, "error": msg}), 409
+    if len(ficha.fotos) >= FOTOS_MAX_POR_FICHA:
+        return jsonify({"ok": False, "error": "La ficha llegó al máximo de fotos."}), 409
+    foto = _guardar_foto_ficha(ficha, request.files.get("foto"), ETAPA_PROCESO,
+                               "link del equipo", nota=request.form.get("nota"))
+    if not foto:
+        return jsonify({"ok": False, "error": "El archivo no es una foto válida."}), 400
+    return jsonify({"ok": True, "id": foto.id,
+                    "mini": url_for("recepcion_foto_publica", token=token,
+                                    foto_id=foto.id, mini=1),
+                    "url": url_for("recepcion_foto_publica", token=token, foto_id=foto.id)})
+
+
+@app.route("/v/<token>")
+@limiter.limit("60 per minute")
+def recepcion_cliente(token):
+    """El link del cliente: mira el estado de su carro, no toca nada."""
+    ficha, cual = _ficha_por_token(token)
+    if not ficha or cual != "cliente":
+        return render_template("recepcion_no_existe.html"), 404
+    return render_template("recepcion_cliente.html", f=ficha, token=token)
+
+
+@app.route("/rf/<token>/<int:foto_id>")
+@limiter.limit("600 per minute")
+def recepcion_foto_publica(token, foto_id):
+    """Las fotos que muestran los dos links. Se valida que la foto sea de ESA
+    ficha: sin eso, con un token cualquiera se podría recorrer las fotos de
+    todos los carros cambiando el número."""
+    ficha, cual = _ficha_por_token(token)
+    if not ficha:
+        return ("", 404)
+    foto = ReceptionPhoto.query.filter_by(id=foto_id, reception_id=ficha.id).first()
+    # Antes de sellar, el cliente no ve la recepción a medio llenar.
+    if not foto or (cual == "cliente" and not ficha.sellada):
+        return ("", 404)
+    return _almacen_entregar(foto.thumb_key if request.args.get("mini") else foto.key)
+
+
+@app.route("/rf/<token>/firma/<cual>")
+@limiter.limit("120 per minute")
+def recepcion_firma_publica(token, cual):
+    ficha, _que = _ficha_por_token(token)
+    if not ficha:
+        return ("", 404)
+    return _responder_firma(ficha, cual)
 
 
 @app.template_filter("hace_cuanto")

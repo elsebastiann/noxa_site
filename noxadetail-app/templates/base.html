@@ -687,6 +687,7 @@
             <li><details class="nav-group" name="nav-mas">
               <summary><i class="bi bi-card-list"></i>Operación</summary>
               <a class="dropdown-item-custom" href="{{ url_for('appointments_list') }}"><i class="bi bi-card-list"></i>Listado de citas</a>
+              <a class="dropdown-item-custom" href="{{ url_for('recepciones_lista') }}"><i class="bi bi-clipboard-check"></i>Recepciones</a>
               <a class="dropdown-item-custom" href="{{ url_for('parking_list') }}"><i class="bi bi-p-square"></i>Parqueaderos</a>
               {% if es_admin %}
               <a class="dropdown-item-custom" href="{{ url_for('whatsapp_outbox') }}"><i class="bi bi-send-check"></i>Bandeja de salida</a>
@@ -825,6 +826,11 @@
   <a href="{{ url_for('dashboard_gerencial') }}"><i class="bi bi-speedometer2"></i>Tablero gerencial</a>
   <a href="{{ url_for('appointments_list') }}"><i class="bi bi-card-list"></i>Listado de citas</a>
   <a href="{{ url_for('parking_list') }}"><i class="bi bi-p-square"></i>Parqueaderos</a>
+  {% endif %}
+  {# Fuera del bloque de arriba: el operario también recibe carros, y en el
+     celular es donde lo hace. #}
+  {% if puede_recibir_carros() %}
+  <a href="{{ url_for('recepciones_lista') }}"><i class="bi bi-clipboard-check"></i>Recepciones</a>
   {% endif %}
 
   {# ── Cola larga de configuración ──

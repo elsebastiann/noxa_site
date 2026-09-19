@@ -360,6 +360,20 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     ${
+      // La ficha del carro. El texto cambia según en qué va, para que nadie
+      // abra una ficha nueva sobre un carro que ya se recibió. Una cita
+      // cancelada no se recibe, pero si ya tenía ficha se tiene que poder ver.
+      data.puede_recibir && (data.status !== "cancelled" || data.recepcion)
+        ? `<a href="/appointments/${data.id}/recepcion" class="btn btn-accent">
+             <i class="bi bi-clipboard-check"></i>
+             ${!data.recepcion ? "Recibir carro"
+               : data.recepcion.etapa === "recepcion" ? "Continuar recepción"
+               : "Ver ficha del carro"}
+           </a>`
+        : ""
+    }
+
+    ${
       // Fuera del bloque de arriba a propósito: el recibo no depende del
       // estado de la cita. La finalizada es justo la que más lo necesita —es
       // cuando el cliente paga— y una cancelada con abonos tiene que poder

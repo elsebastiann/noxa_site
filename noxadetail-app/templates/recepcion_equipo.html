@@ -1,0 +1,71 @@
+{% import "_recepcion_publica.html" as pub with context %}
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>{{ f.plate or 'Carro' }} · Evidencias — NOXA Detail</title>
+{{ pub.estilos() }}
+</head>
+<body>
+<div class="hoja">
+  {{ pub.membrete() }}
+  <div class="cuerpo">
+    <p class="kicker">Ficha del carro · equipo</p>
+    <h1>{{ f.plate or 'Sin placa' }}</h1>
+    <p class="sub">{{ f.vehiculo }}{% if f.services %} · {{ f.services }}{% endif %}</p>
+    {{ pub.etapas(f) }}
+
+    {% if f.etapa == 'recepcion' %}
+      <div class="aviso">
+        La recepción de este carro todavía no está terminada. Cuando se termine, desde este
+        mismo link se suben las fotos del proceso.
+      </div>
+    {% elif f.etapa == 'proceso' %}
+      <h2>Fotos del proceso</h2>
+      <div data-subida data-url="{{ url_for('recepcion_equipo_fotos', token=token) }}" data-etapa="proceso">
+        <input class="nota" data-nota maxlength="255" placeholder="¿Qué muestra? (opcional) — ej. antes del pulido">
+        <div class="botones">
+          <label class="btn btn-oro">
+            <input type="file" accept="image/*" capture="environment" data-camara hidden>
+            📷 Tomar foto
+          </label>
+          <label class="btn">
+            <input type="file" accept="image/*" multiple data-galeria hidden>
+            🖼️ Galería
+          </label>
+        </div>
+        <p class="estado" data-estado></p>
+        <div class="grilla" data-grilla data-primero>
+          {% for p in f.fotos_de('proceso')|reverse %}
+            <a class="rc-mini" href="{{ url_for('recepcion_foto_publica', token=token, foto_id=p.id) }}"
+               target="_blank" rel="noopener">
+              <img src="{{ url_for('recepcion_foto_publica', token=token, foto_id=p.id, mini=1) }}"
+                   alt="{{ p.nota or 'Foto' }}" loading="lazy">
+            </a>
+          {% else %}
+            <p class="vacio" data-vacio style="grid-column:1/-1;">Todavía no hay fotos del proceso.</p>
+          {% endfor %}
+        </div>
+      </div>
+    {% else %}
+      <div class="aviso cerrado">
+        Este carro ya se entregó. La ficha está cerrada y no se pueden subir más fotos.
+      </div>
+      <h2>Fotos del proceso</h2>
+      {{ pub.proceso(f, token) }}
+    {% endif %}
+
+    {% if f.sellada %}
+      {# Antes de tocar el carro, quien lo trabaja tiene que saber qué ya traía:
+         un rayón que no está en esta lista es uno que hicimos nosotros. #}
+      {{ pub.recepcion(f, token) }}
+    {% endif %}
+  </div>
+  <p class="pie">Este link es para el equipo de NOXA. No lo compartas con el cliente:
+    él tiene su propio link, de solo lectura.</p>
+</div>
+<script src="{{ url_for('static', filename='js/recepcion.js') }}"></script>
+</body>
+</html>

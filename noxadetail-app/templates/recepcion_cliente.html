@@ -1,0 +1,65 @@
+{% import "_recepcion_publica.html" as pub with context %}
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Tu {{ f.vehiculo }} en NOXA Detail</title>
+{# Vista previa al mandar el link por WhatsApp: sin esto llega solo la URL pelada. #}
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="NOXA Detail">
+<meta property="og:title" content="Tu {{ f.vehiculo }} en NOXA Detail">
+<meta property="og:description" content="Cómo recibimos tu carro y el avance del trabajo, con fotos.">
+{{ pub.estilos() }}
+</head>
+<body>
+<div class="hoja">
+  {{ pub.membrete() }}
+  <div class="cuerpo">
+    <p class="kicker">Tu carro en NOXA</p>
+    <h1>{{ f.vehiculo }}</h1>
+    <p class="sub">Placa {{ f.plate or '—' }}{% if f.customer_name %} · {{ f.customer_name }}{% endif %}</p>
+    {{ pub.etapas(f) }}
+
+    {% if not f.sellada %}
+      {# El cliente no ve la recepción a medio llenar: vería novedades que
+         todavía se están revisando y podría leer algo que no quedó así. #}
+      <div class="aviso">
+        Estamos recibiendo tu carro. En cuanto terminemos la revisión, vas a ver acá cómo
+        llegó, con fotos, y el avance del trabajo.
+      </div>
+    {% else %}
+      {% if f.entregada %}
+        <div class="aviso cerrado">
+          Tu carro se entregó el {{ f.entregado_at | hora_bogota('%d/%m/%Y a las %I:%M %p') }}.
+          ¡Gracias por confiar en nosotros!
+        </div>
+      {% else %}
+        <div class="aviso">
+          Tu carro está con nosotros. Las fotos del trabajo aparecen acá a medida que avanzamos.
+        </div>
+      {% endif %}
+
+      <h2>Avance del trabajo <span class="n">{{ f.fotos_de('proceso')|length }} fotos</span></h2>
+      {{ pub.proceso(f, token) }}
+
+      {% if f.entregada %}
+        <h2>Entrega</h2>
+        <dl class="datos">
+          <dt>Recibió</dt><dd>{{ f.entregado_a }}</dd>
+          <dt>Fecha</dt><dd>{{ f.entregado_at | hora_bogota('%d/%m/%Y %I:%M %p') }}</dd>
+          {% if f.km_salida %}<dt>Kilometraje</dt><dd>{{ '{:,}'.format(f.km_salida).replace(',', '.') }} km</dd>{% endif %}
+          {% if f.notas_entrega %}<dt>Notas</dt><dd>{{ f.notas_entrega }}</dd>{% endif %}
+        </dl>
+        {% if f.fotos_de('entrega') %}{{ pub.fotos(f.fotos_de('entrega'), token) }}{% endif %}
+        <div class="firma"><img src="{{ url_for('recepcion_firma_publica', token=token, cual='entrega') }}" alt="Firma de entrega"></div>
+      {% endif %}
+
+      {{ pub.recepcion(f, token) }}
+    {% endif %}
+  </div>
+  <p class="pie">NOXA Detail · Calle 128B # 53D-2, Prado Veraniego, Bogotá · noxadetail.com</p>
+</div>
+</body>
+</html>

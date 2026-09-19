@@ -1,0 +1,139 @@
+{# Piezas compartidas por los dos links públicos de la ficha: el del equipo y el
+   del cliente. Mismo membrete y misma lectura de la recepción en los dos, para
+   que lo que ve el cliente sea exactamente lo que ve quien trabaja el carro. #}
+
+{% macro estilos() %}
+<style>
+  :root { --tinta:#1a1a1a; --suave:#6b6b6b; --dorado:#c8a04a; --borde:#e6e2d8; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:#f4f2ee; color:var(--tinta);
+         font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; }
+  .hoja { max-width:760px; margin:0 auto; background:#fff; min-height:100vh; }
+  .cab { padding:24px 22px 18px; border-bottom:3px solid var(--dorado); }
+  .cab img { height:32px; width:auto; display:block; }
+  .cuerpo { padding:20px 22px 40px; }
+  .kicker { font-size:.68rem; letter-spacing:.11em; text-transform:uppercase;
+            color:var(--dorado); font-weight:800; margin:0 0 6px; }
+  h1 { font-size:1.45rem; margin:0 0 2px; }
+  h2 { font-size:1.02rem; margin:26px 0 10px; padding-top:18px; border-top:1px solid var(--borde); }
+  h2 .n { color:var(--suave); font-weight:500; font-size:.85rem; }
+  .sub { color:var(--suave); font-size:.9rem; margin:0; }
+  .aviso { background:#fbf7ec; border:1px solid #e8dcbb; border-radius:9px;
+           padding:12px 14px; font-size:.88rem; line-height:1.5; margin:16px 0; }
+  .aviso.cerrado { background:#f2f7f1; border-color:#cfe3cb; }
+  .etapas { display:flex; gap:6px; margin:16px 0 4px; }
+  .etapa { flex:1; text-align:center; font-size:.74rem; font-weight:700; padding:8px 4px;
+           border-radius:8px; border:1px solid var(--borde); color:#aaa; }
+  .etapa.hecha { color:var(--suave); }
+  .etapa.actual { border-color:var(--dorado); color:#8a6a1f; background:#fbf7ec; }
+  .datos { display:grid; grid-template-columns:120px 1fr; gap:5px 12px; font-size:.9rem; margin:0; }
+  .datos dt { color:var(--suave); }
+  .datos dd { margin:0; }
+  .grilla { display:grid; grid-template-columns:repeat(auto-fill,minmax(100px,1fr)); gap:8px; margin:8px 0; }
+  .grilla a { display:block; aspect-ratio:1; border-radius:8px; overflow:hidden; background:#eee; }
+  .grilla img { width:100%; height:100%; object-fit:cover; display:block; }
+  .nov { border:1px solid var(--borde); border-radius:10px; padding:12px 14px; margin-bottom:10px; }
+  .nov b { display:block; }
+  .nov .tipo { color:#8a6a1f; font-size:.85rem; }
+  .nov p { color:var(--suave); font-size:.86rem; margin:4px 0 0; }
+  .dia { font-size:.75rem; letter-spacing:.08em; text-transform:uppercase; color:var(--suave);
+         font-weight:700; margin:14px 0 4px; }
+  .foto-nota { font-size:.8rem; color:var(--suave); margin:-2px 0 8px; }
+  .firma { display:inline-block; border:1px solid var(--borde); border-radius:8px; padding:4px; }
+  .firma img { max-width:240px; width:100%; display:block; }
+  .vacio { color:var(--suave); font-size:.88rem; }
+  .pie { color:var(--suave); font-size:.76rem; line-height:1.5; padding:0 22px 26px; text-align:center; }
+
+  /* Subida (solo el link del equipo). */
+  .botones { display:flex; gap:8px; flex-wrap:wrap; margin-top:8px; }
+  .btn { display:inline-flex; align-items:center; justify-content:center; gap:6px; flex:1 1 150px;
+         padding:15px 16px; border-radius:10px; border:1px solid var(--borde); background:#fff;
+         font-size:1rem; font-weight:700; cursor:pointer; color:var(--tinta); margin:0; }
+  .btn-oro { background:var(--dorado); border-color:var(--dorado); }
+  .subiendo .btn { opacity:.5; pointer-events:none; }
+  .nota { width:100%; padding:11px 12px; font-size:.95rem; border:1px solid var(--borde);
+          border-radius:9px; font-family:inherit; }
+  .estado { font-size:.85rem; color:var(--suave); min-height:1.2em; margin:8px 0 0; }
+  .estado.es-error { color:#c0392b; }
+  .rc-mini { display:block; aspect-ratio:1; border-radius:8px; overflow:hidden; background:#eee; }
+  .rc-mini img { width:100%; height:100%; object-fit:cover; display:block; }
+</style>
+{% endmacro %}
+
+{% macro membrete() %}
+<div class="cab">
+  <img src="{{ url_for('static', filename='img/logotipo-pdf.png') }}" alt="NOXA Car Care">
+</div>
+{% endmacro %}
+
+{% macro etapas(f) %}
+{% set orden = {'recepcion': 0, 'proceso': 1, 'entregado': 2} %}
+<div class="etapas">
+  {% for clave, nombre in [('recepcion', 'Recepción'), ('proceso', 'En proceso'), ('entregado', 'Entregado')] %}
+    <div class="etapa {{ 'actual' if f.etapa == clave else ('hecha' if orden[clave] < orden[f.etapa] else '') }}">
+      {% if orden[clave] < orden[f.etapa] %}✓ {% endif %}{{ nombre }}
+    </div>
+  {% endfor %}
+</div>
+{% endmacro %}
+
+{% macro fotos(lista, token) %}
+<div class="grilla">
+  {% for p in lista %}
+    <a href="{{ url_for('recepcion_foto_publica', token=token, foto_id=p.id) }}" target="_blank" rel="noopener">
+      <img src="{{ url_for('recepcion_foto_publica', token=token, foto_id=p.id, mini=1) }}"
+           alt="{{ p.nota or 'Foto' }}" loading="lazy">
+    </a>
+  {% endfor %}
+</div>
+{% endmacro %}
+
+{# La recepción tal como quedó sellada. La leen los dos links. #}
+{% macro recepcion(f, token) %}
+<h2>Cómo llegó el carro</h2>
+<dl class="datos">
+  <dt>Recibido</dt><dd>{{ f.recibido_at | hora_bogota('%d/%m/%Y %I:%M %p') }}</dd>
+  <dt>Kilometraje</dt><dd>{{ '{:,}'.format(f.km_entrada).replace(',', '.') ~ ' km' if f.km_entrada else '—' }}</dd>
+  <dt>Gasolina</dt><dd>{{ f.gasolina or '—' }}</dd>
+  {% if f.objetos %}<dt>Objetos</dt><dd>{{ f.objetos }}</dd>{% endif %}
+</dl>
+{% if f.fotos_generales_recepcion %}
+  {{ fotos(f.fotos_generales_recepcion, token) }}
+{% endif %}
+
+<h2>Novedades que ya traía <span class="n">{{ f.novedades|length }}</span></h2>
+{% for n in f.novedades %}
+  <div class="nov">
+    <b>{{ n.zona }}</b>
+    <span class="tipo">{{ n.tipo }}</span>
+    {% if n.descripcion %}<p>{{ n.descripcion }}</p>{% endif %}
+    {% if n.fotos %}{{ fotos(n.fotos, token) }}{% endif %}
+  </div>
+{% else %}
+  <p class="vacio">No se registraron novedades: el carro llegó sin daños visibles.</p>
+{% endfor %}
+<p class="vacio" style="margin-top:10px;">Revisado y firmado por {{ f.firmado_por }}.</p>
+<div class="firma"><img src="{{ url_for('recepcion_firma_publica', token=token, cual='recepcion') }}" alt="Firma"></div>
+{% endmacro %}
+
+{# Las fotos del proceso agrupadas por día: así se lee como una bitácora. #}
+{% macro proceso(f, token) %}
+{% set lista = f.fotos_de('proceso') %}
+{% set ns = namespace(dia=none) %}
+{% for p in lista %}
+  {% set d = p.created_at | hora_bogota('%d/%m/%Y') %}
+  {% if d != ns.dia %}
+    {% if not loop.first %}</div>{% endif %}
+    <div class="dia">{{ d }}</div><div class="grilla">
+    {% set ns.dia = d %}
+  {% endif %}
+  <a href="{{ url_for('recepcion_foto_publica', token=token, foto_id=p.id) }}" target="_blank" rel="noopener"
+     title="{{ p.nota or '' }}">
+    <img src="{{ url_for('recepcion_foto_publica', token=token, foto_id=p.id, mini=1) }}"
+         alt="{{ p.nota or 'Foto del proceso' }}" loading="lazy">
+  </a>
+  {% if loop.last %}</div>{% endif %}
+{% else %}
+  <p class="vacio">Todavía no hay fotos del proceso.</p>
+{% endfor %}
+{% endmacro %}

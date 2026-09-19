@@ -1,7 +1,7 @@
 {
   "app.py": {
-    "mtime": 1789678899.412528,
-    "ast_hash": "0347aab7cc60bd0a92b00d6258b3b083",
+    "mtime": 1789830761.127311,
+    "ast_hash": "2fd623cefc00194e2ac2f7cc95bcb876",
     "semantic_hash": ""
   },
   "migrate_prices.py": {
@@ -70,18 +70,18 @@
     "semantic_hash": ""
   },
   "templates/appointments_list.html": {
-    "mtime": 1789679589.980206,
-    "ast_hash": "cc6c7db7b1385863af45e16611f24e47",
+    "mtime": 1789830202.9786549,
+    "ast_hash": "5802d08c38afdd87bf4fc32b18f93ec4",
     "semantic_hash": ""
   },
   "templates/base.html": {
-    "mtime": 1789063592.324653,
-    "ast_hash": "6d8522d46fa792e9779b4542120d15f6",
+    "mtime": 1789830219.051577,
+    "ast_hash": "a6c60f9072ac5166bcfeedf83c4b3855",
     "semantic_hash": ""
   },
   "templates/calendar.html": {
-    "mtime": 1789679596.7790372,
-    "ast_hash": "62ec2f6260a30ab4e9bae2a250b40a62",
+    "mtime": 1789830228.0566232,
+    "ast_hash": "310c1aa9ca2c3a2b57db0375d23eb098",
     "semantic_hash": ""
   },
   "templates/edit_appointment.html": {
@@ -567,6 +567,46 @@
   "tests/test_recibo_cita.py": {
     "mtime": 1789679634.9786632,
     "ast_hash": "387579602b13579dd82b13bbde836a76",
+    "semantic_hash": ""
+  },
+  "static/js/recepcion.js": {
+    "mtime": 1789830746.7959008,
+    "ast_hash": "8e314aac3a240195f5e392d9878015bd",
+    "semantic_hash": ""
+  },
+  "tests/test_recepcion_carros.py": {
+    "mtime": 1789832428.5861912,
+    "ast_hash": "b702c7ee2ce897d0403002324ea53e68",
+    "semantic_hash": ""
+  },
+  "templates/_recepcion_publica.html": {
+    "mtime": 1789830159.9350054,
+    "ast_hash": "a7155407137fe045a6beaebd13950b75",
+    "semantic_hash": ""
+  },
+  "templates/recepcion.html": {
+    "mtime": 1789830754.7862606,
+    "ast_hash": "4050ee56050b43855f871783a8b1f0a2",
+    "semantic_hash": ""
+  },
+  "templates/recepcion_cliente.html": {
+    "mtime": 1789830184.1980631,
+    "ast_hash": "d0dff1d71520de4a23f51151e3854e04",
+    "semantic_hash": ""
+  },
+  "templates/recepcion_equipo.html": {
+    "mtime": 1789830191.4443474,
+    "ast_hash": "04223846956ace39ad913d2a79e5648c",
+    "semantic_hash": ""
+  },
+  "templates/recepcion_no_existe.html": {
+    "mtime": 1789830186.6201808,
+    "ast_hash": "7b71cc832ddc3b2e9753b46cd3e32b45",
+    "semantic_hash": ""
+  },
+  "templates/recepciones.html": {
+    "mtime": 1789830126.6262023,
+    "ast_hash": "074bf03a06f2e57344645712266030d5",
     "semantic_hash": ""
   }
 }

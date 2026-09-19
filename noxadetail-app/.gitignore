@@ -8,3 +8,9 @@ __pycache__/
 *credential*
 *secret*
 .DS_Store
+# Fotos que suben los usuarios. En producción van a un bucket o a un volumen;
+# en local caen junto a la base y no tienen nada que hacer en el repo — son
+# fotos de carros de clientes reales.
+vehiculo_uploads/
+promo_uploads/
+recepcion_uploads/

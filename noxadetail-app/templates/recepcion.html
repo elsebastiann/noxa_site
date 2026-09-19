@@ -1,0 +1,483 @@
+{% extends "base.html" %}
+
+{# ── Piezas que se repiten en las tres etapas ─────────────────────────────── #}
+{% macro grilla(fotos, borrable=false) -%}
+  <div class="rc-grilla" data-grilla>
+    {% for p in fotos %}
+      <div class="rc-foto">
+        <a class="rc-mini" href="{{ url_for('recepcion_foto', foto_id=p.id) }}" target="_blank" rel="noopener">
+          <img src="{{ url_for('recepcion_foto', foto_id=p.id, mini=1) }}" alt="{{ p.nota or 'Foto' }}" loading="lazy">
+        </a>
+        {% if p.nota %}<span class="rc-foto-nota">{{ p.nota }}</span>{% endif %}
+        {% if borrable %}
+        <form method="post" action="{{ url_for('recepcion_foto_borrar', foto_id=p.id) }}"
+              onsubmit="return confirm('¿Borrar esta foto?');">
+          <button class="rc-x" title="Borrar foto" aria-label="Borrar foto">×</button>
+        </form>
+        {% endif %}
+      </div>
+    {% else %}
+      <p class="rc-vacio" data-vacio>Sin fotos todavía.</p>
+    {% endfor %}
+  </div>
+{%- endmacro %}
+
+{% macro subida(etapa, fotos, novedad=none, con_nota=false, borrable=false) -%}
+  <div class="rc-subida" data-subida data-url="{{ url_for('recepcion_fotos', ficha_id=f.id) }}"
+       data-etapa="{{ etapa }}" {% if novedad %}data-novedad="{{ novedad }}"{% endif %}>
+    {{ grilla(fotos, borrable) }}
+    {% if con_nota %}
+      <input class="form-control bg-dark text-light border-secondary rc-nota" data-nota
+             maxlength="255" placeholder="¿Qué muestra la foto? (opcional)">
+    {% endif %}
+    <div class="rc-botones">
+      {# capture: en el celular abre la cámara directo, sin pasar por la galería. #}
+      <label class="rc-btn rc-btn-oro">
+        <input type="file" accept="image/*" capture="environment" data-camara hidden>
+        <i class="bi bi-camera"></i> Tomar foto
+      </label>
+      <label class="rc-btn">
+        <input type="file" accept="image/*" multiple data-galeria hidden>
+        <i class="bi bi-images"></i> Desde la galería
+      </label>
+    </div>
+    <p class="rc-estado" data-estado></p>
+  </div>
+{%- endmacro %}
+
+{% macro firma_lienzo(campo_form) -%}
+  <div class="rc-firma" data-firma>
+    <canvas aria-label="Firma"></canvas>
+    <input type="hidden" name="firma" form="{{ campo_form }}">
+    <div class="d-flex justify-content-between align-items-center mt-1">
+      <span class="rc-ayuda">Firma con el dedo dentro del recuadro.</span>
+      <button type="button" class="btn btn-sm btn-outline-secondary" data-borrar-firma>Borrar</button>
+    </div>
+  </div>
+{%- endmacro %}
+
+{% block extra_head %}
+<style>
+  .rc { max-width:820px; margin:18px auto 60px; }
+  .rc-volver { color:var(--text2); font-size:.85rem; text-decoration:none; }
+  .rc-cab { display:flex; align-items:flex-end; justify-content:space-between; gap:12px;
+            flex-wrap:wrap; margin:10px 0 14px; }
+  .rc-placa { font-size:2rem; font-weight:800; letter-spacing:.06em; line-height:1; }
+  .rc-vehiculo { color:var(--text2); margin-top:4px; }
+
+  /* Las tres etapas: dónde está el carro de un vistazo. */
+  .rc-etapas { display:flex; gap:6px; margin-bottom:18px; }
+  .rc-etapa { flex:1; text-align:center; font-size:.78rem; font-weight:700; padding:8px 6px;
+              border-radius:9px; border:1px solid var(--border); color:var(--text3); }
+  .rc-etapa.hecha { color:var(--text2); }
+  .rc-etapa.actual { border-color:var(--accent); color:var(--accent); background:rgba(212,180,108,.08); }
+
+  .rc-sec { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+            padding:16px; margin-bottom:14px; }
+  .rc-sec h3 { font-size:1rem; margin:0 0 12px; display:flex; align-items:center; gap:8px; }
+  .rc-sec h3 .n { font-size:.75rem; color:var(--text3); font-weight:600; }
+  .rc-grid2 { display:grid; grid-template-columns:repeat(auto-fit,minmax(170px,1fr)); gap:10px; }
+  .rc-sec label.form-label { font-size:.78rem; color:var(--text2); margin-bottom:3px; }
+
+  .rc-gas { display:flex; gap:6px; flex-wrap:wrap; }
+  .rc-gas input { display:none; }
+  .rc-gas label { padding:7px 12px; border:1px solid var(--border); border-radius:8px; cursor:pointer;
+                  font-size:.85rem; color:var(--text2); }
+  .rc-gas input:checked + label { border-color:var(--accent); color:var(--accent); background:rgba(212,180,108,.1); }
+
+  .rc-grilla { display:grid; grid-template-columns:repeat(auto-fill,minmax(92px,1fr)); gap:8px; margin-bottom:10px; }
+  .rc-foto { position:relative; }
+  .rc-mini { display:block; aspect-ratio:1; border-radius:8px; overflow:hidden; background:var(--surface2); }
+  .rc-mini img { width:100%; height:100%; object-fit:cover; display:block; }
+  .rc-foto-nota { display:block; font-size:.7rem; color:var(--text3); margin-top:2px; line-height:1.25; }
+  .rc-x { position:absolute; top:4px; right:4px; width:24px; height:24px; border-radius:50%; border:none;
+          background:rgba(0,0,0,.65); color:#fff; font-size:.95rem; line-height:1; padding:0; }
+  .rc-vacio { color:var(--text3); font-size:.85rem; grid-column:1/-1; margin:0; }
+  .rc-botones { display:flex; gap:8px; flex-wrap:wrap; }
+  .rc-btn { display:inline-flex; align-items:center; gap:6px; padding:10px 14px; border-radius:9px;
+            border:1px solid var(--border); cursor:pointer; font-size:.9rem; font-weight:600; margin:0; }
+  .rc-btn-oro { background:var(--accent); color:#1a1a1a; border-color:var(--accent); }
+  .rc-subida.subiendo .rc-btn { opacity:.5; pointer-events:none; }
+  .rc-estado { font-size:.8rem; color:var(--text2); margin:6px 0 0; min-height:1em; }
+  .rc-estado.es-error { color:#ef5350; }
+  .rc-nota { margin-bottom:8px; }
+
+  .rc-nov { border:1px solid var(--border); border-radius:10px; padding:12px; margin-bottom:10px; }
+  .rc-nov-cab { display:flex; justify-content:space-between; gap:8px; align-items:flex-start; }
+  .rc-nov-titulo { font-weight:700; }
+  .rc-nov-tipo { color:var(--accent); font-size:.85rem; }
+  .rc-nov-desc { color:var(--text2); font-size:.88rem; margin:4px 0 10px; }
+
+  /* El lienzo va en blanco aunque la app sea oscura: la firma se hace con
+     tinta oscura y el PNG se guarda transparente. */
+  .rc-firma canvas { width:100%; height:190px; background:#fff; border-radius:10px;
+                     touch-action:none; display:block; border:2px solid var(--border); }
+  .rc-firma-guardada { background:#fff; border-radius:10px; padding:6px; display:inline-block; }
+  .rc-firma-guardada img { max-width:280px; width:100%; display:block; }
+  .rc-ayuda { font-size:.75rem; color:var(--text3); }
+
+  .rc-sello { border:1px solid rgba(212,180,108,.5); background:rgba(212,180,108,.07);
+              border-radius:10px; padding:12px 14px; font-size:.86rem; line-height:1.5; margin-bottom:12px; }
+  .rc-dato { display:grid; grid-template-columns:130px 1fr; gap:4px 12px; font-size:.9rem; }
+  .rc-dato dt { color:var(--text2); font-weight:500; }
+  .rc-dato dd { margin:0; }
+
+  .rc-link { display:flex; gap:8px; align-items:center; flex-wrap:wrap; padding:10px 0;
+             border-top:1px solid var(--border); }
+  .rc-link:first-of-type { border-top:none; }
+  .rc-link .que { flex:1 1 220px; }
+  .rc-link .que b { display:block; }
+  .rc-link .que span { font-size:.8rem; color:var(--text2); }
+
+  .rc-final { position:sticky; bottom:0; background:var(--bg); padding:10px 0; }
+  /* Botón grande: se toca con el cliente al lado, en el celular, a veces con
+     guantes. El base.html fija el padding de .btn con !important. */
+  .rc-final .btn { padding:15px 16px !important; font-size:.95rem !important; }
+</style>
+{% endblock %}
+
+{% block content %}
+{% set etapas = [('recepcion', 'Recepción'), ('proceso', 'Proceso'), ('entregado', 'Entrega')] %}
+{% set orden = {'recepcion': 0, 'proceso': 1, 'entregado': 2} %}
+<div class="rc">
+  <a class="rc-volver" href="{{ url_for('recepciones_lista') }}">← Recepciones</a>
+
+  <div class="rc-cab">
+    <div>
+      <div class="rc-placa">{{ f.plate or 'SIN PLACA' }}</div>
+      <div class="rc-vehiculo">{{ f.vehiculo }}{% if f.customer_name %} · {{ f.customer_name }}{% endif %}</div>
+    </div>
+    {% if f.appointment_id and puede_ver_precios() %}
+      <a class="btn btn-sm btn-outline-warning" target="_blank" rel="noopener"
+         href="{{ url_for('appointment_receipt', appointment_id=f.appointment_id) }}">Recibo PDF</a>
+    {% endif %}
+  </div>
+
+  <div class="rc-etapas">
+    {% for clave, nombre in etapas %}
+      <div class="rc-etapa {{ 'actual' if f.etapa == clave else ('hecha' if orden[clave] < orden[f.etapa] else '') }}">
+        {% if orden[clave] < orden[f.etapa] %}✓ {% endif %}{{ nombre }}
+      </div>
+    {% endfor %}
+  </div>
+
+{% if not f.sellada %}
+  {# ═══════════════════ RECEPCIÓN — borrador ═══════════════════ #}
+  <form id="fDatos" method="post" action="{{ url_for('recepcion_guardar', ficha_id=f.id) }}">
+    <div class="rc-sec">
+      <h3>Cliente y carro</h3>
+      <div class="rc-grid2">
+        <div><label class="form-label">Cliente</label>
+          <input name="customer_name" value="{{ f.customer_name or '' }}" maxlength="120"
+                 class="form-control bg-dark text-light border-secondary"></div>
+        <div><label class="form-label">Teléfono</label>
+          <input name="phone" value="{{ f.phone or '' }}" maxlength="30" inputmode="tel"
+                 class="form-control bg-dark text-light border-secondary"></div>
+        <div><label class="form-label">Placa</label>
+          <input name="plate" value="{{ f.plate or '' }}" maxlength="20" required
+                 style="text-transform:uppercase"
+                 class="form-control bg-dark text-light border-secondary"></div>
+        <div><label class="form-label">Marca</label>
+          <input name="marca" value="{{ f.marca or '' }}" maxlength="60" placeholder="Mazda"
+                 class="form-control bg-dark text-light border-secondary"></div>
+        <div><label class="form-label">Modelo</label>
+          <input name="modelo" value="{{ f.modelo or '' }}" maxlength="80" placeholder="CX-5"
+                 class="form-control bg-dark text-light border-secondary"></div>
+        <div><label class="form-label">Año</label>
+          <input name="anio" value="{{ f.anio or '' }}" inputmode="numeric" maxlength="4"
+                 class="form-control bg-dark text-light border-secondary"></div>
+        <div><label class="form-label">Color</label>
+          <input name="color" value="{{ f.color or '' }}" maxlength="40"
+                 class="form-control bg-dark text-light border-secondary"></div>
+      </div>
+      {% if f.services %}
+        <p class="rc-ayuda mt-2 mb-0">Servicios de la cita: {{ f.services }}</p>
+      {% endif %}
+    </div>
+
+    <div class="rc-sec">
+      <h3>Estado al llegar</h3>
+      <div class="rc-grid2 mb-3">
+        <div><label class="form-label">Kilometraje</label>
+          <input name="km_entrada" value="{{ f.km_entrada or '' }}" inputmode="numeric"
+                 class="form-control bg-dark text-light border-secondary" placeholder="45000"></div>
+      </div>
+      <label class="form-label">Gasolina</label>
+      <div class="rc-gas mb-3">
+        {% for g_ in gasolinas %}
+          <input type="radio" name="gasolina" id="gas{{ loop.index }}" value="{{ g_ }}"
+                 {{ 'checked' if f.gasolina == g_ }}>
+          <label for="gas{{ loop.index }}">{{ g_ }}</label>
+        {% endfor %}
+      </div>
+      <label class="form-label">Objetos que deja en el carro</label>
+      <textarea name="objetos" rows="2" maxlength="2000"
+                class="form-control bg-dark text-light border-secondary mb-3"
+                placeholder="Gafas en la guantera, silla de bebé, documentos…">{{ f.objetos or '' }}</textarea>
+      <label class="form-label">Observaciones</label>
+      <textarea name="observaciones" rows="2" maxlength="2000"
+                class="form-control bg-dark text-light border-secondary"
+                placeholder="Lo que el cliente pidió o comentó al entregar el carro">{{ f.observaciones or '' }}</textarea>
+      <div class="d-flex align-items-center gap-3 mt-3">
+        <button name="accion" value="guardar" class="btn btn-outline-secondary">Guardar borrador</button>
+        <span id="autoguardado" class="rc-ayuda">Se guarda solo mientras escribes.</span>
+      </div>
+    </div>
+  </form>
+
+  <div class="rc-sec">
+    <h3>Fotos generales <span class="n">el carro completo, por todos los lados</span></h3>
+    {{ subida('recepcion', f.fotos_generales_recepcion, borrable=true) }}
+  </div>
+
+  <div class="rc-sec" id="novedades">
+    <h3>Novedades <span class="n">lo que el carro ya traía</span></h3>
+    {% for n in f.novedades %}
+      <div class="rc-nov" id="nov{{ n.id }}">
+        <div class="rc-nov-cab">
+          <div>
+            <div class="rc-nov-titulo">{{ n.zona }}</div>
+            <div class="rc-nov-tipo">{{ n.tipo }}</div>
+          </div>
+          <form method="post" action="{{ url_for('recepcion_novedad_borrar', ficha_id=f.id, nov_id=n.id) }}"
+                onsubmit="return confirm('¿Borrar esta novedad y sus fotos?');">
+            <button class="btn btn-sm btn-outline-danger">Borrar</button>
+          </form>
+        </div>
+        {% if n.descripcion %}<p class="rc-nov-desc">{{ n.descripcion }}</p>{% endif %}
+        {{ subida('recepcion', n.fotos, novedad=n.id, borrable=true) }}
+      </div>
+    {% else %}
+      <p class="rc-vacio mb-3">Sin novedades registradas. Si el carro llegó perfecto, igual conviene dejar las fotos generales.</p>
+    {% endfor %}
+
+    <form method="post" enctype="multipart/form-data"
+          action="{{ url_for('recepcion_novedad_nueva', ficha_id=f.id) }}" class="rc-nov">
+      <div class="rc-nov-titulo mb-2">+ Agregar novedad</div>
+      <div class="rc-grid2 mb-2">
+        <select name="zona" required class="form-select bg-dark text-light border-secondary">
+          <option value="">Zona…</option>
+          {% for z in zonas %}<option>{{ z }}</option>{% endfor %}
+        </select>
+        <select name="tipo" required class="form-select bg-dark text-light border-secondary">
+          <option value="">Tipo…</option>
+          {% for t in tipos %}<option>{{ t }}</option>{% endfor %}
+        </select>
+      </div>
+      <input name="descripcion" maxlength="1000" placeholder="Detalle (opcional): 5 cm, a la altura de la manija"
+             class="form-control bg-dark text-light border-secondary mb-2">
+      <label class="form-label" style="font-size:.78rem;color:var(--text2)">Fotos de la novedad</label>
+      <input type="file" name="fotos" accept="image/*" multiple
+             class="form-control bg-dark text-light border-secondary mb-2">
+      <button class="btn btn-outline-warning">Agregar novedad</button>
+    </form>
+  </div>
+
+  <div class="rc-sec" id="firma">
+    <h3>Terminar recepción</h3>
+    <div class="rc-sello">
+      El cliente revisa las novedades y las fotos, y firma. <b>Al terminar, la recepción queda
+      sellada y nadie la puede modificar</b> — ni un administrador. Lo que no quede registrado
+      acá, no quedó.
+    </div>
+    <label class="form-label">Nombre de quien entrega el carro</label>
+    <input name="firmado_por" form="fDatos" value="{{ f.customer_name or '' }}" maxlength="120"
+           class="form-control bg-dark text-light border-secondary mb-3">
+    {{ firma_lienzo('fDatos') }}
+    <div class="rc-final">
+      <button form="fDatos" name="accion" value="sellar" class="btn btn-accent w-100"
+              onclick="return confirm('¿Terminar la recepción? Después no se podrá modificar.');">
+        Terminar recepción
+      </button>
+    </div>
+  </div>
+
+{% else %}
+  {# ═══════════════════ Recepción sellada: links ═══════════════════ #}
+  <div class="rc-sec">
+    <h3>Links de esta ficha</h3>
+    <div class="rc-link">
+      <div class="que"><b>Para el equipo</b><span>Suben fotos del proceso desde el celular, sin iniciar sesión.</span></div>
+      <button class="btn btn-sm btn-outline-secondary" onclick="copiar('{{ f.link_equipo }}', this)">Copiar</button>
+      <a class="btn btn-sm btn-outline-secondary" href="{{ f.link_equipo }}" target="_blank" rel="noopener">Abrir</a>
+    </div>
+    <div class="rc-link">
+      <div class="que"><b>Para el cliente</b><span>Ve cómo se recibió su carro y el avance. No puede subir ni cambiar nada.</span></div>
+      <button class="btn btn-sm btn-outline-secondary" onclick="copiar('{{ f.link_cliente }}', this)">Copiar</button>
+      <a class="btn btn-sm btn-outline-secondary" href="{{ f.link_cliente }}" target="_blank" rel="noopener">Abrir</a>
+      {% if f.whatsapp_cliente %}
+        <a class="btn btn-sm btn-success" href="{{ f.whatsapp_cliente }}" target="_blank" rel="noopener">
+          <i class="bi bi-whatsapp"></i> Enviar</a>
+      {% endif %}
+    </div>
+  </div>
+
+  {# ═══════════════════ Recepción: solo lectura ═══════════════════ #}
+  <div class="rc-sec">
+    <h3>Recepción <span class="n">sellada · no se puede modificar</span></h3>
+    <dl class="rc-dato mb-3">
+      <dt>Cliente</dt><dd>{{ f.customer_name or '—' }}</dd>
+      <dt>Teléfono</dt><dd>{{ f.phone or '—' }}</dd>
+      <dt>Vehículo</dt><dd>{{ f.vehiculo }}</dd>
+      <dt>Kilometraje</dt><dd>{{ '{:,}'.format(f.km_entrada).replace(',', '.') ~ ' km' if f.km_entrada else '—' }}</dd>
+      <dt>Gasolina</dt><dd>{{ f.gasolina or '—' }}</dd>
+      <dt>Objetos</dt><dd>{{ f.objetos or '—' }}</dd>
+      <dt>Observaciones</dt><dd>{{ f.observaciones or '—' }}</dd>
+      <dt>Recibió</dt><dd>{{ f.recibido_por }} · {{ f.recibido_at | hora_bogota('%d/%m/%Y %I:%M %p') }}</dd>
+    </dl>
+
+    <h3 class="mt-3">Fotos generales <span class="n">{{ f.fotos_generales_recepcion|length }}</span></h3>
+    {{ grilla(f.fotos_generales_recepcion) }}
+
+    <h3 class="mt-3">Novedades <span class="n">{{ f.novedades|length }}</span></h3>
+    {% for n in f.novedades %}
+      <div class="rc-nov">
+        <div class="rc-nov-titulo">{{ n.zona }}</div>
+        <div class="rc-nov-tipo">{{ n.tipo }}</div>
+        {% if n.descripcion %}<p class="rc-nov-desc">{{ n.descripcion }}</p>{% endif %}
+        {{ grilla(n.fotos) }}
+      </div>
+    {% else %}
+      <p class="rc-vacio">El carro no traía novedades.</p>
+    {% endfor %}
+
+    <h3 class="mt-3">Firma de {{ f.firmado_por }}</h3>
+    <div class="rc-firma-guardada">
+      <img src="{{ url_for('recepcion_firma', ficha_id=f.id, cual='recepcion') }}" alt="Firma de recepción">
+    </div>
+  </div>
+
+  {# ═══════════════════ Proceso ═══════════════════ #}
+  <div class="rc-sec">
+    <h3>Proceso <span class="n">{{ f.fotos_de('proceso')|length }} foto{{ '' if f.fotos_de('proceso')|length == 1 else 's' }}</span></h3>
+    {% if f.entregada %}
+      {{ grilla(f.fotos_de('proceso')) }}
+    {% else %}
+      {{ subida('proceso', f.fotos_de('proceso'), con_nota=true, borrable=puede_borrar) }}
+    {% endif %}
+  </div>
+
+  {# ═══════════════════ Entrega ═══════════════════ #}
+  <div class="rc-sec" id="entrega">
+    <h3>Cierre y entrega</h3>
+    {% if f.entregada %}
+      <dl class="rc-dato mb-3">
+        <dt>Entregado a</dt><dd>{{ f.entregado_a }}</dd>
+        <dt>Entregó</dt><dd>{{ f.entregado_por }} · {{ f.entregado_at | hora_bogota('%d/%m/%Y %I:%M %p') }}</dd>
+        <dt>Km de salida</dt><dd>{{ '{:,}'.format(f.km_salida).replace(',', '.') ~ ' km' if f.km_salida else '—' }}</dd>
+        <dt>Notas</dt><dd>{{ f.notas_entrega or '—' }}</dd>
+      </dl>
+      <h3>Fotos de entrega</h3>
+      {{ grilla(f.fotos_de('entrega')) }}
+      <h3 class="mt-3">Firma de {{ f.entregado_a }}</h3>
+      <div class="rc-firma-guardada">
+        <img src="{{ url_for('recepcion_firma', ficha_id=f.id, cual='entrega') }}" alt="Firma de entrega">
+      </div>
+    {% else %}
+      <label class="form-label">Fotos al entregar</label>
+      {{ subida('entrega', f.fotos_de('entrega'), borrable=puede_borrar) }}
+      {# Los valores vuelven del servidor: si falta la firma, lo escrito ya
+         quedó guardado y no puede desaparecer de la pantalla al recargar. #}
+      <form id="fEntrega" method="post" action="{{ url_for('recepcion_entregar', ficha_id=f.id) }}" class="mt-3">
+        <div class="rc-grid2 mb-2">
+          <div><label class="form-label">Km de salida</label>
+            <input name="km_salida" inputmode="numeric" value="{{ f.km_salida or '' }}"
+                   class="form-control bg-dark text-light border-secondary"></div>
+          <div><label class="form-label">Quién recibe el carro</label>
+            <input name="entregado_a" value="{{ f.entregado_a or f.customer_name or '' }}" maxlength="120"
+                   class="form-control bg-dark text-light border-secondary"></div>
+        </div>
+        <label class="form-label">Notas de entrega</label>
+        <textarea name="notas_entrega" rows="2" maxlength="2000"
+                  class="form-control bg-dark text-light border-secondary mb-3"
+                  placeholder="Recomendaciones de cuidado, lo que se le explicó al cliente…">{{ f.notas_entrega or '' }}</textarea>
+      </form>
+      {{ firma_lienzo('fEntrega') }}
+      <div class="rc-final">
+        <button form="fEntrega" class="btn btn-accent w-100"
+                onclick="return confirm('¿Entregar el carro? La ficha queda cerrada.');">
+          Entregar carro
+        </button>
+      </div>
+    {% endif %}
+  </div>
+{% endif %}
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="{{ url_for('static', filename='js/recepcion.js') }}"></script>
+<script>
+  // ── Guardado automático del borrador ──────────────────────────────────────
+  // La página tiene varios formularios: datos, novedades, borrar fotos. Sin
+  // esto, quien llenaba marca y kilometraje y después agregaba una novedad
+  // perdía lo escrito, porque agregarla recarga la página. En el taller, con
+  // el cliente esperando, eso pasa siempre.
+  (function () {
+    var fDatos = document.getElementById("fDatos");
+    if (!fDatos) return;   // recepción ya sellada: no hay nada que guardar
+    var aviso = document.getElementById("autoguardado");
+    var espera = null, cambios = false;
+
+    function guardar() {
+      if (!cambios) return Promise.resolve(true);
+      var datos = new FormData(fDatos);
+      datos.set("accion", "guardar");
+      datos.delete("firma");   // la firma no viaja en un borrador
+      if (aviso) aviso.textContent = "Guardando…";
+      return fetch(fDatos.action, { method: "POST", body: datos,
+                                    headers: { "X-Requested-With": "fetch" },
+                                    credentials: "same-origin" })
+        .then(function (r) { return r.ok; })
+        .catch(function () { return false; })
+        .then(function (bien) {
+          if (bien) cambios = false;
+          if (aviso) aviso.textContent = bien ? "Guardado ✓" : "Sin conexión — no se guardó";
+          return bien;
+        });
+    }
+
+    fDatos.addEventListener("input", function () {
+      cambios = true;
+      clearTimeout(espera);
+      espera = setTimeout(guardar, 900);
+    });
+    fDatos.addEventListener("change", function () {
+      cambios = true;
+      clearTimeout(espera);
+      espera = setTimeout(guardar, 300);
+    });
+
+    // Cualquier OTRO formulario de la página guarda los datos antes de irse.
+    document.querySelectorAll("form").forEach(function (otro) {
+      if (otro === fDatos) return;
+      otro.addEventListener("submit", function (ev) {
+        // Si el confirm() del propio formulario dijo que no, no hay nada que hacer.
+        if (ev.defaultPrevented || otro.dataset.yaGuardo) return;
+        ev.preventDefault();
+        clearTimeout(espera);
+        guardar().then(function () {
+          otro.dataset.yaGuardo = "1";
+          HTMLFormElement.prototype.submit.call(otro);
+        });
+      });
+    });
+
+    // Y si cierra la pestaña con algo pendiente, se avisa.
+    window.addEventListener("beforeunload", function (ev) {
+      if (cambios) { ev.preventDefault(); ev.returnValue = ""; }
+    });
+    // Los botones de fDatos (guardar y terminar) ya mandan los datos: no son
+    // "salir con cambios pendientes".
+    fDatos.addEventListener("submit", function () { cambios = false; });
+  })();
+
+  function copiar(texto, boton) {
+    navigator.clipboard.writeText(texto).then(function () {
+      var antes = boton.textContent;
+      boton.textContent = "Copiado";
+      setTimeout(function () { boton.textContent = antes; }, 1500);
+    });
+  }
+</script>
+{% endblock %}
