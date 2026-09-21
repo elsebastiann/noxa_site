@@ -1,7 +1,7 @@
 {
   "app.py": {
-    "mtime": 1789834034.4439552,
-    "ast_hash": "ea452b5766c8efb632ebc968ed038c4a",
+    "mtime": 1790014638.8439715,
+    "ast_hash": "b7ce105389379b5f1c1397d5d4d29367",
     "semantic_hash": ""
   },
   "migrate_prices.py": {
@@ -385,13 +385,13 @@
     "semantic_hash": ""
   },
   "templates/quote_detail.html": {
-    "mtime": 1788993558.8040376,
-    "ast_hash": "9468f46c6384e40f499723392dc33a3a",
+    "mtime": 1790013171.8994746,
+    "ast_hash": "9b908a0d95b5986140f86383564a0d8f",
     "semantic_hash": ""
   },
   "templates/quote_form.html": {
-    "mtime": 1788987442.2690399,
-    "ast_hash": "21705cbf31eda2e85c00f06bb0616ffe",
+    "mtime": 1790013139.795805,
+    "ast_hash": "d310ee7614823c21a720c8ce44370472",
     "semantic_hash": ""
   },
   "templates/quotes_list.html": {
@@ -420,8 +420,8 @@
     "semantic_hash": ""
   },
   "templates/quote_public.html": {
-    "mtime": 1790005962.2689013,
-    "ast_hash": "a040ed1a559988e1f82a8b10e4545b47",
+    "mtime": 1790013269.6321604,
+    "ast_hash": "dd755a05ada08e94e32beb70fe06d343",
     "semantic_hash": ""
   },
   "templates/quote_public_cerrada.html": {
@@ -617,6 +617,11 @@
   "templates/recepcion_cliente_vencida.html": {
     "mtime": 1789833923.8768344,
     "ast_hash": "8826a32273495d76d24dc0926c8e0432",
+    "semantic_hash": ""
+  },
+  "tests/test_latoneria.py": {
+    "mtime": 1790013413.4007561,
+    "ast_hash": "4bc57876a6a433fabc2571945811e77b",
     "semantic_hash": ""
   }
 }

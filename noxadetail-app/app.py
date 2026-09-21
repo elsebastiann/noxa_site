@@ -963,6 +963,15 @@ class Quote(db.Model):
     notes       = db.Column(db.Text, nullable=True)
     valid_until = db.Column(db.Date, nullable=True)
 
+    # ── Latonería y pintura ──
+    # No va por catálogo como el PPF o el wrap: cada trabajo de latonería es
+    # distinto —qué piezas, qué tan hundido, si hay que reemplazar— y meterlo
+    # en una matriz de precios obligaría a inventar categorías que ningún
+    # presupuesto real respeta. Es un valor y una descripción, sin límite de
+    # largo: ahí va exactamente qué se le va a hacer al carro.
+    body_amount = db.Column(db.Integer, nullable=True)
+    body_detail = db.Column(db.Text, nullable=True)
+
     # Copia de las marcas y garantías con las que se emitió, en JSON. Igual que
     # los precios: si mañana entra una marca nueva o cambia una garantía, este
     # documento tiene que seguir imprimiéndose como el cliente lo recibió.
@@ -1032,8 +1041,19 @@ class Quote(db.Model):
 
     @property
     def subtotal(self) -> int:
-        """Solo los servicios. El PPF no entra aquí porque no tiene UN precio:
-        tiene uno por marca, y se suma aparte en `ppf_totales`."""
+        """Servicios y latonería. El PPF no entra aquí porque no tiene UN
+        precio: tiene uno por marca, y se suma aparte en `ppf_totales`.
+
+        La latonería sí entra: es un valor único, como una línea de servicio, y
+        el descuento de la cotización tiene que caerle encima igual que a los
+        demás."""
+        return self.subtotal_servicios + (self.body_amount or 0)
+
+    @property
+    def subtotal_servicios(self) -> int:
+        """Solo las líneas de servicio, sin latonería. Para los renglones que
+        dicen "Total servicios": ahí meter la latonería sería rotular mal una
+        cifra."""
         return sum(i.total for i in self.items)
 
     def _descuento_sobre(self, base: int) -> int:
@@ -1113,7 +1133,8 @@ class Quote(db.Model):
     def ppf_absorbidas(self) -> set:
         return set(self.ppf_absorbida_por)
 
-    def total_de_seleccion(self, item_ids, coberturas, marca) -> int:
+    def total_de_seleccion(self, item_ids, coberturas, marca,
+                           con_latoneria: bool = True) -> int:
         """Cuánto vale una selección parcial. Se calcula ACÁ, con los precios
         que están guardados, y no se acepta el total que mande el navegador.
 
@@ -1123,6 +1144,8 @@ class Quote(db.Model):
         ids = set(item_ids or [])
         cobs = set(coberturas or [])
         total = sum(i.total for i in self.items if i.id in ids)
+        if con_latoneria:
+            total += self.body_amount or 0
 
         if cobs and marca:
             elegidas = [it for it in self.ppf_items if it.coverage in cobs]
@@ -1322,6 +1345,9 @@ class QuoteVersion(db.Model):
     item_ids      = db.Column(db.Text, nullable=False, default="[]")   # JSON de ids
     ppf_coverages = db.Column(db.Text, nullable=False, default="[]")   # JSON de nombres
     ppf_brand     = db.Column(db.String(40), nullable=True)
+    # Si dejó marcada la latonería. Por defecto sí: las versiones viejas se
+    # guardaron cuando la cotización no podía traerla, y ahí la columna es NULL.
+    incluye_latoneria = db.Column(db.Boolean, nullable=False, default=True)
 
     total = db.Column(db.Integer, nullable=False, default=0)
 
@@ -2345,6 +2371,38 @@ def ensure_quote_updated_schema():
                 db.session.commit()
             except Exception:
                 db.session.rollback()
+
+
+def ensure_quote_latoneria_schema():
+    """`quotes` ya existe en producción sin estas columnas."""
+    with app.app_context():
+        for col, tipo in (("body_amount", "INTEGER"), ("body_detail", "TEXT")):
+            try:
+                db.session.execute(text(f"SELECT {col} FROM quotes LIMIT 1"))
+                continue
+            except Exception:
+                db.session.rollback()
+            try:
+                db.session.execute(text(f"ALTER TABLE quotes ADD COLUMN {col} {tipo}"))
+                db.session.commit()
+            except Exception:
+                db.session.rollback()
+
+
+def ensure_quote_version_latoneria_schema():
+    """`quote_versions` ya existe en producción sin esta columna."""
+    with app.app_context():
+        try:
+            db.session.execute(text("SELECT incluye_latoneria FROM quote_versions LIMIT 1"))
+            return
+        except Exception:
+            db.session.rollback()
+        try:
+            db.session.execute(text(
+                "ALTER TABLE quote_versions ADD COLUMN incluye_latoneria BOOLEAN DEFAULT 1"))
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
 
 
 def ensure_quote_ppf_brands_schema():
@@ -9315,6 +9373,8 @@ ensure_users_schema()
 ensure_quote_item_detail_schema()
 ensure_quote_ppf_brands_schema()
 ensure_quote_updated_schema()
+ensure_quote_latoneria_schema()
+ensure_quote_version_latoneria_schema()
 ensure_quote_ajuste_schema()
 ensure_quote_precios_fijos_schema()
 ensure_installer_brands_schema()
@@ -14176,8 +14236,12 @@ def _leer_formulario_de_cotizacion(cot: "Quote") -> str | None:
             es_personalizado=True,
         ))
 
-    if not lineas and not ppf_lineas:
-        return "Agrega al menos un servicio o una cobertura de PPF."
+    # La latonería cuenta como contenido: un presupuesto de solo latonería es
+    # una cotización perfectamente válida y no puede quedar bloqueado por no
+    # traer servicios ni PPF.
+    monto_latoneria = max(0, _int_o_cero(request.form.get("body_amount")))
+    if not lineas and not ppf_lineas and not monto_latoneria:
+        return "Agrega al menos un servicio, una cobertura de PPF o un valor de latonería."
 
     tipo_desc = request.form.get("discount_type") or None
     if tipo_desc not in ("percentage", "absolute"):
@@ -14207,6 +14271,14 @@ def _leer_formulario_de_cotizacion(cot: "Quote") -> str | None:
     cot.discount_value = valor_desc
     cot.discount_label = (request.form.get("discount_label") or "").strip()[:120] or None
     cot.notes          = (request.form.get("notes") or "").strip() or None
+    # Latonería: sin valor no hay línea, aunque hayan escrito la descripción.
+    # La descripción sí es opcional en el guardado —se puede ir armando— pero
+    # el formulario la pide: "Latonería y pintura $3.500.000" y nada más no le
+    # dice nada al cliente.
+    monto_lat = max(0, _int_o_cero(request.form.get("body_amount")))
+    detalle_lat = (request.form.get("body_detail") or "").strip()
+    cot.body_amount = monto_lat or None
+    cot.body_detail = detalle_lat or None
     # Una casilla desmarcada no se envía, así que su ausencia es un "no" y no un
     # "no se tocó": al desmarcarla el aviso tiene que volver.
     cot.precios_fijos  = request.form.get("precios_fijos") == "1"
@@ -14502,9 +14574,11 @@ def _limpiar_seleccion(cot: "Quote", datos: dict) -> tuple:
     marca = datos.get("marca")
     if marca not in dict(cot.ppf_marcas):
         marca = None
+    # Solo puede venir marcada si la cotización de verdad trae latonería.
+    latoneria = bool(cot.body_amount) and datos.get("latoneria", True) is not False
     return ([i.id for i in cot.items if i.id in set(ids)],
             [c.coverage for c in cot.ppf_items if c.coverage in set(cobs)],
-            marca)
+            marca, latoneria)
 
 
 def _version_en_memoria(cot: "Quote", datos: dict) -> "QuoteVersion":
@@ -14514,10 +14588,11 @@ def _version_en_memoria(cot: "Quote", datos: dict) -> "QuoteVersion":
     lo que tenga marcado, pero eso no es "lo que armó el cliente" y no puede
     ensuciar esa señal.
     """
-    ids, cobs, marca = _limpiar_seleccion(cot, datos)
+    ids, cobs, marca, latoneria = _limpiar_seleccion(cot, datos)
     return QuoteVersion(quote_id=cot.id, numero=1,
                         item_ids=json.dumps(ids), ppf_coverages=json.dumps(cobs),
-                        ppf_brand=marca, total=cot.total_de_seleccion(ids, cobs, marca),
+                        ppf_brand=marca, incluye_latoneria=latoneria,
+                        total=cot.total_de_seleccion(ids, cobs, marca, latoneria),
                         created_at=datetime.utcnow(), updated_at=datetime.utcnow())
 
 
@@ -14528,7 +14603,7 @@ def _guardar_version_cliente(cot: "Quote", datos: dict) -> dict:
     tienen que dejar exactamente la misma versión, o el PDF diría una cosa y lo
     guardado otra.
     """
-    ids, cobs, marca = _limpiar_seleccion(cot, datos)
+    ids, cobs, marca, latoneria = _limpiar_seleccion(cot, datos)
 
     ahora = datetime.utcnow()
     ultima = cot.versiones[-1] if cot.versiones else None
@@ -14544,7 +14619,8 @@ def _guardar_version_cliente(cot: "Quote", datos: dict) -> dict:
     v.item_ids = json.dumps(ids)
     v.ppf_coverages = json.dumps(cobs)
     v.ppf_brand = marca
-    v.total = cot.total_de_seleccion(ids, cobs, marca)
+    v.incluye_latoneria = latoneria
+    v.total = cot.total_de_seleccion(ids, cobs, marca, latoneria)
     v.updated_at = ahora
     db.session.commit()
     return {"ok": True, "version": v.numero, "total": v.total, "id": v.id}
@@ -14580,6 +14656,8 @@ def quote_public_pdf(token):
             "items": [int(i) for i in request.form.getlist("items") if i.isdigit()],
             "ppf": request.form.getlist("ppf"),
             "marca": request.form.get("marca") or None,
+            # Ausente = no había latonería en pantalla. "0" = la desmarcó.
+            "latoneria": request.form.get("latoneria", "1") != "0",
         }
         if session.get("user_id"):
             # Alguien del equipo revisando el link: el PDF sale con la selección
@@ -15043,10 +15121,14 @@ def _construir_pdf_cotizacion(cot: "Quote", version=None) -> bytes:
         # la decisión ya está tomada y mostrar las otras dos solo estorba.
         marcas = [(m, g) for m, g in cot.ppf_marcas if m == version.ppf_brand] \
                  or cot.ppf_marcas
+        # Una versión vieja, de antes de que existiera la latonería, tiene la
+        # columna en NULL: se imprime con lo que la cotización traiga.
+        lat = (cot.body_amount or 0) if version.incluye_latoneria is not False else 0
     else:
         items, ppf_items, marcas = cot.items, cot.ppf_items, cot.ppf_marcas
+        lat = cot.body_amount or 0
 
-    subtotal = sum(i.total for i in items)
+    subtotal = sum(i.total for i in items) + lat
     absorbidas = absorbidas_en(ppf_items)
     totales_ppf = ppf_totales_de(ppf_items, [m for m, _g in marcas])
     finales = {m: (base := subtotal + totales_ppf.get(m, 0)) - cot._descuento_sobre(base)
@@ -15181,7 +15263,10 @@ def _construir_pdf_cotizacion(cot: "Quote", version=None) -> bytes:
         # parte de servicios frente a la de PPF. Si el PPF no está, el bloque de
         # totales de abajo ya cumple ese papel y repetirlo sobraría.
         if ppf_items:
-            filas.append(["TOTAL SERVICIOS", "", "", _cop(subtotal)])
+            # Sin la latonería: ese renglón dice "servicios" y la latonería
+            # tiene su propio bloque justo debajo.
+            filas.append(["TOTAL SERVICIOS", "", "",
+                          _cop(sum(i.total for i in items))])
 
         tabla = Table(filas, colWidths=[95 * mm, 15 * mm, 32 * mm, 33 * mm], repeatRows=1)
         tabla.setStyle(TableStyle([
@@ -15209,6 +15294,28 @@ def _construir_pdf_cotizacion(cot: "Quote", version=None) -> bytes:
             ]))
             hist += banda(1, "SERVICIOS") if dos_partes else [Paragraph("SERVICIOS", est_seccion)]
         hist += [tabla, Spacer(1, 4 * mm)]
+
+    # --- Latonería y pintura -------------------------------------------------
+    # Una sola línea: el valor y, debajo, qué se va a hacer. Sin catálogo ni
+    # matriz — cada trabajo de latonería es distinto y lo que el cliente
+    # necesita leer es exactamente qué piezas se le tocan al carro.
+    if lat:
+        detalle_lat = (cot.body_detail or "").strip()
+        cuerpo = [Paragraph(f"<b>{_cop(lat)}</b>", est_txt)]
+        if detalle_lat:
+            cuerpo = [Paragraph(detalle_lat.replace("\n", "<br/>"), est_celda),
+                      Spacer(1, 2 * mm),
+                      Paragraph(f"<b>{_cop(lat)}</b>", est_der)]
+        caja_lat = Table([[cuerpo]], colWidths=[175 * mm])
+        caja_lat.setStyle(TableStyle([
+            ("LEFTPADDING", (0, 0), (-1, -1), 0),
+            ("RIGHTPADDING", (0, 0), (-1, -1), 0),
+            ("TOPPADDING", (0, 0), (-1, -1), 4),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
+            ("LINEBELOW", (0, 0), (-1, -1), 0.4, LINEA),
+        ]))
+        hist += [Paragraph("LATONERÍA Y PINTURA", est_seccion), caja_lat,
+                 Spacer(1, 4 * mm)]
 
     # --- PPF: matriz de cobertura x marca ------------------------------------
     # Una fila por cobertura y una columna por marca, en vez de una fila por

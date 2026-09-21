@@ -49,7 +49,8 @@
   .item .txt { flex:1; min-width:0; }
   .item .nom { font-weight:600; font-size:.95rem; }
   .item .gar { color:var(--suave); font-weight:400; font-size:.86rem; }
-  .item .que { font-size:.8rem; color:var(--suave); margin-top:3px; line-height:1.45; }
+  .item .que { font-size:.8rem; color:var(--suave); margin-top:3px; line-height:1.45;
+               white-space:pre-line; }
   .item .val { font-weight:700; white-space:nowrap; font-size:.95rem; }
   .item.off { opacity:.42; }
   .item.incluido { opacity:.55; cursor:default; }
@@ -139,6 +140,20 @@
     {% if dos_partes %}
     <div class="sub-parte"><span>Total servicios</span><span id="subServicios"></span></div>
     {% endif %}
+    {% endif %}
+
+    {# Latonería: una sola línea con su descripción completa. Se puede
+       desmarcar como cualquier otra, que es la promesa del link. #}
+    {% if c.body_amount %}
+    <div class="sec">Latonería y pintura</div>
+    <label class="item" id="itemLatoneria">
+      <input type="checkbox" checked data-precio="{{ c.body_amount }}" id="chkLatoneria">
+      <span class="txt">
+        <span class="nom">Latonería y pintura</span>
+        {% if c.body_detail %}<span class="que">{{ c.body_detail }}</span>{% endif %}
+      </span>
+      <span class="val">{{ c.body_amount|cop }}</span>
+    </label>
     {% endif %}
 
     {% if c.tiene_ppf %}
@@ -322,6 +337,14 @@ function pintar() {
     sub += Number(i.dataset.precio) || 0);
   if (marca) sub += totalPpfDeMarca(marca, true);
 
+  // La latonería va aparte de [data-svc]: no es una línea de servicio, pero
+  // suma al subtotal igual y se puede desmarcar como todo lo demás.
+  const $lat = document.getElementById("chkLatoneria");
+  if ($lat) {
+    if ($lat.checked) sub += Number($lat.dataset.precio) || 0;
+    document.getElementById("itemLatoneria").classList.toggle("off", !$lat.checked);
+  }
+
   let desc = 0;
   if (DESC.tipo === "percentage") desc = Math.round(sub * Math.min(100, DESC.valor) / 100);
   else if (DESC.tipo === "absolute") desc = Math.min(DESC.valor, sub);
@@ -352,6 +375,11 @@ function pintar() {
   if (VEHICULO) lineas.push(`Vehículo: ${VEHICULO}`);
   if (PLACA) lineas.push(`Placa: ${PLACA}`);
 
+  if ($lat && $lat.checked) {
+    lineas.push("", "Latonería y pintura:",
+      `• ${document.querySelector("#itemLatoneria .val").textContent.trim()}`);
+  }
+
   const svcs = [...document.querySelectorAll("[data-svc]")].filter(f => f.querySelector("input").checked);
   if (svcs.length) {
     lineas.push("", "Servicios:");
@@ -379,6 +407,8 @@ function pintar() {
     `https://wa.me/${WA}?text=${encodeURIComponent(lineas.join("\n"))}`;
 }
 
+const $latPdf = () => document.getElementById("chkLatoneria");
+
 // Se guarda lo que el cliente arma, en su propia versión. Con retraso: sin él,
 // tantear cinco casillas dejaría cinco guardados y ninguno diría nada.
 let guardando = null;
@@ -392,7 +422,8 @@ function guardarSeleccion() {
     fetch({{ url_for('quote_public_seleccion', token=c.public_token)|tojson }}, {
       method: "POST",
       headers: {"Content-Type": "application/json"},
-      body: JSON.stringify({items, ppf, marca: marcaActual() || null}),
+      body: JSON.stringify({items, ppf, marca: marcaActual() || null,
+                            latoneria: !$latPdf() || $latPdf().checked}),
     }).catch(() => {});   // si falla, el cliente no tiene por qué enterarse
   }, 2500);
 }
@@ -417,6 +448,9 @@ document.getElementById("formPdf").addEventListener("submit", () => {
     agregar("ppf", i.closest("[data-ppf]").dataset.ppf));
   const m = marcaActual();
   if (m) agregar("marca", m);
+  // Se manda siempre, marcada o no: sin el campo, el servidor no puede
+  // distinguir "la quitó" de "esta cotización no trae latonería".
+  if ($latPdf()) agregar("latoneria", $latPdf().checked ? "1" : "0");
 });
 
 document.querySelectorAll('input[type=checkbox]').forEach(i =>

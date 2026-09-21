@@ -78,6 +78,10 @@
 
   .bloque-tit { font-size:.68rem; letter-spacing:.09em; text-transform:uppercase;
                 color:var(--accent,#c8a04a); font-weight:700; margin:14px 0 6px; }
+  .lat-caja { background:rgba(200,160,74,.06); border:1px solid rgba(200,160,74,.24);
+              border-radius:9px; padding:10px 12px; margin-bottom:14px; }
+  .lat-caja .bloque-tit { margin-top:0; }
+  .lat-nota { font-size:.72rem; color:#7f92a5; margin-top:7px; }
   .ajuste-caja { background:rgba(90,150,210,.09); border:1px solid rgba(90,150,210,.3);
                  border-radius:9px; padding:10px 12px; margin-bottom:14px; }
   .ajuste-lbl { display:block; font-size:.66rem; letter-spacing:.08em; text-transform:uppercase;
@@ -379,6 +383,32 @@
       </div>
 
       <div id="vacio" class="vacio">Toca un servicio o una cobertura de PPF para agregarlo.</div>
+
+      <hr class="my-3" style="border-color:rgba(255,255,255,.12)">
+
+      {# ---- Latonería y pintura ----
+         Sin catálogo a propósito: cada trabajo es distinto y una matriz de
+         precios obligaría a inventar categorías que ningún presupuesto real
+         respeta. Un valor y la descripción de lo que se va a hacer. #}
+      <div class="lat-caja">
+        <div class="bloque-tit mb-2">Latonería y pintura</div>
+        <div class="row g-2 align-items-start">
+          <div class="col-5">
+            <label class="form-label small text-muted mb-1">Valor total</label>
+            <input type="number" name="body_amount" id="latMonto" min="0" step="1"
+                   class="form-control form-control-sm"
+                   value="{{ cot.body_amount if cot and cot.body_amount else '' }}"
+                   placeholder="0">
+          </div>
+          <div class="col-7">
+            <label class="form-label small text-muted mb-1">Qué se va a hacer</label>
+            <textarea name="body_detail" id="latDetalle" rows="3"
+                      class="form-control form-control-sm"
+                      placeholder="Piezas y trabajo: ej. capó y guardafango derecho — desabollado, masillado y pintura completa con difuminado en puerta.">{{ cot.body_detail or '' if cot else '' }}</textarea>
+          </div>
+        </div>
+        <div class="lat-nota">Déjalo vacío si esta cotización no lleva latonería.</div>
+      </div>
 
       <hr class="my-3" style="border-color:rgba(255,255,255,.12)">
 
@@ -767,7 +797,10 @@ function pintarLineas() {
   // Los grupos armados a mano cuentan igual que lo demás: una cotización puede
   // ser solo eso —"forrar el tanque de la moto"— y el botón se quedaba apagado
   // aunque el resumen de la derecha ya mostrara la línea.
-  const hay = lineas.length || ppfPuestas.length
+  // La latonería cuenta igual: un presupuesto de solo latonería es una
+  // cotización válida, y el servidor ya la acepta. Sin esto, el botón quedaba
+  // apagado con el valor escrito en pantalla.
+  const hay = lineas.length || ppfPuestas.length || montoLatoneria()
               || libres.some(g => g.nombre && Object.values(g.precios).some(v => v));
   document.getElementById("vacio").style.display = hay ? "none" : "block";
   document.getElementById("btnGuardar").disabled = !hay;
@@ -801,8 +834,16 @@ const totalPpf = m => {
   return t;
 };
 
+// La latonería no es una línea de servicio ni una cobertura: es un valor
+// suelto. Suma al subtotal como cualquier otra cosa que el cliente paga, y el
+// descuento le cae encima igual.
+const montoLatoneria = () => Math.max(0, Number(document.getElementById("latMonto")?.value) || 0);
+
 function pintarTotales() {
-  const sub = lineas.reduce((a, l) => a + l.precio * l.cant, 0);
+  const subServicios = lineas.reduce((a, l) => a + l.precio * l.cant, 0);
+  const lat = montoLatoneria();
+  const sub = subServicios + lat;
+  const filaLat = lat ? `<div class="tot-fila"><span>Latonería y pintura</span><span>${fmt(lat)}</span></div>` : "";
   const tipo = document.getElementById("dtipo").value;
   const val = Number(document.getElementById("dvalor").value) || 0;
   const etq = (document.getElementById("detiqueta").value || "Descuento") +
@@ -813,6 +854,7 @@ function pintarTotales() {
   if (!ppfPuestas.length && !hayLibres) {
     const desc = descuentoSobre(sub);
     $t.innerHTML =
+      filaLat +
       `<div class="tot-fila"><span>Subtotal</span><span>${fmt(sub)}</span></div>` +
       (desc ? `<div class="tot-fila"><span>${etq}</span><span>− ${fmt(desc)}</span></div>` : "") +
       `<div class="tot-fila grande"><span>Total</span><span>${fmt(sub - desc)}</span></div>`;
@@ -824,7 +866,8 @@ function pintarTotales() {
   // puro PPF, el total por marca de abajo ya es ese mismo número y repetirlo
   // llenaría el panel de cifras iguales.
   if (sub) {
-    html += `<div class="tot-fila"><span>Total servicios</span><span>${fmt(sub)}</span></div>`;
+    if (subServicios) html += `<div class="tot-fila"><span>Total servicios</span><span>${fmt(subServicios)}</span></div>`;
+    html += filaLat;
     html += `<div class="bloque-tit mt-2">Total PPF</div>`;
     for (const [m] of marcasElegidas()) {
       html += `<div class="tot-fila"><span>${m}</span><span>${fmt(totalPpf(m))}</span></div>`;
@@ -1181,6 +1224,11 @@ document.getElementById("ajustePct").addEventListener("input", () => {
 
 ["dvalor", "detiqueta"].forEach(id =>
   document.getElementById(id).addEventListener("input", pintarTotales));
+// La latonería repinta también el resumen: de ahí depende que el botón de
+// guardar se encienda cuando la cotización es solo latonería.
+document.getElementById("latMonto").addEventListener("input", () => {
+  pintarLineas(); pintarTotales();
+});
 document.getElementById("dtipo").addEventListener("change", () => {
   const hay = !!document.getElementById("dtipo").value;
   document.getElementById("dvalor").disabled = !hay;

@@ -213,9 +213,21 @@ function pedirClave(form) {
           <td colspan="3" class="text-end fw-bold pt-3"
               style="border-top:1px solid rgba(255,255,255,.14)">Total servicios</td>
           <td class="text-end fw-bold pt-3"
-              style="border-top:1px solid rgba(255,255,255,.14)">{{ c.subtotal|cop }}</td>
+              style="border-top:1px solid rgba(255,255,255,.14)">{{ c.subtotal_servicios|cop }}</td>
         </tr>
         {% endif %}
+      </tbody>
+    </table>
+    {% endif %}
+
+    {% if c.body_amount %}
+    <div class="sec-tit" {% if not c.items %}style="margin-top:0"{% endif %}>Latonería y pintura</div>
+    <table class="tabla mb-2">
+      <tbody>
+        <tr>
+          <td style="white-space:pre-line">{{ c.body_detail or 'Sin descripción' }}</td>
+          <td class="text-end fw-bold" style="width:130px;vertical-align:top">{{ c.body_amount|cop }}</td>
+        </tr>
       </tbody>
     </table>
     {% endif %}
