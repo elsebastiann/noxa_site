@@ -220,6 +220,29 @@ function pedirClave(form) {
     </table>
     {% endif %}
 
+    {% if c.tiene_wrap %}
+    <div class="sec-tit" {% if not c.items %}style="margin-top:0"{% endif %}>Wrap</div>
+    <table class="tabla mb-2">
+      <tbody>
+        {% for w in c.wrap_items %}
+        <tr>
+          <td>
+            {{ w.coverage }}
+            {% if w.contains %}<div class="det">{{ w.contains }}</div>{% endif %}
+          </td>
+          <td class="text-end" style="width:130px">{{ w.price|cop }}</td>
+        </tr>
+        {% endfor %}
+        {% if c.wrap_items|length > 1 %}
+        <tr>
+          <td class="text-end fw-bold" style="border-top:1px solid rgba(255,255,255,.14)">Total wrap</td>
+          <td class="text-end fw-bold" style="border-top:1px solid rgba(255,255,255,.14)">{{ c.subtotal_wrap|cop }}</td>
+        </tr>
+        {% endif %}
+      </tbody>
+    </table>
+    {% endif %}
+
     {% if c.body_amount %}
     <div class="sec-tit" {% if not c.items %}style="margin-top:0"{% endif %}>Latonería y pintura</div>
     <table class="tabla mb-2">

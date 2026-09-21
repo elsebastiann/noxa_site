@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+
+{% block extra_head %}
+<style>
+  .wp { max-width:900px; margin:18px auto 60px; }
+  .wp-nota { color:var(--text2); font-size:.86rem; line-height:1.55; max-width:70ch; margin:8px 0 18px; }
+  .wp-tabla { width:100%; border-collapse:collapse; }
+  .wp-tabla th { text-align:left; font-size:.68rem; letter-spacing:.09em; text-transform:uppercase;
+                 color:var(--text3); font-weight:700; padding:0 10px 8px 0; }
+  .wp-tabla td { padding:9px 10px 9px 0; border-top:1px solid var(--border); vertical-align:top; }
+  .wp-cob { font-weight:700; white-space:nowrap; }
+  .wp-tabla input[type=number] { width:120px; text-align:right; }
+  .wp-sin { display:inline-block; font-size:.7rem; font-weight:700; padding:2px 8px;
+            border-radius:999px; background:rgba(239,83,80,.14); color:#ef5350; margin-left:8px; }
+  .wp-nueva { background:var(--surface); border:1px solid var(--border);
+              border-radius:var(--radius); padding:14px 16px; margin-top:18px; }
+  .wp-nueva h3 { font-size:.95rem; margin:0 0 10px; }
+</style>
+{% endblock %}
+
+{% block content %}
+{% set sin_precio = coberturas | selectattr('price', 'equalto', 0) | list %}
+<div class="wp">
+  <h2 style="margin:0;">Precios de wrap</h2>
+  <p class="wp-nota">
+    Un precio por cobertura, sin marcas: en vinilo lo que manda es qué se forra, no la
+    película. Estos valores son la referencia con la que arranca una cotización; el valor
+    exacto para un carro se escribe en la cotización misma.
+  </p>
+
+  {% if sin_precio %}
+  <p class="wp-nota" style="color:#ef5350">
+    {{ sin_precio|length }} cobertura{{ '' if sin_precio|length == 1 else 's' }} sin precio.
+    Mientras estén en cero, entran a la cotización en $0 y hay que escribir el valor a mano.
+  </p>
+  {% endif %}
+
+  <form method="post">
+    <table class="wp-tabla">
+      <thead>
+        <tr><th>Cobertura</th><th>Qué incluye</th><th>Precio</th><th>Activa</th></tr>
+      </thead>
+      <tbody>
+        {% for w in coberturas %}
+        <tr>
+          <td class="wp-cob">{{ w.coverage }}{% if not w.price %}<span class="wp-sin">sin precio</span>{% endif %}</td>
+          <td>
+            <input type="text" name="contiene_{{ w.id }}" value="{{ w.contains or '' }}"
+                   class="form-control form-control-sm bg-dark text-light border-secondary"
+                   {{ 'disabled' if not puede_editar }}>
+          </td>
+          <td>
+            {# step 1 y no 1000: un step grande no solo mueve las flechas, VALIDA,
+               y un precio que no sea múltiplo hace que el formulario se niegue a
+               enviarse sin decir por qué. #}
+            <input type="number" name="precio_{{ w.id }}" value="{{ w.price }}" min="0" step="1"
+                   class="form-control form-control-sm bg-dark text-light border-secondary"
+                   {{ 'disabled' if not puede_editar }}>
+          </td>
+          <td>
+            <input type="checkbox" name="activa_{{ w.id }}" value="1"
+                   {{ 'checked' if w.is_active }} {{ 'disabled' if not puede_editar }}>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+
+    {% if puede_editar %}
+    <div class="wp-nueva">
+      <h3>Agregar una cobertura</h3>
+      <div class="row g-2">
+        <div class="col-sm-3">
+          <input type="text" name="nueva_cobertura" maxlength="80" placeholder="Nombre"
+                 class="form-control form-control-sm bg-dark text-light border-secondary">
+        </div>
+        <div class="col-sm-6">
+          <input type="text" name="nuevo_contiene" placeholder="Qué incluye"
+                 class="form-control form-control-sm bg-dark text-light border-secondary">
+        </div>
+        <div class="col-sm-3">
+          <input type="number" name="nuevo_precio" min="0" step="1" placeholder="Precio"
+                 class="form-control form-control-sm bg-dark text-light border-secondary">
+        </div>
+      </div>
+    </div>
+    <button class="btn btn-warning mt-3">Guardar cambios</button>
+    {% else %}
+    <p class="wp-nota mt-3">Solo un administrador puede cambiar estos precios.</p>
+    {% endif %}
+  </form>
+</div>
+{% endblock %}

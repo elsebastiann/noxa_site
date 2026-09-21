@@ -142,6 +142,20 @@
     {% endif %}
     {% endif %}
 
+    {% if c.tiene_wrap %}
+    <div class="sec">Wrap</div>
+    {% for w in c.wrap_items %}
+    <label class="item" data-wrap="{{ w.coverage }}">
+      <input type="checkbox" checked data-precio="{{ w.price }}">
+      <span class="txt">
+        <span class="nom">{{ w.coverage }}</span>
+        {% if w.contains %}<span class="que">{{ w.contains }}</span>{% endif %}
+      </span>
+      <span class="val">{{ w.price|cop }}</span>
+    </label>
+    {% endfor %}
+    {% endif %}
+
     {# Latonería: una sola línea con su descripción completa. Se puede
        desmarcar como cualquier otra, que es la promesa del link. #}
     {% if c.body_amount %}
@@ -339,6 +353,12 @@ function pintar() {
 
   // La latonería va aparte de [data-svc]: no es una línea de servicio, pero
   // suma al subtotal igual y se puede desmarcar como todo lo demás.
+  // El wrap suma como los servicios: una línea, un precio, y se puede quitar.
+  document.querySelectorAll("[data-wrap]").forEach(f =>
+    f.classList.toggle("off", !f.querySelector("input").checked));
+  document.querySelectorAll("[data-wrap] input:checked").forEach(i =>
+    sub += Number(i.dataset.precio) || 0);
+
   const $lat = document.getElementById("chkLatoneria");
   if ($lat) {
     if ($lat.checked) sub += Number($lat.dataset.precio) || 0;
@@ -374,6 +394,13 @@ function pintar() {
   ];
   if (VEHICULO) lineas.push(`Vehículo: ${VEHICULO}`);
   if (PLACA) lineas.push(`Placa: ${PLACA}`);
+
+  const wraps = [...document.querySelectorAll("[data-wrap]")].filter(f => f.querySelector("input").checked);
+  if (wraps.length) {
+    lineas.push("", "Wrap:");
+    wraps.forEach(f => lineas.push(
+      `• ${f.querySelector(".nom").textContent.trim()} — ${f.querySelector(".val").textContent.trim()}`));
+  }
 
   if ($lat && $lat.checked) {
     lineas.push("", "Latonería y pintura:",
@@ -419,10 +446,12 @@ function guardarSeleccion() {
       .map(i => Number(i.closest("[data-svc]").dataset.svc));
     const ppf = [...document.querySelectorAll("[data-ppf] input:checked")]
       .map(i => i.closest("[data-ppf]").dataset.ppf);
+    const wrap = [...document.querySelectorAll("[data-wrap] input:checked")]
+      .map(i => i.closest("[data-wrap]").dataset.wrap);
     fetch({{ url_for('quote_public_seleccion', token=c.public_token)|tojson }}, {
       method: "POST",
       headers: {"Content-Type": "application/json"},
-      body: JSON.stringify({items, ppf, marca: marcaActual() || null,
+      body: JSON.stringify({items, ppf, wrap, marca: marcaActual() || null,
                             latoneria: !$latPdf() || $latPdf().checked}),
     }).catch(() => {});   // si falla, el cliente no tiene por qué enterarse
   }, 2500);
@@ -446,6 +475,8 @@ document.getElementById("formPdf").addEventListener("submit", () => {
     agregar("items", i.closest("[data-svc]").dataset.svc));
   document.querySelectorAll("[data-ppf] input:checked").forEach(i =>
     agregar("ppf", i.closest("[data-ppf]").dataset.ppf));
+  document.querySelectorAll("[data-wrap] input:checked").forEach(i =>
+    agregar("wrap", i.closest("[data-wrap]").dataset.wrap));
   const m = marcaActual();
   if (m) agregar("marca", m);
   // Se manda siempre, marcada o no: sin el campo, el servidor no puede

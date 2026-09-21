@@ -78,6 +78,19 @@
 
   .bloque-tit { font-size:.68rem; letter-spacing:.09em; text-transform:uppercase;
                 color:var(--accent,#c8a04a); font-weight:700; margin:14px 0 6px; }
+  .wrap-caja { background:rgba(120,190,170,.06); border:1px solid rgba(120,190,170,.22);
+               border-radius:9px; padding:10px 12px; margin-bottom:14px; }
+  .wrap-caja .bloque-tit { margin-top:0; }
+  .wrap-fila { display:flex; gap:9px; align-items:center; padding:6px 0; cursor:pointer;
+               border-bottom:1px solid rgba(255,255,255,.06); }
+  .wrap-fila:last-of-type { border-bottom:none; }
+  .wrap-fila input[type=checkbox] { flex:none; }
+  .wrap-txt { flex:1; min-width:0; }
+  .wrap-nom { display:block; font-size:.87rem; font-weight:600; }
+  .wrap-que { display:block; font-size:.72rem; color:#7f92a5; line-height:1.3; }
+  .wrap-precio { width:104px; flex:none; text-align:right; background:rgba(0,0,0,.3);
+                 border:1px solid rgba(255,255,255,.14); color:#eee;
+                 border-radius:6px; padding:4px 8px; font-size:.86rem; }
   .lat-caja { background:rgba(200,160,74,.06); border:1px solid rgba(200,160,74,.24);
               border-radius:9px; padding:10px 12px; margin-bottom:14px; }
   .lat-caja .bloque-tit { margin-top:0; }
@@ -385,6 +398,34 @@
       <div id="vacio" class="vacio">Toca un servicio o una cobertura de PPF para agregarlo.</div>
 
       <hr class="my-3" style="border-color:rgba(255,255,255,.12)">
+
+      {# ---- Wrap ----
+         Un precio por cobertura, sin marcas. El de lista es referencia: el
+         campo de la derecha es el valor exacto para ESTE carro, igual que en
+         la matriz de PPF. #}
+      {% if catalogo_wrap %}
+      <div class="wrap-caja">
+        <div class="bloque-tit mb-2">Wrap</div>
+        {% for w in catalogo_wrap %}
+        <label class="wrap-fila">
+          <input type="checkbox" name="wrap_coverage" value="{{ w.cobertura }}"
+                 class="wrap-chk" data-cob="{{ w.cobertura }}"
+                 {% if wrap_iniciales and w.cobertura in wrap_iniciales %}checked{% endif %}>
+          <span class="wrap-txt">
+            <span class="wrap-nom">{{ w.cobertura }}</span>
+            {% if w.contiene %}<span class="wrap-que">{{ w.contiene }}</span>{% endif %}
+          </span>
+          {# step 1 y no 1000: un step grande VALIDA, y un precio que no sea
+             múltiplo hace que el formulario se niegue a enviarse sin avisar. #}
+          <input type="number" min="0" step="1" class="wrap-precio"
+                 name="wrap_precio::{{ w.cobertura }}"
+                 value="{{ wrap_iniciales.get(w.cobertura, w.precio) if wrap_iniciales else w.precio }}"
+                 placeholder="0">
+        </label>
+        {% endfor %}
+        <div class="lat-nota">Los precios vienen del catálogo; cámbialos aquí si este carro vale otra cosa.</div>
+      </div>
+      {% endif %}
 
       {# ---- Latonería y pintura ----
          Sin catálogo a propósito: cada trabajo es distinto y una matriz de
@@ -800,7 +841,7 @@ function pintarLineas() {
   // La latonería cuenta igual: un presupuesto de solo latonería es una
   // cotización válida, y el servidor ya la acepta. Sin esto, el botón quedaba
   // apagado con el valor escrito en pantalla.
-  const hay = lineas.length || ppfPuestas.length || montoLatoneria()
+  const hay = lineas.length || ppfPuestas.length || montoLatoneria() || totalWrapMarcado()
               || libres.some(g => g.nombre && Object.values(g.precios).some(v => v));
   document.getElementById("vacio").style.display = hay ? "none" : "block";
   document.getElementById("btnGuardar").disabled = !hay;
@@ -839,11 +880,22 @@ const totalPpf = m => {
 // descuento le cae encima igual.
 const montoLatoneria = () => Math.max(0, Number(document.getElementById("latMonto")?.value) || 0);
 
+// Wrap: la suma de las coberturas marcadas, con el precio que esté en pantalla.
+// Declarada con `function` y no con `const`: `pintarLineas` la llama y está
+// definida más arriba en el archivo, así que con `const` reventaría.
+function totalWrap() {
+  return [...document.querySelectorAll(".wrap-chk:checked")]
+    .reduce((a, chk) => a + (Number(chk.closest(".wrap-fila").querySelector(".wrap-precio").value) || 0), 0);
+}
+function totalWrapMarcado() { return document.querySelectorAll(".wrap-chk:checked").length; }
+
 function pintarTotales() {
   const subServicios = lineas.reduce((a, l) => a + l.precio * l.cant, 0);
   const lat = montoLatoneria();
-  const sub = subServicios + lat;
-  const filaLat = lat ? `<div class="tot-fila"><span>Latonería y pintura</span><span>${fmt(lat)}</span></div>` : "";
+  const wrap = totalWrap();
+  const sub = subServicios + lat + wrap;
+  const filaLat = (wrap ? `<div class="tot-fila"><span>Wrap</span><span>${fmt(wrap)}</span></div>` : "")
+    + (lat ? `<div class="tot-fila"><span>Latonería y pintura</span><span>${fmt(lat)}</span></div>` : "");
   const tipo = document.getElementById("dtipo").value;
   const val = Number(document.getElementById("dvalor").value) || 0;
   const etq = (document.getElementById("detiqueta").value || "Descuento") +
@@ -1229,6 +1281,10 @@ document.getElementById("ajustePct").addEventListener("input", () => {
 document.getElementById("latMonto").addEventListener("input", () => {
   pintarLineas(); pintarTotales();
 });
+// El wrap repinta igual: de ahí depende que el botón de guardar se encienda
+// cuando la cotización es solo wrap.
+document.querySelectorAll(".wrap-chk, .wrap-precio").forEach(el =>
+  el.addEventListener("input", () => { pintarLineas(); pintarTotales(); }));
 document.getElementById("dtipo").addEventListener("change", () => {
   const hay = !!document.getElementById("dtipo").value;
   document.getElementById("dvalor").disabled = !hay;

@@ -1010,6 +1010,10 @@ class Quote(db.Model):
         "QuotePpfItem", backref="quote", lazy=True,
         cascade="all, delete-orphan", order_by="QuotePpfItem.orden",
     )
+    wrap_items = db.relationship(
+        "QuoteWrapItem", backref="quote", lazy=True,
+        cascade="all, delete-orphan", order_by="QuoteWrapItem.orden",
+    )
     versiones = db.relationship(
         "QuoteVersion", backref="quote", lazy=True,
         cascade="all, delete-orphan", order_by="QuoteVersion.numero",
@@ -1047,7 +1051,15 @@ class Quote(db.Model):
         La latonería sí entra: es un valor único, como una línea de servicio, y
         el descuento de la cotización tiene que caerle encima igual que a los
         demás."""
-        return self.subtotal_servicios + (self.body_amount or 0)
+        return self.subtotal_servicios + (self.body_amount or 0) + self.subtotal_wrap
+
+    @property
+    def subtotal_wrap(self) -> int:
+        return sum(w.price or 0 for w in self.wrap_items)
+
+    @property
+    def tiene_wrap(self) -> bool:
+        return bool(self.wrap_items)
 
     @property
     def subtotal_servicios(self) -> int:
@@ -1134,7 +1146,7 @@ class Quote(db.Model):
         return set(self.ppf_absorbida_por)
 
     def total_de_seleccion(self, item_ids, coberturas, marca,
-                           con_latoneria: bool = True) -> int:
+                           con_latoneria: bool = True, wraps=None) -> int:
         """Cuánto vale una selección parcial. Se calcula ACÁ, con los precios
         que están guardados, y no se acepta el total que mande el navegador.
 
@@ -1146,6 +1158,8 @@ class Quote(db.Model):
         total = sum(i.total for i in self.items if i.id in ids)
         if con_latoneria:
             total += self.body_amount or 0
+        total += sum(w.price or 0 for w in self.wrap_items
+                     if w.coverage in set(wraps or []))
 
         if cobs and marca:
             elegidas = [it for it in self.ppf_items if it.coverage in cobs]
@@ -1230,6 +1244,28 @@ class QuoteItem(db.Model):
 
     def __repr__(self):
         return f"<QuoteItem {self.description!r} x{self.quantity} = {self.total}>"
+
+
+class QuoteWrapItem(db.Model):
+    """Una cobertura de wrap dentro de una cotización, con su precio congelado.
+
+    Va aparte de `quote_items` por la misma razón que el PPF: es un bloque
+    propio con su propio catálogo y su propio título en el documento. Pero a
+    diferencia del PPF tiene UN precio, no uno por marca — el vinilo se cotiza
+    por lo que se forra, no comparando películas.
+    """
+    __tablename__ = "quote_wrap_items"
+    id = db.Column(db.Integer, primary_key=True)
+    quote_id = db.Column(db.Integer, db.ForeignKey("quotes.id"), nullable=False, index=True)
+
+    coverage = db.Column(db.String(80), nullable=False)
+    # Qué partes trae. Copiado del catálogo al cotizar, como el precio.
+    contains = db.Column(db.Text, nullable=True)
+    price    = db.Column(db.Integer, nullable=False, default=0)
+    orden    = db.Column(db.Integer, nullable=False, default=0)
+
+    def __repr__(self):
+        return f"<QuoteWrapItem {self.coverage} {self.price}>"
 
 
 class QuotePpfItem(db.Model):
@@ -1348,6 +1384,8 @@ class QuoteVersion(db.Model):
     # Si dejó marcada la latonería. Por defecto sí: las versiones viejas se
     # guardaron cuando la cotización no podía traerla, y ahí la columna es NULL.
     incluye_latoneria = db.Column(db.Boolean, nullable=False, default=True)
+    # Coberturas de wrap que dejó marcadas, en JSON. Mismo criterio que el PPF.
+    wrap_coverages = db.Column(db.Text, nullable=True)
 
     total = db.Column(db.Integer, nullable=False, default=0)
 
@@ -1358,6 +1396,17 @@ class QuoteVersion(db.Model):
     def items_marcados(self) -> list:
         try:
             return json.loads(self.item_ids or "[]")
+        except Exception:
+            return []
+
+    @property
+    def wraps_marcados(self) -> list:
+        """NULL quiere decir "versión de antes del wrap", no "las quitó todas":
+        ahí se imprime lo que la cotización traiga."""
+        if self.wrap_coverages is None:
+            return None
+        try:
+            return json.loads(self.wrap_coverages)
         except Exception:
             return []
 
@@ -1906,6 +1955,63 @@ def garantia_texto(anios) -> str:
     return texto_garantia(anios)
 
 
+class WrapPrice(db.Model):
+    """El catálogo de wrap: una cobertura, un precio.
+
+    Sin eje de marca, a diferencia del PPF. En película de protección la marca
+    ES la decisión del cliente —cambia el precio y la garantía—; en vinilo lo
+    que manda es qué se forra. Si mañana hace falta comparar marcas de vinilo,
+    esto se parece lo bastante al PPF como para crecer hacia allá.
+
+    Tampoco va por tipo de vehículo, igual que el PPF: el precio de lista es
+    una referencia y el valor exacto se escribe en la cotización cuando ya se
+    vio el carro.
+    """
+    __tablename__ = "wrap_prices"
+    id = db.Column(db.Integer, primary_key=True)
+
+    coverage  = db.Column(db.String(80), nullable=False, unique=True)
+    contains  = db.Column(db.Text, nullable=True)
+    price     = db.Column(db.Integer, nullable=False, default=0)
+    orden     = db.Column(db.Integer, nullable=False, default=0)
+    is_active = db.Column(db.Boolean, nullable=False, default=True)
+
+    def __repr__(self):
+        return f"<WrapPrice {self.coverage} {self.price}>"
+
+
+# Las coberturas con las que nace el catálogo. SIN precio a propósito: poner
+# cifras inventadas es peor que no tener ninguna, porque alguien cotizaría con
+# ellas creyendo que son las del negocio. La pantalla de precios avisa cuáles
+# están en cero.
+WRAP_CATALOGO_SEMILLA = [
+    ("Full Car", "Carrocería completa: capó, techo, baúl, puertas, guardabarros y bómperes"),
+    ("Medio carro", "Mitad superior o inferior del vehículo, según lo acordado"),
+    ("Capó", "Capó completo"),
+    ("Techo", "Techo, incluido el contorno visible"),
+    ("Baúl", "Tapa del baúl"),
+    ("Espejos", "Carcasas de los dos espejos retrovisores"),
+    ("Chrome Delete", "Todos los cromados exteriores: marcos de ventanas, parrilla, "
+                      "manijas, emblemas y molduras"),
+    ("Franjas y detalles", "Franjas, techo tipo panorámico falso, vinilos decorativos"),
+]
+
+
+def sembrar_catalogo_wrap() -> int:
+    """Crea las coberturas que faltan. No toca las que ya existen: un precio
+    cargado a mano no se puede pisar con el de la semilla."""
+    puestas = 0
+    for orden, (nombre, contiene) in enumerate(WRAP_CATALOGO_SEMILLA):
+        if WrapPrice.query.filter_by(coverage=nombre).first():
+            continue
+        db.session.add(WrapPrice(coverage=nombre, contains=contiene,
+                                 price=0, orden=orden))
+        puestas += 1
+    if puestas:
+        db.session.commit()
+    return puestas
+
+
 class PpfPrice(db.Model):
     """Precios de PPF, que no caben en `service_prices`.
 
@@ -2390,19 +2496,21 @@ def ensure_quote_latoneria_schema():
 
 
 def ensure_quote_version_latoneria_schema():
-    """`quote_versions` ya existe en producción sin esta columna."""
+    """`quote_versions` ya existe en producción sin estas columnas."""
     with app.app_context():
-        try:
-            db.session.execute(text("SELECT incluye_latoneria FROM quote_versions LIMIT 1"))
-            return
-        except Exception:
-            db.session.rollback()
-        try:
-            db.session.execute(text(
-                "ALTER TABLE quote_versions ADD COLUMN incluye_latoneria BOOLEAN DEFAULT 1"))
-            db.session.commit()
-        except Exception:
-            db.session.rollback()
+        for col, tipo in (("incluye_latoneria", "BOOLEAN DEFAULT 1"),
+                          ("wrap_coverages", "TEXT")):
+            try:
+                db.session.execute(text(f"SELECT {col} FROM quote_versions LIMIT 1"))
+                continue
+            except Exception:
+                db.session.rollback()
+            try:
+                db.session.execute(text(
+                    f"ALTER TABLE quote_versions ADD COLUMN {col} {tipo}"))
+                db.session.commit()
+            except Exception:
+                db.session.rollback()
 
 
 def ensure_quote_ppf_brands_schema():
@@ -9390,6 +9498,53 @@ seed_ppf_prices()
 seed_ppf_parts()
 migrar_precios_a_grupos()
 seed_precios_ppf_desde_lista()
+
+
+def _retirar_chrome_delete_del_catalogo():
+    """Chrome Delete pasa a ser una cobertura de wrap, no un servicio suelto.
+
+    Corre UNA sola vez. Se desactiva, no se borra: las citas viejas guardan el
+    nombre del servicio en texto y su historial tiene que seguir leyéndose.
+    Cotizarlo por dos caminos con precios distintos era el problema.
+    """
+    CLAVE = "chrome_delete_a_wrap_2026_09"
+    with app.app_context():
+        if migracion_ya_aplicada(CLAVE):
+            return
+        try:
+            # Por "contiene" y no por igualdad exacta: en el catálogo puede
+            # estar como "Chrome delete" o "Chrome Delete cromados". Queda el
+            # nombre en el log por si hay que devolver alguno desde Servicios.
+            tocados = [svc.name for svc in Service.query.all()
+                       if "chrome delete" in (svc.name or "").lower() and svc.is_active]
+            for svc in Service.query.all():
+                if svc.name in tocados:
+                    svc.is_active = False
+            marcar_migracion(CLAVE)
+            db.session.commit()
+            if tocados:
+                app.logger.info(f"[Wrap] Desactivados del catálogo de servicios: "
+                                f"{', '.join(tocados)}. Quedan como cobertura de wrap.")
+        except Exception as exc:
+            db.session.rollback()
+            app.logger.error(f"[Wrap] No se pudo retirar Chrome Delete: {exc}")
+
+
+def _arrancar_catalogo_wrap():
+    """Crea las coberturas de wrap la primera vez. Idempotente: no pisa nada."""
+    with app.app_context():
+        try:
+            puestas = sembrar_catalogo_wrap()
+        except Exception as exc:
+            db.session.rollback()
+            app.logger.error(f"[Wrap] No se pudo sembrar el catálogo: {exc}")
+            return
+        if puestas:
+            app.logger.info(f"[Wrap] {puestas} cobertura(s) creadas, sin precio.")
+
+
+_arrancar_catalogo_wrap()
+_retirar_chrome_delete_del_catalogo()
 seed_garantias_polarizado()
 
 # --- Seed: crear super admin si no existe ningún usuario ---
@@ -13935,6 +14090,14 @@ def _partes_ppf() -> list:
     ]
 
 
+def _catalogo_wrap() -> list:
+    """Las coberturas de wrap activas, para el armador. Se manda el precio de
+    lista; el valor exacto de ESTE carro se escribe en la cotización."""
+    return [{"cobertura": w.coverage, "contiene": w.contains or "", "precio": w.price or 0}
+            for w in WrapPrice.query.filter_by(is_active=True)
+                                    .order_by(WrapPrice.orden, WrapPrice.id).all()]
+
+
 def _catalogo_ppf() -> list:
     """[{cobertura, contiene, partes, precios, foto, cubre_zona}, ...]
 
@@ -13962,6 +14125,61 @@ def _catalogo_ppf() -> list:
             "orden": p.orden,
         })
     return salida
+
+
+@app.route("/wrap-prices", methods=["GET", "POST"])
+def wrap_prices_list():
+    """El catálogo de wrap: una cobertura, un precio.
+
+    Mucho más simple que la de PPF porque no hay eje de marca: una tabla de
+    coberturas editables, y abajo un renglón para agregar una nueva.
+    """
+    if not puede_cotizar():
+        flash("Acceso restringido.", "danger")
+        return redirect(url_for("calendar_view"))
+
+    if request.method == "POST":
+        if not puede_borrar_servicios():
+            flash("Solo un administrador puede cambiar los precios de wrap.", "danger")
+            return redirect(url_for("wrap_prices_list"))
+
+        # La cobertura viaja en el NOMBRE del campo y no en listas paralelas:
+        # una casilla desmarcada no se envía y desalinearía valores con claves.
+        cambios = 0
+        for w in WrapPrice.query.all():
+            crudo = request.form.get(f"precio_{w.id}")
+            if crudo is not None:
+                nuevo = max(0, _int_o_cero(crudo))
+                if nuevo != w.price:
+                    w.price = nuevo
+                    cambios += 1
+            contiene = request.form.get(f"contiene_{w.id}")
+            if contiene is not None:
+                w.contains = contiene.strip() or None
+            activa = request.form.get(f"activa_{w.id}") == "1"
+            if activa != w.is_active:
+                w.is_active = activa
+                cambios += 1
+
+        nueva = (request.form.get("nueva_cobertura") or "").strip()[:80]
+        if nueva:
+            if WrapPrice.query.filter_by(coverage=nueva).first():
+                flash(f"«{nueva}» ya existe en el catálogo.", "warning")
+            else:
+                orden = (db.session.query(db.func.max(WrapPrice.orden)).scalar() or 0) + 1
+                db.session.add(WrapPrice(
+                    coverage=nueva, price=max(0, _int_o_cero(request.form.get("nuevo_precio"))),
+                    contains=(request.form.get("nuevo_contiene") or "").strip() or None,
+                    orden=orden))
+                cambios += 1
+        db.session.commit()
+        flash("Catálogo de wrap actualizado." if cambios else "No hubo cambios.",
+              "success" if cambios else "info")
+        return redirect(url_for("wrap_prices_list"))
+
+    coberturas = WrapPrice.query.order_by(WrapPrice.orden, WrapPrice.id).all()
+    return render_template("wrap_prices.html", coberturas=coberturas,
+                           puede_editar=puede_borrar_servicios())
 
 
 @app.route("/ppf-prices", methods=["GET", "POST"])
@@ -14236,12 +14454,39 @@ def _leer_formulario_de_cotizacion(cot: "Quote") -> str | None:
             es_personalizado=True,
         ))
 
+    # Wrap: el navegador manda las coberturas marcadas; el precio se toma del
+    # catálogo salvo que se haya escrito uno exacto para ESTE carro, igual que
+    # en PPF. El de lista es una referencia.
+    previos_wrap = {w.coverage: w for w in (cot.wrap_items or [])}
+    wrap_lineas = []
+    vistas_wrap = set()
+    for orden, cob in enumerate(request.form.getlist("wrap_coverage")):
+        cob = (cob or "").strip()
+        if not cob or cob in vistas_wrap:
+            continue
+        vistas_wrap.add(cob)
+        cat = WrapPrice.query.filter_by(coverage=cob, is_active=True).first()
+        if not cat:
+            continue
+        crudo = (request.form.get(f"wrap_precio::{cob}") or "").strip()
+        if crudo:
+            precio = max(0, _int_o_cero(crudo))
+        elif cob in previos_wrap:
+            # Al editar, una cobertura que ya estaba conserva lo que se emitió.
+            precio = previos_wrap[cob].price
+        else:
+            precio = int(round((cat.price or 0) * (1 + ajuste / 100) / 1000)) * 1000 \
+                if ajuste else (cat.price or 0)
+        wrap_lineas.append(QuoteWrapItem(coverage=cob, contains=cat.contains,
+                                         price=precio, orden=orden))
+
     # La latonería cuenta como contenido: un presupuesto de solo latonería es
     # una cotización perfectamente válida y no puede quedar bloqueado por no
     # traer servicios ni PPF.
     monto_latoneria = max(0, _int_o_cero(request.form.get("body_amount")))
-    if not lineas and not ppf_lineas and not monto_latoneria:
-        return "Agrega al menos un servicio, una cobertura de PPF o un valor de latonería."
+    if not lineas and not ppf_lineas and not monto_latoneria and not wrap_lineas:
+        return ("Agrega al menos un servicio, una cobertura de PPF o de wrap, "
+                "o un valor de latonería.")
 
     tipo_desc = request.form.get("discount_type") or None
     if tipo_desc not in ("percentage", "absolute"):
@@ -14283,8 +14528,9 @@ def _leer_formulario_de_cotizacion(cot: "Quote") -> str | None:
     # "no se tocó": al desmarcarla el aviso tiene que volver.
     cot.precios_fijos  = request.form.get("precios_fijos") == "1"
     cot.valid_until    = desde + timedelta(days=max(1, dias))
-    cot.items     = lineas
-    cot.ppf_items = ppf_lineas
+    cot.items      = lineas
+    cot.ppf_items  = ppf_lineas
+    cot.wrap_items = wrap_lineas
     if ppf_lineas:
         # Las marcas quedan congeladas con la garantía que se cotizó, que puede
         # no ser la de lista: una negociación puede dar más años, y el papel
@@ -14343,6 +14589,7 @@ def quote_new():
         marcas_ppf=ppf_marcas_activas(),
         partes_ppf=_partes_ppf(),
         ppf_totales_zona=PPF_COBERTURAS_TOTALES,
+        catalogo_wrap=_catalogo_wrap(),
         dias_por_defecto=QUOTE_VALID_DAYS,
     )
 
@@ -14417,6 +14664,8 @@ def quote_edit(code):
         marcas_cot=dict(cot.ppf_marcas) if cot.ppf_brands else None,
         partes_ppf=_partes_ppf(),
         ppf_totales_zona=PPF_COBERTURAS_TOTALES,
+        catalogo_wrap=_catalogo_wrap(),
+        wrap_iniciales={w.coverage: w.price for w in cot.wrap_items},
         dias_por_defecto=dias,
     )
 
@@ -14576,9 +14825,11 @@ def _limpiar_seleccion(cot: "Quote", datos: dict) -> tuple:
         marca = None
     # Solo puede venir marcada si la cotización de verdad trae latonería.
     latoneria = bool(cot.body_amount) and datos.get("latoneria", True) is not False
+    wraps = [w for w in datos.get("wrap", []) if isinstance(w, str)][:40]
     return ([i.id for i in cot.items if i.id in set(ids)],
             [c.coverage for c in cot.ppf_items if c.coverage in set(cobs)],
-            marca, latoneria)
+            marca, latoneria,
+            [w.coverage for w in cot.wrap_items if w.coverage in set(wraps)])
 
 
 def _version_en_memoria(cot: "Quote", datos: dict) -> "QuoteVersion":
@@ -14588,11 +14839,12 @@ def _version_en_memoria(cot: "Quote", datos: dict) -> "QuoteVersion":
     lo que tenga marcado, pero eso no es "lo que armó el cliente" y no puede
     ensuciar esa señal.
     """
-    ids, cobs, marca, latoneria = _limpiar_seleccion(cot, datos)
+    ids, cobs, marca, latoneria, wraps = _limpiar_seleccion(cot, datos)
     return QuoteVersion(quote_id=cot.id, numero=1,
                         item_ids=json.dumps(ids), ppf_coverages=json.dumps(cobs),
                         ppf_brand=marca, incluye_latoneria=latoneria,
-                        total=cot.total_de_seleccion(ids, cobs, marca, latoneria),
+                        wrap_coverages=json.dumps(wraps),
+                        total=cot.total_de_seleccion(ids, cobs, marca, latoneria, wraps),
                         created_at=datetime.utcnow(), updated_at=datetime.utcnow())
 
 
@@ -14603,7 +14855,7 @@ def _guardar_version_cliente(cot: "Quote", datos: dict) -> dict:
     tienen que dejar exactamente la misma versión, o el PDF diría una cosa y lo
     guardado otra.
     """
-    ids, cobs, marca, latoneria = _limpiar_seleccion(cot, datos)
+    ids, cobs, marca, latoneria, wraps = _limpiar_seleccion(cot, datos)
 
     ahora = datetime.utcnow()
     ultima = cot.versiones[-1] if cot.versiones else None
@@ -14620,7 +14872,8 @@ def _guardar_version_cliente(cot: "Quote", datos: dict) -> dict:
     v.ppf_coverages = json.dumps(cobs)
     v.ppf_brand = marca
     v.incluye_latoneria = latoneria
-    v.total = cot.total_de_seleccion(ids, cobs, marca, latoneria)
+    v.wrap_coverages = json.dumps(wraps)
+    v.total = cot.total_de_seleccion(ids, cobs, marca, latoneria, wraps)
     v.updated_at = ahora
     db.session.commit()
     return {"ok": True, "version": v.numero, "total": v.total, "id": v.id}
@@ -14655,6 +14908,7 @@ def quote_public_pdf(token):
         datos = {
             "items": [int(i) for i in request.form.getlist("items") if i.isdigit()],
             "ppf": request.form.getlist("ppf"),
+            "wrap": request.form.getlist("wrap"),
             "marca": request.form.get("marca") or None,
             # Ausente = no había latonería en pantalla. "0" = la desmarcó.
             "latoneria": request.form.get("latoneria", "1") != "0",
@@ -15124,11 +15378,15 @@ def _construir_pdf_cotizacion(cot: "Quote", version=None) -> bytes:
         # Una versión vieja, de antes de que existiera la latonería, tiene la
         # columna en NULL: se imprime con lo que la cotización traiga.
         lat = (cot.body_amount or 0) if version.incluye_latoneria is not False else 0
+        marcados = version.wraps_marcados
+        wrap_items = cot.wrap_items if marcados is None else \
+            [w for w in cot.wrap_items if w.coverage in set(marcados)]
     else:
         items, ppf_items, marcas = cot.items, cot.ppf_items, cot.ppf_marcas
         lat = cot.body_amount or 0
+        wrap_items = cot.wrap_items
 
-    subtotal = sum(i.total for i in items) + lat
+    subtotal = sum(i.total for i in items) + lat + sum(w.price or 0 for w in wrap_items)
     absorbidas = absorbidas_en(ppf_items)
     totales_ppf = ppf_totales_de(ppf_items, [m for m, _g in marcas])
     finales = {m: (base := subtotal + totales_ppf.get(m, 0)) - cot._descuento_sobre(base)
@@ -15294,6 +15552,41 @@ def _construir_pdf_cotizacion(cot: "Quote", version=None) -> bytes:
             ]))
             hist += banda(1, "SERVICIOS") if dos_partes else [Paragraph("SERVICIOS", est_seccion)]
         hist += [tabla, Spacer(1, 4 * mm)]
+
+    # --- Wrap ----------------------------------------------------------------
+    # Una línea por cobertura con su precio. Sin matriz: el wrap tiene UN
+    # precio, no uno por marca.
+    if wrap_items:
+        filas_w = [["COBERTURA", "VALOR"]]
+        for w in wrap_items:
+            celda = [Paragraph(w.coverage, est_celda)]
+            if w.contains:
+                celda.append(Paragraph(w.contains, est_detalle))
+            filas_w.append([celda, _cop(w.price)])
+        if len(wrap_items) > 1:
+            filas_w.append(["TOTAL WRAP", _cop(sum(w.price or 0 for w in wrap_items))])
+        t_wrap = Table(filas_w, colWidths=[142 * mm, 33 * mm], repeatRows=1)
+        estilo_w = [
+            ("FONTNAME",   (0, 0), (-1, 0), "Helvetica-Bold"),
+            ("FONTSIZE",   (0, 0), (-1, 0), 8.5),
+            ("TEXTCOLOR",  (0, 0), (-1, 0), SUAVE),
+            ("LINEBELOW",  (0, 0), (-1, 0), 0.8, LINEA),
+            ("FONTSIZE",   (0, 1), (-1, -1), 9.5),
+            ("TEXTCOLOR",  (0, 1), (-1, -1), TINTA),
+            ("ALIGN",      (1, 0), (-1, -1), "RIGHT"),
+            ("VALIGN",     (0, 0), (-1, -1), "MIDDLE"),
+            ("LEFTPADDING",  (0, 0), (-1, -1), 0),
+            ("RIGHTPADDING", (0, 0), (-1, -1), 0),
+            ("TOPPADDING",   (0, 1), (-1, -1), 5),
+            ("BOTTOMPADDING",(0, 1), (-1, -1), 5),
+            ("LINEBELOW",  (0, 1), (-1, -2), 0.4, LINEA),
+        ]
+        if len(wrap_items) > 1:
+            estilo_w += [("LINEABOVE", (0, -1), (-1, -1), 0.8, LINEA),
+                         ("FONTNAME",  (0, -1), (-1, -1), "Helvetica-Bold"),
+                         ("TOPPADDING", (0, -1), (-1, -1), 8)]
+        t_wrap.setStyle(TableStyle(estilo_w))
+        hist += [Paragraph("WRAP", est_seccion), t_wrap, Spacer(1, 4 * mm)]
 
     # --- Latonería y pintura -------------------------------------------------
     # Una sola línea: el valor y, debajo, qué se va a hacer. Sin catálogo ni
@@ -17668,4 +17961,3 @@ if not app.debug or os.environ.get("WERKZEUG_RUN_MAIN") == "true":
 
 if __name__ == "__main__":
     app.run(debug=True, port=5001)
-

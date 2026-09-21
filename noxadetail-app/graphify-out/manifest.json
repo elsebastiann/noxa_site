@@ -1,7 +1,7 @@
 {
   "app.py": {
-    "mtime": 1790014638.8439715,
-    "ast_hash": "b7ce105389379b5f1c1397d5d4d29367",
+    "mtime": 1790016843.2268414,
+    "ast_hash": "cff472215f00c6fd583ccd2296e2880a",
     "semantic_hash": ""
   },
   "migrate_prices.py": {
@@ -75,8 +75,8 @@
     "semantic_hash": ""
   },
   "templates/base.html": {
-    "mtime": 1789830219.051577,
-    "ast_hash": "a6c60f9072ac5166bcfeedf83c4b3855",
+    "mtime": 1790016639.6580167,
+    "ast_hash": "730eac58ce7d31d88a73514dba2801b7",
     "semantic_hash": ""
   },
   "templates/calendar.html": {
@@ -385,13 +385,13 @@
     "semantic_hash": ""
   },
   "templates/quote_detail.html": {
-    "mtime": 1790013171.8994746,
-    "ast_hash": "9b908a0d95b5986140f86383564a0d8f",
+    "mtime": 1790016726.873927,
+    "ast_hash": "5aeb9a150d014625cea58c73ffc1d29c",
     "semantic_hash": ""
   },
   "templates/quote_form.html": {
-    "mtime": 1790013139.795805,
-    "ast_hash": "d310ee7614823c21a720c8ce44370472",
+    "mtime": 1790016707.3342004,
+    "ast_hash": "5151d730367b68cbb0e7112774b6223d",
     "semantic_hash": ""
   },
   "templates/quotes_list.html": {
@@ -420,8 +420,8 @@
     "semantic_hash": ""
   },
   "templates/quote_public.html": {
-    "mtime": 1790013269.6321604,
-    "ast_hash": "dd755a05ada08e94e32beb70fe06d343",
+    "mtime": 1790016726.8747506,
+    "ast_hash": "73f01d678bb99fa7ff6bec8ba7be5b13",
     "semantic_hash": ""
   },
   "templates/quote_public_cerrada.html": {
@@ -622,6 +622,16 @@
   "tests/test_latoneria.py": {
     "mtime": 1790013413.4007561,
     "ast_hash": "4bc57876a6a433fabc2571945811e77b",
+    "semantic_hash": ""
+  },
+  "tests/test_wrap.py": {
+    "mtime": 1790016916.988025,
+    "ast_hash": "7dde3950b24398d9a15b4965c31eba97",
+    "semantic_hash": ""
+  },
+  "templates/wrap_prices.html": {
+    "mtime": 1790016632.021033,
+    "ast_hash": "0888232d9fe62aef741b802cd5bbb2de",
     "semantic_hash": ""
   }
 }
