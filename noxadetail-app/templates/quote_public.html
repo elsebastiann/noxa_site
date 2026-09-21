@@ -213,14 +213,20 @@
   </div>
 
   <div class="nota">
-    {% if c.tiene_ppf %}
-      Los valores de PPF son estimados: pueden variar según marca, modelo, estado del
-      vehículo y complejidad de la instalación. Se confirman al revisar el carro.
-    {% else %}
-      Los precios pueden variar según el estado real del vehículo, que se confirma en el
-      diagnóstico presencial.
+    {# Se calla con los precios ya confirmados sobre el carro, igual que el
+       aviso de arriba y que el del PDF. Este pie se había quedado por fuera:
+       el detalle prometía que el aviso no salía en el link, y sí salía. #}
+    {% if not c.precios_fijos %}
+      {% if c.tiene_ppf %}
+        Los valores de PPF son estimados: pueden variar según marca, modelo, estado del
+        vehículo y complejidad de la instalación. Se confirman al revisar el carro.
+      {% else %}
+        Los precios pueden variar según el estado real del vehículo, que se confirma en el
+        diagnóstico presencial.
+      {% endif %}
+      {% if c.notes %}<br><br>{% endif %}
     {% endif %}
-    {% if c.notes %}<br><br>{{ c.notes }}{% endif %}
+    {% if c.notes %}{{ c.notes }}{% endif %}
     <div class="sitio">
       <a href="https://noxadetail.com" target="_blank" rel="noopener">noxadetail.com</a>
       · Prado Veraniego, Bogotá

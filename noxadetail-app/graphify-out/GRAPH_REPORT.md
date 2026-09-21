@@ -1,7 +1,7 @@
-# Graph Report - noxadetail-app  (2026-09-19)
+# Graph Report - noxadetail-app  (2026-09-21)
 
 ## Corpus Check
-- 62 files · ~218,757 words
+- 62 files · ~218,884 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
@@ -10,7 +10,7 @@
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `a05c7e32`
+- Built from commit: `996b675b`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 

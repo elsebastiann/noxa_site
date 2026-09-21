@@ -420,8 +420,8 @@
     "semantic_hash": ""
   },
   "templates/quote_public.html": {
-    "mtime": 1788810520.5591657,
-    "ast_hash": "f819a539decd2c24b480c7fba2cbb58a",
+    "mtime": 1790005962.2689013,
+    "ast_hash": "a040ed1a559988e1f82a8b10e4545b47",
     "semantic_hash": ""
   },
   "templates/quote_public_cerrada.html": {
@@ -500,8 +500,8 @@
     "semantic_hash": ""
   },
   "tests/test_aviso_referencia.py": {
-    "mtime": 1788810633.4035017,
-    "ast_hash": "0c07122c0fdfcec9f29f3ae9d26a1589",
+    "mtime": 1790005942.6665664,
+    "ast_hash": "3350b02fb117024564a772c879f1d56b",
     "semantic_hash": ""
   },
   "tests/test_esquema_preguntas.py": {

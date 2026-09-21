@@ -19,7 +19,14 @@ from conftest import app_module as A, make_user
 _u = itertools.count(1)
 
 # Lo que dice el aviso, en cualquiera de sus redacciones.
-AVISO = re.compile(r"valores? (son |de )?(estimad|referencia)", re.IGNORECASE)
+#
+# Ojo con esta expresión: la primera versión era
+# `valores? (son |de )?(estimad|referencia)` y NO reconocía dos de las cuatro
+# redacciones reales —"los valores de PPF son estimados" y "los precios pueden
+# variar"—, que son justamente las del pie del link. Por eso
+# `test_el_cliente_no_ve_el_aviso_en_el_link` pasó durante días mientras el
+# aviso sí le salía al cliente. Si se agrega una redacción nueva, agréguese acá.
+AVISO = re.compile(r"estimad[oa]s|valores de referencia|pueden variar", re.IGNORECASE)
 
 
 @pytest.fixture
