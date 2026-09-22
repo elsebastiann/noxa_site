@@ -126,11 +126,11 @@
       {% if c.tiene_ppf %}En PPF, elige primero la marca de película.{% endif %}
     </div>
 
-    {% set dos_partes = c.items and c.tiene_ppf %}
+    {% set dos_partes = c.items_de_servicio and c.tiene_ppf %}
 
-    {% if c.items %}
+    {% if c.items_de_servicio %}
     <div class="sec">{% if dos_partes %}Parte 1 · Servicios{% else %}Servicios{% endif %}</div>
-    {% for it in c.items %}
+    {% for it in c.items_de_servicio %}
     <label class="item" data-svc="{{ it.id }}">
       <input type="checkbox" checked data-precio="{{ it.total }}">
       <span class="txt">
@@ -150,7 +150,7 @@
     {% set elegida = c.tint_elegida() %}
     <div class="sec">Polarizado — elige la película</div>
     <div class="marcas">
-      {% for t in c.tint_items %}
+      {% for t in c.opciones_polarizado %}
       <label class="marca tint {% if t.titulo == elegida.titulo %}on{% endif %}" data-tint="{{ t.titulo }}">
         <input type="radio" name="tintOpcion" value="{{ t.titulo }}"
                data-precio="{{ t.precio }}" {% if t.titulo == elegida.titulo %}checked{% endif %}>

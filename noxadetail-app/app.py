@@ -1069,20 +1069,47 @@ class Quote(db.Model):
         return sum(w.price or 0 for w in self.wrap_items)
 
     @property
+    def _polarizado_suelto(self) -> list:
+        """Ítems de servicio que en realidad son polarizado.
+
+        Los tienen las cotizaciones armadas antes de que el polarizado tuviera
+        su sección: entraban como tres líneas sueltas y las tres sumaban, que
+        es cobrarle tres películas al mismo carro."""
+        return [i for i in self.items if se_cotiza_aparte(i.description or "")]
+
+    @property
+    def items_de_servicio(self) -> list:
+        """Lo que va en la Parte 1. El polarizado sale de acá SIEMPRE: su lugar
+        son los cajones, donde se elige uno."""
+        return [i for i in self.items if not se_cotiza_aparte(i.description or "")]
+
+    @property
+    def opciones_polarizado(self) -> list:
+        """Las películas entre las que elige el cliente.
+
+        De la sección nueva si la cotización se armó con ella; si no, se
+        reconstruyen desde los ítems sueltos. Así una cotización ya enviada
+        también se ve en cajones, sin tener que rehacerla."""
+        if self.tint_items:
+            return list(self.tint_items)
+        return [_PolarizadoDesdeItem(i) for i in self._polarizado_suelto]
+
+    @property
     def tiene_polarizado(self) -> bool:
-        return bool(self.tint_items)
+        return bool(self.opciones_polarizado)
 
     def tint_elegida(self, nombre: str | None = None):
         """La línea de polarizado que cuenta: la pedida, la guardada, o la
         primera. Nunca None habiendo opciones — un total no puede depender de
         que alguien se acuerde de elegir."""
-        if not self.tint_items:
+        opciones = self.opciones_polarizado
+        if not opciones:
             return None
         buscado = nombre or self.tint_elegido
-        for it in self.tint_items:
+        for it in opciones:
             if it.titulo == buscado:
                 return it
-        return self.tint_items[0]
+        return opciones[0]
 
     @property
     def subtotal_polarizado(self) -> int:
@@ -1097,8 +1124,11 @@ class Quote(db.Model):
     def subtotal_servicios(self) -> int:
         """Solo las líneas de servicio, sin latonería. Para los renglones que
         dicen "Total servicios": ahí meter la latonería sería rotular mal una
-        cifra."""
-        return sum(i.total for i in self.items)
+        cifra.
+
+        Tampoco el polarizado: suma por `subtotal_polarizado`, que cuenta UNA
+        película. Dejarlo acá además lo cobraría dos veces."""
+        return sum(i.total for i in self.items_de_servicio)
 
     def _descuento_sobre(self, base: int) -> int:
         """El descuento en pesos sobre una base, sea porcentaje o monto fijo.
@@ -2046,6 +2076,58 @@ class TintOption(db.Model):
 
     def __repr__(self):
         return f"<TintOption {self.titulo} {self.precio}>"
+
+
+class _PolarizadoDesdeItem:
+    """Un ítem suelto de polarizado, leído como si fuera una línea del catálogo.
+
+    Existe para que las cotizaciones de antes de la sección se vean en cajones
+    sin tocar lo que quedó guardado en ellas. Expone lo mismo que QuoteTintItem,
+    así que las plantillas y el PDF no tienen que saber de dónde viene.
+
+    El precio y la garantía salen del ítem —son los que se le prometieron al
+    cliente y no se tocan—; el rechazo IR se busca en el catálogo por la marca,
+    porque ese dato nunca estuvo en el ítem y sin él el cajón no dice lo que
+    hace falta para elegir.
+    """
+    __slots__ = ("titulo", "precio", "garantia", "rechazo_ir", "nota", "orden")
+
+    def __init__(self, item):
+        self.titulo = (item.description or "").strip()
+        self.precio = int(item.total or 0)
+        self.garantia = (item.warranty or "").strip() or None
+        self.nota = None
+        self.orden = 0
+        self.rechazo_ir = self._rechazo_del_catalogo()
+
+    def _rechazo_del_catalogo(self):
+        """Busca en el catálogo la línea que corresponde a este ítem.
+
+        Se compara por las palabras que DISTINGUEN a cada línea, no por la
+        marca sola: "Nanocerámica Ultraoptic · Spectra o Govision" se reconoce
+        por "ultraoptic", que va en la línea y no en la marca, y buscar solo
+        por marca la confundía con la Spectra a secas. Las palabras que
+        comparten todas —"nanoceramica"— no distinguen nada y se descartan.
+        """
+        nombre = _sin_tildes(self.titulo)
+        opciones = TintOption.query.filter_by(is_active=True).all()
+        if not opciones:
+            return None
+
+        def palabras(op):
+            crudo = f"{op.linea or ''} {(op.marca or '').split(' o ')[0]}"
+            return {p for p in _sin_tildes(crudo).split() if len(p) >= 2}
+
+        vocabulario = [(op, palabras(op)) for op in opciones]
+        comunes = set.intersection(*[p for _op, p in vocabulario]) if vocabulario else set()
+
+        mejor, mejor_puntaje = None, 0
+        for op, p in vocabulario:
+            propias = p - comunes
+            puntaje = sum(1 for palabra in propias if palabra in nombre)
+            if puntaje > mejor_puntaje:
+                mejor, mejor_puntaje = op, puntaje
+        return mejor.rechazo_ir if mejor else None
 
 
 # Las tres líneas que se venden hoy. Con precio, a diferencia del wrap: estas
@@ -15257,7 +15339,7 @@ def quote_edit(code):
     # Estado inicial para el JS: las mismas estructuras que arma el navegador.
     lineas = [{"desc": it.description, "precio": it.unit_price, "cant": it.quantity,
                "serviceId": it.service_id, "detalle": it.detail or ""}
-              for it in cot.items]
+              for it in cot.items_de_servicio]
     dias = (max(1, (cot.valid_until - dia_bogota(cot.created_at)).days)
             if cot.valid_until else QUOTE_VALID_DAYS)
 
@@ -15309,8 +15391,8 @@ def quote_edit(code):
         catalogo_wrap=_catalogo_wrap(),
         wrap_iniciales={w.coverage: w.price for w in cot.wrap_items},
         catalogo_tint=_catalogo_polarizado(),
-        tint_iniciales={t.titulo: t.precio for t in cot.tint_items},
-        tint_elegido=(cot.tint_elegida().titulo if cot.tint_items else None),
+        tint_iniciales={t.titulo: t.precio for t in cot.opciones_polarizado},
+        tint_elegido=(cot.tint_elegida().titulo if cot.tiene_polarizado else None),
         dias_por_defecto=dias,
     )
 
@@ -15472,7 +15554,7 @@ def _limpiar_seleccion(cot: "Quote", datos: dict) -> tuple:
     latoneria = bool(cot.body_amount) and datos.get("latoneria", True) is not False
     wraps = [w for w in datos.get("wrap", []) if isinstance(w, str)][:40]
     tint = datos.get("tint")
-    if not any(it.titulo == tint for it in cot.tint_items):
+    if not any(it.titulo == tint for it in cot.opciones_polarizado):
         tint = None          # lo que mande el navegador se valida contra la cotización
     return ([i.id for i in cot.items if i.id in set(ids)],
             [c.coverage for c in cot.ppf_items if c.coverage in set(cobs)],
@@ -16226,9 +16308,9 @@ def _construir_pdf_cotizacion(cot: "Quote", version=None) -> bytes:
     # Se imprimen TODAS las líneas ofrecidas, no solo la elegida: el papel es
     # para decidir, y comparar garantía contra rechazo de infrarrojo ES la
     # decisión. La que va en el total queda marcada.
-    if cot.tint_items:
+    if cot.opciones_polarizado:
         filas_t = [["PELÍCULA", "VALOR"]]
-        for t in cot.tint_items:
+        for t in cot.opciones_polarizado:
             partes = []
             if t.garantia:
                 partes.append(f"Garantía de {t.garantia}.")

@@ -1,7 +1,7 @@
 {
   "app.py": {
-    "mtime": 1790114831.4252853,
-    "ast_hash": "e92c6f81617a4b145a4d4b98ea7fff13",
+    "mtime": 1790115788.2882366,
+    "ast_hash": "63ebad80ab339534d553614b9c9a8f4c",
     "semantic_hash": ""
   },
   "migrate_prices.py": {
@@ -385,8 +385,8 @@
     "semantic_hash": ""
   },
   "templates/quote_detail.html": {
-    "mtime": 1790106639.416103,
-    "ast_hash": "b7dc03d2b4b6114d8899f3a8b5b0ae9c",
+    "mtime": 1790115624.7679722,
+    "ast_hash": "2e6b9215195bad48cee9224e647a8883",
     "semantic_hash": ""
   },
   "templates/quote_form.html": {
@@ -420,8 +420,8 @@
     "semantic_hash": ""
   },
   "templates/quote_public.html": {
-    "mtime": 1790106639.4170458,
-    "ast_hash": "c66b6eb7a11ecfac4e3f76685df8c146",
+    "mtime": 1790115624.7671902,
+    "ast_hash": "d506988bf27e529c50906f3e89e1b015",
     "semantic_hash": ""
   },
   "templates/quote_public_cerrada.html": {
@@ -635,8 +635,8 @@
     "semantic_hash": ""
   },
   "tests/test_polarizado.py": {
-    "mtime": 1790109892.5992625,
-    "ast_hash": "948eaa84ccbdc3173205fa3aa3003af1",
+    "mtime": 1790115799.9734685,
+    "ast_hash": "f528b1cf90c0ac7b8f11cc98c6f054e2",
     "semantic_hash": ""
   },
   "tests/test_cortes_instaladores.py": {

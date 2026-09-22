@@ -189,7 +189,7 @@ function pedirClave(form) {
       <div class="dato"><span class="k">Tipo</span><span>{{ c.vehicle_type_name }}</span></div>{% endif %}
     </div>
 
-    {% if c.items %}
+    {% if c.items_de_servicio %}
     {% if c.tiene_ppf %}<div class="sec-tit" style="margin-top:0">Servicios</div>{% endif %}
     <table class="tabla mb-3">
       <thead><tr>
@@ -199,7 +199,7 @@ function pedirClave(form) {
         <th class="text-end" style="width:130px">Total</th>
       </tr></thead>
       <tbody>
-        {% for it in c.items %}
+        {% for it in c.items_de_servicio %}
         <tr>
           <td>
             {{ it.description }}{% if it.warranty %}<span class="text-muted"
@@ -230,9 +230,9 @@ function pedirClave(form) {
 
     {% if c.tiene_polarizado %}
     {% set elegida = c.tint_elegida() %}
-    <div class="sec-tit" {% if not c.items %}style="margin-top:0"{% endif %}>Polarizado</div>
+    <div class="sec-tit" {% if not c.items_de_servicio %}style="margin-top:0"{% endif %}>Polarizado</div>
     <div class="tint-cajones">
-      {% for t in c.tint_items %}
+      {% for t in c.opciones_polarizado %}
       <div class="tint-cajon {% if t.titulo == elegida.titulo %}on{% endif %}">
         <div class="t">{{ t.titulo }}</div>
         <div class="p">{{ t.precio|cop }}</div>
@@ -248,7 +248,7 @@ function pedirClave(form) {
     {% endif %}
 
     {% if c.tiene_wrap %}
-    <div class="sec-tit" {% if not c.items %}style="margin-top:0"{% endif %}>Wrap</div>
+    <div class="sec-tit" {% if not c.items_de_servicio %}style="margin-top:0"{% endif %}>Wrap</div>
     <table class="tabla mb-2">
       <tbody>
         {% for w in c.wrap_items %}
@@ -271,7 +271,7 @@ function pedirClave(form) {
     {% endif %}
 
     {% if c.body_amount %}
-    <div class="sec-tit" {% if not c.items %}style="margin-top:0"{% endif %}>Latonería y pintura</div>
+    <div class="sec-tit" {% if not c.items_de_servicio %}style="margin-top:0"{% endif %}>Latonería y pintura</div>
     <table class="tabla mb-2">
       <tbody>
         <tr>
@@ -285,7 +285,7 @@ function pedirClave(form) {
     {# PPF en matriz: una fila por cobertura, una columna por marca. Sin cantidad
        ni valor unitario — una cobertura se pone o no se pone, siempre es una. #}
     {% if c.tiene_ppf %}
-    <div class="sec-tit" {% if not c.items %}style="margin-top:0"{% endif %}>Protección PPF</div>
+    <div class="sec-tit" {% if not c.items_de_servicio %}style="margin-top:0"{% endif %}>Protección PPF</div>
     {% if c.precios_fijos %}
     <div class="aviso-ref" style="color:#7fd6b8; background:rgba(0,168,132,.09);
                                   border-color:rgba(0,168,132,.3)">
@@ -381,7 +381,7 @@ function pedirClave(form) {
           <strong>Versión {{ v.numero }}</strong>
           <span class="ver-fecha">{{ v.updated_at | hace_cuanto }}</span>
           <div class="ver-det">
-            {% set marcados = c.items | selectattr('id', 'in', v.items_marcados) | list %}
+            {% set marcados = c.items_de_servicio | selectattr('id', 'in', v.items_marcados) | list %}
             {% if marcados %}{{ marcados | map(attribute='description') | join(', ') }}{% endif %}
             {% if v.coberturas_marcadas %}
               {% if marcados %} · {% endif %}

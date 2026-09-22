@@ -384,3 +384,98 @@ class TestNoSeOfreceDosVeces:
         assert A.se_cotiza_aparte("Polarizado")
         assert not A.se_cotiza_aparte("Coating Ceramico 9H")
         assert not A.se_cotiza_aparte("Lavado Premium")
+
+
+class TestCotizacionesViejas:
+    """Las armadas antes de que el polarizado tuviera sección: entraron como
+    tres ítems sueltos y las tres sumaron.
+
+    Visto en NX-CSSWNW, ya con el filtro puesto: el link del cliente seguía
+    mostrando "Polarizado Tecnofilm + Spectra + UltraOptic" en la Parte 1,
+    sumando $5.825.000 — tres películas para un solo carro. Quitar el
+    polarizado del catálogo arregla las nuevas; estas hay que leerlas en
+    cajones sin tocar lo que quedó guardado.
+    """
+
+    @pytest.fixture
+    def vieja(self, sesion):
+        """Una cotización con las tres películas como ítems de servicio."""
+        code = _crear(sesion, **{
+            "item_desc": ["Polarizado Nanocerámica Tecnofilm",
+                          "Polarizado Nanocerámica Spectra",
+                          "Polarizado Nanocerámica UltraOptic",
+                          "Coating Ceramico 9H"],
+            "item_price": ["699000", "859000", "969000", "2199000"],
+            "item_qty": ["1", "1", "1", "1"],
+            "item_service_id": ["", "", "", ""],
+            "item_detail": ["", "", "", ""],
+            "item_warranty": ["5 años", "7 años", "10 años", ""],
+        })
+        yield code
+        _borrar(code)
+
+    def test_el_polarizado_sale_de_la_parte_1(self, vieja):
+        with A.app.app_context():
+            c = _cot(vieja)
+            nombres = [i.description for i in c.items_de_servicio]
+        assert nombres == ["Coating Ceramico 9H"]
+
+    def test_se_ofrecen_como_cajones_con_su_garantia(self, vieja):
+        with A.app.app_context():
+            ops = _cot(vieja).opciones_polarizado
+        assert [o.titulo for o in ops] == [
+            "Polarizado Nanocerámica Tecnofilm",
+            "Polarizado Nanocerámica Spectra",
+            "Polarizado Nanocerámica UltraOptic",
+        ]
+        assert [o.garantia for o in ops] == ["5 años", "7 años", "10 años"]
+        assert [o.precio for o in ops] == [699_000, 859_000, 969_000]
+
+    def test_el_rechazo_ir_se_completa_desde_el_catalogo(self, vieja):
+        """El ítem nunca lo guardó, y sin él el cajón no dice lo que hace falta
+        para elegir. Sale del catálogo, por la marca."""
+        with A.app.app_context():
+            ops = {o.titulo: o.rechazo_ir for o in _cot(vieja).opciones_polarizado}
+        # Las TRES, y cada una la suya. UltraOptic es la que se equivoca fácil:
+        # su palabra distintiva va en la línea y no en la marca, y buscando solo
+        # por marca ("Spectra o Govision") se confundía con la Spectra a secas.
+        assert ops["Polarizado Nanocerámica Tecnofilm"] == "80%–87%"
+        assert ops["Polarizado Nanocerámica Spectra"] == "89%–94%"
+        assert ops["Polarizado Nanocerámica UltraOptic"] == "95%–99%"
+
+    def test_ya_no_se_cobran_las_tres(self, vieja):
+        """Era el daño de verdad: $5.825.000 por tres películas encima."""
+        with A.app.app_context():
+            c = _cot(vieja)
+            assert c.subtotal_servicios == 2_199_000      # solo el coating
+            assert c.subtotal_polarizado == 699_000       # una sola película
+            assert c.total == 2_898_000                   # no 5.825.000
+
+    def test_el_cliente_puede_cambiar_de_pelicula(self, vieja):
+        with A.app.app_context():
+            c = _cot(vieja)
+            elegida = c.tint_elegida("Polarizado Nanocerámica UltraOptic")
+            assert elegida.precio == 969_000
+
+    def test_el_link_del_cliente_los_pinta_en_cajones(self, vieja, sesion):
+        with A.app.app_context():
+            token = _cot(vieja).public_token
+        with sesion.session_transaction() as s:
+            s.clear()
+        html = sesion.get(f"/c/{token}").get_data(as_text=True)
+        assert 'name="tintOpcion"' in html
+        assert "Polarizado — elige la película" in html
+        # Y no como renglones marcables de la Parte 1.
+        assert html.count('data-tint=') == 3
+
+    def test_una_cotizacion_nueva_no_se_toca(self, sesion):
+        """La conversión es para las viejas: una armada con la sección nueva
+        sigue leyendo sus propias líneas."""
+        code = _crear(sesion, tint_opcion=[HD, ULTRA])
+        try:
+            with A.app.app_context():
+                c = _cot(code)
+                assert len(c.opciones_polarizado) == 2
+                assert c.opciones_polarizado[0].__class__ is A.QuoteTintItem
+        finally:
+            _borrar(code)
