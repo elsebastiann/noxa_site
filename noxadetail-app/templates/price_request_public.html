@@ -37,6 +37,11 @@
   .aviso { background:#fbf7ec; border:1px solid #e8dcbb; border-radius:9px;
            padding:12px 14px; font-size:.88rem; line-height:1.5; margin:18px 0; }
   .foto { width:100%; border-radius:11px; margin:16px 0; display:block; border:1px solid var(--borde); }
+  /* Una sola foto ocupa todo el ancho; varias van en grilla y se abren en
+     grande al tocarlas: el instalador necesita hacer zoom en el rayón. */
+  .fotos { display:grid; gap:8px; margin:16px 0;
+           grid-template-columns:repeat(auto-fit, minmax(150px, 1fr)); }
+  .fotos img { width:100%; border-radius:11px; display:block; border:1px solid var(--borde); }
   .notas { background:#f7f7f5; border-left:3px solid var(--dorado); padding:11px 14px;
            font-size:.88rem; line-height:1.5; margin:16px 0; }
   .item { border:1px solid var(--borde); border-radius:11px; padding:15px 16px; margin-bottom:14px; }
@@ -82,9 +87,15 @@
     </div>
     {% endif %}
 
-    {% if s.foto %}
-    <img class="foto" src="{{ url_for('price_request_image', filename=s.foto) }}"
-         alt="{{ s.vehiculo }}">
+{% if s.fotos_todas %}
+    <div class="fotos">
+      {% for nombre in s.fotos_todas %}
+      <a href="{{ url_for('price_request_image', filename=nombre) }}" target="_blank" rel="noopener">
+        <img src="{{ url_for('price_request_image', filename=nombre) }}"
+             alt="{{ s.vehiculo }}" loading="lazy">
+      </a>
+      {% endfor %}
+    </div>
     {% endif %}
 
     {% if s.notas %}

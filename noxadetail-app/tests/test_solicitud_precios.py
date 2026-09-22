@@ -557,3 +557,102 @@ class TestUnPrecioQueNoEsMultiploDeMil:
         sesion.post(f"/p/{token}", data={f"precio::{item_id}::Avery": "512500"})
         with A.app.app_context():
             assert _sol(code).items[0].precios["Avery"] == 512500
+
+
+class TestVariasFotos:
+    """Un carro no se cotiza con una sola imagen: el instalador necesita ver el
+    frente, los costados y el detalle de lo que está rayado. Antes cabía una y
+    el resto se mandaba por WhatsApp aparte, fuera del link."""
+
+    def _jpeg(self, color=(120, 40, 40)):
+        import io
+        from PIL import Image
+        buf = io.BytesIO()
+        Image.new("RGB", (400, 300), color).save(buf, "JPEG")
+        return buf.getvalue()
+
+    def _archivos(self, n):
+        import io
+        return [(io.BytesIO(self._jpeg((40 + i * 60, 40, 40))), f"f{i}.jpg")
+                for i in range(n)]
+
+    def _post(self, client, iid, **datos):
+        base = {"installer_id": str(iid), "marca": "Mazda", "modelo": "CX-5",
+                "cobertura": [_grupo()]}
+        base.update(datos)
+        r = client.post("/price-requests/new", data=base,
+                        content_type="multipart/form-data", follow_redirects=False)
+        assert r.status_code == 302, r.data[:300]
+        return r.headers["Location"].rstrip("/").split("/")[-1]
+
+    def test_se_suben_varias(self, sesion, instalador):
+        code = self._post(sesion, instalador, foto=self._archivos(3))
+        with A.app.app_context():
+            s = _sol(code)
+            assert len(s.fotos_todas) == 3
+            assert s.foto == s.fotos_todas[0]
+            assert len(s.fotos) == 2
+
+    def test_la_primera_es_la_de_la_vista_previa(self, sesion, instalador):
+        """En WhatsApp solo cabe una imagen en la vista previa del link."""
+        code = self._post(sesion, instalador, foto=self._archivos(3))
+        with A.app.app_context():
+            s = _sol(code)
+            assert s.foto.split(".")[0] in (s.foto_compartir or "")
+
+    def test_una_sola_sigue_funcionando(self, sesion, instalador):
+        code = self._post(sesion, instalador, foto=self._archivos(1))
+        with A.app.app_context():
+            s = _sol(code)
+            assert s.fotos_todas == [s.foto] and s.fotos == []
+
+    def test_sin_fotos_no_revienta(self, sesion, instalador):
+        code = self._post(sesion, instalador)
+        with A.app.app_context():
+            s = _sol(code)
+            assert s.fotos_todas == [] and s.foto is None
+
+    def test_el_link_del_instalador_las_muestra_todas(self, sesion, instalador, client):
+        code = self._post(sesion, instalador, foto=self._archivos(3))
+        with A.app.app_context():
+            s = _sol(code)
+            token, nombres = s.public_token, s.fotos_todas
+        with client.session_transaction() as ses:
+            ses.clear()
+        cuerpo = client.get(f"/p/{token}").data.decode()
+        for nombre in nombres:
+            assert nombre in cuerpo
+
+    def test_el_detalle_interno_también(self, sesion, instalador):
+        code = self._post(sesion, instalador, foto=self._archivos(2))
+        with A.app.app_context():
+            nombres = _sol(code).fotos_todas
+        cuerpo = sesion.get(f"/price-requests/{code}").data.decode()
+        for nombre in nombres:
+            assert nombre in cuerpo
+
+    def test_al_replicar_se_reusan_todas(self, sesion, instalador):
+        """Se reusan por nombre: el campo de archivo no se puede prellenar."""
+        code = self._post(sesion, instalador, foto=self._archivos(3))
+        with A.app.app_context():
+            nombres = _sol(code).fotos_todas
+        copia = self._post(sesion, instalador, reusar_foto=nombres)
+        with A.app.app_context():
+            assert _sol(copia).fotos_todas == nombres
+
+    def test_una_foto_repetida_no_se_duplica(self, sesion, instalador):
+        code = self._post(sesion, instalador, foto=self._archivos(1))
+        with A.app.app_context():
+            nombre = _sol(code).foto
+        copia = self._post(sesion, instalador, reusar_foto=[nombre, nombre])
+        with A.app.app_context():
+            assert _sol(copia).fotos_todas == [nombre]
+
+    def test_borrar_la_solicitud_se_lleva_sus_filas_de_foto(self, sesion, instalador):
+        code = self._post(sesion, instalador, foto=self._archivos(3))
+        with A.app.app_context():
+            s = _sol(code)
+            sid = s.id
+            A.db.session.delete(s)
+            A.db.session.commit()
+            assert A.PriceRequestPhoto.query.filter_by(request_id=sid).count() == 0

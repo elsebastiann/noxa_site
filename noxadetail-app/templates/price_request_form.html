@@ -102,21 +102,29 @@ document.addEventListener("DOMContentLoaded", () => {
                  value="{{ base.anio if base and base.anio else '' }}">
         </div>
         <div class="col-12">
-          <label class="form-label small text-muted mb-1">Foto del vehículo</label>
-          <input type="file" name="foto" class="form-control" accept="image/*">
+          <label class="form-label small text-muted mb-1">Fotos del vehículo</label>
+          <input type="file" name="foto" class="form-control" accept="image/*" multiple>
           <div class="form-text">
-            El instalador la ve al abrir el link. Una foto evita la mitad de las preguntas.
+            Puedes subir varias. El instalador las ve al abrir el link, y unas buenas fotos
+            evitan la mitad de las preguntas: el frente, los costados y el detalle de lo que
+            esté rayado o despegado.
           </div>
-          {% if base and base.foto %}
-          {# El navegador no deja prellenar un campo de archivo, así que la de la
-             solicitud original se reusa por nombre. Subir una nueva la pisa. #}
-          <label class="d-flex gap-2 align-items-center mt-2"
-                 style="font-size:.84rem; color:#bfe6d5; cursor:pointer">
-            <input type="checkbox" name="reusar_foto" value="{{ base.foto }}" checked>
-            Usar la misma foto de {{ base.code }}
-            <img src="{{ url_for('price_request_image', filename=base.foto) }}"
-                 alt="" style="height:38px; border-radius:6px; border:1px solid rgba(255,255,255,.15)">
-          </label>
+          {% if base and base.fotos_todas %}
+          {# El navegador no deja prellenar un campo de archivo, así que las de la
+             solicitud original se reusan por nombre. Las nuevas se suman. #}
+          <div class="mt-2" style="font-size:.84rem; color:#bfe6d5;">
+            Reusar las fotos de {{ base.code }}:
+            <div class="d-flex gap-2 flex-wrap mt-1">
+              {% for nombre in base.fotos_todas %}
+              <label style="cursor:pointer; position:relative; display:block">
+                <input type="checkbox" name="reusar_foto" value="{{ nombre }}" checked
+                       style="position:absolute; top:4px; left:4px">
+                <img src="{{ url_for('price_request_image', filename=nombre) }}"
+                     alt="" style="height:64px; border-radius:6px; border:1px solid rgba(255,255,255,.15)">
+              </label>
+              {% endfor %}
+            </div>
+          </div>
           {% endif %}
         </div>
         <div class="col-12">

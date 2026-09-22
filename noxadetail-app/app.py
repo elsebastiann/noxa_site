@@ -3058,11 +3058,17 @@ class PriceRequest(db.Model):
 
     installer_id = db.Column(db.Integer, db.ForeignKey("installers.id"), nullable=False)
     installer    = db.relationship("Installer")
+    fotos = db.relationship("PriceRequestPhoto", backref="solicitud",
+                            cascade="all, delete-orphan",
+                            order_by="PriceRequestPhoto.orden, PriceRequestPhoto.id")
 
     marca   = db.Column(db.String(80), nullable=False)
     modelo  = db.Column(db.String(80), nullable=False)
     anio    = db.Column(db.Integer, nullable=True)
     # Nombre del archivo, no la imagen: vive junto a la base, en el volumen.
+    # Es la PRIMERA foto: la que se usa para la vista previa del link en
+    # WhatsApp, donde solo cabe una. Las demás van en `fotos`. Se deja acá y no
+    # todo en la tabla aparte para no migrar las solicitudes ya mandadas.
     foto    = db.Column(db.String(120), nullable=True)
     notas   = db.Column(db.Text, nullable=True)
 
@@ -3103,6 +3109,18 @@ class PriceRequest(db.Model):
         return f"{_base_publica()}/p/{self.public_token}"
 
     @property
+    def fotos_todas(self) -> list:
+        """Todas las fotos, la principal primero. Sin repetidas: al replicar se
+        reusan por nombre y el mismo archivo podría llegar dos veces."""
+        nombres = ([self.foto] if self.foto else []) + [f.filename for f in self.fotos]
+        vistas, salida = set(), []
+        for n in nombres:
+            if n and n not in vistas:
+                vistas.add(n)
+                salida.append(n)
+        return salida
+
+    @property
     def foto_compartir(self) -> "str | None":
         """URL ABSOLUTA de la imagen para la vista previa del link.
 
@@ -3117,6 +3135,21 @@ class PriceRequest(db.Model):
 
     def __repr__(self):
         return f"<PriceRequest {self.code} {self.vehiculo}>"
+
+
+class PriceRequestPhoto(db.Model):
+    """Una foto más del vehículo, además de la principal.
+
+    Un carro no se cotiza con una sola imagen: el instalador necesita ver el
+    frente, los costados y el detalle de lo que está rayado o despegado. Antes
+    solo cabía una y el resto se mandaba por WhatsApp aparte, fuera del link.
+    """
+    __tablename__ = "price_request_photos"
+    id = db.Column(db.Integer, primary_key=True)
+    request_id = db.Column(db.Integer, db.ForeignKey("price_requests.id"),
+                           nullable=False, index=True)
+    filename = db.Column(db.String(120), nullable=False)
+    orden    = db.Column(db.Integer, nullable=False, default=0)
 
 
 class PriceRequestItem(db.Model):
@@ -15220,14 +15253,29 @@ def price_request_new():
             # El navegador no deja prellenar un campo de archivo, así que al
             # replicar se ofrece reusar la misma foto por nombre. Las dos filas
             # apuntan al mismo archivo y nadie lo borra: no quedan colgados.
-            foto=(_guardar_foto_vehiculo(request.files.get("foto"))
-                  or ((request.form.get("reusar_foto") or "").strip() or None)),
+            # Se llena más abajo, cuando ya se guardaron todos los archivos.
+            foto=None,
             # Congeladas: si el instalador cambia de proveedor mañana, lo que ya
             # se le preguntó no puede reescribirse solo.
             brands_json=json.dumps(inst.ppf_marcas),
             created_by=getattr(getattr(g, "current_user", None), "username", None),
             expires_on=bogota_today() + timedelta(days=SOLICITUD_VALID_DAYS),
         )
+
+        # Varias fotos: el instalador necesita ver el frente, los costados y el
+        # detalle de lo que está rayado. Las que se reusan al replicar apuntan
+        # al mismo archivo y nadie lo borra, así que no quedan colgadas.
+        nombres = [n for n in (_guardar_foto_vehiculo(f)
+                               for f in request.files.getlist("foto")) if n]
+        nombres += [n.strip() for n in request.form.getlist("reusar_foto") if n.strip()]
+        vistas, fotos = set(), []
+        for n in nombres:
+            if n not in vistas:
+                vistas.add(n)
+                fotos.append(n)
+        sol.foto = fotos[0] if fotos else None
+        for i, nombre_foto in enumerate(fotos[1:]):
+            sol.fotos.append(PriceRequestPhoto(filename=nombre_foto, orden=i))
 
         orden = 0
         for nombre in request.form.getlist("cobertura"):

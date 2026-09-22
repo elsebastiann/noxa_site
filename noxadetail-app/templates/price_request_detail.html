@@ -9,6 +9,8 @@
   .sec-tit { font-size:.68rem; letter-spacing:.09em; text-transform:uppercase;
              color:var(--accent,#c8a04a); font-weight:700; margin:22px 0 8px; }
   .foto { max-width:340px; width:100%; border-radius:10px; border:1px solid rgba(255,255,255,.12); }
+  .fotos { display:flex; gap:8px; flex-wrap:wrap; }
+  .fotos .foto { max-width:200px; }
   .tabla { width:100%; border-collapse:collapse; }
   .tabla th { font-size:.7rem; text-transform:uppercase; letter-spacing:.07em; color:#8a8a8a;
               font-weight:600; padding:0 6px 8px; text-align:right;
@@ -112,10 +114,14 @@ function pedirClave(form) {
     <div class="dato"><span class="k">Notas</span><span>{{ s.notas }}</span></div>
     {% endif %}
 
-    {% if s.foto %}
-    <div class="sec-tit">Foto</div>
-    <img class="foto" src="{{ url_for('price_request_image', filename=s.foto) }}"
-         alt="{{ s.vehiculo }}">
+{% if s.fotos_todas %}
+    <div class="fotos">
+      {% for nombre in s.fotos_todas %}
+      <a href="{{ url_for('price_request_image', filename=nombre) }}" target="_blank" rel="noopener">
+        <img class="foto" src="{{ url_for('price_request_image', filename=nombre) }}" alt="{{ s.vehiculo }}">
+      </a>
+      {% endfor %}
+    </div>
     {% endif %}
 
     <div class="sec-tit">
