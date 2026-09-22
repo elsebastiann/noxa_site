@@ -321,3 +321,66 @@ class TestElClienteElige:
             assert "$699.000" in texto
         finally:
             _borrar(code)
+
+
+class TestNoSeOfreceDosVeces:
+    """Visto en producción el 22/09 (cotización NX-YWN3PE): las tres películas
+    salieron como servicios sueltos de la Parte 1, las tres marcadas, y las tres
+    sumando al total — $5.825.000 por ponerle tres polarizados al mismo carro.
+
+    El módulo de cajones existe justo para elegir UNA. Mientras el polarizado se
+    pueda marcar también como servicio suelto, los cajones no sirven de nada.
+    """
+
+    @pytest.fixture
+    def servicio_suelto(self):
+        """Un polarizado en el catálogo de servicios, con precio: así es como
+        está hoy en producción."""
+        with A.app.app_context():
+            vt = A.VehicleType.query.filter_by(is_active=True).first()
+            svc = A.Service(name="Polarizado Nanocerámica Spectra",
+                            duration_minutes=180, is_active=True,
+                            is_outsourced=True, default_installer_share=65)
+            A.db.session.add(svc)
+            A.db.session.commit()
+            A.db.session.add(A.ServicePrice(service_id=svc.id, vehicle_type_id=vt.id,
+                                            price=859_000, duration_minutes=180,
+                                            is_active=True))
+            A.db.session.commit()
+            ids = (svc.id, vt.id)
+        yield ids
+        with A.app.app_context():
+            A.ServicePrice.query.filter_by(service_id=ids[0]).delete()
+            A.Service.query.filter_by(id=ids[0]).delete()
+            A.db.session.commit()
+
+    def test_el_polarizado_no_aparece_entre_los_servicios_a_cotizar(self, servicio_suelto):
+        svc_id, vt_id = servicio_suelto
+        with A.app.app_context():
+            ofrecidos = A._catalogo_para_cotizar().get(vt_id, [])
+        assert svc_id not in [s["id"] for s in ofrecidos]
+        assert not any("polarizado" in s["nombre"].lower() for s in ofrecidos)
+
+    def test_los_demas_servicios_siguen_apareciendo(self, servicio_suelto):
+        """El filtro es por polarizado, no una escoba que se lleve el catálogo."""
+        _, vt_id = servicio_suelto
+        with A.app.app_context():
+            ofrecidos = A._catalogo_para_cotizar().get(vt_id, [])
+        assert len(ofrecidos) > 0
+
+    def test_sigue_siendo_agendable_y_tercerizable(self, servicio_suelto):
+        """No se desactiva del catálogo de servicios: un polarizado sí se agenda
+        y sí entra al corte del instalador. Quitarlo de ahí dejaría el trabajo
+        sin cómo entrar a la agenda."""
+        svc_id, _ = servicio_suelto
+        with A.app.app_context():
+            svc = A.Service.query.get(svc_id)
+            assert svc.is_active is True
+            assert svc_id in [s.id for s in
+                              A.Service.query.filter_by(is_active=True).all()]
+
+    def test_reconoce_el_nombre_aunque_venga_sin_tilde_o_en_mayusculas(self):
+        assert A.se_cotiza_aparte("POLARIZADO Nanocerámica")
+        assert A.se_cotiza_aparte("Polarizado")
+        assert not A.se_cotiza_aparte("Coating Ceramico 9H")
+        assert not A.se_cotiza_aparte("Lavado Premium")

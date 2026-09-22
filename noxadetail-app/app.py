@@ -2059,6 +2059,25 @@ TINT_CATALOGO_SEMILLA = [
 ]
 
 
+# El polarizado se cotiza SOLO por los cajones, nunca como servicio suelto de
+# la Parte 1. Mientras estuvo en los dos lados pasó lo que tenía que pasar: en
+# la cotización NX-YWN3PE quedaron marcadas Tecnofilm, Spectra y UltraOptic a la
+# vez y las tres sumaron al total, como si a un carro se le pusieran tres
+# películas encima. Elegir una es justamente lo que hacen los cajones.
+#
+# Se filtran del catálogo de COTIZAR y no se desactivan del catálogo de
+# servicios —que fue lo que se hizo con Chrome Delete— porque un polarizado sí
+# se agenda y sí se terceriza: desactivar el servicio dejaría el trabajo sin
+# cómo entrar a la agenda ni al corte del instalador.
+SERVICIOS_QUE_SE_COTIZAN_APARTE = {"polarizado"}
+
+
+def se_cotiza_aparte(nombre: str) -> bool:
+    """Si este servicio tiene su propia sección en la cotización."""
+    n = _sin_tildes(nombre)
+    return any(clave in n for clave in SERVICIOS_QUE_SE_COTIZAN_APARTE)
+
+
 def sembrar_catalogo_polarizado() -> int:
     """Crea las líneas que falten. No toca las que ya existen: un precio
     ajustado a mano no se puede pisar con el de la semilla."""
@@ -14633,6 +14652,10 @@ def _catalogo_para_cotizar() -> dict:
     )
     catalogo = {}
     for p in precios:
+        # El polarizado tiene su propia sección más abajo. Ofrecerlo también acá
+        # deja marcar las tres películas a la vez y sumarlas todas al total.
+        if se_cotiza_aparte(p.service.name):
+            continue
         catalogo.setdefault(p.vehicle_type_id, []).append({
             "id": p.service_id,
             "nombre": p.service.name,
