@@ -78,6 +78,21 @@
 
   .bloque-tit { font-size:.68rem; letter-spacing:.09em; text-transform:uppercase;
                 color:var(--accent,#c8a04a); font-weight:700; margin:14px 0 6px; }
+  .tint-caja { background:rgba(110,150,210,.06); border:1px solid rgba(110,150,210,.22);
+               border-radius:9px; padding:10px 12px; margin-bottom:14px; }
+  .tint-caja .bloque-tit { margin-top:0; }
+  .tint-fila { display:flex; gap:9px; align-items:center; padding:7px 0; cursor:pointer;
+               border-bottom:1px solid rgba(255,255,255,.06); }
+  .tint-fila:last-of-type { border-bottom:none; }
+  .tint-fila input[type=checkbox], .tint-fila input[type=radio] { flex:none; }
+  .tint-fila.on .tint-nom { color:#bcd4f2; }
+  .tint-txt { flex:1; min-width:0; }
+  .tint-nom { display:block; font-size:.87rem; font-weight:600; }
+  .tint-que { display:block; font-size:.72rem; color:#7f92a5; line-height:1.3; }
+  .tint-precio { width:104px; flex:none; text-align:right; background:rgba(0,0,0,.3);
+                 border:1px solid rgba(255,255,255,.14); color:#eee;
+                 border-radius:6px; padding:4px 8px; font-size:.86rem; }
+  .tint-radio { accent-color:var(--accent,#c8a04a); width:16px; height:16px; }
   .wrap-caja { background:rgba(120,190,170,.06); border:1px solid rgba(120,190,170,.22);
                border-radius:9px; padding:10px 12px; margin-bottom:14px; }
   .wrap-caja .bloque-tit { margin-top:0; }
@@ -415,6 +430,42 @@
       <div id="vacio" class="vacio">Toca un servicio o una cobertura de PPF para agregarlo.</div>
 
       <hr class="my-3" style="border-color:rgba(255,255,255,.12)">
+
+      {# ---- Polarizado ----
+         En cajones, como las marcas de PPF: las tres líneas hacen lo mismo y
+         lo que el cliente compara es garantía contra rechazo de infrarrojo. Se
+         ofrecen las que se marquen; la elegida es la que suma al total y él la
+         puede cambiar desde su link. #}
+      {% if catalogo_tint %}
+      <div class="tint-caja">
+        <div class="bloque-tit mb-2">Polarizado</div>
+        {% for t in catalogo_tint %}
+        {% set puesta = tint_iniciales and t.titulo in tint_iniciales %}
+        <label class="tint-fila {% if puesta %}on{% endif %}">
+          <input type="checkbox" name="tint_opcion" value="{{ t.titulo }}"
+                 class="tint-chk" {% if puesta %}checked{% endif %}>
+          <span class="tint-txt">
+            <span class="tint-nom">{{ t.titulo }}</span>
+            <span class="tint-que">
+              {%- if t.garantia %}Garantía de {{ t.garantia }}.{% endif %}
+              {%- if t.rechazo %} Rechazo IR del {{ t.rechazo }}.{% endif %}
+              {%- if t.nota %} {{ t.nota }}.{% endif -%}
+            </span>
+          </span>
+          <input type="number" min="0" step="1" class="tint-precio"
+                 name="tint_precio::{{ t.titulo }}"
+                 value="{{ tint_iniciales.get(t.titulo, t.precio) if tint_iniciales else t.precio }}">
+          <input type="radio" name="tint_elegido" value="{{ t.titulo }}" class="tint-radio"
+                 title="Esta es la que suma al total"
+                 {% if tint_elegido == t.titulo %}checked{% endif %}>
+        </label>
+        {% endfor %}
+        <div class="lat-nota">
+          El punto de la derecha marca cuál suma al total. El cliente puede cambiarla
+          desde su link.
+        </div>
+      </div>
+      {% endif %}
 
       {# ---- Wrap ----
          Un precio por cobertura, sin marcas. El de lista es referencia: el
@@ -859,6 +910,7 @@ function pintarLineas() {
   // cotización válida, y el servidor ya la acepta. Sin esto, el botón quedaba
   // apagado con el valor escrito en pantalla.
   const hay = lineas.length || ppfPuestas.length || montoLatoneria() || totalWrapMarcado()
+              || document.querySelectorAll(".tint-chk:checked").length
               || libres.some(g => g.nombre && Object.values(g.precios).some(v => v));
   document.getElementById("vacio").style.display = hay ? "none" : "block";
   document.getElementById("btnGuardar").disabled = !hay;
@@ -906,12 +958,29 @@ function totalWrap() {
 }
 function totalWrapMarcado() { return document.querySelectorAll(".wrap-chk:checked").length; }
 
+// Polarizado: solo suma la línea marcada con el punto. Si la elegida se
+// desmarcó, manda la primera que siga ofrecida — un total no puede depender de
+// que alguien se acuerde de mover el punto.
+function filaTintElegida() {
+  const puestas = [...document.querySelectorAll(".tint-chk:checked")]
+    .map(c => c.closest(".tint-fila"));
+  if (!puestas.length) return null;
+  return puestas.find(f => f.querySelector(".tint-radio").checked) || puestas[0];
+}
+function totalTint() {
+  const fila = filaTintElegida();
+  return fila ? (Number(fila.querySelector(".tint-precio").value) || 0) : 0;
+}
+
 function pintarTotales() {
   const subServicios = lineas.reduce((a, l) => a + l.precio * l.cant, 0);
   const lat = montoLatoneria();
   const wrap = totalWrap();
-  const sub = subServicios + lat + wrap;
-  const filaLat = (wrap ? `<div class="tot-fila"><span>Wrap</span><span>${fmt(wrap)}</span></div>` : "")
+  const tint = totalTint();
+  const sub = subServicios + lat + wrap + tint;
+  const filaTint = tint ? `<div class="tot-fila"><span>Polarizado</span><span>${fmt(tint)}</span></div>` : "";
+  const filaLat = filaTint
+    + (wrap ? `<div class="tot-fila"><span>Wrap</span><span>${fmt(wrap)}</span></div>` : "")
     + (lat ? `<div class="tot-fila"><span>Latonería y pintura</span><span>${fmt(lat)}</span></div>` : "");
   const tipo = document.getElementById("dtipo").value;
   const val = Number(document.getElementById("dvalor").value) || 0;
@@ -1370,6 +1439,12 @@ document.getElementById("latMonto").addEventListener("input", () => {
 // cuando la cotización es solo wrap.
 document.querySelectorAll(".wrap-chk, .wrap-precio").forEach(el =>
   el.addEventListener("input", () => { pintarLineas(); pintarTotales(); }));
+document.querySelectorAll(".tint-chk, .tint-precio, .tint-radio").forEach(el =>
+  el.addEventListener("input", () => {
+    el.closest(".tint-fila").classList.toggle(
+      "on", el.closest(".tint-fila").querySelector(".tint-chk").checked);
+    pintarLineas(); pintarTotales();
+  }));
 document.getElementById("dtipo").addEventListener("change", () => {
   const hay = !!document.getElementById("dtipo").value;
   document.getElementById("dvalor").disabled = !hay;

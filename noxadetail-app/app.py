@@ -972,6 +972,12 @@ class Quote(db.Model):
     body_amount = db.Column(db.Integer, nullable=True)
     body_detail = db.Column(db.Text, nullable=True)
 
+    # ── Polarizado ──
+    # Cuál de las líneas ofrecidas es la que suma al total. Vacío = la primera:
+    # se ofrecen de menor a mayor y arrancar por la de entrada es lo honesto,
+    # igual que las tarjetas de marca de PPF.
+    tint_elegido = db.Column(db.String(160), nullable=True)
+
     # Copia de las marcas y garantías con las que se emitió, en JSON. Igual que
     # los precios: si mañana entra una marca nueva o cambia una garantía, este
     # documento tiene que seguir imprimiéndose como el cliente lo recibió.
@@ -1014,6 +1020,10 @@ class Quote(db.Model):
         "QuoteWrapItem", backref="quote", lazy=True,
         cascade="all, delete-orphan", order_by="QuoteWrapItem.orden",
     )
+    tint_items = db.relationship(
+        "QuoteTintItem", backref="quote", lazy=True,
+        cascade="all, delete-orphan", order_by="QuoteTintItem.orden",
+    )
     versiones = db.relationship(
         "QuoteVersion", backref="quote", lazy=True,
         cascade="all, delete-orphan", order_by="QuoteVersion.numero",
@@ -1051,11 +1061,33 @@ class Quote(db.Model):
         La latonería sí entra: es un valor único, como una línea de servicio, y
         el descuento de la cotización tiene que caerle encima igual que a los
         demás."""
-        return self.subtotal_servicios + (self.body_amount or 0) + self.subtotal_wrap
+        return (self.subtotal_servicios + (self.body_amount or 0)
+                + self.subtotal_wrap + self.subtotal_polarizado)
 
     @property
     def subtotal_wrap(self) -> int:
         return sum(w.price or 0 for w in self.wrap_items)
+
+    @property
+    def tiene_polarizado(self) -> bool:
+        return bool(self.tint_items)
+
+    def tint_elegida(self, nombre: str | None = None):
+        """La línea de polarizado que cuenta: la pedida, la guardada, o la
+        primera. Nunca None habiendo opciones — un total no puede depender de
+        que alguien se acuerde de elegir."""
+        if not self.tint_items:
+            return None
+        buscado = nombre or self.tint_elegido
+        for it in self.tint_items:
+            if it.titulo == buscado:
+                return it
+        return self.tint_items[0]
+
+    @property
+    def subtotal_polarizado(self) -> int:
+        elegida = self.tint_elegida()
+        return elegida.precio if elegida else 0
 
     @property
     def tiene_wrap(self) -> bool:
@@ -1146,7 +1178,7 @@ class Quote(db.Model):
         return set(self.ppf_absorbida_por)
 
     def total_de_seleccion(self, item_ids, coberturas, marca,
-                           con_latoneria: bool = True, wraps=None) -> int:
+                           con_latoneria: bool = True, wraps=None, tint=None) -> int:
         """Cuánto vale una selección parcial. Se calcula ACÁ, con los precios
         que están guardados, y no se acepta el total que mande el navegador.
 
@@ -1160,6 +1192,9 @@ class Quote(db.Model):
             total += self.body_amount or 0
         total += sum(w.price or 0 for w in self.wrap_items
                      if w.coverage in set(wraps or []))
+        elegida = self.tint_elegida(tint)
+        if elegida:
+            total += elegida.precio
 
         if cobs and marca:
             elegidas = [it for it in self.ppf_items if it.coverage in cobs]
@@ -1244,6 +1279,28 @@ class QuoteItem(db.Model):
 
     def __repr__(self):
         return f"<QuoteItem {self.description!r} x{self.quantity} = {self.total}>"
+
+
+class QuoteTintItem(db.Model):
+    """Una línea de polarizado OFRECIDA en una cotización, con todo congelado.
+
+    Se ofrecen varias para que el cliente compare y elija una, igual que con
+    las marcas de PPF. La que elija es la que suma al total; las otras quedan
+    en el documento como la alternativa que descartó.
+    """
+    __tablename__ = "quote_tint_items"
+    id = db.Column(db.Integer, primary_key=True)
+    quote_id = db.Column(db.Integer, db.ForeignKey("quotes.id"), nullable=False, index=True)
+
+    titulo = db.Column(db.String(160), nullable=False)
+    precio = db.Column(db.Integer, nullable=False, default=0)
+    garantia   = db.Column(db.String(120), nullable=True)
+    rechazo_ir = db.Column(db.String(60), nullable=True)
+    nota   = db.Column(db.String(200), nullable=True)
+    orden  = db.Column(db.Integer, nullable=False, default=0)
+
+    def __repr__(self):
+        return f"<QuoteTintItem {self.titulo} {self.precio}>"
 
 
 class QuoteWrapItem(db.Model):
@@ -1386,6 +1443,8 @@ class QuoteVersion(db.Model):
     incluye_latoneria = db.Column(db.Boolean, nullable=False, default=True)
     # Coberturas de wrap que dejó marcadas, en JSON. Mismo criterio que el PPF.
     wrap_coverages = db.Column(db.Text, nullable=True)
+    # Línea de polarizado que eligió. NULL = versión de antes del módulo.
+    tint_option = db.Column(db.String(160), nullable=True)
 
     total = db.Column(db.Integer, nullable=False, default=0)
 
@@ -1955,6 +2014,66 @@ def garantia_texto(anios) -> str:
     return texto_garantia(anios)
 
 
+class TintOption(db.Model):
+    """Una línea de polarizado: su precio, su garantía y cuánto calor rechaza.
+
+    Va aparte de `services` porque lo que decide el cliente no es "polarizado
+    sí o no" sino CUÁL: las tres líneas hacen lo mismo y se diferencian en
+    garantía y en rechazo de infrarrojo. Eso se compara en cajones, como las
+    marcas de PPF, no en una lista de servicios sueltos.
+
+    El rechazo IR va en texto y no en número: se vende como rango ("80%–87%")
+    porque depende del tono, y un solo número prometería una precisión que la
+    película no tiene.
+    """
+    __tablename__ = "tint_options"
+    id = db.Column(db.Integer, primary_key=True)
+
+    linea  = db.Column(db.String(80), nullable=False)   # "Nanocerámica HD"
+    marca  = db.Column(db.String(80), nullable=True)    # "Tecnofilm"
+    precio = db.Column(db.Integer, nullable=False, default=0)
+    garantia   = db.Column(db.String(120), nullable=True)  # "8 años"
+    rechazo_ir = db.Column(db.String(60), nullable=True)   # "80%–87%"
+    nota   = db.Column(db.String(200), nullable=True)      # "mejor visibilidad en tonos oscuros"
+    orden  = db.Column(db.Integer, nullable=False, default=0)
+    is_active = db.Column(db.Boolean, nullable=False, default=True)
+
+    __table_args__ = (db.UniqueConstraint("linea", "marca", name="uix_tint_linea_marca"),)
+
+    @property
+    def titulo(self) -> str:
+        return f"{self.linea} · {self.marca}" if self.marca else self.linea
+
+    def __repr__(self):
+        return f"<TintOption {self.titulo} {self.precio}>"
+
+
+# Las tres líneas que se venden hoy. Con precio, a diferencia del wrap: estas
+# cifras las dio el negocio y son las que ya están en el sitio.
+TINT_CATALOGO_SEMILLA = [
+    ("Nanocerámica HD", "Tecnofilm", 699_000, "8 años", "80%–87%", None),
+    ("Nanocerámica", "Spectra", 859_000, "10 años con certificado de la marca",
+     "89%–94%", None),
+    ("Nanocerámica Ultraoptic", "Spectra o Govision", 969_000, "10 años", "95%–99%",
+     "Mejor visibilidad en tonos oscuros"),
+]
+
+
+def sembrar_catalogo_polarizado() -> int:
+    """Crea las líneas que falten. No toca las que ya existen: un precio
+    ajustado a mano no se puede pisar con el de la semilla."""
+    puestas = 0
+    for orden, (linea, marca, precio, gar, ir, nota) in enumerate(TINT_CATALOGO_SEMILLA):
+        if TintOption.query.filter_by(linea=linea, marca=marca).first():
+            continue
+        db.session.add(TintOption(linea=linea, marca=marca, precio=precio,
+                                  garantia=gar, rechazo_ir=ir, nota=nota, orden=orden))
+        puestas += 1
+    if puestas:
+        db.session.commit()
+    return puestas
+
+
 class WrapPrice(db.Model):
     """El catálogo de wrap: una cobertura, un precio.
 
@@ -2482,7 +2601,8 @@ def ensure_quote_updated_schema():
 def ensure_quote_latoneria_schema():
     """`quotes` ya existe en producción sin estas columnas."""
     with app.app_context():
-        for col, tipo in (("body_amount", "INTEGER"), ("body_detail", "TEXT")):
+        for col, tipo in (("body_amount", "INTEGER"), ("body_detail", "TEXT"),
+                          ("tint_elegido", "VARCHAR(160)")):
             try:
                 db.session.execute(text(f"SELECT {col} FROM quotes LIMIT 1"))
                 continue
@@ -2499,7 +2619,8 @@ def ensure_quote_version_latoneria_schema():
     """`quote_versions` ya existe en producción sin estas columnas."""
     with app.app_context():
         for col, tipo in (("incluye_latoneria", "BOOLEAN DEFAULT 1"),
-                          ("wrap_coverages", "TEXT")):
+                          ("wrap_coverages", "TEXT"),
+                          ("tint_option", "VARCHAR(160)")):
             try:
                 db.session.execute(text(f"SELECT {col} FROM quote_versions LIMIT 1"))
                 continue
@@ -9576,7 +9697,21 @@ def _arrancar_catalogo_wrap():
             app.logger.info(f"[Wrap] {puestas} cobertura(s) creadas, sin precio.")
 
 
+def _arrancar_catalogo_polarizado():
+    """Crea las tres líneas de polarizado la primera vez. Idempotente."""
+    with app.app_context():
+        try:
+            puestas = sembrar_catalogo_polarizado()
+        except Exception as exc:
+            db.session.rollback()
+            app.logger.error(f"[Polarizado] No se pudo sembrar el catálogo: {exc}")
+            return
+        if puestas:
+            app.logger.info(f"[Polarizado] {puestas} línea(s) creadas.")
+
+
 _arrancar_catalogo_wrap()
+_arrancar_catalogo_polarizado()
 _retirar_chrome_delete_del_catalogo()
 seed_garantias_polarizado()
 
@@ -14161,6 +14296,14 @@ def _marcas_del_armador(cot: "Quote | None" = None) -> list:
     return marcas + [(m, g) for m, g in cot.ppf_marcas if m not in conocidas]
 
 
+def _catalogo_polarizado() -> list:
+    """Las líneas de polarizado activas, con lo que el cliente compara."""
+    return [{"titulo": o.titulo, "precio": o.precio or 0, "garantia": o.garantia or "",
+             "rechazo": o.rechazo_ir or "", "nota": o.nota or ""}
+            for o in TintOption.query.filter_by(is_active=True)
+                                     .order_by(TintOption.orden, TintOption.id).all()]
+
+
 def _catalogo_wrap() -> list:
     """Las coberturas de wrap activas, para el armador. Se manda el precio de
     lista; el valor exacto de ESTE carro se escribe en la cotización."""
@@ -14551,13 +14694,40 @@ def _leer_formulario_de_cotizacion(cot: "Quote") -> str | None:
         wrap_lineas.append(QuoteWrapItem(coverage=cob, contains=cat.contains,
                                          price=precio, orden=orden))
 
+    # Polarizado: las líneas que se le van a ofrecer al cliente. Se congelan con
+    # su garantía y su rechazo IR — son la mitad de la decisión y no pueden
+    # cambiar solas si mañana se ajusta el catálogo.
+    previos_tint = {t.titulo: t for t in (cot.tint_items or [])}
+    tint_lineas = []
+    vistos_tint = set()
+    for orden, titulo in enumerate(request.form.getlist("tint_opcion")):
+        titulo = (titulo or "").strip()
+        if not titulo or titulo in vistos_tint:
+            continue
+        vistos_tint.add(titulo)
+        opcion = next((o for o in TintOption.query.filter_by(is_active=True).all()
+                       if o.titulo == titulo), None)
+        if not opcion:
+            continue
+        crudo = (request.form.get(f"tint_precio::{titulo}") or "").strip()
+        if crudo:
+            precio = max(0, _int_o_cero(crudo))
+        elif titulo in previos_tint:
+            precio = previos_tint[titulo].precio
+        else:
+            precio = int(round((opcion.precio or 0) * (1 + ajuste / 100) / 1000)) * 1000 \
+                if ajuste else (opcion.precio or 0)
+        tint_lineas.append(QuoteTintItem(
+            titulo=titulo, precio=precio, garantia=opcion.garantia,
+            rechazo_ir=opcion.rechazo_ir, nota=opcion.nota, orden=orden))
+
     # La latonería cuenta como contenido: un presupuesto de solo latonería es
     # una cotización perfectamente válida y no puede quedar bloqueado por no
     # traer servicios ni PPF.
     monto_latoneria = max(0, _int_o_cero(request.form.get("body_amount")))
-    if not lineas and not ppf_lineas and not monto_latoneria and not wrap_lineas:
+    if not (lineas or ppf_lineas or monto_latoneria or wrap_lineas or tint_lineas):
         return ("Agrega al menos un servicio, una cobertura de PPF o de wrap, "
-                "o un valor de latonería.")
+                "un polarizado o un valor de latonería.")
 
     tipo_desc = request.form.get("discount_type") or None
     if tipo_desc not in ("percentage", "absolute"):
@@ -14602,6 +14772,11 @@ def _leer_formulario_de_cotizacion(cot: "Quote") -> str | None:
     cot.items      = lineas
     cot.ppf_items  = ppf_lineas
     cot.wrap_items = wrap_lineas
+    cot.tint_items = tint_lineas
+    # La elegida tiene que seguir estando entre las ofrecidas: si se quitó al
+    # editar, manda la primera en vez de sumar un precio que ya no se ofrece.
+    elegida = (request.form.get("tint_elegido") or "").strip()
+    cot.tint_elegido = elegida if any(t.titulo == elegida for t in tint_lineas) else None
     if ppf_lineas:
         # Las marcas quedan congeladas con la garantía que se cotizó, que puede
         # no ser la de lista: una negociación puede dar más años, y el papel
@@ -14661,6 +14836,7 @@ def quote_new():
         partes_ppf=_partes_ppf(),
         ppf_totales_zona=PPF_COBERTURAS_TOTALES,
         catalogo_wrap=_catalogo_wrap(),
+        catalogo_tint=_catalogo_polarizado(),
         dias_por_defecto=QUOTE_VALID_DAYS,
     )
 
@@ -14740,6 +14916,9 @@ def quote_edit(code):
         ppf_totales_zona=PPF_COBERTURAS_TOTALES,
         catalogo_wrap=_catalogo_wrap(),
         wrap_iniciales={w.coverage: w.price for w in cot.wrap_items},
+        catalogo_tint=_catalogo_polarizado(),
+        tint_iniciales={t.titulo: t.precio for t in cot.tint_items},
+        tint_elegido=(cot.tint_elegida().titulo if cot.tint_items else None),
         dias_por_defecto=dias,
     )
 
@@ -14900,10 +15079,13 @@ def _limpiar_seleccion(cot: "Quote", datos: dict) -> tuple:
     # Solo puede venir marcada si la cotización de verdad trae latonería.
     latoneria = bool(cot.body_amount) and datos.get("latoneria", True) is not False
     wraps = [w for w in datos.get("wrap", []) if isinstance(w, str)][:40]
+    tint = datos.get("tint")
+    if not any(it.titulo == tint for it in cot.tint_items):
+        tint = None          # lo que mande el navegador se valida contra la cotización
     return ([i.id for i in cot.items if i.id in set(ids)],
             [c.coverage for c in cot.ppf_items if c.coverage in set(cobs)],
             marca, latoneria,
-            [w.coverage for w in cot.wrap_items if w.coverage in set(wraps)])
+            [w.coverage for w in cot.wrap_items if w.coverage in set(wraps)], tint)
 
 
 def _version_en_memoria(cot: "Quote", datos: dict) -> "QuoteVersion":
@@ -14913,12 +15095,12 @@ def _version_en_memoria(cot: "Quote", datos: dict) -> "QuoteVersion":
     lo que tenga marcado, pero eso no es "lo que armó el cliente" y no puede
     ensuciar esa señal.
     """
-    ids, cobs, marca, latoneria, wraps = _limpiar_seleccion(cot, datos)
+    ids, cobs, marca, latoneria, wraps, tint = _limpiar_seleccion(cot, datos)
     return QuoteVersion(quote_id=cot.id, numero=1,
                         item_ids=json.dumps(ids), ppf_coverages=json.dumps(cobs),
                         ppf_brand=marca, incluye_latoneria=latoneria,
-                        wrap_coverages=json.dumps(wraps),
-                        total=cot.total_de_seleccion(ids, cobs, marca, latoneria, wraps),
+                        wrap_coverages=json.dumps(wraps), tint_option=tint,
+                        total=cot.total_de_seleccion(ids, cobs, marca, latoneria, wraps, tint),
                         created_at=datetime.utcnow(), updated_at=datetime.utcnow())
 
 
@@ -14929,7 +15111,7 @@ def _guardar_version_cliente(cot: "Quote", datos: dict) -> dict:
     tienen que dejar exactamente la misma versión, o el PDF diría una cosa y lo
     guardado otra.
     """
-    ids, cobs, marca, latoneria, wraps = _limpiar_seleccion(cot, datos)
+    ids, cobs, marca, latoneria, wraps, tint = _limpiar_seleccion(cot, datos)
 
     ahora = datetime.utcnow()
     ultima = cot.versiones[-1] if cot.versiones else None
@@ -14947,7 +15129,8 @@ def _guardar_version_cliente(cot: "Quote", datos: dict) -> dict:
     v.ppf_brand = marca
     v.incluye_latoneria = latoneria
     v.wrap_coverages = json.dumps(wraps)
-    v.total = cot.total_de_seleccion(ids, cobs, marca, latoneria, wraps)
+    v.tint_option = tint
+    v.total = cot.total_de_seleccion(ids, cobs, marca, latoneria, wraps, tint)
     v.updated_at = ahora
     db.session.commit()
     return {"ok": True, "version": v.numero, "total": v.total, "id": v.id}
@@ -14983,6 +15166,7 @@ def quote_public_pdf(token):
             "items": [int(i) for i in request.form.getlist("items") if i.isdigit()],
             "ppf": request.form.getlist("ppf"),
             "wrap": request.form.getlist("wrap"),
+            "tint": request.form.get("tint") or None,
             "marca": request.form.get("marca") or None,
             # Ausente = no había latonería en pantalla. "0" = la desmarcó.
             "latoneria": request.form.get("latoneria", "1") != "0",
@@ -15470,12 +15654,16 @@ def _construir_pdf_cotizacion(cot: "Quote", version=None) -> bytes:
         marcados = version.wraps_marcados
         wrap_items = cot.wrap_items if marcados is None else \
             [w for w in cot.wrap_items if w.coverage in set(marcados)]
+        tint = cot.tint_elegida(version.tint_option)
     else:
         items, ppf_items, marcas = cot.items, cot.ppf_items, cot.ppf_marcas
         lat = cot.body_amount or 0
         wrap_items = cot.wrap_items
+        tint = cot.tint_elegida()
 
-    subtotal = sum(i.total for i in items) + lat + sum(w.price or 0 for w in wrap_items)
+    subtotal = (sum(i.total for i in items) + lat
+                + sum(w.price or 0 for w in wrap_items)
+                + (tint.precio if tint else 0))
     absorbidas = absorbidas_en(ppf_items)
     totales_ppf = ppf_totales_de(ppf_items, [m for m, _g in marcas])
     finales = {m: (base := subtotal + totales_ppf.get(m, 0)) - cot._descuento_sobre(base)
@@ -15641,6 +15829,45 @@ def _construir_pdf_cotizacion(cot: "Quote", version=None) -> bytes:
             ]))
             hist += banda(1, "SERVICIOS") if dos_partes else [Paragraph("SERVICIOS", est_seccion)]
         hist += [tabla, Spacer(1, 4 * mm)]
+
+    # --- Polarizado ----------------------------------------------------------
+    # Se imprimen TODAS las líneas ofrecidas, no solo la elegida: el papel es
+    # para decidir, y comparar garantía contra rechazo de infrarrojo ES la
+    # decisión. La que va en el total queda marcada.
+    if cot.tint_items:
+        filas_t = [["PELÍCULA", "VALOR"]]
+        for t in cot.tint_items:
+            partes = []
+            if t.garantia:
+                partes.append(f"Garantía de {t.garantia}.")
+            if t.rechazo_ir:
+                partes.append(f"Rechazo IR del {t.rechazo_ir}.")
+            if t.nota:
+                partes.append(f"{t.nota}.")
+            elegido = bool(tint) and t.titulo == tint.titulo
+            titulo = f"<b>{t.titulo}</b>" + (
+                " <font color='#c8a04a'>· incluida en el total</font>" if elegido else "")
+            celda = [Paragraph(titulo, est_celda)]
+            if partes:
+                celda.append(Paragraph(" ".join(partes), est_detalle))
+            filas_t.append([celda, _cop(t.precio)])
+        t_tint = Table(filas_t, colWidths=[142 * mm, 33 * mm], repeatRows=1)
+        t_tint.setStyle(TableStyle([
+            ("FONTNAME",   (0, 0), (-1, 0), "Helvetica-Bold"),
+            ("FONTSIZE",   (0, 0), (-1, 0), 8.5),
+            ("TEXTCOLOR",  (0, 0), (-1, 0), SUAVE),
+            ("LINEBELOW",  (0, 0), (-1, 0), 0.8, LINEA),
+            ("FONTSIZE",   (0, 1), (-1, -1), 9.5),
+            ("TEXTCOLOR",  (0, 1), (-1, -1), TINTA),
+            ("ALIGN",      (1, 0), (-1, -1), "RIGHT"),
+            ("VALIGN",     (0, 0), (-1, -1), "MIDDLE"),
+            ("LEFTPADDING",  (0, 0), (-1, -1), 0),
+            ("RIGHTPADDING", (0, 0), (-1, -1), 0),
+            ("TOPPADDING",   (0, 1), (-1, -1), 5),
+            ("BOTTOMPADDING",(0, 1), (-1, -1), 5),
+            ("LINEBELOW",  (0, 1), (-1, -2), 0.4, LINEA),
+        ]))
+        hist += [Paragraph("POLARIZADO", est_seccion), t_tint, Spacer(1, 4 * mm)]
 
     # --- Wrap ----------------------------------------------------------------
     # Una línea por cobertura con su precio. Sin matriz: el wrap tiene UN

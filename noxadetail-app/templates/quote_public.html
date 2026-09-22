@@ -67,6 +67,10 @@
   .marca .g { font-size:.75rem; color:var(--acento); font-weight:600; margin-top:1px; }
   .marca .t { font-size:.8rem; color:var(--suave); margin-top:5px; }
   .na { font-size:.8rem; color:#a5a5a5; font-style:italic; white-space:nowrap; }
+  /* El polarizado usa los mismos cajones que las marcas de PPF: es la misma
+     decisión —comparar y elegir una— y aprenderla dos veces sobra. */
+  .marca.tint .t { font-size:1.15rem; font-weight:800; color:var(--acento); margin-top:4px; }
+  .marca.tint .q { display:block; font-size:.76rem; color:var(--suave); line-height:1.4; margin-top:6px; }
 
   .sub-parte { display:flex; justify-content:space-between; align-items:baseline;
                padding:12px 0 4px; margin-top:6px; font-weight:700; font-size:.95rem;
@@ -140,6 +144,26 @@
     {% if dos_partes %}
     <div class="sub-parte"><span>Total servicios</span><span id="subServicios"></span></div>
     {% endif %}
+    {% endif %}
+
+    {% if c.tiene_polarizado %}
+    {% set elegida = c.tint_elegida() %}
+    <div class="sec">Polarizado — elige la película</div>
+    <div class="marcas">
+      {% for t in c.tint_items %}
+      <label class="marca tint {% if t.titulo == elegida.titulo %}on{% endif %}" data-tint="{{ t.titulo }}">
+        <input type="radio" name="tintOpcion" value="{{ t.titulo }}"
+               data-precio="{{ t.precio }}" {% if t.titulo == elegida.titulo %}checked{% endif %}>
+        <span class="m">{{ t.titulo }}</span>
+        <span class="t">{{ t.precio|cop }}</span>
+        <span class="q">
+          {%- if t.garantia %}Garantía de {{ t.garantia }}.{% endif %}
+          {%- if t.rechazo_ir %} Rechazo IR del {{ t.rechazo_ir }}.{% endif %}
+          {%- if t.nota %} {{ t.nota }}.{% endif -%}
+        </span>
+      </label>
+      {% endfor %}
+    </div>
     {% endif %}
 
     {% if c.tiene_wrap %}
@@ -359,6 +383,12 @@ function pintar() {
   document.querySelectorAll("[data-wrap] input:checked").forEach(i =>
     sub += Number(i.dataset.precio) || 0);
 
+  // Polarizado: suma solo la línea elegida, como la marca de PPF.
+  const $tint = document.querySelector('input[name="tintOpcion"]:checked');
+  if ($tint) sub += Number($tint.dataset.precio) || 0;
+  document.querySelectorAll("[data-tint]").forEach(f =>
+    f.classList.toggle("on", f.querySelector("input").checked));
+
   const $lat = document.getElementById("chkLatoneria");
   if ($lat) {
     if ($lat.checked) sub += Number($lat.dataset.precio) || 0;
@@ -394,6 +424,12 @@ function pintar() {
   ];
   if (VEHICULO) lineas.push(`Vehículo: ${VEHICULO}`);
   if (PLACA) lineas.push(`Placa: ${PLACA}`);
+
+  if ($tintPdf()) {
+    const caja = $tintPdf().closest("[data-tint]");
+    lineas.push("", "Polarizado:",
+      `• ${caja.querySelector(".m").textContent.trim()} — ${caja.querySelector(".t").textContent.trim()}`);
+  }
 
   const wraps = [...document.querySelectorAll("[data-wrap]")].filter(f => f.querySelector("input").checked);
   if (wraps.length) {
@@ -435,6 +471,7 @@ function pintar() {
 }
 
 const $latPdf = () => document.getElementById("chkLatoneria");
+const $tintPdf = () => document.querySelector('input[name="tintOpcion"]:checked');
 
 // Se guarda lo que el cliente arma, en su propia versión. Con retraso: sin él,
 // tantear cinco casillas dejaría cinco guardados y ninguno diría nada.
@@ -452,6 +489,7 @@ function guardarSeleccion() {
       method: "POST",
       headers: {"Content-Type": "application/json"},
       body: JSON.stringify({items, ppf, wrap, marca: marcaActual() || null,
+                            tint: $tintPdf() ? $tintPdf().value : null,
                             latoneria: !$latPdf() || $latPdf().checked}),
     }).catch(() => {});   // si falla, el cliente no tiene por qué enterarse
   }, 2500);
@@ -482,9 +520,10 @@ document.getElementById("formPdf").addEventListener("submit", () => {
   // Se manda siempre, marcada o no: sin el campo, el servidor no puede
   // distinguir "la quitó" de "esta cotización no trae latonería".
   if ($latPdf()) agregar("latoneria", $latPdf().checked ? "1" : "0");
+  if ($tintPdf()) agregar("tint", $tintPdf().value);
 });
 
-document.querySelectorAll('input[type=checkbox]').forEach(i =>
+document.querySelectorAll('input[type=checkbox], input[name="tintOpcion"]').forEach(i =>
   i.addEventListener("change", () => { pintar(); guardarSeleccion(); }));
 document.querySelectorAll(".marca").forEach(m => m.addEventListener("click", () => {
   document.querySelectorAll(".marca").forEach(x => x.classList.remove("on"));

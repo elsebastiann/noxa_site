@@ -18,6 +18,14 @@
               color:#ddd; vertical-align:top; }
   .tabla td:first-child, .tabla th:first-child { padding-left:0; }
   .tabla td:last-child, .tabla th:last-child { padding-right:0; }
+  .tint-cajones { display:grid; gap:10px; margin-bottom:10px;
+                  grid-template-columns:repeat(auto-fit, minmax(190px, 1fr)); }
+  .tint-cajon { border:1px solid rgba(255,255,255,.12); border-radius:10px; padding:12px 13px; }
+  .tint-cajon.on { border-color:var(--accent,#c8a04a); background:rgba(200,160,74,.08); }
+  .tint-cajon .t { font-size:.8rem; font-weight:700; color:#e9e9e9; letter-spacing:.02em; }
+  .tint-cajon .p { font-size:1.25rem; font-weight:800; color:var(--accent,#c8a04a); margin:4px 0 6px; }
+  .tint-cajon .q { font-size:.78rem; color:#9a9a9a; line-height:1.4; }
+  .tint-cajon .e { font-size:.7rem; color:var(--accent,#c8a04a); font-weight:700; margin-top:7px; }
   .tot { display:flex; justify-content:space-between; padding:4px 0; color:#bdbdbd; }
   .tot.grande { font-size:1.45rem; font-weight:700; color:#fff;
                 border-top:1px solid rgba(255,255,255,.14); margin-top:8px; padding-top:11px; }
@@ -218,6 +226,25 @@ function pedirClave(form) {
         {% endif %}
       </tbody>
     </table>
+    {% endif %}
+
+    {% if c.tiene_polarizado %}
+    {% set elegida = c.tint_elegida() %}
+    <div class="sec-tit" {% if not c.items %}style="margin-top:0"{% endif %}>Polarizado</div>
+    <div class="tint-cajones">
+      {% for t in c.tint_items %}
+      <div class="tint-cajon {% if t.titulo == elegida.titulo %}on{% endif %}">
+        <div class="t">{{ t.titulo }}</div>
+        <div class="p">{{ t.precio|cop }}</div>
+        <div class="q">
+          {%- if t.garantia %}Garantía de {{ t.garantia }}.{% endif %}
+          {%- if t.rechazo_ir %} Rechazo IR del {{ t.rechazo_ir }}.{% endif %}
+          {%- if t.nota %} {{ t.nota }}.{% endif -%}
+        </div>
+        {% if t.titulo == elegida.titulo %}<div class="e">Va en el total</div>{% endif %}
+      </div>
+      {% endfor %}
+    </div>
     {% endif %}
 
     {% if c.tiene_wrap %}
