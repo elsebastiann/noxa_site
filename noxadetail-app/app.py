@@ -14090,6 +14090,16 @@ def _partes_ppf() -> list:
     ]
 
 
+def _marcas_del_armador(cot: "Quote | None" = None) -> list:
+    """Las marcas que el armador debe mostrar: las del catálogo y, al editar,
+    también las que esa cotización tenga escritas a mano."""
+    marcas = ppf_marcas_activas()
+    if not (cot and cot.ppf_brands):
+        return marcas
+    conocidas = {m for m, _g in marcas}
+    return marcas + [(m, g) for m, g in cot.ppf_marcas if m not in conocidas]
+
+
 def _catalogo_wrap() -> list:
     """Las coberturas de wrap activas, para el armador. Se manda el precio de
     lista; el valor exacto de ESTE carro se escribe en la cotización."""
@@ -14656,7 +14666,10 @@ def quote_edit(code):
         tipos=VehicleType.query.filter_by(is_active=True).order_by(VehicleType.name).all(),
         catalogo=_catalogo_para_cotizar(),
         catalogo_ppf=_catalogo_ppf(),
-        marcas_ppf=ppf_marcas_activas(),
+        # El catálogo MÁS las marcas que esta cotización trae y que no están en
+        # él: una marca escrita a mano vive solo en su cotización, y sin esto
+        # al editarla desaparecía de la pantalla y se perdía al guardar.
+        marcas_ppf=_marcas_del_armador(cot),
         # Las que ESTA cotización tiene, con su garantía. Sin esto el armador
         # pintaba las casillas contra el catálogo, así que al editar aparecían
         # marcadas marcas que la cotización no tiene y con la garantía de lista

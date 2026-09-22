@@ -12,6 +12,7 @@ from conftest import app_module as A, make_user
 from precios_ppf import foto, precio
 
 _u = itertools.count(1)
+_contador = itertools.count(1)
 
 
 def _login_admin(client, usuario="diana"):
@@ -294,3 +295,79 @@ class TestLaCabeceraDelPdf:
         bloque = fuente[i:i + 600]
         assert 'titulo = f"<font size=9><b>{marca}</b></font>"' in bloque, (
             "el nombre de la marca debe ir siempre, con o sin garantía")
+
+
+class TestUnaMarcaEscritaAMano:
+    """Se puede cotizar con una marca que no está en el catálogo, con su propia
+    garantía. Pasa cuando el instalador consigue una película puntual, o cuando
+    se cotiza algo que todavía no se decidió cargar al sistema.
+
+    El servidor ya lo aceptaba —congela lo que llegue en el formulario, que es
+    la misma razón por la que una garantía negociada puede diferir de la de
+    lista—; lo que faltaba era la pantalla y que sobreviviera al editar.
+    """
+
+    def _sesion(self, client):
+        with A.app.app_context():
+            uid = make_user(f"mm{next(_contador)}", role="admin").id
+        with client.session_transaction() as s:
+            s["user_id"] = uid
+        return client
+
+    def _crear(self, client, **datos):
+        base = {"customer_name": "Diego", "ppf_coverage": ["Farolas"]}
+        base.update(datos)
+        r = client.post("/quotes/new", data=base, follow_redirects=False)
+        assert r.status_code == 302, r.data[:200]
+        return r.headers["Location"].rstrip("/").split("/")[-1]
+
+    def _borrar(self, code):
+        with A.app.app_context():
+            c = A.Quote.query.filter_by(code=code).first()
+            if c:
+                A.db.session.delete(c)
+                A.db.session.commit()
+
+    def test_se_cotiza_con_su_garantia(self, client):
+        ses = self._sesion(client)
+        code = self._crear(ses, ppf_marca=["Hexis"],
+                           **{"ppf_garantia::Hexis": "4",
+                              "ppf_precio::Farolas||Hexis": "480000"})
+        try:
+            with A.app.app_context():
+                c = A.Quote.query.filter_by(code=code).first()
+                assert dict(c.ppf_marcas) == {"Hexis": 4}
+                assert c.ppf_items[0].precios["Hexis"] == 480_000
+        finally:
+            self._borrar(code)
+
+    def test_no_se_cuela_al_catálogo(self, client):
+        """Vive solo en esa cotización. Para que quede en el sistema hay que
+        agregarla en Precios PPF."""
+        ses = self._sesion(client)
+        code = self._crear(ses, ppf_marca=["Hexis"],
+                           **{"ppf_garantia::Hexis": "4",
+                              "ppf_precio::Farolas||Hexis": "480000"})
+        try:
+            with A.app.app_context():
+                assert not A.PpfFilmBrand.query.filter_by(name="Hexis").first()
+        finally:
+            self._borrar(code)
+
+    def test_al_editar_sigue_ahí(self, client):
+        """Sin esto, el armador pintaba solo el catálogo: la marca escrita a
+        mano desaparecía de la pantalla y se perdía al guardar."""
+        ses = self._sesion(client)
+        code = self._crear(ses, ppf_marca=["Hexis"],
+                           **{"ppf_garantia::Hexis": "4",
+                              "ppf_precio::Farolas||Hexis": "480000"})
+        try:
+            cuerpo = ses.get(f"/quotes/{code}/edit").data.decode()
+            assert 'value="Hexis"' in cuerpo
+            assert 'name="ppf_garantia::Hexis"' in cuerpo
+        finally:
+            self._borrar(code)
+
+    def test_el_formulario_trae_el_campo_para_agregarla(self, client):
+        ses = self._sesion(client)
+        assert 'id="nuevaMarca"' in ses.get("/quotes/new").data.decode()

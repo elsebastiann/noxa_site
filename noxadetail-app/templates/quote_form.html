@@ -164,6 +164,15 @@
   .mc-item.on { border-color:var(--accent,#c8a04a); background:rgba(200,160,74,.13); }
   .mc-item input[type=checkbox] { accent-color:var(--accent,#c8a04a); width:15px; height:15px; }
   .mc-nom { font-weight:700; color:#eee; }
+  .mc-nueva { display:flex; gap:6px; margin-top:8px; flex-wrap:wrap; }
+  .mc-nueva input { background:rgba(0,0,0,.3); border:1px solid rgba(255,255,255,.14);
+                    color:#eee; border-radius:6px; padding:5px 9px; font-size:.82rem; }
+  .mc-nueva input#nuevaMarca { flex:1; min-width:130px; }
+  .mc-nueva input#nuevaMarcaGar { width:70px; text-align:center; }
+  .mc-nueva button { background:transparent; border:1px solid rgba(200,160,74,.5);
+                     color:var(--accent,#c8a04a); border-radius:6px; padding:5px 12px;
+                     font-size:.8rem; font-weight:700; cursor:pointer; }
+  .mc-nueva button:hover { background:rgba(200,160,74,.14); }
   .mc-gar { color:#9a9a9a; font-size:.76rem; display:flex; align-items:center; gap:4px; }
   .mc-gar input { width:46px; text-align:center; background:rgba(0,0,0,.3);
                   border:1px solid rgba(255,255,255,.12); color:#eee;
@@ -337,6 +346,14 @@
                 </span>
               </label>
               {% endfor %}
+            </div>
+            {# Una marca que no está en el catálogo. Pasa cuando el instalador
+               consigue una película puntual o cuando se cotiza algo que todavía
+               no se decidió cargar al sistema. Vive solo en ESTA cotización. #}
+            <div class="mc-nueva">
+              <input type="text" id="nuevaMarca" maxlength="40" placeholder="Otra marca">
+              <input type="number" id="nuevaMarcaGar" min="0" max="99" placeholder="años">
+              <button type="button" id="btnNuevaMarca">+ Agregar</button>
             </div>
           </div>
 
@@ -1060,13 +1077,81 @@ document.getElementById("btnLibre2").onclick = () => {
   pintarLibres();
 };
 
-document.querySelectorAll('input[name="ppf_marca"]').forEach(cb =>
+document.querySelectorAll('input[name="ppf_marca"]').forEach(cb => conectarMarca(cb));
+document.querySelectorAll('.mc-gar input').forEach(inp =>
+  inp.addEventListener("input", () => pintarTodo()));
+
+// ---- Agregar una marca que no está en el catálogo ----
+// El servidor ya acepta cualquier marca con su garantía: congela lo que llegue
+// en el formulario, que es justo la razón de que una cotización pueda ir con
+// una garantía negociada distinta de la de lista. Esto es la pantalla que
+// faltaba. La marca vive solo en esta cotización; para que quede en el sistema
+// se agrega en Precios PPF.
+function conectarMarca(cb) {
   cb.addEventListener("change", () => {
     cb.closest(".mc-item").classList.toggle("on", cb.checked);
     pintarTodo();
+  });
+}
+
+function agregarMarcaManual() {
+  const $n = document.getElementById("nuevaMarca");
+  const $g = document.getElementById("nuevaMarcaGar");
+  const nombre = ($n.value || "").trim().slice(0, 40);
+  if (!nombre) { $n.focus(); return; }
+
+  // Si ya está, se marca la que hay en vez de crear una columna duplicada que
+  // el servidor terminaría descartando igual.
+  const repetida = MARCAS_PPF.find(([m]) => m.toLowerCase() === nombre.toLowerCase());
+  if (repetida) {
+    const cb = [...document.querySelectorAll('input[name="ppf_marca"]')]
+      .find(i => i.value === repetida[0]);
+    if (cb && !cb.checked) { cb.checked = true; cb.dispatchEvent(new Event("change")); }
+    $n.value = ""; $g.value = "";
+    return;
+  }
+
+  const anios = $g.value === "" ? null : Math.max(0, Math.min(99, Number($g.value) || 0));
+  MARCAS_PPF.push([nombre, anios]);
+
+  // Con el DOM y no armando HTML: el nombre lo escribe una persona y puede
+  // traer comillas. Interpolarlo en una plantilla de texto ya rompió antes el
+  // formulario de las coberturas.
+  const label = document.createElement("label");
+  label.className = "mc-item on";
+  label.dataset.marca = nombre;
+
+  const cb = document.createElement("input");
+  cb.type = "checkbox"; cb.name = "ppf_marca"; cb.value = nombre; cb.checked = true;
+
+  const nom = document.createElement("span");
+  nom.className = "mc-nom"; nom.textContent = nombre;
+
+  const gar = document.createElement("span");
+  gar.className = "mc-gar";
+  const inpG = document.createElement("input");
+  inpG.type = "number"; inpG.min = "0"; inpG.max = "99";
+  inpG.name = "ppf_garantia::" + nombre;
+  inpG.value = anios === null ? "" : anios;
+  inpG.placeholder = "—";
+  inpG.addEventListener("input", () => pintarTodo());
+  gar.append(inpG, document.createTextNode(" años"));
+
+  label.append(cb, nom, gar);
+  document.querySelector(".mc-grid").appendChild(label);
+  conectarMarca(cb);
+
+  $n.value = ""; $g.value = "";
+  $n.focus();
+  pintarTodo();
+}
+
+document.getElementById("btnNuevaMarca").addEventListener("click", agregarMarcaManual);
+// Enter en el nombre agrega, en vez de enviar la cotización a medio armar.
+["nuevaMarca", "nuevaMarcaGar"].forEach(id =>
+  document.getElementById(id).addEventListener("keydown", ev => {
+    if (ev.key === "Enter") { ev.preventDefault(); agregarMarcaManual(); }
   }));
-document.querySelectorAll('.mc-gar input').forEach(inp =>
-  inp.addEventListener("input", () => pintarTodo()));
 
 function pintarTodo() {
   pintarCatalogo(); pintarMatrizPpf(); pintarLibres(); pintarLineas(); pintarTotales();
