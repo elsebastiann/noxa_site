@@ -12728,6 +12728,9 @@ def _generate_and_send_reply(conversation: "Conversation", from_number: str, med
                 new_name = candidate
         else:
             visible_chunks.append(chunk)
+    # Un trozo en blanco no es un mensaje: WhatsApp lo rechaza y, cuando era el
+    # único, el turno contaba como enviado sin que el cliente recibiera nada.
+    visible_chunks = [c for c in visible_chunks if c.strip()]
     visible_chunks = visible_chunks[:3]  # el límite de "máximo 3 mensajes" aplica solo a lo visible
 
     # Un turno sin [META:] no actualiza nada: ni el carro, ni el servicio, ni la
@@ -12917,8 +12920,33 @@ def _generate_and_send_reply(conversation: "Conversation", from_number: str, med
         except Exception as exc:
             app.logger.error(f"[WhatsApp] Error avisando escalamiento al admin: {exc}")
 
+    # Un turno que no mandó NADA es una falla, no un éxito.
+    #
+    # Pasaba en silencio: si el modelo devolvía solo marcadores —un [META:] y
+    # nada más— o si el filtro del menú de bienvenida se llevaba el único
+    # mensaje visible, el bucle de envío no corría, `send_failed` quedaba en
+    # False y esto devolvía True. Para el webhook el turno había salido bien:
+    # no reintentaba, no pausaba el bot y no avisaba a nadie. El cliente se
+    # quedaba esperando una respuesta que nunca se escribió, y del lado de
+    # adentro la conversación se veía normal. Visto en producción el 22/09.
+    #
+    # Devolver False hace que el webhook reintente el turno; si tras los tres
+    # intentos sigue sin salir nada, ya hay camino hecho: pausa el bot, le manda
+    # "dame un momento" al cliente y avisa al admin.
+    #
+    # No cuenta como falla cuando el turno SÍ hizo algo: al escalar, la
+    # conversación queda en manos de un humano y ya se avisó; y si se agendó o
+    # se movió una cita, reintentar la crearía dos veces.
+    sin_nada_que_decir = (not visible_chunks and not escalation_reason
+                          and not booked_appt and not moved_appt)
+    if sin_nada_que_decir:
+        app.logger.error(
+            f"[Bot] Turno sin ningún mensaje visible para {conversation.phone}. "
+            f"El modelo devolvió {len(reply_chunks)} trozo(s), todos marcadores o vacíos."
+        )
+
     # Se conserva el contrato con el webhook: False hace que reintente el turno.
-    return not send_failed
+    return not send_failed and not sin_nada_que_decir
 
 
 # ── Webhook: ESTADO DE ENTREGA de los mensajes salientes (Twilio) ─────────────

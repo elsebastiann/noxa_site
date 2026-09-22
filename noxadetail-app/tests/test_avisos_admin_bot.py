@@ -355,3 +355,70 @@ class TestComputePriority:
     def test_no_interesado_con_calificacion_baja_es_baja(self):
         assert A._compute_priority("No interesado", 3) == "Baja"
         assert A._compute_priority("No interesado", None) == "Baja"
+
+
+class TestUnTurnoSinRespuestaNoPasaEnSilencio:
+    """El caso visto en producción el 22/09: el cliente preguntó "¿y hoy no se
+    puede?" y Mariana no dijo nada. Ni una respuesta, ni el aviso de que hacía
+    falta un humano, ni el bot pausado. Desde adentro la conversación se veía
+    perfectamente normal.
+
+    La causa: si el modelo devuelve solo marcadores —un [META:] y nada más— el
+    bucle de envío no corre, nadie falla y la función devolvía True. Para el
+    webhook el turno había salido bien.
+    """
+
+    def test_solo_marcadores_cuenta_como_fallo(self, conversacion):
+        ok, enviados, _ = _correr_turno(
+            conversacion, ["[META: estado=En proceso; servicios=Cerámico; "
+                           "carro=Toyota Corolla Cross; marca=Toyota; calificacion=4]"])
+        assert ok is False, "el turno se reportó como exitoso sin haber dicho nada"
+        assert not [e for e in enviados if e["kind"] == "bot_respuesta"]
+
+    def test_una_respuesta_vacía_también(self, conversacion):
+        ok, _enviados, _ = _correr_turno(conversacion, ["   ", ""])
+        assert ok is False
+
+    def test_con_un_mensaje_de_verdad_sigue_siendo_exitoso(self, conversacion):
+        """Contraprueba: si no, bastaría con devolver siempre False."""
+        ok, enviados, _ = _correr_turno(
+            conversacion, ["Claro que sí, hoy tengo espacio a las 11:30.",
+                           "[META: estado=En proceso; servicios=; carro=Sin dato; "
+                           "marca=Sin dato; calificacion=3]"])
+        assert ok is True
+        assert _kinds(enviados).count("bot_respuesta") == 1
+
+    def test_escalar_sin_mensaje_visible_no_cuenta_como_fallo(self, conversacion):
+        """Ahí la conversación ya quedó en manos de un humano y el aviso salió:
+        reintentar el turno solo repetiría el escalamiento."""
+        ok, enviados, _ = _correr_turno(
+            conversacion, ["[ESCALAR: el cliente pide hablar con alguien]"])
+        assert ok is True
+        assert "admin_escalacion" in _kinds(enviados)
+
+    def test_el_webhook_pausa_el_bot_y_avisa_si_se_repite(self, conversacion):
+        """Lo que el usuario echó de menos: que alguien se entere. Tras los tres
+        intentos el webhook pausa el bot, le escribe al cliente y avisa."""
+        from unittest.mock import patch
+        enviados = []
+
+        def fake_send(to, body, **kw):
+            enviados.append({"to": to, "body": body, "kind": kw.get("kind")})
+            return True, ""
+
+        with A.app.app_context():
+            conv = A.Conversation.query.get(conversacion)
+            with patch.object(A, "send_whatsapp", side_effect=fake_send), \
+                 patch.object(A, "get_claude_reply", return_value=["[META: estado=Iniciado]"]), \
+                 patch.object(A, "push_notification"), \
+                 patch.object(A, "_summarize_conversation_for_admin", return_value="preguntó por precios"), \
+                 patch.dict(A.os.environ, {"ADMIN_WHATSAPP": "+573001112233"}):
+                datos = {"From": f"whatsapp:{conv.phone}", "Body": "¿y hoy no se puede?",
+                         "ProfileName": "Manu Prueba", "NumMedia": "0"}
+                A.app.test_client().post("/whatsapp/webhook", data=datos)
+
+        kinds = [e["kind"] for e in enviados]
+        assert "bot_fallback" in kinds, f"no se le avisó al cliente; salió: {kinds}"
+        assert "admin_bot_atascado" in kinds, f"no se le avisó al admin; salió: {kinds}"
+        with A.app.app_context():
+            assert A.Conversation.query.get(conversacion).bot_active is False
