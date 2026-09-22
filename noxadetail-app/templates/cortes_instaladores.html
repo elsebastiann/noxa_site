@@ -1,0 +1,136 @@
+{% extends "base.html" %}
+
+{% macro money(v) %}${{ '{:,.0f}'.format(v).replace(',', '.') }}{% endmacro %}
+
+{% block extra_head %}
+<style>
+  .ct-note { color:var(--text2); font-size:.85rem; max-width:72ch; line-height:1.5; margin:8px 0 20px; }
+  .ct-cab { display:flex; justify-content:space-between; align-items:center;
+            gap:14px; flex-wrap:wrap; margin-top:16px; }
+  .ct-tot { display:flex; gap:18px; flex-wrap:wrap; margin:20px 0 26px; }
+  .ct-tot div { border:1px solid var(--border); border-radius:var(--radius);
+                padding:14px 20px; background:var(--surface2); }
+  .ct-tot .lbl { font-size:.75rem; color:var(--text2); text-transform:uppercase; letter-spacing:.4px; }
+  .ct-tot .val { font-size:1.5rem; font-weight:700; line-height:1.2; }
+  .ct-pend { display:flex; gap:12px; flex-wrap:wrap; margin-bottom:26px; }
+  .ct-pend a { display:block; border:1px solid var(--border); border-radius:var(--radius);
+               padding:12px 16px; background:var(--surface); text-decoration:none;
+               color:inherit; min-width:190px; }
+  .ct-pend a:hover { border-color:var(--accent); }
+  .ct-pend .nom { font-weight:700; }
+  .ct-pend .deb { font-size:1.2rem; font-weight:700; color:var(--accent); }
+  .ct-pend .sub { font-size:.78rem; color:var(--text2); }
+  .ct-wrap { overflow-x:auto; border:1px solid var(--border); border-radius:var(--radius); }
+  table.ct { width:100%; border-collapse:collapse; font-size:.88rem; min-width:700px; }
+  table.ct th { background:var(--surface2); color:var(--text2); text-align:left;
+                padding:9px 12px; font-weight:600; white-space:nowrap; }
+  table.ct td { padding:10px 12px; border-top:1px solid var(--border); }
+  table.ct td.num { text-align:right; white-space:nowrap; }
+  table.ct tr:hover td { background:var(--surface2); }
+  .ct-chip { font-size:.72rem; padding:3px 9px; border-radius:20px; font-weight:700;
+             white-space:nowrap; }
+  .ct-chip.ok { background:#e6f4ea; color:#1e6b34; }
+  .ct-chip.no { background:var(--accent-bg); color:var(--accent-dk); }
+  .ct-vacio { padding:34px; text-align:center; color:var(--text2);
+              border:1px solid var(--border); border-radius:var(--radius); }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="ct-cab">
+  <h2 style="margin:0;">Cortes con instaladores</h2>
+  <a class="btn btn-sm btn-primary" href="{{ url_for('corte_instalador_nuevo') }}">
+    <i class="bi bi-plus-lg"></i> Nuevo corte
+  </a>
+</div>
+<p class="ct-note">
+  El cierre de cuentas por los polarizados y PPF que hizo un tercero. A diferencia
+  de la liquidación —que es un informe del periodo y se recalcula cada vez— un corte
+  queda grabado con los valores del día en que se hizo, y sus trabajos ya no vuelven
+  a aparecer como pendientes.
+</p>
+
+{% if pendientes %}
+  <h3 style="font-size:.95rem;margin:0 0 10px;">Pendiente por cortar</h3>
+  <div class="ct-pend">
+    {% for p in pendientes %}
+      <a href="{{ url_for('corte_instalador_nuevo', installer_id=p.installer.id) }}">
+        <div class="nom">{{ p.installer.name }}</div>
+        <div class="deb">{{ money(p.costo) }}</div>
+        <div class="sub">{{ p.citas }} cita{{ '' if p.citas == 1 else 's' }} sin cortar</div>
+      </a>
+    {% endfor %}
+  </div>
+{% endif %}
+
+{% if cortes %}
+  {% if por_pagar %}
+    <div class="ct-tot">
+      <div>
+        <div class="lbl">Cortes sin pagar</div>
+        <div class="val">{{ money(por_pagar) }}</div>
+      </div>
+    </div>
+  {% endif %}
+
+  <div class="ct-wrap">
+    <table class="ct">
+      <thead>
+        <tr>
+          <th>Corte</th><th>Instalador</th><th>Trabajos</th>
+          <th class="num">Cobrado al cliente</th>
+          <th class="num">Descuentos</th>
+          <th class="num">Al instalador</th>
+          <th>Estado</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for c in cortes %}
+          <tr onclick="location.href='{{ url_for('corte_instalador_detalle', cut_id=c.id) }}'"
+              style="cursor:pointer;">
+            <td>
+              <strong>#{{ '%04d' % c.id }}</strong><br>
+              <span style="font-size:.78rem;color:var(--text2);">
+                {{ c.created_at | hora_bogota('%d/%m/%Y') }}
+              </span>
+            </td>
+            <td>{{ c.installer.name if c.installer else '—' }}</td>
+            <td>{{ c.lines|length }}</td>
+            <td class="num">{{ money(c.total_cobrado) }}</td>
+            <td class="num">
+              {% if c.total_descuento %}
+                <span style="color:var(--accent-dk);">−{{ money(c.total_descuento) }}</span>
+              {% else %}
+                <span style="color:var(--text2);">—</span>
+              {% endif %}
+            </td>
+            <td class="num"><strong>{{ money(c.total_costo) }}</strong></td>
+            <td>
+              {% if c.pagado %}
+                <span class="ct-chip ok">Pagado {{ c.paid_on.strftime('%d/%m') }}</span>
+              {% else %}
+                <span class="ct-chip no">Pendiente</span>
+              {% endif %}
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <p class="ct-note" style="margin-top:20px;">
+    Lo que se le paga al instalador <strong>no se registra como gasto</strong>: ya viene
+    descontado del ingreso que muestra el tablero. Anotarlo también en Gastos lo restaría
+    dos veces.
+  </p>
+{% else %}
+  <div class="ct-vacio">
+    Todavía no se ha hecho ningún corte.
+    {% if not pendientes %}
+      <div style="margin-top:8px;font-size:.85rem;">
+        Tampoco hay trabajos tercerizados pendientes de cerrar.
+      </div>
+    {% endif %}
+  </div>
+{% endif %}
+{% endblock %}

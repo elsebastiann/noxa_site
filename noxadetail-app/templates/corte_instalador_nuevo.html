@@ -1,0 +1,254 @@
+{% extends "base.html" %}
+
+{% macro money(v) %}${{ '{:,.0f}'.format(v).replace(',', '.') }}{% endmacro %}
+
+{% block extra_head %}
+<style>
+  .cn-note { color:var(--text2); font-size:.85rem; max-width:72ch; line-height:1.5; margin:8px 0 20px; }
+  .cn-filtros { display:flex; gap:10px; flex-wrap:wrap; align-items:flex-end; margin-bottom:22px; }
+  .cn-cita { border:1px solid var(--border); border-radius:var(--radius);
+             margin-bottom:10px; background:var(--surface); overflow:hidden; }
+  .cn-cita.sel { border-color:var(--accent); box-shadow:0 0 0 1px var(--accent); }
+  .cn-head { display:flex; align-items:flex-start; gap:12px; padding:13px 15px; cursor:pointer; }
+  .cn-head input { margin-top:3px; width:17px; height:17px; flex:none; cursor:pointer; }
+  .cn-id { flex:1; min-width:0; }
+  .cn-id .tt { font-weight:700; }
+  .cn-id .ss { font-size:.8rem; color:var(--text2); margin-top:2px; }
+  .cn-val { text-align:right; white-space:nowrap; }
+  .cn-val .deb { font-weight:700; font-size:1.05rem; color:var(--accent); }
+  .cn-val .lb { font-size:.72rem; color:var(--text2); text-transform:uppercase; letter-spacing:.3px; }
+  .cn-lineas { border-top:1px solid var(--border); background:var(--surface2);
+               padding:4px 15px 10px; overflow-x:auto; }
+  /* El min-width la hace deslizable en vez de recortarla: en teléfono la última
+     columna —justo la que dice cuánto se le paga— se salía de la pantalla. */
+  table.cn-l { width:100%; min-width:500px; border-collapse:collapse; font-size:.82rem; }
+  table.cn-l th { color:var(--text2); text-align:left; padding:7px 8px; font-weight:600;
+                  font-size:.74rem; text-transform:uppercase; letter-spacing:.3px; }
+  table.cn-l td { padding:6px 8px; border-top:1px solid var(--border); }
+  table.cn-l td.num { text-align:right; white-space:nowrap; }
+  .cn-desc { font-size:.78rem; color:var(--accent-dk); margin-top:6px; }
+  .cn-mat { font-size:.68rem; padding:2px 7px; border-radius:20px;
+            background:var(--accent-bg); color:var(--accent-dk); font-weight:700; }
+  .cn-barra { position:sticky; bottom:0; background:var(--surface);
+              border-top:2px solid var(--accent); padding:14px 16px; margin-top:18px;
+              display:flex; gap:22px; flex-wrap:wrap; align-items:center;
+              justify-content:space-between; border-radius:var(--radius) var(--radius) 0 0; }
+  .cn-res { display:flex; gap:24px; flex-wrap:wrap; }
+  .cn-res .lbl { font-size:.72rem; color:var(--text2); text-transform:uppercase; letter-spacing:.3px; }
+  .cn-res .val { font-size:1.25rem; font-weight:700; line-height:1.2; }
+  .cn-res .val.acc { color:var(--accent); }
+  .cn-cierre { display:flex; gap:10px; flex-wrap:wrap; align-items:flex-end;
+               margin-top:18px; }
+
+  /* El nav inferior de la app es `fixed` y mide 62px, así que una barra pegada
+     a bottom:0 queda debajo de él —con el botón de crear tapado—. Se sube
+     exactamente esa altura. Va al breakpoint del nav, no al del resumen. */
+  @media (max-width: 991.98px) {
+    .cn-barra { bottom:calc(62px + env(safe-area-inset-bottom)); }
+  }
+
+  /* En teléfono la barra pegada abajo se comía media pantalla y tapaba las
+     citas que hay que marcar. Acá el resumen se aprieta en dos columnas y los
+     campos de cierre salen de la barra: se llenan una sola vez, al final, y no
+     tienen por qué seguir al dedo mientras se recorre la lista. */
+  @media (max-width: 720px) {
+    .cn-barra { padding:11px 13px; gap:12px; }
+    .cn-res { display:grid; grid-template-columns:1fr 1fr; gap:9px 16px; flex:1 1 100%; }
+    .cn-res .lbl { font-size:.66rem; }
+    .cn-res .val { font-size:1.02rem; }
+    .cn-barra .btn { width:100%; }
+    .cn-head { flex-wrap:wrap; }
+    .cn-val { text-align:left; padding-left:29px; }
+  }
+  .cn-vacio { padding:34px; text-align:center; color:var(--text2);
+              border:1px solid var(--border); border-radius:var(--radius); }
+</style>
+{% endblock %}
+
+{% block content %}
+<h2 style="margin-top:16px;">Nuevo corte</h2>
+<p class="cn-note">
+  Elige el instalador y marca las citas que entran. Los valores que ves son lo que el
+  cliente pagó <strong>solo por lo tercerizado</strong>: si la cita traía además un lavado,
+  ese pedazo no aparece acá porque es trabajo de Noxa. Lo que quede marcado se congela
+  con estos números y deja de aparecer como pendiente.
+</p>
+
+<form method="GET" class="cn-filtros">
+  <div>
+    <label class="form-label mb-1">Instalador</label>
+    <select name="installer_id" class="form-select form-select-sm"
+            onchange="this.form.submit()" style="min-width:200px;">
+      <option value="">Elige uno…</option>
+      {% for i in instaladores %}
+        <option value="{{ i.id }}" {{ 'selected' if installer_id == i.id }}>
+          {{ i.name }}{{ '' if i.is_active else ' (inactivo)' }}
+        </option>
+      {% endfor %}
+    </select>
+  </div>
+  <div>
+    <label class="form-label mb-1">Desde</label>
+    <input type="date" class="form-control form-control-sm" name="from"
+           value="{{ desde.isoformat() if desde else '' }}">
+  </div>
+  <div>
+    <label class="form-label mb-1">Hasta</label>
+    <input type="date" class="form-control form-control-sm" name="to"
+           value="{{ hasta.isoformat() if hasta else '' }}">
+  </div>
+  <button type="submit" class="btn btn-sm btn-outline-secondary">Filtrar</button>
+</form>
+
+{% if not installer_id %}
+  <div class="cn-vacio">Elige un instalador para ver qué trabajos tiene sin cortar.</div>
+{% elif not trabajos %}
+  <div class="cn-vacio">
+    Este instalador no tiene trabajos pendientes de corte{% if desde or hasta %} en ese rango de fechas{% endif %}.
+  </div>
+{% else %}
+  <form method="POST" id="formCorte">
+    <input type="hidden" name="installer_id" value="{{ installer_id }}">
+
+    <div style="margin-bottom:12px;">
+      <label style="font-size:.85rem;cursor:pointer;">
+        <input type="checkbox" id="chkTodas" style="width:16px;height:16px;vertical-align:-2px;">
+        Marcar todas ({{ trabajos|length }})
+      </label>
+    </div>
+
+    {% for t in trabajos %}
+      <div class="cn-cita" data-costo="{{ t.costo }}" data-cobrado="{{ t.cobrado }}"
+           data-lista="{{ t.lista }}">
+        <label class="cn-head">
+          <input type="checkbox" name="cita" value="{{ t.appointment_id }}" class="chkCita">
+          <div class="cn-id">
+            <div class="tt">
+              {{ t.fecha.strftime('%d/%m/%Y') if t.fecha else 'Sin fecha' }}
+              · {{ t.placa or 'sin placa' }}
+            </div>
+            <div class="ss">
+              {{ t.cliente or 'Sin cliente' }} ·
+              {{ t.lineas|map(attribute='servicio')|join(', ') }}
+            </div>
+            {% if t.lista != t.cobrado %}
+              <div class="cn-desc">
+                {% if t.lista > t.cobrado %}
+                  Descuento de {{ money(t.lista - t.cobrado) }}
+                {% else %}
+                  Recargo de {{ money(t.cobrado - t.lista) }}
+                {% endif %}
+                {% if t.motivo %}— {{ t.motivo }}{% endif %}
+              </div>
+            {% endif %}
+          </div>
+          <div class="cn-val">
+            <div class="lb">Le corresponde</div>
+            <div class="deb">{{ money(t.costo) }}</div>
+            <div class="lb" style="margin-top:4px;">de {{ money(t.cobrado) }} cobrados</div>
+          </div>
+        </label>
+
+        <div class="cn-lineas">
+          <table class="cn-l">
+            <thead>
+              <tr>
+                <th>Servicio</th><th>Detalle</th>
+                <th class="num">Lista</th><th class="num">Cobrado</th>
+                <th class="num">%</th><th class="num">Le corresponde</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for l in t.lineas %}
+                <tr>
+                  <td>
+                    {{ l.servicio }}
+                    {% if l.material_por == 'noxa' %}<span class="cn-mat">material Noxa</span>{% endif %}
+                  </td>
+                  <td style="color:var(--text2);">{{ l.descripcion or '—' }}</td>
+                  <td class="num" style="color:var(--text2);">{{ money(l.lista) }}</td>
+                  <td class="num">{{ money(l.cobrado) }}</td>
+                  <td class="num">{{ l.pct }}%</td>
+                  <td class="num"><strong>{{ money(l.costo) }}</strong></td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    {% endfor %}
+
+    <div class="cn-cierre">
+      <div>
+        <label class="form-label mb-1" style="font-size:.78rem;">Pagado el (opcional)</label>
+        <input type="date" name="paid_on" class="form-control form-control-sm" max="{{ hoy.isoformat() }}">
+      </div>
+      <div>
+        <label class="form-label mb-1" style="font-size:.78rem;">Nota</label>
+        <input type="text" name="note" class="form-control form-control-sm"
+               placeholder="Opcional" style="min-width:170px;">
+      </div>
+    </div>
+
+    <div class="cn-barra">
+      <div class="cn-res">
+        <div>
+          <div class="lbl">Citas</div>
+          <div class="val" id="resCitas">0</div>
+        </div>
+        <div>
+          <div class="lbl">Cobrado al cliente</div>
+          <div class="val" id="resCobrado">$0</div>
+        </div>
+        <div>
+          <div class="lbl">Descuentos</div>
+          <div class="val" id="resDesc">$0</div>
+        </div>
+        <div>
+          <div class="lbl">A pagar al instalador</div>
+          <div class="val acc" id="resCosto">$0</div>
+        </div>
+      </div>
+      <button type="submit" class="btn btn-primary" id="btnCrear" disabled>Crear corte</button>
+    </div>
+  </form>
+
+  <script>
+  (function () {
+    const pesos = v => '$' + Math.round(v).toLocaleString('es-CO').replace(/,/g, '.');
+    const cajas = Array.from(document.querySelectorAll('.cn-cita'));
+    const todas = document.getElementById('chkTodas');
+
+    function recalcular() {
+      let n = 0, cobrado = 0, costo = 0, lista = 0;
+      cajas.forEach(caja => {
+        const chk = caja.querySelector('.chkCita');
+        caja.classList.toggle('sel', chk.checked);
+        if (!chk.checked) return;
+        n++;
+        cobrado += +caja.dataset.cobrado;
+        costo   += +caja.dataset.costo;
+        lista   += +caja.dataset.lista;
+      });
+      document.getElementById('resCitas').textContent = n;
+      document.getElementById('resCobrado').textContent = pesos(cobrado);
+      document.getElementById('resCosto').textContent = pesos(costo);
+      const dif = lista - cobrado;
+      document.getElementById('resDesc').textContent =
+        dif === 0 ? '—' : (dif > 0 ? '−' : '+') + pesos(Math.abs(dif));
+      document.getElementById('btnCrear').disabled = (n === 0);
+      if (todas) todas.checked = (n === cajas.length && n > 0);
+    }
+
+    cajas.forEach(c => c.querySelector('.chkCita').addEventListener('change', recalcular));
+    if (todas) {
+      todas.addEventListener('change', () => {
+        cajas.forEach(c => { c.querySelector('.chkCita').checked = todas.checked; });
+        recalcular();
+      });
+    }
+    recalcular();
+  })();
+  </script>
+{% endif %}
+{% endblock %}

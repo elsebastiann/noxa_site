@@ -1,7 +1,7 @@
 {
   "app.py": {
-    "mtime": 1790106955.9788556,
-    "ast_hash": "c23c3cd7a03f96466d3a685357366118",
+    "mtime": 1790114788.8363273,
+    "ast_hash": "8f044df1d61a8f6cc628a1c5b686a8bf",
     "semantic_hash": ""
   },
   "migrate_prices.py": {
@@ -75,8 +75,8 @@
     "semantic_hash": ""
   },
   "templates/base.html": {
-    "mtime": 1790016639.6580167,
-    "ast_hash": "730eac58ce7d31d88a73514dba2801b7",
+    "mtime": 1790107673.5149012,
+    "ast_hash": "d07a5e215e19bc9abc7377ee8746a45b",
     "semantic_hash": ""
   },
   "templates/calendar.html": {
@@ -635,8 +635,28 @@
     "semantic_hash": ""
   },
   "tests/test_polarizado.py": {
-    "mtime": 1790106868.5897653,
-    "ast_hash": "ac5a39ff677d0daf41a1591df528bc44",
+    "mtime": 1790109892.5992625,
+    "ast_hash": "948eaa84ccbdc3173205fa3aa3003af1",
+    "semantic_hash": ""
+  },
+  "tests/test_cortes_instaladores.py": {
+    "mtime": 1790109640.6994286,
+    "ast_hash": "214748fca6500e7462832eab2150b8bc",
+    "semantic_hash": ""
+  },
+  "templates/corte_instalador_detalle.html": {
+    "mtime": 1790109792.798758,
+    "ast_hash": "8ed2bdb7b64338ad4838e5cca51a8288",
+    "semantic_hash": ""
+  },
+  "templates/corte_instalador_nuevo.html": {
+    "mtime": 1790109765.2383006,
+    "ast_hash": "1d62ab5f2908c45087efb33938f750f5",
+    "semantic_hash": ""
+  },
+  "templates/cortes_instaladores.html": {
+    "mtime": 1790109455.3855636,
+    "ast_hash": "18a4f17a485ec86e69533eff18095b9e",
     "semantic_hash": ""
   }
 }

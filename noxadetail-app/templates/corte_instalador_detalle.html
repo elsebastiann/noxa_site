@@ -1,0 +1,190 @@
+{% extends "base.html" %}
+
+{% macro money(v) %}${{ '{:,.0f}'.format(v).replace(',', '.') }}{% endmacro %}
+
+{% block extra_head %}
+<style>
+  .cd-note { color:var(--text2); font-size:.85rem; max-width:72ch; line-height:1.5; margin:8px 0 20px; }
+  .cd-cab { display:flex; justify-content:space-between; align-items:flex-start;
+            gap:14px; flex-wrap:wrap; margin-top:16px; }
+  .cd-meta { font-size:.83rem; color:var(--text2); margin-top:4px; }
+  .cd-tot { display:flex; gap:16px; flex-wrap:wrap; margin:20px 0 24px; }
+  /* `>` y no descendiente: sin él la regla también encajona el rótulo y la
+     cifra de adentro, y cada tarjeta sale con tres marcos. */
+  .cd-tot > div { border:1px solid var(--border); border-radius:var(--radius);
+                  padding:14px 20px; background:var(--surface2); flex:1 1 200px; }
+  .cd-tot .lbl { font-size:.73rem; color:var(--text2); text-transform:uppercase; letter-spacing:.4px; }
+  .cd-tot .val { font-size:1.45rem; font-weight:700; line-height:1.2; }
+  .cd-tot .val.acc { color:var(--accent); }
+  .cd-wrap { overflow-x:auto; border:1px solid var(--border); border-radius:var(--radius); }
+  table.cd { width:100%; border-collapse:collapse; font-size:.85rem; min-width:820px; }
+  table.cd th { background:var(--surface2); color:var(--text2); text-align:left;
+                padding:9px 12px; font-weight:600; white-space:nowrap; }
+  table.cd td { padding:9px 12px; border-top:1px solid var(--border); vertical-align:top; }
+  table.cd td.num { text-align:right; white-space:nowrap; }
+  table.cd tfoot td { border-top:2px solid var(--border); font-weight:700;
+                      background:var(--surface2); }
+  .cd-chip { font-size:.74rem; padding:4px 11px; border-radius:20px; font-weight:700; }
+  .cd-chip.ok { background:#e6f4ea; color:#1e6b34; }
+  .cd-chip.no { background:var(--accent-bg); color:var(--accent-dk); }
+  .cd-mat { font-size:.68rem; padding:2px 7px; border-radius:20px;
+            background:var(--accent-bg); color:var(--accent-dk); font-weight:700; }
+  .cd-motivo { font-size:.78rem; color:var(--accent-dk); }
+  .cd-acciones { display:flex; gap:10px; flex-wrap:wrap; align-items:flex-end;
+                 margin-top:24px; padding-top:20px; border-top:1px solid var(--border); }
+
+  /* Apiladas, las cuatro cifras ocupaban tres pantallas antes de llegar a la
+     tabla. En dos columnas caben todas de una. */
+  @media (max-width: 720px) {
+    .cd-tot { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+    .cd-tot > div { padding:11px 13px; }
+    .cd-tot .val { font-size:1.12rem; }
+    .cd-tot .lbl { font-size:.68rem; }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="cd-cab">
+  <div>
+    <h2 style="margin:0;">
+      Corte #{{ '%04d' % corte.id }} · {{ corte.installer.name if corte.installer else '—' }}
+    </h2>
+    <div class="cd-meta">
+      Armado el {{ corte.created_at | hora_bogota('%d/%m/%Y') }}
+      {%- if corte.created_by %} por {{ corte.created_by }}{% endif %} ·
+      {{ corte.lines|length }} trabajo{{ '' if corte.lines|length == 1 else 's' }}
+    </div>
+    {% if corte.note %}
+      <div class="cd-meta" style="margin-top:6px;">{{ corte.note }}</div>
+    {% endif %}
+  </div>
+  <div style="text-align:right;">
+    {% if corte.pagado %}
+      <span class="cd-chip ok">Pagado el {{ corte.paid_on.strftime('%d/%m/%Y') }}</span>
+    {% else %}
+      <span class="cd-chip no">Pendiente de pago</span>
+    {% endif %}
+    <div style="margin-top:10px;">
+      <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('cortes_instaladores_view') }}">
+        Volver a cortes
+      </a>
+    </div>
+  </div>
+</div>
+
+<div class="cd-tot">
+  <div>
+    <div class="lbl">Cobrado al cliente</div>
+    <div class="val">{{ money(corte.total_cobrado) }}</div>
+    <div class="lbl" style="margin-top:4px;text-transform:none;letter-spacing:0;">
+      solo lo tercerizado
+    </div>
+  </div>
+  <div>
+    <div class="lbl">Descuentos</div>
+    <div class="val">
+      {% if corte.total_descuento > 0 %}
+        −{{ money(corte.total_descuento) }}
+      {% elif corte.total_descuento < 0 %}
+        +{{ money(-corte.total_descuento) }}
+      {% else %}
+        —
+      {% endif %}
+    </div>
+    <div class="lbl" style="margin-top:4px;text-transform:none;letter-spacing:0;">
+      sobre {{ money(corte.total_lista) }} de lista
+    </div>
+  </div>
+  <div>
+    <div class="lbl">A pagar al instalador</div>
+    <div class="val acc">{{ money(corte.total_costo) }}</div>
+  </div>
+  <div>
+    <div class="lbl">Le queda a Noxa</div>
+    <div class="val">{{ money(corte.queda_noxa) }}</div>
+  </div>
+</div>
+
+<div class="cd-wrap">
+  <table class="cd">
+    <thead>
+      <tr>
+        <th>Fecha</th><th>Placa</th><th>Cliente</th><th>Servicio</th>
+        <th class="num">Lista</th><th class="num">Cobrado</th>
+        <th class="num">%</th><th class="num">Le corresponde</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for l in corte.lines %}
+        <tr>
+          <td>{{ l.fecha.strftime('%d/%m/%y') if l.fecha else '—' }}</td>
+          <td>{{ l.placa or '—' }}</td>
+          <td>{{ l.cliente or '—' }}</td>
+          <td>
+            {{ l.servicio }}
+            {% if l.material_por == 'noxa' %}<span class="cd-mat">material Noxa</span>{% endif %}
+            {% if l.descripcion %}
+              <div style="font-size:.79rem;color:var(--text2);">{{ l.descripcion }}</div>
+            {% endif %}
+            {% if l.descuento and l.motivo %}
+              <div class="cd-motivo">{{ l.motivo }}</div>
+            {% endif %}
+          </td>
+          <td class="num" style="color:var(--text2);">{{ money(l.lista) }}</td>
+          <td class="num">
+            {{ money(l.cobrado) }}
+            {% if l.descuento > 0 %}
+              <div class="cd-motivo">−{{ money(l.descuento) }}</div>
+            {% elif l.descuento < 0 %}
+              <div class="cd-motivo">+{{ money(-l.descuento) }}</div>
+            {% endif %}
+          </td>
+          <td class="num">{{ l.pct }}%</td>
+          <td class="num"><strong>{{ money(l.costo) }}</strong></td>
+        </tr>
+      {% endfor %}
+    </tbody>
+    <tfoot>
+      <tr>
+        <td colspan="4">Total</td>
+        <td class="num">{{ money(corte.total_lista) }}</td>
+        <td class="num">{{ money(corte.total_cobrado) }}</td>
+        <td></td>
+        <td class="num">{{ money(corte.total_costo) }}</td>
+      </tr>
+    </tfoot>
+  </table>
+</div>
+
+<p class="cd-note" style="margin-top:18px;">
+  Estos valores quedaron congelados el día del corte. Si después se edita el descuento
+  de alguna de esas citas, el corte no cambia: es lo que ya se cuadró con el instalador.
+  Y no se registran como gasto —ya vienen descontados del ingreso del tablero—.
+</p>
+
+<div class="cd-acciones">
+  {% if corte.pagado %}
+    <form method="POST" action="{{ url_for('corte_instalador_pagar', cut_id=corte.id) }}">
+      <input type="hidden" name="deshacer" value="1">
+      <button class="btn btn-sm btn-outline-secondary">Marcar como no pagado</button>
+    </form>
+  {% else %}
+    <form method="POST" action="{{ url_for('corte_instalador_pagar', cut_id=corte.id) }}"
+          style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;">
+      <div>
+        <label class="form-label mb-1" style="font-size:.78rem;">Fecha de pago</label>
+        <input type="date" name="paid_on" class="form-control form-control-sm"
+               value="{{ hoy.isoformat() }}" max="{{ hoy.isoformat() }}">
+      </div>
+      <button class="btn btn-sm btn-primary">Marcar como pagado</button>
+    </form>
+  {% endif %}
+
+  <form method="POST" action="{{ url_for('corte_instalador_borrar', cut_id=corte.id) }}"
+        style="margin-left:auto;"
+        onsubmit="return confirm('¿Eliminar este corte? Sus {{ corte.lines|length }} trabajo(s) volverán a quedar disponibles para otro corte.');">
+    <button class="btn btn-sm btn-outline-danger">Eliminar corte</button>
+  </form>
+</div>
+{% endblock %}

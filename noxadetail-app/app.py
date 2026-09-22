@@ -3615,6 +3615,113 @@ class AppointmentOutsourcing(db.Model):
         return f"<AppointmentOutsourcing appt={self.appointment_id} {self.service_name} {self.installer_pct}%>"
 
 
+class InstallerCut(db.Model):
+    """Un corte: el cierre de cuentas con UN instalador por unos trabajos.
+
+    Distinto de la liquidación por periodo, que es un informe y se recalcula
+    cada vez que se abre. Un corte es un hecho: estos trabajos se cerraron, por
+    esta plata, este día. Por eso existe como tabla y no como otro filtro de
+    fechas — sin él no hay forma de saber qué ya se pagó, y un trabajo puede
+    pagarse dos veces o no pagarse nunca sin que nada lo note.
+
+    No se arma por rango de fechas sino por selección: en la calle el corte se
+    hace por los trabajos que ya están entregados y cobrados, que casi nunca
+    coinciden con un mes cerrado.
+    """
+    __tablename__ = "installer_cuts"
+    id           = db.Column(db.Integer, primary_key=True)
+    installer_id = db.Column(db.Integer, db.ForeignKey("installers.id"),
+                             nullable=False, index=True)
+    created_at   = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    created_by   = db.Column(db.String(80), nullable=True)
+    # NULL = armado pero todavía sin pagar. El corte se arma cuando se cuadra
+    # con el instalador y se paga después, a veces días después.
+    paid_on      = db.Column(db.Date, nullable=True)
+    note         = db.Column(db.Text, nullable=True)
+
+    installer = db.relationship("Installer")
+    lines     = db.relationship("InstallerCutLine", backref="cut",
+                                cascade="all, delete-orphan",
+                                order_by="InstallerCutLine.fecha")
+
+    @property
+    def total_cobrado(self) -> int:
+        """Lo que el cliente pagó por estos trabajos. SOLO lo tercerizado: el
+        lavado que iba en la misma cita no es plata de este corte."""
+        return sum(int(l.cobrado or 0) for l in self.lines)
+
+    @property
+    def total_lista(self) -> int:
+        return sum(int(l.lista or 0) for l in self.lines)
+
+    @property
+    def total_costo(self) -> int:
+        """Lo que se le debe al instalador."""
+        return sum(int(l.costo or 0) for l in self.lines)
+
+    @property
+    def total_descuento(self) -> int:
+        """Lo que se dejó de cobrar. Negativo si primaron los recargos."""
+        return self.total_lista - self.total_cobrado
+
+    @property
+    def queda_noxa(self) -> int:
+        return self.total_cobrado - self.total_costo
+
+    @property
+    def pagado(self) -> bool:
+        return self.paid_on is not None
+
+    def __repr__(self):
+        return f"<InstallerCut {self.id} inst={self.installer_id} {self.total_costo}>"
+
+
+class InstallerCutLine(db.Model):
+    """Un trabajo dentro de un corte, con sus números CONGELADOS.
+
+    Se copian y no se recalculan por la misma razón que en las cotizaciones: un
+    corte ya cuadrado con el instalador no puede cambiar solo porque alguien
+    edite el descuento de esa cita tres semanas después. Lo que se pagó, se
+    pagó, y el papel tiene que poder sostenerlo.
+
+    `outsourcing_id` queda como rastro hacia la línea viva —es lo que impide
+    meter el mismo trabajo en dos cortes— pero sin ON DELETE: si la cita se
+    borra, el corte sigue existiendo porque la plata igual salió.
+    """
+    __tablename__ = "installer_cut_lines"
+    id             = db.Column(db.Integer, primary_key=True)
+    cut_id         = db.Column(db.Integer, db.ForeignKey("installer_cuts.id"),
+                               nullable=False, index=True)
+    outsourcing_id = db.Column(db.Integer, nullable=True, index=True)
+    appointment_id = db.Column(db.Integer, nullable=True, index=True)
+
+    fecha       = db.Column(db.Date, nullable=True)
+    placa       = db.Column(db.String(20), nullable=True)
+    cliente     = db.Column(db.String(120), nullable=True)
+    servicio    = db.Column(db.String(120), nullable=True)
+    descripcion = db.Column(db.String(255), nullable=True)
+
+    # Precio de lista de ESTA línea, antes de convenio y descuentos.
+    lista        = db.Column(db.Integer, nullable=False, default=0)
+    # Lo que el cliente terminó pagando por ella, ya prorrateado el descuento
+    # de la cita. Es la base real del reparto.
+    cobrado      = db.Column(db.Integer, nullable=False, default=0)
+    pct          = db.Column(db.Integer, nullable=False, default=0)
+    material_por = db.Column(db.String(20), nullable=True)
+    costo        = db.Column(db.Integer, nullable=False, default=0)
+    # De dónde salió la diferencia entre lista y cobrado. Sin esto el corte
+    # muestra un número más bajo y nadie sabe si fue un convenio, una promoción
+    # o un error de digitación.
+    motivo       = db.Column(db.String(255), nullable=True)
+
+    @property
+    def descuento(self) -> int:
+        return int(self.lista or 0) - int(self.cobrado or 0)
+
+    def __repr__(self):
+        return f"<InstallerCutLine cut={self.cut_id} {self.servicio} {self.costo}>"
+
+
 class AppointmentPayment(db.Model):
     """Un abono: plata que el cliente ya entregó a cuenta del servicio.
 
@@ -7304,6 +7411,268 @@ def _liquidacion_instaladores(date_from, date_to) -> list[dict]:
             grupo["queda_noxa"] += linea["queda_noxa"]
 
     return sorted(por_instalador.values(), key=lambda g: g["total"], reverse=True)
+
+
+# ── Cortes con instaladores ──────────────────────────────────────────────────
+# Cerrar cuentas por los polarizados y PPF que hizo un tercero. La liquidación
+# de arriba responde "cuánto se le debe en el periodo"; esto responde "qué le
+# pagamos y por cuáles trabajos", que es lo que hay que poder sostener frente al
+# instalador seis meses después.
+
+def _motivo_del_descuento(appt, money: dict) -> str:
+    """Por qué esta cita se cobró por debajo de lista.
+
+    Sin esto el corte muestra un cobrado más bajo que el precio de lista y no
+    hay forma de distinguir un convenio pactado de un error de digitación —y esa
+    diferencia es justo la que el instalador va a preguntar, porque le baja lo
+    que se lleva."""
+    partes = []
+    if money.get("convenio", 0) > 0:
+        nombre = appt.agreement.name if appt.agreement else None
+        partes.append(f"Convenio {nombre}" if nombre else "Convenio")
+    for d in money.get("ajustes") or []:
+        # Cuando el ajuste trae descripción se usa sola: quien lo lee ya tiene
+        # el monto y el signo al lado, y anteponerle "Descuento:" produce
+        # "Descuento de $169.000 — Descuento: Cliente referido".
+        partes.append(d.get("description")
+                      or ("Descuento" if d.get("kind") == "discount" else "Recargo"))
+    return " · ".join(partes)
+
+
+def _lineas_ya_cortadas() -> set:
+    """Los trabajos que ya entraron a un corte. Son los que no pueden volver a
+    entrar: es la única defensa contra pagar dos veces el mismo polarizado."""
+    return {row[0] for row in db.session.query(InstallerCutLine.outsourcing_id)
+            .filter(InstallerCutLine.outsourcing_id.isnot(None)).all()}
+
+
+def _trabajos_cortables(installer_id: int, desde=None, hasta=None) -> list[dict]:
+    """Lo que le falta por cobrarle a este instalador, agrupado por cita.
+
+    Se agrupa por cita y no por línea porque así es como se arma el corte en la
+    práctica ("estos carros") — pero lo que entra y se descuenta del pendiente
+    es la línea, porque una cita puede tener el polarizado de este instalador y
+    el PPF de otro."""
+    if not installer_id:
+        return []
+
+    ya = _lineas_ya_cortadas()
+    citas = (Appointment.query
+             .filter(Appointment.status != "cancelled")
+             .order_by(Appointment.start_datetime)
+             .all())
+
+    salida = []
+    for a in citas:
+        if not a.outsourcings:
+            continue
+        fecha = a.start_datetime.date() if a.start_datetime else None
+        if desde and (not fecha or fecha < desde):
+            continue
+        if hasta and (not fecha or fecha > hasta):
+            continue
+
+        money = appointment_money(a)
+        lineas = []
+        for linea in money["tercerizado"]:
+            if linea.get("installer_id") != installer_id:
+                continue
+            if linea.get("id") in ya:
+                continue
+            # Lo que hizo el propio equipo no genera cuenta por pagar.
+            if not linea["costo_instalador"]:
+                continue
+            lineas.append({
+                "id": linea["id"],
+                "servicio": linea["servicio"],
+                "descripcion": linea["descripcion"],
+                "lista": linea["base"],
+                "cobrado": linea["cobrado"],
+                "pct": linea["pct"],
+                "material_por": linea["material_por"],
+                "costo": linea["costo_instalador"],
+            })
+        if not lineas:
+            continue
+
+        salida.append({
+            "appointment_id": a.id,
+            "fecha": fecha,
+            "placa": a.plate or "",
+            "cliente": a.customer_name or "",
+            "lineas": lineas,
+            "lista": sum(l["lista"] for l in lineas),
+            "cobrado": sum(l["cobrado"] for l in lineas),
+            "costo": sum(l["costo"] for l in lineas),
+            "motivo": _motivo_del_descuento(a, money),
+        })
+    return salida
+
+
+def _solo_admin() -> bool:
+    return bool(getattr(g, "current_user", None)) and g.current_user.role == "admin"
+
+
+@app.route("/cortes-instaladores")
+def cortes_instaladores_view():
+    """Los cortes ya hechos, y cuánto queda pendiente por cerrar."""
+    if not _solo_admin():
+        flash("Acceso restringido.", "danger")
+        return redirect(url_for("calendar_view"))
+
+    cortes = (InstallerCut.query
+              .order_by(InstallerCut.created_at.desc())
+              .all())
+
+    # Cuánto falta por cortarle a cada instalador. Es la pregunta que se hace al
+    # entrar: no "qué pagué" sino "a quién le debo".
+    pendientes = []
+    for inst in Installer.query.order_by(Installer.name).all():
+        trabajos = _trabajos_cortables(inst.id)
+        if trabajos:
+            pendientes.append({
+                "installer": inst,
+                "citas": len(trabajos),
+                "costo": sum(t["costo"] for t in trabajos),
+            })
+
+    return render_template(
+        "cortes_instaladores.html",
+        cortes=cortes,
+        pendientes=pendientes,
+        por_pagar=sum(c.total_costo for c in cortes if not c.pagado),
+    )
+
+
+@app.route("/cortes-instaladores/nuevo", methods=["GET", "POST"])
+def corte_instalador_nuevo():
+    """Armar un corte: se elige el instalador y se marcan las citas que entran."""
+    if not _solo_admin():
+        flash("Acceso restringido.", "danger")
+        return redirect(url_for("calendar_view"))
+
+    instaladores = Installer.query.order_by(
+        Installer.is_active.desc(), Installer.name).all()
+
+    try:
+        installer_id = int(request.values.get("installer_id") or 0) or None
+    except (TypeError, ValueError):
+        installer_id = None
+    desde = _parse_date(request.values.get("from"))
+    hasta = _parse_date(request.values.get("to"))
+
+    if request.method == "POST":
+        inst = Installer.query.get(installer_id) if installer_id else None
+        if not inst:
+            flash("Elige el instalador del corte.", "danger")
+            return redirect(url_for("corte_instalador_nuevo"))
+
+        marcadas = {int(v) for v in request.form.getlist("cita") if str(v).isdigit()}
+        if not marcadas:
+            flash("Marca al menos una cita para el corte.", "warning")
+            return redirect(url_for("corte_instalador_nuevo", installer_id=inst.id))
+
+        # Se vuelve a calcular acá, contra el estado de AHORA, en vez de confiar
+        # en los montos que venían en el formulario: entre que se abrió la
+        # pantalla y se guardó, alguien pudo cambiar un descuento —o armar el
+        # mismo corte desde otro computador.
+        disponibles = {t["appointment_id"]: t for t in _trabajos_cortables(inst.id)}
+        elegidas = [disponibles[i] for i in sorted(marcadas) if i in disponibles]
+        if not elegidas:
+            flash("Esos trabajos ya entraron en otro corte.", "warning")
+            return redirect(url_for("corte_instalador_nuevo", installer_id=inst.id))
+
+        corte = InstallerCut(
+            installer_id=inst.id,
+            created_by=getattr(getattr(g, "current_user", None), "username", None),
+            paid_on=_parse_date(request.form.get("paid_on")),
+            note=(request.form.get("note") or "").strip() or None,
+        )
+        db.session.add(corte)
+        db.session.flush()
+
+        for t in elegidas:
+            for l in t["lineas"]:
+                db.session.add(InstallerCutLine(
+                    cut_id=corte.id,
+                    outsourcing_id=l["id"],
+                    appointment_id=t["appointment_id"],
+                    fecha=t["fecha"],
+                    placa=t["placa"],
+                    cliente=t["cliente"],
+                    servicio=l["servicio"],
+                    descripcion=l["descripcion"],
+                    lista=l["lista"],
+                    cobrado=l["cobrado"],
+                    pct=l["pct"],
+                    material_por=l["material_por"],
+                    costo=l["costo"],
+                    motivo=t["motivo"] or None,
+                ))
+        db.session.commit()
+
+        perdidas = len(marcadas) - len(elegidas)
+        if perdidas > 0:
+            flash(f"{perdidas} cita(s) quedaron por fuera: ya estaban en otro corte.",
+                  "warning")
+        flash(f"Corte de {inst.name} creado.", "success")
+        return redirect(url_for("corte_instalador_detalle", cut_id=corte.id))
+
+    trabajos = _trabajos_cortables(installer_id, desde, hasta) if installer_id else []
+    return render_template(
+        "corte_instalador_nuevo.html",
+        instaladores=instaladores,
+        installer_id=installer_id,
+        desde=desde, hasta=hasta,
+        trabajos=trabajos,
+        hoy=bogota_today(),
+    )
+
+
+@app.route("/cortes-instaladores/<int:cut_id>")
+def corte_instalador_detalle(cut_id):
+    if not _solo_admin():
+        flash("Acceso restringido.", "danger")
+        return redirect(url_for("calendar_view"))
+    return render_template("corte_instalador_detalle.html",
+                           corte=InstallerCut.query.get_or_404(cut_id),
+                           hoy=bogota_today())
+
+
+@app.route("/cortes-instaladores/<int:cut_id>/pagar", methods=["POST"])
+def corte_instalador_pagar(cut_id):
+    """Marcar el corte como pagado, o devolverlo a pendiente."""
+    if not _solo_admin():
+        flash("Acceso restringido.", "danger")
+        return redirect(url_for("calendar_view"))
+
+    corte = InstallerCut.query.get_or_404(cut_id)
+    if request.form.get("deshacer"):
+        corte.paid_on = None
+        flash("El corte volvió a quedar pendiente de pago.", "info")
+    else:
+        corte.paid_on = _parse_date(request.form.get("paid_on")) or bogota_today()
+        flash(f"Corte marcado como pagado el {corte.paid_on.strftime('%d/%m/%Y')}.",
+              "success")
+    db.session.commit()
+    return redirect(url_for("corte_instalador_detalle", cut_id=corte.id))
+
+
+@app.route("/cortes-instaladores/<int:cut_id>/borrar", methods=["POST"])
+def corte_instalador_borrar(cut_id):
+    """Deshacer un corte. Sus trabajos vuelven a quedar disponibles, que es el
+    único camino de vuelta cuando se arma uno con la cita equivocada."""
+    if not _solo_admin():
+        flash("Acceso restringido.", "danger")
+        return redirect(url_for("calendar_view"))
+
+    corte = InstallerCut.query.get_or_404(cut_id)
+    nombre = corte.installer.name if corte.installer else "el instalador"
+    db.session.delete(corte)
+    db.session.commit()
+    flash(f"Corte de {nombre} eliminado. Sus trabajos vuelven a estar disponibles.",
+          "info")
+    return redirect(url_for("cortes_instaladores_view"))
 
 
 def _servicios_facturables(vehicle_type: str = ""):
