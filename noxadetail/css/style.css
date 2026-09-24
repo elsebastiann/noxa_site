@@ -1132,7 +1132,15 @@ table.ppf-table .ppf-quote-hint{ color: var(--gold); font-style: italic; }
 
 .ppf-highlights{
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
+    /* auto-fit + minmax en vez de "repeat(3, 1fr)": con 3 columnas fijas, el
+       min-width:0 de abajo evita el desborde pero deja que se compriman a
+       cualquier ancho, y con textos largos (la descripción de "Full Car",
+       nombres como "Nanocerámica UltraOptic") el resultado era una columna
+       angosta y alargada, con casi una palabra por línea. Con minmax(200px,
+       1fr) cada tarjeta nunca baja de un ancho legible: el grid decide solo
+       si caben 3, 2 o 1 por fila según el espacio real disponible.
+    */
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
     gap: 16px;
     margin-bottom: 20px;
 }
