@@ -1,161 +1,171 @@
-"""El ajuste porcentual es interno: sube los precios, pero no se ve.
+"""El ajuste sobre precios de lista tiene que alcanzar a TODO lo que se cotiza.
 
-Quien cotiza puede subirle un % a los precios de lista mientras arma la
-cotización. El cliente ve los valores YA con el aumento adentro — nunca el
-aumento aparte, porque eso le diría cuánto se le movió el precio de lista.
+Nació para los servicios del catálogo y para el PPF. Polarizado y wrap quedaron
+por fuera sin que se notara: el servidor sí sabía subirlos, pero esa rama estaba
+muerta porque el formulario siempre manda un precio en el campo —el de catálogo,
+sin ajustar— y ese gana. Resultado: se ponía 15% y el polarizado salía al mismo
+precio de siempre, sin ningún aviso.
 """
 import itertools
-import json
+import re
 
 import pytest
 
-from conftest import app_module as A, make_user
-from precios_ppf import foto, precio
+from conftest import app_module as A
+from conftest import make_user
 
 _u = itertools.count(1)
+
+
+@pytest.fixture(autouse=True)
+def _catalogo_intacto():
+    """Los tests tocan precios del catálogo compartido; hay que devolverlos."""
+    with A.app.app_context():
+        tint = [(t.id, t.precio) for t in A.TintOption.query.all()]
+        wrap = [(w.id, w.price) for w in A.WrapPrice.query.all()]
+    yield
+    with A.app.app_context():
+        for tid, precio in tint:
+            o = A.TintOption.query.get(tid)
+            if o:
+                o.precio = precio
+        for wid, precio in wrap:
+            w = A.WrapPrice.query.get(wid)
+            if w:
+                w.price = precio
+        A.db.session.commit()
 
 
 @pytest.fixture
 def sesion(client):
     with A.app.app_context():
-        uid = make_user(f"aj{next(_u)}", role="admin").id
+        A.sembrar_catalogo_polarizado()
+        A.sembrar_catalogo_wrap()
+        uid = make_user(f"aju{next(_u)}", role="admin").id
     with client.session_transaction() as sess:
         sess["user_id"] = uid
     return client
 
 
-def _crear(client, **datos):
-    base = {"customer_name": "Laura Ortiz"}
-    base.update(datos)
-    r = client.post("/quotes/new", data=base, follow_redirects=False)
-    assert r.status_code == 302
-    return r.headers["Location"].rstrip("/").split("/")[-1]
+def _cot(code):
+    return A.Quote.query.filter_by(code=code).first()
 
 
 def _borrar(code):
     with A.app.app_context():
-        c = A.Quote.query.filter_by(code=code).first()
+        c = _cot(code)
         if c:
             A.db.session.delete(c)
             A.db.session.commit()
 
 
-class TestElAjusteSubeLosPrecios:
-    def test_el_precio_congelado_ya_lo_trae(self, sesion):
-        base = precio("Manijas", "Xpel")
-        code = _crear(sesion, ppf_coverage=["Manijas"], ajuste_pct="20")
+class TestElFormularioTraeElGancho:
+    """Sin `data-lista` el navegador no tiene sobre qué re-tarifar y el ajuste
+    se queda quieto sin decir nada — que es exactamente como estaba."""
+
+    def test_el_polarizado_expone_su_precio_de_lista(self, sesion):
+        html = sesion.get("/quotes/new").get_data(as_text=True)
+        campos = re.findall(r'class="tint-precio"[^>]*data-lista="(\d+)"', html)
+        assert campos, "los campos de polarizado no traen data-lista"
+        assert all(int(v) > 0 for v in campos)
+
+    def test_el_wrap_expone_su_precio_de_lista(self, sesion):
+        with A.app.app_context():
+            w = A.WrapPrice.query.filter_by(is_active=True).first()
+            w.price = 1_500_000
+            A.db.session.commit()
+        html = sesion.get("/quotes/new").get_data(as_text=True)
+        assert re.search(r'class="wrap-precio"[^>]*data-lista="\d+"', html)
+
+    def test_el_data_lista_es_el_de_catalogo_no_el_ya_ajustado(self, sesion):
+        """Si trajera el precio ajustado, mover el % lo compondría: 15% sobre
+        un precio que ya venía con 15%."""
+        with A.app.app_context():
+            precios = {t.titulo: t.precio
+                       for t in A.TintOption.query.filter_by(is_active=True).all()}
+        html = sesion.get("/quotes/new").get_data(as_text=True)
+        campos = {int(v) for v in
+                  re.findall(r'class="tint-precio"[^>]*data-lista="(\d+)"', html)}
+        assert campos == set(precios.values())
+
+
+class TestElServidorSubeLoQueLlegaSinPrecio:
+    """La red de seguridad: si el campo llega vacío, el precio sale del catálogo
+    y el ajuste tiene que caerle encima igual."""
+
+    def _crear(self, client, ajuste, extra):
+        datos = {"customer_name": "Cliente Ajuste", "ajuste_pct": str(ajuste)}
+        datos.update(extra)
+        r = client.post("/quotes/new", data=datos, follow_redirects=False)
+        assert r.status_code == 302, r.data[:300]
+        return r.headers["Location"].rstrip("/").split("/")[-1]
+
+    def test_el_polarizado_sube_con_el_ajuste(self, sesion):
+        with A.app.app_context():
+            op = A.TintOption.query.filter_by(is_active=True).order_by(
+                A.TintOption.orden).first()
+            titulo, lista = op.titulo, op.precio
+        code = self._crear(sesion, 20, {"tint_opcion": [titulo]})
         try:
             with A.app.app_context():
-                guardado = A.Quote.query.filter_by(code=code).first().ppf_items[0].precios["Xpel"]
-            assert guardado == round(base * 1.2 / 1000) * 1000
+                precio = _cot(code).tint_items[0].precio
+            assert precio == int(round(lista * 1.20 / 1000)) * 1000
+            assert precio > lista
         finally:
             _borrar(code)
 
-    def test_sin_ajuste_queda_el_de_lista(self, sesion):
-        """Contraprueba: si no, el test de arriba pasaría por cualquier motivo."""
-        code = _crear(sesion, ppf_coverage=["Manijas"])
+    def test_el_wrap_sube_con_el_ajuste(self, sesion):
+        with A.app.app_context():
+            w = A.WrapPrice.query.filter_by(is_active=True).first()
+            w.price = 2_000_000
+            A.db.session.commit()
+            cob = w.coverage
+        code = self._crear(sesion, 10, {"wrap_coverage": [cob]})
         try:
             with A.app.app_context():
-                c = A.Quote.query.filter_by(code=code).first()
-                assert c.ppf_items[0].precios["Xpel"] == precio("Manijas", "Xpel")
-                assert c.ajuste_pct is None
+                assert _cot(code).wrap_items[0].price == 2_200_000
         finally:
             _borrar(code)
 
-    def test_tambien_sube_el_adicional_de_fotocromatico(self, sesion):
-        extra = foto("Farolas y Stops", "Xpel")
-        code = _crear(sesion, ppf_coverage=["Farolas y Stops"],
-                      **{"ppf_foto::Farolas y Stops": "1", "ajuste_pct": "20"})
+    def test_sin_ajuste_queda_el_precio_de_lista(self, sesion):
+        with A.app.app_context():
+            op = A.TintOption.query.filter_by(is_active=True).order_by(
+                A.TintOption.orden).first()
+            titulo, lista = op.titulo, op.precio
+        code = self._crear(sesion, 0, {"tint_opcion": [titulo]})
         try:
             with A.app.app_context():
-                it = A.Quote.query.filter_by(code=code).first().ppf_items[0]
-                assert it.precios_foto["Xpel"] == round(extra * 1.2 / 1000) * 1000
+                assert _cot(code).tint_items[0].precio == lista
         finally:
             _borrar(code)
 
-    def test_lo_calcula_el_servidor_no_el_navegador(self, sesion):
-        """Los precios de catálogo se congelan en el servidor justamente para
-        que no se puedan alterar desde el formulario. Si el aumento llegara ya
-        calculado, se abriría esa puerta."""
-        import inspect
-        fuente = inspect.getsource(A._leer_formulario_de_cotizacion)
-        assert 'request.form.get("ajuste_pct")' in fuente
-        assert "def con_ajuste" in fuente
-
-    def test_un_porcentaje_absurdo_se_topa(self, sesion):
-        code = _crear(sesion, ppf_coverage=["Manijas"], ajuste_pct="9999")
+    def test_lo_escrito_a_mano_manda_sobre_el_ajuste(self, sesion):
+        """Un precio puesto a mano ya es el que se decidió cobrar; el % no
+        puede pisarlo."""
+        with A.app.app_context():
+            op = A.TintOption.query.filter_by(is_active=True).order_by(
+                A.TintOption.orden).first()
+            titulo = op.titulo
+        code = self._crear(sesion, 50, {"tint_opcion": [titulo],
+                                        f"tint_precio::{titulo}": "1234000"})
         try:
             with A.app.app_context():
-                assert A.Quote.query.filter_by(code=code).first().ajuste_pct == 200
+                assert _cot(code).tint_items[0].precio == 1_234_000
         finally:
             _borrar(code)
 
-    def test_redondea_a_mil(self, sesion):
+    def test_el_ajuste_redondea_a_miles(self, sesion):
         """Una cotización con cifras como $2.587.431 se ve calculada con
         calculadora."""
-        code = _crear(sesion, ppf_coverage=["Full Front"], ajuste_pct="13")
+        with A.app.app_context():
+            op = A.TintOption.query.filter_by(is_active=True).order_by(
+                A.TintOption.orden).first()
+            op.precio = 699_137
+            A.db.session.commit()
+            titulo = op.titulo
+        code = self._crear(sesion, 13, {"tint_opcion": [titulo]})
         try:
             with A.app.app_context():
-                for v in A.Quote.query.filter_by(code=code).first().ppf_items[0].precios.values():
-                    assert v % 1000 == 0, v
-        finally:
-            _borrar(code)
-
-
-class TestElClienteNoVeElAjuste:
-    def test_el_link_no_lo_menciona(self, sesion):
-        code = _crear(sesion, ppf_coverage=["Manijas"], ajuste_pct="20")
-        try:
-            with A.app.app_context():
-                token = A.Quote.query.filter_by(code=code).first().public_token
-            cuerpo = sesion.get(f"/c/{token}").data.decode().lower()
-            for rastro in ("ajuste", "20%", "precio de lista", "incremento"):
-                assert rastro not in cuerpo, f"se le coló «{rastro}» al cliente"
-        finally:
-            _borrar(code)
-
-    def test_el_pdf_no_lo_menciona(self, sesion):
-        import inspect
-        fuente = inspect.getsource(A._construir_pdf_cotizacion)
-        assert "ajuste_pct" not in fuente, "el PDF no puede nombrar el ajuste"
-
-    def test_pero_las_cifras_del_cliente_ya_lo_traen(self, sesion):
-        """Es la razón de meterlo en el precio y no en una línea aparte: si el
-        cliente viera el precio de lista y un total distinto, no cuadraría."""
-        base = precio("Manijas", "Xpel")
-        code = _crear(sesion, ppf_coverage=["Manijas"], ajuste_pct="20")
-        try:
-            with A.app.app_context():
-                c = A.Quote.query.filter_by(code=code).first()
-                esperado = round(base * 1.2 / 1000) * 1000
-                assert c.ppf_totales["Xpel"] == esperado
-                token = c.public_token
-            # El link arma los montos en JavaScript a partir del JSON que le
-            # embebemos, así que en el HTML servido la cifra viaja cruda.
-            assert str(esperado) in sesion.get(f"/c/{token}").data.decode()
-        finally:
-            _borrar(code)
-
-    def test_la_vista_interna_si_lo_dice(self, sesion):
-        code = _crear(sesion, ppf_coverage=["Manijas"], ajuste_pct="20")
-        try:
-            cuerpo = sesion.get(f"/quotes/{code}").data.decode()
-            assert "+20%" in cuerpo and "solo visible aquí" in cuerpo
-        finally:
-            _borrar(code)
-
-
-class TestConvieneConElDescuento:
-    def test_el_descuento_se_aplica_sobre_el_precio_ya_subido(self, sesion):
-        """El orden importa: primero sube el precio de lista, después se
-        descuenta. Al revés daría otra cifra."""
-        base = precio("Manijas", "Xpel")
-        code = _crear(sesion, ppf_coverage=["Manijas"], ajuste_pct="20",
-                      discount_type="percentage", discount_value="10")
-        try:
-            with A.app.app_context():
-                c = A.Quote.query.filter_by(code=code).first()
-                subido = round(base * 1.2 / 1000) * 1000
-                assert c.totales_por_marca["Xpel"] == subido - round(subido * 0.1)
+                assert _cot(code).tint_items[0].precio % 1000 == 0
         finally:
             _borrar(code)

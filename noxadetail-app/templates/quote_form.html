@@ -452,8 +452,11 @@
               {%- if t.nota %} {{ t.nota }}.{% endif -%}
             </span>
           </span>
+          {# data-lista guarda el precio de catálogo para poder re-tarifar sobre
+             él cuando cambia el %: aplicarlo sobre un precio ya ajustado lo
+             compondría. #}
           <input type="number" min="0" step="1" class="tint-precio"
-                 name="tint_precio::{{ t.titulo }}"
+                 name="tint_precio::{{ t.titulo }}" data-lista="{{ t.precio }}"
                  value="{{ tint_iniciales.get(t.titulo, t.precio) if tint_iniciales else t.precio }}">
           <input type="radio" name="tint_elegido" value="{{ t.titulo }}" class="tint-radio"
                  title="Esta es la que suma al total"
@@ -486,7 +489,7 @@
           {# step 1 y no 1000: un step grande VALIDA, y un precio que no sea
              múltiplo hace que el formulario se niegue a enviarse sin avisar. #}
           <input type="number" min="0" step="1" class="wrap-precio"
-                 name="wrap_precio::{{ w.cobertura }}"
+                 name="wrap_precio::{{ w.cobertura }}" data-lista="{{ w.precio }}"
                  value="{{ wrap_iniciales.get(w.cobertura, w.precio) if wrap_iniciales else w.precio }}"
                  placeholder="0">
         </label>
@@ -1419,12 +1422,29 @@ alSalirDelCampo("plate", v => `/api/clients/by-plate?plate=${encodeURIComponent(
 alSalirDelCampo("customer_phone", v => `/api/clients/by-phone?phone=${encodeURIComponent(v)}`);
 alSalirDelCampo("customer_name", v => `/api/clients/by-name?name=${encodeURIComponent(v)}`);
 
+// Polarizado y wrap traen su precio en un campo suelto, no en `lineas`, así que
+// el % tiene que reescribirlos aparte. Se respeta lo escrito a mano: ahí la
+// cifra ya es la que se decidió cobrar, y pisarla con un porcentaje borraría una
+// decisión. Fijar el valor desde JS no dispara "input", así que la marca solo la
+// pone quien de verdad escribió en el campo.
+document.querySelectorAll(".tint-precio[data-lista], .wrap-precio[data-lista]")
+  .forEach(inp => inp.addEventListener("input", () => { inp.dataset.aMano = "1"; }));
+
+function reTarifarCamposSueltos() {
+  document.querySelectorAll(".tint-precio[data-lista], .wrap-precio[data-lista]")
+    .forEach(inp => {
+      if (inp.dataset.aMano) return;
+      inp.value = conAjuste(Number(inp.dataset.lista) || 0);
+    });
+}
+
 document.getElementById("ajustePct").addEventListener("input", () => {
   // Las líneas ya agregadas se re-tarifan sobre su precio de lista, no sobre
   // el ajustado: aplicar el % sobre un precio ya ajustado lo compondría.
   for (const l of lineas) {
     if (l.deLista) l.precio = conAjuste(l.deLista);
   }
+  reTarifarCamposSueltos();
   pintarTodo();
 });
 

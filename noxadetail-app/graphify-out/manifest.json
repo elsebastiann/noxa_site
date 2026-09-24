@@ -390,8 +390,8 @@
     "semantic_hash": ""
   },
   "templates/quote_form.html": {
-    "mtime": 1790106612.2192287,
-    "ast_hash": "acbead894cdc64d8dd407f962030b889",
+    "mtime": 1790273747.2577672,
+    "ast_hash": "05a9841ffe512408b5fb9447bc6a3cf2",
     "semantic_hash": ""
   },
   "templates/quotes_list.html": {
@@ -455,8 +455,8 @@
     "semantic_hash": ""
   },
   "tests/test_ajuste_precios.py": {
-    "mtime": 1788491025.7504165,
-    "ast_hash": "fd1d5a6831ac84b95620f476fdaccba3",
+    "mtime": 1790273630.21852,
+    "ast_hash": "184896b4c29146e98b4b5e3067a367e6",
     "semantic_hash": ""
   },
   "tests/test_precio_exacto.py": {
