@@ -130,9 +130,11 @@
 
     {% if c.items_de_servicio %}
     <div class="sec">{% if dos_partes %}Parte 1 · Servicios{% else %}Servicios{% endif %}</div>
-    {% for it in c.items_de_servicio %}
-    <label class="item" data-svc="{{ it.id }}">
-      <input type="checkbox" checked data-precio="{{ it.total }}">
+    {% for fila in c.servicios_del_link %}
+    {% set it = fila.item %}
+    <label class="item" data-svc="{{ it.id }}"
+           {% if fila.grupo %}data-grupo="{{ fila.grupo }}"{% endif %}>
+      <input type="checkbox" {% if fila.marcado %}checked{% endif %} data-precio="{{ it.total }}">
       <span class="txt">
         <span class="nom">{{ it.description }}{% if it.quantity > 1 %} × {{ it.quantity }}{% endif %}{%
           if it.warranty %}<span class="gar"> (garantía {{ it.warranty }})</span>{% endif %}</span>
@@ -523,8 +525,23 @@ document.getElementById("formPdf").addEventListener("submit", () => {
   if ($tintPdf()) agregar("tint", $tintPdf().value);
 });
 
+// Servicios excluyentes: son niveles de lo mismo (un coating de 3 años y uno
+// de 5) y el carro lleva uno. Marcar uno desmarca los del mismo grupo, para que
+// el total nunca sume los dos. Desmarcarlo sí deja el grupo en nada: el cliente
+// puede no querer ninguno, y esa sigue siendo su decisión.
+function soloUnoDelGrupo(chk) {
+  const grupo = chk.closest("[data-grupo]")?.dataset.grupo;
+  if (!grupo || !chk.checked) return;
+  document.querySelectorAll(`[data-grupo="${CSS.escape(grupo)}"] input[type=checkbox]`)
+    .forEach(otro => { if (otro !== chk) otro.checked = false; });
+}
+
 document.querySelectorAll('input[type=checkbox], input[name="tintOpcion"]').forEach(i =>
-  i.addEventListener("change", () => { pintar(); guardarSeleccion(); }));
+  i.addEventListener("change", () => {
+    soloUnoDelGrupo(i);
+    pintar();
+    guardarSeleccion();
+  }));
 document.querySelectorAll(".marca").forEach(m => m.addEventListener("click", () => {
   document.querySelectorAll(".marca").forEach(x => x.classList.remove("on"));
   m.classList.add("on");

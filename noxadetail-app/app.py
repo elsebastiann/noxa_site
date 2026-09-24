@@ -1084,6 +1084,46 @@ class Quote(db.Model):
         return [i for i in self.items if not se_cotiza_aparte(i.description or "")]
 
     @property
+    def servicios_del_link(self) -> list:
+        """Los servicios como los ve el cliente: cada uno con su grupo
+        excluyente y si nace marcado.
+
+        Cotizar dos niveles del mismo servicio es normal —se le muestran al
+        cliente para que compare—, pero dejarlos marcados los dos suma un
+        coating de 3 años ENCIMA de uno de 5, que no es nada que se pueda
+        prestar. Se marca el mejor de cada grupo y los demás quedan a un clic.
+
+        Mejor = más años de garantía; a igualdad, el más caro. La garantía es lo
+        que el cliente compara, y el precio solo desempata cuando el texto no
+        dice años."""
+        items = self.items_de_servicio
+        grupos = {}
+        for it in items:
+            g = grupo_excluyente(it.description or "")
+            if g:
+                grupos.setdefault(g, []).append(it)
+
+        mejor_de = {}
+        for g, miembros in grupos.items():
+            # Con uno solo no hay disyuntiva que resolver: se deja marcado y sin
+            # grupo, para que no aparezca como una elección que no existe.
+            if len(miembros) > 1:
+                mejor_de[g] = max(
+                    miembros,
+                    key=lambda i: (_anios_de_garantia(i.warranty), i.total or 0),
+                )
+
+        salida = []
+        for it in items:
+            g = grupo_excluyente(it.description or "")
+            if g not in mejor_de:
+                salida.append({"item": it, "grupo": None, "marcado": True})
+            else:
+                salida.append({"item": it, "grupo": g,
+                               "marcado": it is mejor_de[g]})
+        return salida
+
+    @property
     def opciones_polarizado(self) -> list:
         """Las películas entre las que elige el cliente.
 
@@ -15540,6 +15580,38 @@ def quote_public_seleccion(token):
     return jsonify(**_guardar_version_cliente(cot, request.get_json(silent=True) or {}))
 
 
+def _uno_por_grupo(cot: "Quote", ids: list) -> list:
+    """De cada grupo excluyente deja una sola línea.
+
+    El navegador ya lo impide, pero el PDF y el total salen de acá: una pestaña
+    vieja abierta desde antes del cambio, o un POST armado a mano, mandarían las
+    dos y el cliente terminaría con un documento que cobra un coating de 3 años
+    encima de uno de 5. Se queda la de mayor garantía, igual que al abrir.
+    """
+    elegidos = set(ids)
+    por_grupo = {}
+    for it in cot.items_de_servicio:
+        if it.id not in elegidos:
+            continue
+        g = grupo_excluyente(it.description or "")
+        if not g:
+            continue
+        actual = por_grupo.get(g)
+        if actual is None or (_anios_de_garantia(it.warranty), it.total or 0) > \
+                             (_anios_de_garantia(actual.warranty), actual.total or 0):
+            por_grupo[g] = it
+
+    ganadores = {it.id for it in por_grupo.values()}
+    salida = []
+    for i in ids:
+        item = next((x for x in cot.items_de_servicio if x.id == i), None)
+        if item is not None and grupo_excluyente(item.description or "") \
+                and i not in ganadores:
+            continue
+        salida.append(i)
+    return salida
+
+
 def _limpiar_seleccion(cot: "Quote", datos: dict) -> tuple:
     """Deja solo lo que de verdad pertenece a esta cotización.
 
@@ -15556,6 +15628,7 @@ def _limpiar_seleccion(cot: "Quote", datos: dict) -> tuple:
     tint = datos.get("tint")
     if not any(it.titulo == tint for it in cot.opciones_polarizado):
         tint = None          # lo que mande el navegador se valida contra la cotización
+    ids = _uno_por_grupo(cot, ids)
     return ([i.id for i in cot.items if i.id in set(ids)],
             [c.coverage for c in cot.ppf_items if c.coverage in set(cobs)],
             marca, latoneria,
@@ -17682,6 +17755,33 @@ def categoria_de_servicio(nombre: str) -> str:
         if any(c in n for c in claves):
             return categoria
     return SERVICE_CATEGORY_FALLBACK
+
+
+# Categorías donde los servicios son NIVELES de lo mismo y el cliente elige uno:
+# un carro lleva un coating, no dos. En el link se comportan como los cajones
+# del polarizado — marcar uno desmarca el otro.
+#
+# Va por lista y no por "misma categoría" a secas porque no todas lo son:
+# Detallado agrupa áreas distintas (interior, exterior, motor, llanta a llanta)
+# que sí se compran juntas, y Corrección & Brillo junta tratamientos que se
+# complementan —polichar y después porcelanizar es un combo, no una disyuntiva—.
+# Volverlas excluyentes le quitaría al cliente la posibilidad de comprar ambas.
+CATEGORIAS_EXCLUYENTES = {"Protección Cerámica", "Lavado & Mantenimiento"}
+
+
+def grupo_excluyente(nombre: str) -> str | None:
+    """El grupo dentro del cual solo puede quedar UNO. None si no aplica."""
+    categoria = categoria_de_servicio(nombre)
+    return categoria if categoria in CATEGORIAS_EXCLUYENTES else None
+
+
+def _anios_de_garantia(texto: str | None) -> int:
+    """Los años que promete una garantía escrita a mano.
+
+    El texto es libre ("5 años", "10 años con certificado de la marca"), así que
+    se lee el primer número y ya. Sin número no se puede comparar y vale 0."""
+    m = re.search(r"\d+", texto or "")
+    return int(m.group()) if m else 0
 
 
 # Umbrales del semáforo de los tableros. Viven acá y no en las plantillas para
