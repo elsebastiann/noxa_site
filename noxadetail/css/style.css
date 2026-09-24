@@ -1143,6 +1143,12 @@ table.ppf-table .ppf-quote-hint{ color: var(--gold); font-style: italic; }
     border-radius: var(--radius);
     padding: 20px;
     transition: border-color 0.2s ease;
+    /* Sin esto, un item de grid "1fr" nunca se achica más allá de su
+       contenido mínimo (el default es min-width:auto) — con textos largos
+       (la descripción de "Full Car", por ejemplo) eso empuja el grid a
+       desbordarse en vez de comprimir las columnas, cortando la tercera
+       tarjeta contra el borde de la ventana en pantallas no tan anchas. */
+    min-width: 0;
 }
 .ppf-highlight-card:hover{ border-color: rgba(212,180,108,0.5); }
 
