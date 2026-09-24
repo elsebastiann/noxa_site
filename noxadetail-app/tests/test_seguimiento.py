@@ -98,7 +98,11 @@ class TestColumnas:
         assert "+573001100004" not in [t["telefono"] for t in col["tarjetas"]]
 
     def test_ceramico_cumple_el_trimestre(self):
+        """Por mantener es para quien SÍ volvió: ya está en el ciclo y cumplió
+        el trimestre. El que nunca volvió debe su primera lavada, no la de
+        mantenimiento."""
         _cita("+573001100005", hace_dias=95, servicios="Coating Ceramico 9H", placa="SEG005")
+        _cita("+573001100005", hace_dias=60, placa="SEG005")     # volvió a lavar
         col = _columna(A._tablero_seguimiento(), "ceramico_mant")
         assert "+573001100005" in [t["telefono"] for t in col["tarjetas"]]
 
@@ -107,12 +111,43 @@ class TestColumnas:
         col = _columna(A._tablero_seguimiento(), "ceramico_mant")
         assert col["tarjetas"] == []
 
-    def test_lavada_premium_pasadas_las_4_semanas(self):
-        """Cadencia del negocio: lavada premium cada 3-4 semanas."""
+    def test_primera_lavada_pasadas_las_4_semanas(self):
+        """Cadencia del negocio: la primera lavada va a las 3-4 semanas."""
         _cita("+573001100007", hace_dias=40, servicios="Coating Ceramico 9H", placa="SEG007")
         tablero = A._tablero_seguimiento()
-        # A 40 días todavía no cumple el trimestre, así que cae en lavada.
-        assert "+573001100007" in [t["telefono"] for t in _columna(tablero, "lavada_premium")["tarjetas"]]
+        assert "+573001100007" in [t["telefono"]
+                                   for t in _columna(tablero, "lavada_premium")["tarjetas"]]
+
+    def test_la_primera_lavada_no_se_deja_de_deber_a_los_meses(self):
+        """A los 4 meses sin aparecer sigue debiendo su PRIMERA lavada — más,
+        no menos. Antes la columna de mantenimiento se lo tragaba a los 90 días
+        y esta solo veía la franja de 1 a 3 meses."""
+        _cita("+573001100021", hace_dias=120, servicios="Coating Ceramico 9H", placa="SEG021")
+        tablero = A._tablero_seguimiento()
+        assert "+573001100021" in [t["telefono"]
+                                   for t in _columna(tablero, "lavada_premium")["tarjetas"]]
+
+    def test_si_ya_volvio_no_le_deben_la_primera(self):
+        _cita("+573001100022", hace_dias=60, servicios="Coating Ceramico 9H", placa="SEG022")
+        _cita("+573001100022", hace_dias=35, placa="SEG022")     # volvió a lavar
+        tablero = A._tablero_seguimiento()
+        assert "+573001100022" not in [t["telefono"]
+                                       for t in _columna(tablero, "lavada_premium")["tarjetas"]]
+
+    def test_el_ceramico_se_reconoce_con_tilde(self):
+        """SQLite ignora mayúsculas pero no pliega acentos: con un ILIKE
+        '%ceramico%' un "Coating Cerámico" desaparecía de las dos columnas de
+        cerámico y nadie se enteraba."""
+        _cita("+573001100023", hace_dias=40, servicios="Coating Cerámico 9H", placa="SEG023")
+        tablero = A._tablero_seguimiento()
+        assert "+573001100023" in [t["telefono"]
+                                   for t in _columna(tablero, "lavada_premium")["tarjetas"]]
+
+    def test_el_ceramico_se_reconoce_en_mayusculas(self):
+        _cita("+573001100024", hace_dias=40, servicios="COATING CERÁMICO 9H", placa="SEG024")
+        tablero = A._tablero_seguimiento()
+        assert "+573001100024" in [t["telefono"]
+                                   for t in _columna(tablero, "lavada_premium")["tarjetas"]]
 
     def test_cliente_dormido_a_los_3_meses(self):
         _cita("+573001100008", hace_dias=100, placa="SEG008")
@@ -141,6 +176,7 @@ class TestSinDuplicados:
         """Precedencia: lo de cerámico manda sobre 'dormido' — es una venta
         concreta con motivo concreto, no un 'hace rato no venís'."""
         _cita("+573001100011", hace_dias=120, servicios="Coating Ceramico 9H", placa="SEG011")
+        _cita("+573001100011", hace_dias=95, placa="SEG011")     # volvió a lavar
         tablero = A._tablero_seguimiento()
         col = [c["clave"] for c in tablero["columnas"]
                for t in c["tarjetas"] if t["telefono"] == "+573001100011"][0]
@@ -257,12 +293,24 @@ class TestPantalla:
     def test_muestra_las_tarjetas_y_el_enlace_de_whatsapp(self, client):
         login_as(client, make_user("admin_seg6", role="admin"))
         _cita("+573001100020", hace_dias=95, servicios="Coating Ceramico 9H", placa="SEG020")
+        _cita("+573001100020", hace_dias=60, placa="SEG020")     # volvió: le toca mantenimiento
 
         html = client.get("/seguimiento").get_data(as_text=True)
 
         assert "Cerámico por mantener" in html
         assert "wa.me/573001100020" in html
         assert "mantenimiento" in html    # el mensaje sugerido va precargado
+
+    def test_la_columna_se_llama_primera_lavada_ceramico(self, client):
+        """El rótulo dice qué hay que vender: la primera lavada, no una lavada
+        premium cualquiera."""
+        login_as(client, make_user("admin_seg8", role="admin"))
+        _cita("+573001100025", hace_dias=40, servicios="Coating Ceramico 9H", placa="SEG025")
+
+        html = client.get("/seguimiento").get_data(as_text=True)
+
+        assert "Primera lavada cerámico" in html
+        assert "Lavada premium" not in html
 
     def test_tablero_vacio_lo_dice_claro(self, client):
         login_as(client, make_user("admin_seg7", role="admin"))

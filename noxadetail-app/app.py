@@ -7254,8 +7254,15 @@ DIAS_SILENCIO_CLIENTE = 30
 COLUMNAS_SEGUIMIENTO = [
     ("sin_responder",  "Sin responder",        "Escribió y nadie contestó",            "#e05252"),
     ("caliente",       "Caliente sin cita",    "Buen lead, todavía sin agendar",       "#d4b46c"),
+    # Va ANTES de "por mantener": quien nunca volvió tras el cerámico le debe la
+    # primera lavada, y eso no se le pasa a los 3 meses — se vuelve más urgente.
+    # Con el orden al revés, la de mantenimiento se los tragaba a los 90 días y
+    # esta columna solo veía la franja de 1 a 3 meses.
+    # La clave sigue siendo `lavada_premium` aunque el rótulo cambie: es la que
+    # quedó guardada en las gestiones ya hechas (tarjetas ocultadas y
+    # contactadas), y renombrarla las dejaría huérfanas.
+    ("lavada_premium", "Primera lavada cerámico", "Hizo cerámico y no ha vuelto",      "#66bb6a"),
     ("ceramico_mant",  "Cerámico por mantener","Cumplió el trimestre",                 "#4a9eff"),
-    ("lavada_premium", "Lavada premium",       "Cliente de cerámico sin venir",        "#66bb6a"),
     ("dormido",        "Dormido",              "Ya compró, no vuelve hace 3 meses",    "#9575cd"),
     ("enfriado",       "Se enfrió",            "Se agotaron los seguimientos",         "#78909c"),
     ("remarketing",    "Remarketing",          "Dijo que no, pero valía la pena",      "#ff8a65"),
@@ -7334,14 +7341,22 @@ def _historial_ceramico() -> dict:
     """{telefono: fecha del último cerámico o de su último mantenimiento}.
 
     Se mira el último y no el primero para que el ciclo se reinicie solo: tres
-    meses después de CADA mantenimiento vuelve a tocar."""
+    meses después de CADA mantenimiento vuelve a tocar.
+
+    El nombre se compara sin tildes y en minúsculas, en Python y no con un
+    ILIKE: SQLite ignora mayúsculas pero NO pliega acentos, así que un servicio
+    guardado como "Coating Cerámico" no encajaba con "%ceramico%" y ese cliente
+    desaparecía de las dos columnas de cerámico sin que nada lo avisara. Hoy el
+    catálogo los tiene sin tilde, pero el sitio público sí los escribe con ella
+    y basta que alguien cree uno así para abrir el hueco.
+    """
     filas = (Appointment.query
              .filter(Appointment.status == "completed",
-                     Appointment.services.ilike("%ceramico%"),
                      Appointment.phone.isnot(None), Appointment.phone != "")
              .order_by(Appointment.start_datetime)
              .all())
-    return {_normalize_whatsapp_number(a.phone): a for a in filas}
+    return {_normalize_whatsapp_number(a.phone): a for a in filas
+            if "ceramico" in _sin_tildes(a.services or "")}
 
 
 def _tablero_seguimiento() -> dict:
@@ -7439,8 +7454,31 @@ def _tablero_seguimiento() -> dict:
               {"carro": c.carro, "marca": c.marca, "calificacion": c.calificacion,
                "conv_id": c.id, "estado": c.status})
 
-    # 3. Cerámico por mantener — trimestral, contado desde el último cerámico
-    #    o mantenimiento.
+    # 3. Primera lavada cerámico — hizo el cerámico y NO ha vuelto desde
+    #    entonces. La primera lavada va a las 3-4 semanas, siempre, y mientras
+    #    no aparezca sigue debiéndola: a los 4 meses no deja de deberla, al
+    #    contrario. Por eso se cuenta desde el cerámico y no desde la última
+    #    visita, y por eso va antes que la de mantenimiento.
+    for tel, appt_cer in ceramicos.items():
+        fecha_cer = appt_cer.start_datetime.date()
+        visita = ultima_visita.get(tel)
+        # Volvió después del cerámico: ya entró al ciclo y le toca la de
+        # mantenimiento, no la primera.
+        if visita and visita.start_datetime.date() > fecha_cer:
+            continue
+        dias = (hoy - fecha_cer).days
+        if dias < DIAS_LAVADA_PREMIUM:
+            continue
+        c = conversaciones.get(tel)
+        poner("lavada_premium", tel, appt_cer.customer_name,
+              f"Cerámico hace {dias} días, sin volver · {appt_cer.plate or 'sin placa'}",
+              dias,
+              {"placa": appt_cer.plate, "conv_id": c.id if c else None,
+               "carro": c.carro if c else "", "marca": c.marca if c else ""})
+
+    # 4. Cerámico por mantener — trimestral, contado desde el último cerámico
+    #    o mantenimiento. Acá llega quien SÍ volvió: los que nunca aparecieron
+    #    ya se los llevó la columna de arriba.
     for tel, appt in ceramicos.items():
         dias = (hoy - appt.start_datetime.date()).days
         if dias < DIAS_MANT_CERAMICO:
@@ -7449,20 +7487,6 @@ def _tablero_seguimiento() -> dict:
         poner("ceramico_mant", tel, appt.customer_name,
               f"Cerámico hace {dias // 30} mes(es) · {appt.plate or 'sin placa'}", dias,
               {"placa": appt.plate, "conv_id": c.id if c else None,
-               "carro": c.carro if c else "", "marca": c.marca if c else ""})
-
-    # 4. Lavada premium — cliente de cerámico que se pasó de la cadencia.
-    for tel, appt_cer in ceramicos.items():
-        visita = ultima_visita.get(tel)
-        if not visita:
-            continue
-        dias = (hoy - visita.start_datetime.date()).days
-        if dias < DIAS_LAVADA_PREMIUM:
-            continue
-        c = conversaciones.get(tel)
-        poner("lavada_premium", tel, visita.customer_name,
-              f"Sin venir hace {dias} días · {visita.plate or 'sin placa'}", dias,
-              {"placa": visita.plate, "conv_id": c.id if c else None,
                "carro": c.carro if c else "", "marca": c.marca if c else ""})
 
     # 5. Dormido — ya compró y lleva un trimestre sin aparecer.
